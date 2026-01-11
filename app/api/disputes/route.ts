@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       data: {
         reason,
         description,
-        initiatorEvidence: evidence ? { items: evidence } : null,
+        initiatorEvidence: evidence ? { items: evidence } : undefined,
         status: "OPEN",
         disputeFee,
         transactionId,
