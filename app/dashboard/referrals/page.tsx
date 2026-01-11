@@ -15,31 +15,26 @@ import {
   Loader2,
 } from "lucide-react";
 
-// Mock data
-const mockReferralData = {
-  code: "alex123",
+// Data loaded from database - starts empty
+const referralData = {
+  code: "", // Generated on user registration
   isCustomized: false,
-  totalReferrals: 12,
-  activeReferrals: 8,
-  totalEarnings: 4.5,
-  pendingEarnings: 1.2,
-  availableEarnings: 3.3,
-  referrals: [
-    { id: "1", user: "user1.sol", status: "ACTIVE", earnings: 1.5, joinedAt: new Date(Date.now() - 86400000 * 30) },
-    { id: "2", user: "builder.sol", status: "ACTIVE", earnings: 2.0, joinedAt: new Date(Date.now() - 86400000 * 20) },
-    { id: "3", user: "newdev.sol", status: "REGISTERED", earnings: 0, joinedAt: new Date(Date.now() - 86400000 * 5) },
-    { id: "4", user: "crypto_fan", status: "ACTIVE", earnings: 0.8, joinedAt: new Date(Date.now() - 86400000 * 15) },
-  ],
+  totalReferrals: 0,
+  activeReferrals: 0,
+  totalEarnings: 0,
+  pendingEarnings: 0,
+  availableEarnings: 0,
+  referrals: [] as any[],
 };
 
 export default function ReferralsPage() {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [newCode, setNewCode] = useState(mockReferralData.code);
+  const [newCode, setNewCode] = useState(referralData.code || "yourcode");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const referralLink = `https://app.market/r/${mockReferralData.code}`;
+  const referralLink = `https://appmarket.xyz/r/${newCode}`;
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -135,12 +130,12 @@ export default function ReferralsPage() {
                       Your Referral Code
                     </h3>
                     <p className="text-sm text-zinc-500">
-                      {mockReferralData.isCustomized
+                      {referralData.isCustomized
                         ? "You've already customized your code"
                         : "Customize once to make it memorable"}
                     </p>
                   </div>
-                  {!mockReferralData.isCustomized && !isEditing && (
+                  {!referralData.isCustomized && !isEditing && (
                     <button
                       onClick={() => setIsEditing(true)}
                       className="btn-secondary py-2 text-sm"
@@ -191,7 +186,7 @@ export default function ReferralsPage() {
                       <button
                         onClick={() => {
                           setIsEditing(false);
-                          setNewCode(mockReferralData.code);
+                          setNewCode(referralData.code);
                           setError("");
                         }}
                         className="btn-secondary py-2 text-sm"
@@ -206,7 +201,7 @@ export default function ReferralsPage() {
                 ) : (
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <span className="font-mono font-medium text-green-700 dark:text-green-400">
-                      {mockReferralData.code}
+                      {referralData.code}
                     </span>
                   </div>
                 )}
@@ -246,9 +241,9 @@ export default function ReferralsPage() {
                 Your Referrals
               </h2>
               
-              {mockReferralData.referrals.length > 0 ? (
+              {referralData.referrals.length > 0 ? (
                 <div className="space-y-3">
-                  {mockReferralData.referrals.map((ref) => (
+                  {referralData.referrals.map((ref) => (
                     <div
                       key={ref.id}
                       className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl"
@@ -301,19 +296,19 @@ export default function ReferralsPage() {
                 <span className="text-sm font-medium">Total Earnings</span>
               </div>
               <div className="text-4xl font-display font-bold">
-                {mockReferralData.totalEarnings} SOL
+                {referralData.totalEarnings} SOL
               </div>
               <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-green-100">Available</div>
                   <div className="text-xl font-semibold">
-                    {mockReferralData.availableEarnings} SOL
+                    {referralData.availableEarnings} SOL
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-green-100">Pending</div>
                   <div className="text-xl font-semibold">
-                    {mockReferralData.pendingEarnings} SOL
+                    {referralData.pendingEarnings} SOL
                   </div>
                 </div>
               </div>
@@ -334,7 +329,7 @@ export default function ReferralsPage() {
                     <span>Total Referrals</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {mockReferralData.totalReferrals}
+                    {referralData.totalReferrals}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -343,7 +338,7 @@ export default function ReferralsPage() {
                     <span>Active Sellers</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {mockReferralData.activeReferrals}
+                    {referralData.activeReferrals}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
