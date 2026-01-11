@@ -1,0 +1,591 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTH
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String?   @unique
+  emailVerified   DateTime?
+  passwordHash    String?
+  name            String?
+  username        String?   @unique
+  image           String?
+  bio             String?
+  walletAddress   String?   @unique
+  githubId        String?   @unique
+  githubUsername  String?
+  
+  // Verification & Trust
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  kycStatus       KycStatus @default(NONE)
+  
+  // Stats
+  totalSales      Int       @default(0)
+  totalPurchases  Int       @default(0)
+  totalVolume     Float     @default(0)
+  rating          Float     @default(0)
+  ratingCount     Int       @default(0)
+  
+  // Referral System
+  referralCode       String?   @unique  // Unique code like "alex123" or auto-generated
+  referralCodeCustomized Boolean @default(false)  // Can only customize once
+  referredBy         String?   // User ID of who referred them
+  referralEarnings   Float     @default(0)  // Total earnings from referrals
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastActiveAt    DateTime  @default(now())
+  
+  // Relations
+  listings        Listing[]        @relation("SellerListings")
+  bids            Bid[]
+  purchases       Transaction[]    @relation("BuyerTransactions")
+  sales           Transaction[]    @relation("SellerTransactions")
+  reviewsGiven    Review[]         @relation("ReviewAuthor")
+  reviewsReceived Review[]         @relation("ReviewSubject")
+  watchlist       Watchlist[]
+  notifications   Notification[]
+  disputes        Dispute[]        @relation("DisputeInitiator")
+  disputeResponses Dispute[]       @relation("DisputeRespondent")
+  accounts        Account[]
+  sessions        Session[]
+  
+  // Referral Relations
+  referralsGiven  Referral[]       @relation("Referrer")
+  referralReceived Referral?       @relation("ReferredUser")
+
+  @@index([walletAddress])
+  @@index([email])
+  @@index([githubUsername])
+  @@index([referralCode])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// LISTINGS & AUCTIONS
+// ============================================
+
+model Listing {
+  id                String        @id @default(cuid())
+  slug              String        @unique
+  
+  // Basic Info
+  title             String
+  tagline           String?
+  description       String        @db.Text
+  category          Category
+  tags              String[]
+  
+  // Tech Stack
+  techStack         String[]
+  frameworks        String[]
+  languages         String[]
+  
+  // Assets Included
+  githubRepo        String
+  githubRepoId      String?
+  hasDomain         Boolean       @default(false)
+  domain            String?
+  hasDatabase       Boolean       @default(false)
+  databaseType      String?
+  hasHosting        Boolean       @default(false)
+  hostingProvider   String?
+  hasSocialAccounts Boolean       @default(false)
+  socialAccounts    Json?
+  hasApiKeys        Boolean       @default(false)
+  hasDesignFiles    Boolean       @default(false)
+  hasDocumentation  Boolean       @default(false)
+  additionalAssets  String?       @db.Text
+  
+  // Media
+  thumbnailUrl      String?
+  screenshotUrls    String[]
+  demoUrl           String?
+  videoUrl          String?
+  
+  // Metrics (if deployed)
+  monthlyUsers      Int?
+  monthlyRevenue    Float?
+  githubStars       Int?
+  
+  // Auction Settings
+  listingType       ListingType   @default(AUCTION)
+  startingPrice     Float
+  reservePrice      Float?
+  buyNowPrice       Float?
+  buyNowEnabled     Boolean       @default(false)
+  currency          Currency      @default(SOL)
+  
+  // Timing
+  startTime         DateTime      @default(now())
+  endTime           DateTime
+  
+  // Status
+  status            ListingStatus @default(DRAFT)
+  featured          Boolean       @default(false)
+  featuredUntil     DateTime?
+  
+  // On-chain
+  onChainId         String?       @unique
+  escrowAddress     String?
+  nftMint           String?
+  
+  // Relations
+  sellerId          String
+  seller            User          @relation("SellerListings", fields: [sellerId], references: [id])
+  bids              Bid[]
+  transaction       Transaction?
+  watchlist         Watchlist[]
+  
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  publishedAt       DateTime?
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([category])
+  @@index([endTime])
+  @@index([featured])
+}
+
+model Bid {
+  id            String    @id @default(cuid())
+  amount        Float
+  currency      Currency  @default(SOL)
+  maxBid        Float?    // For auto-bidding
+  
+  // On-chain
+  onChainTx     String?
+  
+  // Status
+  isWinning     Boolean   @default(false)
+  isOutbid      Boolean   @default(false)
+  
+  // Relations
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id])
+  bidderId      String
+  bidder        User      @relation(fields: [bidderId], references: [id])
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+
+  @@index([listingId])
+  @@index([bidderId])
+  @@index([isWinning])
+}
+
+// ============================================
+// TRANSACTIONS & ESCROW
+// ============================================
+
+model Transaction {
+  id                  String            @id @default(cuid())
+  
+  // Amount
+  salePrice           Float
+  platformFee         Float
+  sellerProceeds      Float
+  currency            Currency          @default(SOL)
+  
+  // Payment
+  paymentMethod       PaymentMethod
+  stripePaymentId     String?
+  onChainTx           String?
+  escrowAddress       String?
+  
+  // Status
+  status              TransactionStatus @default(PENDING)
+  
+  // Transfer Checklist
+  transferChecklist   Json?
+  
+  // NFT
+  ownershipNftMint    String?
+  
+  // Relations
+  listingId           String            @unique
+  listing             Listing           @relation(fields: [listingId], references: [id])
+  buyerId             String
+  buyer               User              @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  sellerId            String
+  seller              User              @relation("SellerTransactions", fields: [sellerId], references: [id])
+  dispute             Dispute?
+  reviews             Review[]
+  
+  // Timestamps
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  paidAt              DateTime?
+  transferStartedAt   DateTime?
+  transferCompletedAt DateTime?
+  releasedAt          DateTime?
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+// ============================================
+// DISPUTES
+// ============================================
+
+model Dispute {
+  id                String        @id @default(cuid())
+  
+  // Reason
+  reason            DisputeReason
+  description       String        @db.Text
+  
+  // Evidence
+  initiatorEvidence Json?
+  respondentEvidence Json?
+  
+  // Status
+  status            DisputeStatus @default(OPEN)
+  resolution        DisputeResolution?
+  resolutionNotes   String?       @db.Text
+  
+  // Fees
+  disputeFee        Float         // 2% fee charged to losing party
+  feeCharged        Boolean       @default(false)
+  
+  // Buyer Escrow Deposit (for denial claims)
+  // When buyer claims they didn't receive, they must deposit additional funds into escrow
+  buyerDepositRequired Float?     // 10% of purchase price
+  buyerDepositAmount   Float?     @default(0)
+  buyerDepositHeld     Boolean    @default(false)
+  // If buyer loses dispute, deposit goes to treasury
+  depositForfeited     Boolean    @default(false)
+  
+  // Relations
+  transactionId     String        @unique
+  transaction       Transaction   @relation(fields: [transactionId], references: [id])
+  initiatorId       String
+  initiator         User          @relation("DisputeInitiator", fields: [initiatorId], references: [id])
+  respondentId      String
+  respondent        User          @relation("DisputeRespondent", fields: [respondentId], references: [id])
+  
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  resolvedAt        DateTime?
+
+  @@index([status])
+  @@index([transactionId])
+}
+
+// ============================================
+// REVIEWS & RATINGS
+// ============================================
+
+model Review {
+  id            String      @id @default(cuid())
+  rating        Int         // 1-5
+  comment       String?     @db.Text
+  
+  // Relations
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  authorId      String
+  author        User        @relation("ReviewAuthor", fields: [authorId], references: [id])
+  subjectId     String
+  subject       User        @relation("ReviewSubject", fields: [subjectId], references: [id])
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+
+  @@unique([transactionId, authorId])
+  @@index([subjectId])
+}
+
+// ============================================
+// WATCHLIST & NOTIFICATIONS
+// ============================================
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+// ============================================
+// TOKEN LAUNCHES
+// ============================================
+
+model TokenLaunch {
+  id              String            @id @default(cuid())
+  
+  // Token Info
+  tokenName       String
+  tokenSymbol     String
+  tokenMint       String?
+  totalSupply     BigInt
+  
+  // Launch Config
+  launchType      TokenLaunchType
+  presalePrice    Float?
+  listingPrice    Float?
+  
+  // Platform Fee (1% of supply)
+  platformTokens  BigInt?
+  
+  // Status
+  status          TokenLaunchStatus @default(PENDING)
+  
+  // Related Project
+  projectId       String
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  launchedAt      DateTime?
+
+  @@index([status])
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum KycStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Category {
+  SAAS
+  MOBILE_APP
+  WEB_APP
+  BROWSER_EXTENSION
+  API
+  AI_ML
+  ECOMMERCE
+  MARKETPLACE
+  SOCIAL
+  PRODUCTIVITY
+  DEVELOPER_TOOLS
+  FINTECH
+  GAMING
+  CRYPTO_WEB3
+  OTHER
+}
+
+enum ListingType {
+  AUCTION
+  FIXED_PRICE
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  ENDED
+  SOLD
+  CANCELLED
+  EXPIRED
+}
+
+enum Currency {
+  SOL
+  USDC
+  USD
+}
+
+enum PaymentMethod {
+  SOLANA
+  STRIPE
+  USDC
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  IN_ESCROW
+  TRANSFER_PENDING
+  TRANSFER_IN_PROGRESS
+  AWAITING_CONFIRMATION
+  DISPUTED
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+enum DisputeReason {
+  GITHUB_NOT_TRANSFERRED
+  DOMAIN_NOT_TRANSFERRED
+  CREDENTIALS_NOT_RECEIVED
+  CODE_DOESNT_MATCH
+  MISSING_ASSETS
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  AWAITING_RESPONSE
+  UNDER_REVIEW
+  RESOLVED
+  ESCALATED
+}
+
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  RELEASE_TO_SELLER
+  EXTEND_DEADLINE
+}
+
+enum NotificationType {
+  BID_PLACED
+  BID_OUTBID
+  AUCTION_WON
+  AUCTION_LOST
+  AUCTION_ENDING_SOON
+  TRANSFER_STARTED
+  TRANSFER_COMPLETED
+  PAYMENT_RECEIVED
+  DISPUTE_OPENED
+  DISPUTE_RESOLVED
+  REVIEW_RECEIVED
+  WATCHLIST_ENDING
+  SYSTEM
+}
+
+enum TokenLaunchType {
+  FAIR_LAUNCH
+  PRESALE
+}
+
+enum TokenLaunchStatus {
+  PENDING
+  LAUNCHING
+  LIVE
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// REFERRAL SYSTEM
+// ============================================
+
+model Referral {
+  id              String    @id @default(cuid())
+  
+  // Who referred whom
+  referrerId      String
+  referrer        User      @relation("Referrer", fields: [referrerId], references: [id])
+  
+  referredUserId  String    @unique
+  referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
+  
+  // Tracking
+  status          ReferralStatus @default(PENDING)
+  
+  // Earnings from this referral
+  totalEarnings   Float     @default(0)
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  convertedAt     DateTime? // When referredUser made first sale/purchase
+  
+  // Individual earnings records
+  earnings        ReferralEarning[]
+  
+  @@index([referrerId])
+  @@index([referredUserId])
+}
+
+model ReferralEarning {
+  id              String    @id @default(cuid())
+  
+  referralId      String
+  referral        Referral  @relation(fields: [referralId], references: [id])
+  
+  // What transaction generated this earning
+  transactionId   String
+  
+  // Amounts
+  saleAmount      Float     // Total sale amount
+  commissionRate  Float     // e.g., 0.02 for 2%
+  earnedAmount    Float     // saleAmount * commissionRate
+  
+  // Status
+  status          EarningStatus @default(PENDING)
+  paidAt          DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([referralId])
+  @@index([transactionId])
+}
+
+enum ReferralStatus {
+  PENDING     // Invited but not signed up
+  REGISTERED  // Signed up but no transaction
+  ACTIVE      // Has completed at least one transaction
+}
+
+enum EarningStatus {
+  PENDING     // Waiting for transaction to complete
+  AVAILABLE   // Ready to withdraw
+  PAID        // Withdrawn/paid out
+}

@@ -1,0 +1,120 @@
+
+> app-market@0.1.0 dev
+> next dev
+
+   ▲ Next.js 14.1.3
+   - Local:        http://localhost:3000
+   - Environments: .env
+
+ ✓ Ready in 1351ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1728ms (350 modules)
+[next-auth][error][adapter_error_getUserByAccount] 
+https://next-auth.js.org/errors#adapter_error_getuserbyaccount 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database. {
+  message: '\n' +
+    'Invalid `prisma.account.findUnique()` invocation:\n' +
+    '\n' +
+    '\n' +
+    'The table `public.Account` does not exist in the current database.',
+  stack: 'PrismaClientKnownRequestError: \n' +
+    'Invalid `prisma.account.findUnique()` invocation:\n' +
+    '\n' +
+    '\n' +
+    'The table `public.Account` does not exist in the current database.\n' +
+    '    at $n.handleRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:7315)\n' +
+    '    at $n.handleAndLogRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6623)\n' +
+    '    at $n.request (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6307)\n' +
+    '    at async l (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:130:9633)\n' +
+    '    at async getUserByAccount (webpack-internal:///(rsc)/./node_modules/@auth/prisma-adapter/index.js:13:29)',
+  name: 'PrismaClientKnownRequestError'
+}
+[next-auth][error][OAUTH_CALLBACK_HANDLER_ERROR] 
+https://next-auth.js.org/errors#oauth_callback_handler_error 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database. PrismaClientKnownRequestError: 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database.
+    at $n.handleRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getUserByAccount (webpack-internal:///(rsc)/./node_modules/@auth/prisma-adapter/index.js:13:29) {
+  name: 'GetUserByAccountError',
+  code: 'P2021'
+}
+ ○ Compiling /auth/signin ...
+ ⚠ ./node_modules/pino/lib/tools.js
+Module not found: Can't resolve 'pino-pretty' in '/Users/dasherxd/Downloads/app-market/node_modules/pino/lib'
+
+Import trace for requested module:
+./node_modules/pino/lib/tools.js
+./node_modules/pino/pino.js
+./node_modules/@walletconnect/logger/dist/index.es.js
+./node_modules/@walletconnect/universal-provider/dist/index.es.js
+./node_modules/@walletconnect/solana-adapter/dist/core.js
+./node_modules/@walletconnect/solana-adapter/dist/adapter.js
+./node_modules/@solana/wallet-adapter-walletconnect/lib/esm/index.js
+./node_modules/@solana/wallet-adapter-wallets/lib/esm/index.js
+./components/providers.tsx
+ ⚠ ./node_modules/pino/lib/tools.js
+Module not found: Can't resolve 'pino-pretty' in '/Users/dasherxd/Downloads/app-market/node_modules/pino/lib'
+
+Import trace for requested module:
+./node_modules/pino/lib/tools.js
+./node_modules/pino/pino.js
+./node_modules/@walletconnect/logger/dist/index.es.js
+./node_modules/@walletconnect/universal-provider/dist/index.es.js
+./node_modules/@walletconnect/solana-adapter/dist/core.js
+./node_modules/@walletconnect/solana-adapter/dist/adapter.js
+./node_modules/@solana/wallet-adapter-walletconnect/lib/esm/index.js
+./node_modules/@solana/wallet-adapter-wallets/lib/esm/index.js
+./components/providers.tsx
+[next-auth][error][adapter_error_getUserByAccount] 
+https://next-auth.js.org/errors#adapter_error_getuserbyaccount 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database. {
+  message: '\n' +
+    'Invalid `prisma.account.findUnique()` invocation:\n' +
+    '\n' +
+    '\n' +
+    'The table `public.Account` does not exist in the current database.',
+  stack: 'PrismaClientKnownRequestError: \n' +
+    'Invalid `prisma.account.findUnique()` invocation:\n' +
+    '\n' +
+    '\n' +
+    'The table `public.Account` does not exist in the current database.\n' +
+    '    at $n.handleRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:7315)\n' +
+    '    at $n.handleAndLogRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6623)\n' +
+    '    at $n.request (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6307)\n' +
+    '    at async l (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:130:9633)\n' +
+    '    at async getUserByAccount (webpack-internal:///(rsc)/./node_modules/@auth/prisma-adapter/index.js:13:29)',
+  name: 'PrismaClientKnownRequestError'
+}
+[next-auth][error][OAUTH_CALLBACK_HANDLER_ERROR] 
+https://next-auth.js.org/errors#oauth_callback_handler_error 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database. PrismaClientKnownRequestError: 
+Invalid `prisma.account.findUnique()` invocation:
+
+
+The table `public.Account` does not exist in the current database.
+    at $n.handleRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/dasherxd/Downloads/app-market/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getUserByAccount (webpack-internal:///(rsc)/./node_modules/@auth/prisma-adapter/index.js:13:29) {
+  name: 'GetUserByAccountError',
+  code: 'P2021'
+}

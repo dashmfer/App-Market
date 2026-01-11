@@ -1,0 +1,231 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+
+const categories = [
+  {
+    slug: "saas",
+    name: "SaaS",
+    icon: "💼",
+    description: "Software as a Service products with recurring revenue potential",
+    count: 234,
+    featured: ["CRM tools", "Analytics platforms", "Marketing automation"],
+    color: "from-blue-500 to-cyan-500",
+  },
+  {
+    slug: "ai-ml",
+    name: "AI & Machine Learning",
+    icon: "🤖",
+    description: "AI-powered applications, ML models, and intelligent tools",
+    count: 189,
+    featured: ["ChatGPT wrappers", "Image generators", "AI assistants"],
+    color: "from-purple-500 to-pink-500",
+  },
+  {
+    slug: "mobile-app",
+    name: "Mobile Apps",
+    icon: "📱",
+    description: "iOS and Android applications ready for the app stores",
+    count: 156,
+    featured: ["Fitness apps", "Social apps", "Utility apps"],
+    color: "from-green-500 to-emerald-500",
+  },
+  {
+    slug: "crypto-web3",
+    name: "Crypto & Web3",
+    icon: "⛓️",
+    description: "Blockchain projects, DeFi protocols, and NFT platforms",
+    count: 143,
+    featured: ["DEX interfaces", "NFT marketplaces", "Wallet apps"],
+    color: "from-orange-500 to-yellow-500",
+  },
+  {
+    slug: "ecommerce",
+    name: "E-commerce",
+    icon: "🛒",
+    description: "Online stores, marketplaces, and shopping platforms",
+    count: 98,
+    featured: ["Shopify apps", "Dropshipping tools", "Inventory systems"],
+    color: "from-pink-500 to-rose-500",
+  },
+  {
+    slug: "developer-tools",
+    name: "Developer Tools",
+    icon: "🛠️",
+    description: "Tools and utilities that help developers build faster",
+    count: 87,
+    featured: ["Code generators", "API tools", "Dev dashboards"],
+    color: "from-zinc-600 to-zinc-800",
+  },
+  {
+    slug: "web-app",
+    name: "Web Apps",
+    icon: "🌐",
+    description: "Full-stack web applications for various use cases",
+    count: 145,
+    featured: ["Dashboards", "Booking systems", "Community platforms"],
+    color: "from-teal-500 to-cyan-500",
+  },
+  {
+    slug: "browser-extension",
+    name: "Browser Extensions",
+    icon: "🧩",
+    description: "Chrome, Firefox, and other browser extensions",
+    count: 67,
+    featured: ["Productivity tools", "Ad blockers", "Social tools"],
+    color: "from-indigo-500 to-blue-500",
+  },
+  {
+    slug: "api",
+    name: "APIs & Services",
+    icon: "🔌",
+    description: "Backend services, APIs, and microservices",
+    count: 54,
+    featured: ["Payment APIs", "Auth services", "Data APIs"],
+    color: "from-red-500 to-orange-500",
+  },
+  {
+    slug: "productivity",
+    name: "Productivity",
+    icon: "✅",
+    description: "Tools to help people work smarter and faster",
+    count: 76,
+    featured: ["Note apps", "Task managers", "Time trackers"],
+    color: "from-emerald-500 to-teal-500",
+  },
+  {
+    slug: "social",
+    name: "Social & Community",
+    icon: "👥",
+    description: "Social networks, community platforms, and engagement tools",
+    count: 43,
+    featured: ["Forums", "Dating apps", "Networking tools"],
+    color: "from-violet-500 to-purple-500",
+  },
+  {
+    slug: "gaming",
+    name: "Gaming",
+    icon: "🎮",
+    description: "Games, gaming tools, and entertainment platforms",
+    count: 38,
+    featured: ["Casual games", "Gaming utilities", "Esports tools"],
+    color: "from-fuchsia-500 to-pink-500",
+  },
+];
+
+export default function CategoriesPage() {
+  return (
+    <div className="min-h-screen">
+      {/* Hero */}
+      <section className="relative py-16 md:py-24 overflow-hidden">
+        <div className="absolute inset-0 grid-pattern" />
+        <div className="container-wide relative z-10">
+          <div className="max-w-2xl">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-4xl md:text-5xl font-display font-semibold text-zinc-900 dark:text-zinc-100"
+            >
+              Browse Categories
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mt-4 text-lg text-zinc-600 dark:text-zinc-400"
+            >
+              Find projects in your area of expertise or discover new opportunities across different niches.
+            </motion.p>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories Grid */}
+      <section className="pb-20">
+        <div className="container-wide">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((category, index) => (
+              <motion.div
+                key={category.slug}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link
+                  href={`/explore?category=${category.slug}`}
+                  className="block group h-full"
+                >
+                  <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden h-full hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-xl hover:shadow-black/5 transition-all duration-300">
+                    {/* Header with gradient */}
+                    <div className={`h-2 bg-gradient-to-r ${category.color}`} />
+                    
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-14 h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                          {category.icon}
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          {category.count} projects
+                        </span>
+                      </div>
+
+                      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        {category.name}
+                      </h2>
+                      
+                      <p className="mt-2 text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
+                        {category.description}
+                      </p>
+
+                      <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <p className="text-xs text-zinc-500 mb-2">Popular:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {category.featured.map((item) => (
+                            <span
+                              key={item}
+                              className="px-2 py-1 rounded-md bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center text-green-600 dark:text-green-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        Browse {category.name}
+                        <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="container-tight text-center">
+          <h2 className="text-2xl md:text-3xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
+            Can't find what you're looking for?
+          </h2>
+          <p className="mt-4 text-zinc-600 dark:text-zinc-400">
+            Try our search with filters to find the perfect project, or list your own!
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/explore" className="btn-primary">
+              Search All Projects
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link href="/create" className="btn-secondary">
+              List Your Project
+            </Link>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

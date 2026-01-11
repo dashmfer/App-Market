@@ -1,0 +1,375 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Search,
+  SlidersHorizontal,
+  Grid3X3,
+  List,
+  ChevronDown,
+  X,
+} from "lucide-react";
+import { ListingCard } from "@/components/listings/listing-card";
+
+const categories = [
+  { value: "all", label: "All Categories" },
+  { value: "saas", label: "SaaS" },
+  { value: "ai-ml", label: "AI & ML" },
+  { value: "mobile-app", label: "Mobile Apps" },
+  { value: "web-app", label: "Web Apps" },
+  { value: "browser-extension", label: "Extensions" },
+  { value: "crypto-web3", label: "Crypto & Web3" },
+  { value: "ecommerce", label: "E-commerce" },
+  { value: "developer-tools", label: "Developer Tools" },
+];
+
+const sortOptions = [
+  { value: "ending-soon", label: "Ending Soon" },
+  { value: "newest", label: "Newest First" },
+  { value: "price-low", label: "Price: Low to High" },
+  { value: "price-high", label: "Price: High to Low" },
+  { value: "most-bids", label: "Most Bids" },
+];
+
+const priceRanges = [
+  { value: "all", label: "Any Price" },
+  { value: "0-25", label: "Under 25 SOL" },
+  { value: "25-50", label: "25 - 50 SOL" },
+  { value: "50-100", label: "50 - 100 SOL" },
+  { value: "100+", label: "100+ SOL" },
+];
+
+// Mock listings
+const mockListings = [
+  {
+    id: "1",
+    slug: "ai-recipe-generator",
+    title: "AI Recipe Generator",
+    tagline: "Generate personalized recipes with AI",
+    thumbnailUrl: null,
+    category: "AI_ML",
+    techStack: ["Next.js", "OpenAI", "Tailwind"],
+    currentBid: 45,
+    buyNowPrice: 80,
+    endTime: new Date(Date.now() + 86400000 * 2),
+    bidCount: 12,
+    seller: { name: "alex.sol", rating: 4.9, verified: true },
+  },
+  {
+    id: "2",
+    slug: "saas-boilerplate-pro",
+    title: "SaaS Boilerplate Pro",
+    tagline: "Production-ready SaaS starter kit",
+    thumbnailUrl: null,
+    category: "SAAS",
+    techStack: ["Next.js", "Prisma", "Stripe"],
+    currentBid: 120,
+    buyNowPrice: 200,
+    endTime: new Date(Date.now() + 86400000 * 5),
+    bidCount: 28,
+    seller: { name: "builder.sol", rating: 5.0, verified: true },
+  },
+  {
+    id: "3",
+    slug: "crypto-portfolio-tracker",
+    title: "Crypto Portfolio Tracker",
+    tagline: "Track all your crypto in one place",
+    thumbnailUrl: null,
+    category: "CRYPTO_WEB3",
+    techStack: ["React", "Node.js", "CoinGecko API"],
+    currentBid: 35,
+    buyNowPrice: 60,
+    endTime: new Date(Date.now() + 86400000 * 1),
+    bidCount: 8,
+    seller: { name: "defi_dev", rating: 4.7, verified: false },
+  },
+  {
+    id: "4",
+    slug: "ai-writing-assistant",
+    title: "AI Writing Assistant",
+    tagline: "Chrome extension for better writing",
+    thumbnailUrl: null,
+    category: "BROWSER_EXTENSION",
+    techStack: ["Chrome Extension", "GPT-4", "React"],
+    currentBid: 65,
+    buyNowPrice: 100,
+    endTime: new Date(Date.now() + 86400000 * 3),
+    bidCount: 15,
+    seller: { name: "chrome_wizard", rating: 4.8, verified: true },
+  },
+  {
+    id: "5",
+    slug: "ecommerce-analytics-dashboard",
+    title: "E-commerce Analytics",
+    tagline: "Shopify analytics made simple",
+    thumbnailUrl: null,
+    category: "ECOMMERCE",
+    techStack: ["React", "Shopify API", "Chart.js"],
+    currentBid: 55,
+    buyNowPrice: 90,
+    endTime: new Date(Date.now() + 86400000 * 4),
+    bidCount: 9,
+    seller: { name: "shopify_pro", rating: 4.6, verified: true },
+  },
+  {
+    id: "6",
+    slug: "developer-portfolio-template",
+    title: "Dev Portfolio Pro",
+    tagline: "Stand out with a unique portfolio",
+    thumbnailUrl: null,
+    category: "WEB_APP",
+    techStack: ["Next.js", "Framer Motion", "MDX"],
+    currentBid: 25,
+    buyNowPrice: 45,
+    endTime: new Date(Date.now() + 86400000 * 6),
+    bidCount: 6,
+    seller: { name: "design_dev", rating: 4.9, verified: false },
+  },
+  {
+    id: "7",
+    slug: "habit-tracker-mobile",
+    title: "Habit Tracker App",
+    tagline: "Build better habits daily",
+    thumbnailUrl: null,
+    category: "MOBILE_APP",
+    techStack: ["React Native", "Expo", "Firebase"],
+    currentBid: 70,
+    buyNowPrice: 120,
+    endTime: new Date(Date.now() + 86400000 * 2.5),
+    bidCount: 18,
+    seller: { name: "mobile_maker", rating: 4.8, verified: true },
+  },
+  {
+    id: "8",
+    slug: "api-monitoring-tool",
+    title: "API Monitor Pro",
+    tagline: "Real-time API health monitoring",
+    thumbnailUrl: null,
+    category: "DEVELOPER_TOOLS",
+    techStack: ["Node.js", "Redis", "React"],
+    currentBid: 85,
+    buyNowPrice: 150,
+    endTime: new Date(Date.now() + 86400000 * 7),
+    bidCount: 11,
+    seller: { name: "api_expert", rating: 5.0, verified: true },
+  },
+];
+
+export default function ExplorePage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSort, setSelectedSort] = useState("ending-soon");
+  const [selectedPrice, setSelectedPrice] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const activeFiltersCount = [
+    selectedCategory !== "all",
+    selectedPrice !== "all",
+    searchQuery !== "",
+  ].filter(Boolean).length;
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="container-wide py-8 md:py-12">
+          <h1 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
+            Explore Projects
+          </h1>
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+            Discover and acquire amazing digital products
+          </p>
+        </div>
+      </div>
+
+      <div className="container-wide py-8">
+        {/* Search & Filters Bar */}
+        <div className="flex flex-col lg:flex-row gap-4 mb-8">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Controls */}
+          <div className="flex items-center gap-3">
+            {/* Category Select */}
+            <div className="relative">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="appearance-none pl-4 pr-10 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+                {categories.map((cat) => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            </div>
+
+            {/* Sort Select */}
+            <div className="relative">
+              <select
+                value={selectedSort}
+                onChange={(e) => setSelectedSort(e.target.value)}
+                className="appearance-none pl-4 pr-10 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+              >
+                {sortOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            </div>
+
+            {/* More Filters Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-colors ${
+                showFilters || activeFiltersCount > 0
+                  ? "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400"
+                  : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="hidden sm:inline">Filters</span>
+              {activeFiltersCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-green-500 text-white text-xs flex items-center justify-center">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
+
+            {/* View Mode Toggle */}
+            <div className="hidden sm:flex items-center border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-3 transition-colors ${
+                  viewMode === "grid"
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                }`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-3 transition-colors ${
+                  viewMode === "list"
+                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-8 p-6 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800"
+          >
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Price Range */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Price Range
+                </label>
+                <div className="space-y-2">
+                  {priceRanges.map((range) => (
+                    <label
+                      key={range.value}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="priceRange"
+                        value={range.value}
+                        checked={selectedPrice === range.value}
+                        onChange={(e) => setSelectedPrice(e.target.value)}
+                        className="w-4 h-4 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {range.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* More filters can be added here */}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setSelectedCategory("all");
+                  setSelectedPrice("all");
+                  setSearchQuery("");
+                }}
+                className="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              >
+                Clear all filters
+              </button>
+              <button
+                onClick={() => setShowFilters(false)}
+                className="btn-primary text-sm py-2"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Results Count */}
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-sm text-zinc-500">
+            Showing <span className="font-medium text-zinc-900 dark:text-zinc-100">{mockListings.length}</span> projects
+          </p>
+        </div>
+
+        {/* Listings Grid */}
+        <div
+          className={
+            viewMode === "grid"
+              ? "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : "space-y-4"
+          }
+        >
+          {mockListings.map((listing, index) => (
+            <ListingCard key={listing.id} listing={listing} index={index} />
+          ))}
+        </div>
+
+        {/* Load More */}
+        <div className="mt-12 text-center">
+          <button className="btn-secondary">Load More Projects</button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,172 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { PLATFORM_CONFIG } from "@/lib/config";
+
+// GET /api/referrals - Get user's referral info
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        referralCode: true,
+        referralCodeCustomized: true,
+        referralEarnings: true,
+        referralsGiven: {
+          include: {
+            referredUser: {
+              select: {
+                id: true,
+                username: true,
+                walletAddress: true,
+                totalSales: true,
+                createdAt: true,
+              },
+            },
+            earnings: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Calculate stats
+    const totalReferrals = user.referralsGiven.length;
+    const activeReferrals = user.referralsGiven.filter(
+      (r) => r.status === "ACTIVE"
+    ).length;
+    const pendingEarnings = user.referralsGiven.reduce(
+      (sum, r) =>
+        sum +
+        r.earnings
+          .filter((e) => e.status === "PENDING")
+          .reduce((s, e) => s + e.earnedAmount, 0),
+      0
+    );
+    const availableEarnings = user.referralsGiven.reduce(
+      (sum, r) =>
+        sum +
+        r.earnings
+          .filter((e) => e.status === "AVAILABLE")
+          .reduce((s, e) => s + e.earnedAmount, 0),
+      0
+    );
+
+    return NextResponse.json({
+      code: user.referralCode,
+      isCustomized: user.referralCodeCustomized,
+      totalEarnings: user.referralEarnings,
+      pendingEarnings,
+      availableEarnings,
+      totalReferrals,
+      activeReferrals,
+      referrals: user.referralsGiven.map((r) => ({
+        id: r.id,
+        user:
+          r.referredUser.username ||
+          r.referredUser.walletAddress?.slice(0, 8) + "...",
+        status: r.status,
+        earnings: r.totalEarnings,
+        joinedAt: r.createdAt,
+      })),
+      commissionRate: PLATFORM_CONFIG.referral.commissionRateBps / 100,
+    });
+  } catch (error) {
+    console.error("Error fetching referral info:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/referrals - Update referral code (one time only)
+export async function PATCH(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { code } = await request.json();
+
+    // Validate code
+    if (!code || typeof code !== "string") {
+      return NextResponse.json({ error: "Code is required" }, { status: 400 });
+    }
+
+    const cleanCode = code.toLowerCase().trim();
+
+    if (cleanCode.length < PLATFORM_CONFIG.referral.codeMinLength) {
+      return NextResponse.json(
+        { error: `Code must be at least ${PLATFORM_CONFIG.referral.codeMinLength} characters` },
+        { status: 400 }
+      );
+    }
+
+    if (cleanCode.length > PLATFORM_CONFIG.referral.codeMaxLength) {
+      return NextResponse.json(
+        { error: `Code must be ${PLATFORM_CONFIG.referral.codeMaxLength} characters or less` },
+        { status: 400 }
+      );
+    }
+
+    if (!/^[a-z0-9_-]+$/.test(cleanCode)) {
+      return NextResponse.json(
+        { error: "Only lowercase letters, numbers, underscore, and hyphen allowed" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user already customized
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { referralCodeCustomized: true },
+    });
+
+    if (user?.referralCodeCustomized) {
+      return NextResponse.json(
+        { error: "You've already customized your referral code" },
+        { status: 400 }
+      );
+    }
+
+    // Check if code is taken
+    const existing = await prisma.user.findUnique({
+      where: { referralCode: cleanCode },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "This code is already taken" },
+        { status: 400 }
+      );
+    }
+
+    // Update code
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        referralCode: cleanCode,
+        referralCodeCustomized: true,
+      },
+    });
+
+    return NextResponse.json({ success: true, code: cleanCode });
+  } catch (error) {
+    console.error("Error updating referral code:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
