@@ -190,10 +190,3 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
     },
   });
 }
-
-// Disable body parsing, need raw body for webhook verification
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

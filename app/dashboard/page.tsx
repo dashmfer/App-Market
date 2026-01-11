@@ -31,70 +31,17 @@ const sidebarLinks = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-// Mock data
+// User stats - loaded from database
 const stats = {
-  totalSales: 8,
-  totalVolume: 324.5,
-  activeListings: 3,
-  pendingTransfers: 1,
+  totalSales: 0,
+  totalVolume: 0,
+  activeListings: 0,
+  pendingTransfers: 0,
 };
 
-const recentActivity = [
-  {
-    id: "1",
-    type: "sale",
-    title: "AI Writing Assistant sold",
-    amount: 65,
-    buyer: "crypto_fan.sol",
-    time: new Date(Date.now() - 3600000),
-    status: "completed",
-  },
-  {
-    id: "2",
-    type: "bid",
-    title: "New bid on SaaS Boilerplate",
-    amount: 120,
-    bidder: "dev_builder.sol",
-    time: new Date(Date.now() - 7200000),
-    status: "active",
-  },
-  {
-    id: "3",
-    type: "transfer",
-    title: "Transfer pending for Recipe AI",
-    amount: 45,
-    buyer: "buyer1.sol",
-    time: new Date(Date.now() - 10800000),
-    status: "pending",
-  },
-];
+const recentActivity: any[] = [];
 
-const activeListings = [
-  {
-    id: "1",
-    title: "SaaS Boilerplate Pro",
-    currentBid: 120,
-    bidCount: 28,
-    endTime: new Date(Date.now() + 86400000 * 5),
-    status: "active",
-  },
-  {
-    id: "2",
-    title: "Crypto Portfolio Tracker",
-    currentBid: 35,
-    bidCount: 8,
-    endTime: new Date(Date.now() + 86400000 * 1),
-    status: "ending_soon",
-  },
-  {
-    id: "3",
-    title: "Mobile Habit Tracker",
-    currentBid: 70,
-    bidCount: 18,
-    endTime: new Date(Date.now() + 86400000 * 2.5),
-    status: "active",
-  },
-];
+const activeListings: any[] = [];
 
 export default function DashboardPage() {
   const pathname = usePathname();

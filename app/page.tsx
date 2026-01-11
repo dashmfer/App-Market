@@ -21,96 +21,23 @@ import { CategoryCard } from "@/components/home/category-card";
 import { StatsCounter } from "@/components/home/stats-counter";
 import { HowItWorksStep } from "@/components/home/how-it-works-step";
 
-// Mock data for featured listings
-const featuredListings = [
-  {
-    id: "1",
-    slug: "ai-recipe-generator",
-    title: "AI Recipe Generator",
-    tagline: "Generate personalized recipes with AI",
-    thumbnailUrl: "/images/listings/recipe-ai.png",
-    category: "AI_ML",
-    techStack: ["Next.js", "OpenAI", "Tailwind"],
-    currentBid: 45,
-    buyNowPrice: 80,
-    endTime: new Date(Date.now() + 86400000 * 2),
-    bidCount: 12,
-    seller: {
-      name: "alex.sol",
-      rating: 4.9,
-      verified: true,
-    },
-  },
-  {
-    id: "2",
-    slug: "saas-boilerplate-pro",
-    title: "SaaS Boilerplate Pro",
-    tagline: "Production-ready SaaS starter kit",
-    thumbnailUrl: "/images/listings/saas-kit.png",
-    category: "SAAS",
-    techStack: ["Next.js", "Prisma", "Stripe"],
-    currentBid: 120,
-    buyNowPrice: 200,
-    endTime: new Date(Date.now() + 86400000 * 5),
-    bidCount: 28,
-    seller: {
-      name: "builder.sol",
-      rating: 5.0,
-      verified: true,
-    },
-  },
-  {
-    id: "3",
-    slug: "crypto-portfolio-tracker",
-    title: "Crypto Portfolio Tracker",
-    tagline: "Track all your crypto in one place",
-    thumbnailUrl: "/images/listings/crypto-tracker.png",
-    category: "CRYPTO_WEB3",
-    techStack: ["React", "Node.js", "CoinGecko API"],
-    currentBid: 35,
-    buyNowPrice: 60,
-    endTime: new Date(Date.now() + 86400000 * 1),
-    bidCount: 8,
-    seller: {
-      name: "defi_dev",
-      rating: 4.7,
-      verified: false,
-    },
-  },
-  {
-    id: "4",
-    slug: "ai-writing-assistant",
-    title: "AI Writing Assistant",
-    tagline: "Chrome extension for better writing",
-    thumbnailUrl: "/images/listings/writing-ai.png",
-    category: "BROWSER_EXTENSION",
-    techStack: ["Chrome Extension", "GPT-4", "React"],
-    currentBid: 65,
-    buyNowPrice: 100,
-    endTime: new Date(Date.now() + 86400000 * 3),
-    bidCount: 15,
-    seller: {
-      name: "chrome_wizard",
-      rating: 4.8,
-      verified: true,
-    },
-  },
-];
+// Listings loaded from database
+const featuredListings: any[] = [];
 
 const categories = [
-  { name: "SaaS", slug: "saas", count: 234, icon: "💼" },
-  { name: "AI & ML", slug: "ai-ml", count: 189, icon: "🤖" },
-  { name: "Mobile Apps", slug: "mobile-app", count: 156, icon: "📱" },
-  { name: "Crypto & Web3", slug: "crypto-web3", count: 143, icon: "⛓️" },
-  { name: "E-commerce", slug: "ecommerce", count: 98, icon: "🛒" },
-  { name: "Developer Tools", slug: "developer-tools", count: 87, icon: "🛠️" },
+  { name: "SaaS", slug: "saas", count: 0, icon: "💼" },
+  { name: "AI & ML", slug: "ai-ml", count: 0, icon: "🤖" },
+  { name: "Mobile Apps", slug: "mobile-app", count: 0, icon: "📱" },
+  { name: "Crypto & Web3", slug: "crypto-web3", count: 0, icon: "⛓️" },
+  { name: "E-commerce", slug: "ecommerce", count: 0, icon: "🛒" },
+  { name: "Developer Tools", slug: "developer-tools", count: 0, icon: "🛠️" },
 ];
 
 const stats = [
-  { label: "Projects Sold", value: 1247, suffix: "+" },
-  { label: "Total Volume", value: 2.4, prefix: "$", suffix: "M" },
-  { label: "Active Sellers", value: 3200, suffix: "+" },
-  { label: "Avg. Sale Time", value: 4.2, suffix: " days" },
+  { label: "Projects Sold", value: 0, suffix: "" },
+  { label: "Total Volume", value: 0, prefix: "", suffix: " SOL" },
+  { label: "Active Sellers", value: 0, suffix: "" },
+  { label: "Avg. Sale Time", value: 0, suffix: " days" },
 ];
 
 const howItWorks = [

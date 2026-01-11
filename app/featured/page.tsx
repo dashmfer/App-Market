@@ -2,12 +2,7 @@
 
 import { ListingCard } from "@/components/listings/listing-card";
 
-const featuredListings = [
-  { id: "1", slug: "ai-recipe-generator", title: "AI Recipe Generator", tagline: "Generate personalized recipes with AI", thumbnailUrl: null, category: "AI_ML", techStack: ["Next.js", "OpenAI", "Tailwind"], currentBid: 45, buyNowPrice: 80, endTime: new Date(Date.now() + 86400000 * 2), bidCount: 12, seller: { name: "alex.sol", rating: 4.9, verified: true }},
-  { id: "2", slug: "saas-boilerplate-pro", title: "SaaS Boilerplate Pro", tagline: "Production-ready SaaS starter kit", thumbnailUrl: null, category: "SAAS", techStack: ["Next.js", "Prisma", "Stripe"], currentBid: 120, buyNowPrice: 200, endTime: new Date(Date.now() + 86400000 * 5), bidCount: 28, seller: { name: "builder.sol", rating: 5.0, verified: true }},
-  { id: "3", slug: "crypto-portfolio-tracker", title: "Crypto Portfolio Tracker", tagline: "Track all your crypto in one place", thumbnailUrl: null, category: "CRYPTO_WEB3", techStack: ["React", "Node.js", "CoinGecko API"], currentBid: 35, buyNowPrice: 60, endTime: new Date(Date.now() + 86400000 * 1), bidCount: 8, seller: { name: "defi_dev", rating: 4.7, verified: false }},
-  { id: "4", slug: "ai-writing-assistant", title: "AI Writing Assistant", tagline: "Chrome extension for better writing", thumbnailUrl: null, category: "BROWSER_EXTENSION", techStack: ["Chrome Extension", "GPT-4", "React"], currentBid: 65, buyNowPrice: 100, endTime: new Date(Date.now() + 86400000 * 3), bidCount: 15, seller: { name: "chrome_wizard", rating: 4.8, verified: true }},
-];
+const featuredListings: any[] = [];
 
 export default function FeaturedPage() {
   return (
@@ -24,11 +19,17 @@ export default function FeaturedPage() {
       </div>
 
       <div className="container-wide py-12">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredListings.map((listing, index) => (
-            <ListingCard key={listing.id} listing={listing} index={index} />
-          ))}
-        </div>
+        {featuredListings.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-zinc-500 text-lg">No featured projects yet. Check back soon!</p>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredListings.map((listing, index) => (
+              <ListingCard key={listing.id} listing={listing} index={index} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
