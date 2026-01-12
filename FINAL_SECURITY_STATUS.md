@@ -1,6 +1,11 @@
 # Final Security Status Report
 ## App Market Escrow Program - Production Ready Assessment
 
+> ⚠️ **DISCLAIMER:** This is an AI-assisted security analysis, NOT a professional third-party audit.
+> This report assesses improvements made but should not replace a comprehensive audit by a certified
+> security firm (OtterSec, Trail of Bits, OpenZeppelin, etc.) before mainnet deployment with real funds.
+> Professional audit strongly recommended. Use at your own risk.
+
 **Date:** January 12, 2026
 **Contract:** `/programs/app-market/src/lib.rs`
 **Branch:** `claude/audit-solana-contract-lf2AT`

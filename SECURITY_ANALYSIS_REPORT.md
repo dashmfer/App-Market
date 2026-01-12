@@ -1,9 +1,14 @@
-# Solana Smart Contract Security Audit Report
+# Solana Smart Contract Security Analysis Report
 ## App Market Escrow Program
 
-**Audit Date:** January 12, 2026
+> ⚠️ **DISCLAIMER:** This is an AI-assisted security analysis, NOT a professional third-party audit.
+> This analysis identifies potential vulnerabilities but should not replace a comprehensive audit by
+> a certified security firm (OtterSec, Trail of Bits, OpenZeppelin, etc.) before mainnet deployment.
+> Use at your own risk.
+
+**Analysis Date:** January 12, 2026
 **Contract Location:** `/programs/app-market/src/lib.rs`
-**Auditor:** Claude (AI Security Auditor)
+**Analyst:** Claude (AI Security Analysis Tool)
 
 ---
 
