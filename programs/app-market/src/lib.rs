@@ -28,10 +28,10 @@ pub mod app_market {
     pub const MIN_BID_INCREMENT_BPS: u64 = 500;
     /// Absolute minimum bid increment: 0.001 SOL (1,000,000 lamports)
     pub const MIN_BID_INCREMENT_LAMPORTS: u64 = 1_000_000;
-    /// Anti-sniping window: 5 minutes before auction end
-    pub const ANTI_SNIPE_WINDOW: i64 = 5 * 60;
+    /// Anti-sniping window: 15 minutes before auction end
+    pub const ANTI_SNIPE_WINDOW: i64 = 15 * 60;
     /// Extension time when bid placed in anti-snipe window
-    pub const ANTI_SNIPE_EXTENSION: i64 = 5 * 60;
+    pub const ANTI_SNIPE_EXTENSION: i64 = 15 * 60;
 
     /// Initialize the marketplace config (one-time setup)
     pub fn initialize(
