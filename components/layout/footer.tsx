@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Twitter, MessageCircle } from "lucide-react";
+import { Twitter } from "lucide-react";
 
 const footerLinks = {
   marketplace: [
@@ -12,24 +12,19 @@ const footerLinks = {
     { label: "List Your Project", href: "/create" },
     { label: "Seller Guide", href: "/guides/sellers" },
     { label: "Pricing", href: "/pricing" },
-    { label: "Success Stories", href: "/success-stories" },
   ],
   buyers: [
     { label: "How to Buy", href: "/guides/buyers" },
     { label: "Due Diligence", href: "/guides/due-diligence" },
-    { label: "Token Launches", href: "/token-launches" },
     { label: "Escrow Protection", href: "/escrow" },
   ],
   company: [
     { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "/careers" },
     { label: "Contact", href: "/contact" },
   ],
   legal: [
     { label: "Terms of Service", href: "/terms" },
     { label: "Privacy Policy", href: "/privacy" },
-    { label: "Cookie Policy", href: "/cookies" },
   ],
 };
 
@@ -55,28 +50,13 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-4 mt-6">
               <a
-                href="https://twitter.com/appmarket"
+                href="https://twitter.com/appmarketxyz"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-2 p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
               >
                 <Twitter className="w-5 h-5" />
-              </a>
-              <a
-                href="https://github.com/appmarket"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <Github className="w-5 h-5" />
-              </a>
-              <a
-                href="https://discord.gg/appmarket"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <MessageCircle className="w-5 h-5" />
+                <span className="text-sm">@appmarketxyz</span>
               </a>
             </div>
           </div>

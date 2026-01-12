@@ -114,9 +114,12 @@ export function Navbar() {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 md:gap-3">
               {/* Search Button */}
-              <button className="p-2 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <Link 
+                href="/explore"
+                className="p-2 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
                 <Search className="w-5 h-5" />
-              </button>
+              </Link>
 
               {isAuthenticated ? (
                 <>
