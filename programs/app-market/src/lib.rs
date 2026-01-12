@@ -24,6 +24,14 @@ pub mod app_market {
     pub const DISPUTE_FEE_BPS: u64 = 200;
     /// Transfer deadline: 7 days in seconds
     pub const TRANSFER_DEADLINE_SECONDS: i64 = 7 * 24 * 60 * 60;
+    /// Minimum bid increment: 5% (500 basis points)
+    pub const MIN_BID_INCREMENT_BPS: u64 = 500;
+    /// Absolute minimum bid increment: 0.001 SOL (1,000,000 lamports)
+    pub const MIN_BID_INCREMENT_LAMPORTS: u64 = 1_000_000;
+    /// Anti-sniping window: 5 minutes before auction end
+    pub const ANTI_SNIPE_WINDOW: i64 = 5 * 60;
+    /// Extension time when bid placed in anti-snipe window
+    pub const ANTI_SNIPE_EXTENSION: i64 = 5 * 60;
 
     /// Initialize the marketplace config (one-time setup)
     pub fn initialize(
@@ -38,19 +46,38 @@ pub mod app_market {
         config.dispute_fee_bps = dispute_fee_bps;
         config.total_volume = 0;
         config.total_sales = 0;
+        config.paused = false;
         config.bump = ctx.bumps.config;
+        Ok(())
+    }
+
+    /// Set paused state (admin only)
+    pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
+        require!(
+            ctx.accounts.admin.key() == ctx.accounts.config.admin,
+            AppMarketError::NotAdmin
+        );
+
+        ctx.accounts.config.paused = paused;
+
+        emit!(ContractPausedEvent {
+            paused,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
         Ok(())
     }
 
     /// Create a new listing
     pub fn create_listing(
         ctx: Context<CreateListing>,
-        listing_id: String,
+        salt: u64,
         starting_price: u64,
         reserve_price: Option<u64>,
         buy_now_price: Option<u64>,
         duration_seconds: i64,
     ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
         require!(starting_price > 0, AppMarketError::InvalidPrice);
         require!(duration_seconds > 0 && duration_seconds <= 30 * 24 * 60 * 60, AppMarketError::InvalidDuration);
 
@@ -58,7 +85,8 @@ pub mod app_market {
         let clock = Clock::get()?;
 
         listing.seller = ctx.accounts.seller.key();
-        listing.listing_id = listing_id;
+        // SECURITY: Use seller + salt for unique, front-run resistant listing ID
+        listing.listing_id = format!("{}-{}", ctx.accounts.seller.key(), salt);
         listing.starting_price = starting_price;
         listing.reserve_price = reserve_price;
         listing.buy_now_price = buy_now_price;
@@ -82,15 +110,36 @@ pub mod app_market {
 
     /// Place a bid on a listing
     pub fn place_bid(ctx: Context<PlaceBid>, amount: u64) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
         // CHECKS: All validations first
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(clock.unix_timestamp < listing.end_time, AppMarketError::AuctionEnded);
-        require!(amount > listing.current_bid, AppMarketError::BidTooLow);
-        require!(amount >= listing.starting_price, AppMarketError::BidTooLow);
         require!(ctx.accounts.bidder.key() != listing.seller, AppMarketError::SellerCannotBid);
+
+        // SECURITY: Enforce minimum bid increment to prevent spam
+        if listing.current_bid > 0 {
+            // Calculate 5% increment
+            let increment = listing.current_bid
+                .checked_mul(MIN_BID_INCREMENT_BPS)
+                .ok_or(AppMarketError::MathOverflow)?
+                .checked_div(10000)
+                .ok_or(AppMarketError::MathOverflow)?;
+
+            // Use larger of percentage increment or absolute minimum
+            let min_increment = increment.max(MIN_BID_INCREMENT_LAMPORTS);
+            let min_bid = listing.current_bid
+                .checked_add(min_increment)
+                .ok_or(AppMarketError::MathOverflow)?;
+
+            require!(amount >= min_bid, AppMarketError::BidIncrementTooSmall);
+        } else {
+            // First bid must meet starting price
+            require!(amount >= listing.starting_price, AppMarketError::BidTooLow);
+        }
 
         // Validate previous_bidder if refund needed
         if let Some(previous_bidder) = listing.current_bidder {
@@ -107,6 +156,13 @@ pub mod app_market {
         let old_bidder = listing.current_bidder;
         listing.current_bid = amount;
         listing.current_bidder = Some(ctx.accounts.bidder.key());
+
+        // SECURITY: Anti-sniping - extend auction if bid placed near end
+        if clock.unix_timestamp > listing.end_time - ANTI_SNIPE_WINDOW {
+            listing.end_time = clock.unix_timestamp
+                .checked_add(ANTI_SNIPE_EXTENSION)
+                .ok_or(AppMarketError::MathOverflow)?;
+        }
 
         // INTERACTIONS: External calls LAST
         // Transfer new bid to escrow
@@ -163,6 +219,8 @@ pub mod app_market {
 
     /// Buy now (instant purchase)
     pub fn buy_now(ctx: Context<BuyNow>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
@@ -279,6 +337,18 @@ pub mod app_market {
         // Validations
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(clock.unix_timestamp >= listing.end_time, AppMarketError::AuctionNotEnded);
+
+        // SECURITY: Only allow seller, winner, or admin to settle
+        let is_seller = ctx.accounts.payer.key() == listing.seller;
+        let is_winner = listing.current_bidder
+            .map(|bidder| ctx.accounts.payer.key() == bidder)
+            .unwrap_or(false);
+        let is_admin = ctx.accounts.payer.key() == ctx.accounts.config.admin;
+
+        require!(
+            is_seller || is_winner || is_admin,
+            AppMarketError::UnauthorizedSettlement
+        );
 
         // Check if reserve price was met (if set)
         if let Some(reserve) = listing.reserve_price {
@@ -473,10 +543,33 @@ pub mod app_market {
         // Validations
         require!(transaction.status == TransactionStatus::InEscrow, AppMarketError::InvalidTransactionStatus);
         require!(
-            ctx.accounts.initiator.key() == transaction.buyer || 
+            ctx.accounts.initiator.key() == transaction.buyer ||
             ctx.accounts.initiator.key() == transaction.seller,
             AppMarketError::NotPartyToTransaction
         );
+
+        // SECURITY: Validate treasury matches config
+        require!(
+            ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
+            AppMarketError::InvalidTreasury
+        );
+
+        // Calculate dispute fee
+        let dispute_fee = transaction.sale_price
+            .checked_mul(ctx.accounts.config.dispute_fee_bps)
+            .ok_or(AppMarketError::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // SECURITY: Charge dispute fee from initiator
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.initiator.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, dispute_fee)?;
 
         // Update transaction status
         transaction.status = TransactionStatus::Disputed;
@@ -492,14 +585,7 @@ pub mod app_market {
         dispute.reason = reason.clone();
         dispute.status = DisputeStatus::Open;
         dispute.created_at = clock.unix_timestamp;
-
-        // Safe math for dispute fee calculation
-        dispute.dispute_fee = transaction.sale_price
-            .checked_mul(ctx.accounts.config.dispute_fee_bps)
-            .ok_or(AppMarketError::MathOverflow)?
-            .checked_div(10000)
-            .ok_or(AppMarketError::MathOverflow)?;
-
+        dispute.dispute_fee = dispute_fee;
         dispute.bump = ctx.bumps.dispute;
 
         emit!(DisputeOpened {
@@ -830,28 +916,34 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(listing_id: String)]
+#[instruction(salt: u64)]
 pub struct CreateListing<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(
         init,
         payer = seller,
         space = 8 + Listing::INIT_SPACE,
-        seeds = [b"listing", listing_id.as_bytes()],
+        seeds = [b"listing", seller.key().as_ref(), &salt.to_le_bytes()],
         bump
     )]
     pub listing: Account<'info, Listing>,
-    
+
     #[account(mut)]
     pub seller: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct PlaceBid<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(mut)]
     pub listing: Account<'info, Listing>,
-    
+
     #[account(
         init_if_needed,
         payer = bidder,
@@ -860,14 +952,14 @@ pub struct PlaceBid<'info> {
         bump
     )]
     pub escrow: Account<'info, Escrow>,
-    
+
     #[account(mut)]
     pub bidder: Signer<'info>,
-    
+
     /// CHECK: Previous bidder to refund
     #[account(mut)]
     pub previous_bidder: AccountInfo<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
@@ -998,10 +1090,14 @@ pub struct OpenDispute<'info> {
         bump
     )]
     pub dispute: Account<'info, Dispute>,
-    
+
     #[account(mut)]
     pub initiator: Signer<'info>,
-    
+
+    /// CHECK: Treasury to receive dispute fees
+    #[account(mut)]
+    pub treasury: AccountInfo<'info>,
+
     pub system_program: Program<'info, System>,
 }
 
@@ -1082,6 +1178,14 @@ pub struct CancelListing<'info> {
     pub seller: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct SetPaused<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    pub admin: Signer<'info>,
+}
+
 // ============================================
 // STATE
 // ============================================
@@ -1095,6 +1199,7 @@ pub struct MarketConfig {
     pub dispute_fee_bps: u64,
     pub total_volume: u64,
     pub total_sales: u64,
+    pub paused: bool,
     pub bump: u8,
 }
 
@@ -1257,6 +1362,12 @@ pub struct DisputeResolved {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct ContractPausedEvent {
+    pub paused: bool,
+    pub timestamp: i64,
+}
+
 // ============================================
 // ERRORS
 // ============================================
@@ -1313,4 +1424,8 @@ pub enum AppMarketError {
     InvalidRefundAmounts,
     #[msg("Unauthorized settlement")]
     UnauthorizedSettlement,
+    #[msg("Bid increment too small - must be at least 5% or 0.001 SOL")]
+    BidIncrementTooSmall,
+    #[msg("Contract is paused")]
+    ContractPaused,
 }
