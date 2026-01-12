@@ -85,17 +85,48 @@ pub mod app_market {
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
-        // Validations
+        // CHECKS: All validations first
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(clock.unix_timestamp < listing.end_time, AppMarketError::AuctionEnded);
         require!(amount > listing.current_bid, AppMarketError::BidTooLow);
         require!(amount >= listing.starting_price, AppMarketError::BidTooLow);
         require!(ctx.accounts.bidder.key() != listing.seller, AppMarketError::SellerCannotBid);
 
-        // Refund previous bidder if exists
+        // Validate previous_bidder if refund needed
         if let Some(previous_bidder) = listing.current_bidder {
             if listing.current_bid > 0 {
-                // Transfer back to previous bidder from escrow
+                require!(
+                    ctx.accounts.previous_bidder.key() == previous_bidder,
+                    AppMarketError::InvalidPreviousBidder
+                );
+            }
+        }
+
+        // EFFECTS: Update state BEFORE external calls (reentrancy protection)
+        let old_bid = listing.current_bid;
+        let old_bidder = listing.current_bidder;
+        listing.current_bid = amount;
+        listing.current_bidder = Some(ctx.accounts.bidder.key());
+
+        // INTERACTIONS: External calls LAST
+        // Transfer new bid to escrow
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.bidder.to_account_info(),
+                to: ctx.accounts.escrow.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, amount)?;
+
+        // Update escrow amount tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_add(amount)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Refund previous bidder if exists
+        if let Some(_previous_bidder) = old_bidder {
+            if old_bid > 0 {
                 let seeds = &[
                     b"escrow",
                     listing.to_account_info().key.as_ref(),
@@ -111,23 +142,14 @@ pub mod app_market {
                     },
                     signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, listing.current_bid)?;
+                anchor_lang::system_program::transfer(cpi_ctx, old_bid)?;
+
+                // Update escrow amount tracking
+                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                    .checked_sub(old_bid)
+                    .ok_or(AppMarketError::MathOverflow)?;
             }
         }
-
-        // Transfer bid amount to escrow
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
-            anchor_lang::system_program::Transfer {
-                from: ctx.accounts.bidder.to_account_info(),
-                to: ctx.accounts.escrow.to_account_info(),
-            },
-        );
-        anchor_lang::system_program::transfer(cpi_ctx, amount)?;
-
-        // Update listing
-        listing.current_bid = amount;
-        listing.current_bidder = Some(ctx.accounts.bidder.key());
 
         emit!(BidPlaced {
             listing: listing.key(),
@@ -144,7 +166,7 @@ pub mod app_market {
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
-        // Validations
+        // CHECKS: All validations first
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(clock.unix_timestamp < listing.end_time, AppMarketError::AuctionEnded);
         require!(listing.buy_now_price.is_some(), AppMarketError::BuyNowNotEnabled);
@@ -152,9 +174,43 @@ pub mod app_market {
 
         let buy_now_price = listing.buy_now_price.unwrap();
 
-        // Refund any existing bidder
+        // Validate previous_bidder if refund needed
         if let Some(previous_bidder) = listing.current_bidder {
             if listing.current_bid > 0 {
+                require!(
+                    ctx.accounts.previous_bidder.key() == previous_bidder,
+                    AppMarketError::InvalidPreviousBidder
+                );
+            }
+        }
+
+        // EFFECTS: Update state BEFORE external calls (reentrancy protection)
+        let old_bid = listing.current_bid;
+        let old_bidder = listing.current_bidder;
+        listing.current_bid = buy_now_price;
+        listing.current_bidder = Some(ctx.accounts.buyer.key());
+        listing.status = ListingStatus::Sold;
+        listing.end_time = clock.unix_timestamp; // End auction immediately
+
+        // INTERACTIONS: External calls LAST
+        // Transfer buy now amount to escrow
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.buyer.to_account_info(),
+                to: ctx.accounts.escrow.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, buy_now_price)?;
+
+        // Update escrow amount tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_add(buy_now_price)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Refund any existing bidder
+        if let Some(_previous_bidder) = old_bidder {
+            if old_bid > 0 {
                 let seeds = &[
                     b"escrow",
                     listing.to_account_info().key.as_ref(),
@@ -170,25 +226,14 @@ pub mod app_market {
                     },
                     signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, listing.current_bid)?;
+                anchor_lang::system_program::transfer(cpi_ctx, old_bid)?;
+
+                // Update escrow amount tracking
+                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                    .checked_sub(old_bid)
+                    .ok_or(AppMarketError::MathOverflow)?;
             }
         }
-
-        // Transfer buy now amount to escrow
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
-            anchor_lang::system_program::Transfer {
-                from: ctx.accounts.buyer.to_account_info(),
-                to: ctx.accounts.escrow.to_account_info(),
-            },
-        );
-        anchor_lang::system_program::transfer(cpi_ctx, buy_now_price)?;
-
-        // Update listing
-        listing.current_bid = buy_now_price;
-        listing.current_bidder = Some(ctx.accounts.buyer.key());
-        listing.status = ListingStatus::Sold;
-        listing.end_time = clock.unix_timestamp; // End auction immediately
 
         // Create transaction record
         let transaction = &mut ctx.accounts.transaction;
@@ -196,10 +241,21 @@ pub mod app_market {
         transaction.seller = listing.seller;
         transaction.buyer = ctx.accounts.buyer.key();
         transaction.sale_price = buy_now_price;
-        transaction.platform_fee = (buy_now_price * ctx.accounts.config.platform_fee_bps) / 10000;
-        transaction.seller_proceeds = buy_now_price - transaction.platform_fee;
+
+        // Safe math for fee calculation
+        transaction.platform_fee = buy_now_price
+            .checked_mul(ctx.accounts.config.platform_fee_bps)
+            .ok_or(AppMarketError::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(AppMarketError::MathOverflow)?;
+        transaction.seller_proceeds = buy_now_price
+            .checked_sub(transaction.platform_fee)
+            .ok_or(AppMarketError::MathOverflow)?;
+
         transaction.status = TransactionStatus::InEscrow;
-        transaction.transfer_deadline = clock.unix_timestamp + TRANSFER_DEADLINE_SECONDS;
+        transaction.transfer_deadline = clock.unix_timestamp
+            .checked_add(TRANSFER_DEADLINE_SECONDS)
+            .ok_or(AppMarketError::MathOverflow)?;
         transaction.created_at = clock.unix_timestamp;
         transaction.bump = ctx.bumps.transaction;
 
@@ -279,10 +335,21 @@ pub mod app_market {
         transaction.seller = listing.seller;
         transaction.buyer = listing.current_bidder.unwrap();
         transaction.sale_price = listing.current_bid;
-        transaction.platform_fee = (listing.current_bid * ctx.accounts.config.platform_fee_bps) / 10000;
-        transaction.seller_proceeds = listing.current_bid - transaction.platform_fee;
+
+        // Safe math for fee calculation
+        transaction.platform_fee = listing.current_bid
+            .checked_mul(ctx.accounts.config.platform_fee_bps)
+            .ok_or(AppMarketError::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(AppMarketError::MathOverflow)?;
+        transaction.seller_proceeds = listing.current_bid
+            .checked_sub(transaction.platform_fee)
+            .ok_or(AppMarketError::MathOverflow)?;
+
         transaction.status = TransactionStatus::InEscrow;
-        transaction.transfer_deadline = clock.unix_timestamp + TRANSFER_DEADLINE_SECONDS;
+        transaction.transfer_deadline = clock.unix_timestamp
+            .checked_add(TRANSFER_DEADLINE_SECONDS)
+            .ok_or(AppMarketError::MathOverflow)?;
         transaction.created_at = clock.unix_timestamp;
         transaction.bump = ctx.bumps.transaction;
 
@@ -307,6 +374,28 @@ pub mod app_market {
         require!(transaction.status == TransactionStatus::InEscrow, AppMarketError::InvalidTransactionStatus);
         require!(ctx.accounts.buyer.key() == transaction.buyer, AppMarketError::NotBuyer);
 
+        // CRITICAL: Validate treasury matches config
+        require!(
+            ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
+            AppMarketError::InvalidTreasury
+        );
+
+        // CRITICAL: Validate seller matches transaction
+        require!(
+            ctx.accounts.seller.key() == transaction.seller,
+            AppMarketError::InvalidSeller
+        );
+
+        // CRITICAL: Validate escrow has sufficient balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        let required_balance = transaction.platform_fee
+            .checked_add(transaction.seller_proceeds)
+            .ok_or(AppMarketError::MathOverflow)?;
+        require!(
+            escrow_balance >= required_balance,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
         // Transfer platform fee to treasury
         let seeds = &[
             b"escrow",
@@ -326,6 +415,11 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, transaction.platform_fee)?;
 
+        // Update escrow amount tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(transaction.platform_fee)
+            .ok_or(AppMarketError::MathOverflow)?;
+
         // Seller proceeds to seller
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
@@ -337,14 +431,23 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, transaction.seller_proceeds)?;
 
+        // Update escrow amount tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(transaction.seller_proceeds)
+            .ok_or(AppMarketError::MathOverflow)?;
+
         // Update transaction status
         transaction.status = TransactionStatus::Completed;
         transaction.completed_at = Some(clock.unix_timestamp);
 
-        // Update config stats
+        // Update config stats with safe math
         let config = &mut ctx.accounts.config;
-        config.total_volume += transaction.sale_price;
-        config.total_sales += 1;
+        config.total_volume = config.total_volume
+            .checked_add(transaction.sale_price)
+            .ok_or(AppMarketError::MathOverflow)?;
+        config.total_sales = config.total_sales
+            .checked_add(1)
+            .ok_or(AppMarketError::MathOverflow)?;
 
         emit!(TransactionCompleted {
             transaction: transaction.key(),
@@ -389,7 +492,14 @@ pub mod app_market {
         dispute.reason = reason.clone();
         dispute.status = DisputeStatus::Open;
         dispute.created_at = clock.unix_timestamp;
-        dispute.dispute_fee = (transaction.sale_price * ctx.accounts.config.dispute_fee_bps) / 10000;
+
+        // Safe math for dispute fee calculation
+        dispute.dispute_fee = transaction.sale_price
+            .checked_mul(ctx.accounts.config.dispute_fee_bps)
+            .ok_or(AppMarketError::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(AppMarketError::MathOverflow)?;
+
         dispute.bump = ctx.bumps.dispute;
 
         emit!(DisputeOpened {
@@ -417,6 +527,22 @@ pub mod app_market {
         require!(ctx.accounts.admin.key() == ctx.accounts.config.admin, AppMarketError::NotAdmin);
         require!(dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview, AppMarketError::DisputeNotOpen);
 
+        // CRITICAL: Validate treasury matches config
+        require!(
+            ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
+            AppMarketError::InvalidTreasury
+        );
+
+        // CRITICAL: Validate buyer and seller match transaction
+        require!(
+            ctx.accounts.buyer.key() == transaction.buyer,
+            AppMarketError::InvalidBuyer
+        );
+        require!(
+            ctx.accounts.seller.key() == transaction.seller,
+            AppMarketError::InvalidSeller
+        );
+
         let seeds = &[
             b"escrow",
             ctx.accounts.listing.to_account_info().key.as_ref(),
@@ -426,6 +552,13 @@ pub mod app_market {
 
         match resolution {
             DisputeResolution::FullRefund => {
+                // Validate escrow has sufficient balance
+                let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+                require!(
+                    escrow_balance >= transaction.sale_price,
+                    AppMarketError::InsufficientEscrowBalance
+                );
+
                 // Refund buyer entirely
                 let cpi_ctx = CpiContext::new_with_signer(
                     ctx.accounts.system_program.to_account_info(),
@@ -436,11 +569,26 @@ pub mod app_market {
                     signer,
                 );
                 anchor_lang::system_program::transfer(cpi_ctx, transaction.sale_price)?;
-                
+
+                // Update escrow amount tracking
+                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                    .checked_sub(transaction.sale_price)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
                 // Charge dispute fee to seller (deducted from future transactions or flagged)
                 transaction.status = TransactionStatus::Refunded;
             },
             DisputeResolution::ReleaseToSeller => {
+                // Validate escrow has sufficient balance
+                let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+                let required_balance = transaction.platform_fee
+                    .checked_add(transaction.seller_proceeds)
+                    .ok_or(AppMarketError::MathOverflow)?;
+                require!(
+                    escrow_balance >= required_balance,
+                    AppMarketError::InsufficientEscrowBalance
+                );
+
                 // Release to seller (minus fees)
                 // Platform fee to treasury
                 let cpi_ctx = CpiContext::new_with_signer(
@@ -453,6 +601,11 @@ pub mod app_market {
                 );
                 anchor_lang::system_program::transfer(cpi_ctx, transaction.platform_fee)?;
 
+                // Update escrow amount tracking
+                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                    .checked_sub(transaction.platform_fee)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
                 // Seller proceeds
                 let cpi_ctx = CpiContext::new_with_signer(
                     ctx.accounts.system_program.to_account_info(),
@@ -464,11 +617,32 @@ pub mod app_market {
                 );
                 anchor_lang::system_program::transfer(cpi_ctx, transaction.seller_proceeds)?;
 
+                // Update escrow amount tracking
+                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                    .checked_sub(transaction.seller_proceeds)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
                 // Charge dispute fee to buyer
                 transaction.status = TransactionStatus::Completed;
             },
             DisputeResolution::PartialRefund { buyer_amount, seller_amount } => {
-                // Partial resolution
+                // CRITICAL: Validate amounts don't exceed sale price
+                let total_refund = buyer_amount
+                    .checked_add(seller_amount)
+                    .ok_or(AppMarketError::MathOverflow)?;
+                require!(
+                    total_refund <= transaction.sale_price,
+                    AppMarketError::InvalidRefundAmounts
+                );
+
+                // Validate escrow has sufficient balance
+                let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+                require!(
+                    escrow_balance >= total_refund,
+                    AppMarketError::InsufficientEscrowBalance
+                );
+
+                // Partial resolution - transfer to buyer
                 if buyer_amount > 0 {
                     let cpi_ctx = CpiContext::new_with_signer(
                         ctx.accounts.system_program.to_account_info(),
@@ -479,8 +653,14 @@ pub mod app_market {
                         signer,
                     );
                     anchor_lang::system_program::transfer(cpi_ctx, buyer_amount)?;
+
+                    // Update escrow amount tracking
+                    ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                        .checked_sub(buyer_amount)
+                        .ok_or(AppMarketError::MathOverflow)?;
                 }
-                
+
+                // Transfer to seller
                 if seller_amount > 0 {
                     let cpi_ctx = CpiContext::new_with_signer(
                         ctx.accounts.system_program.to_account_info(),
@@ -491,6 +671,32 @@ pub mod app_market {
                         signer,
                     );
                     anchor_lang::system_program::transfer(cpi_ctx, seller_amount)?;
+
+                    // Update escrow amount tracking
+                    ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                        .checked_sub(seller_amount)
+                        .ok_or(AppMarketError::MathOverflow)?;
+                }
+
+                // Transfer remainder to treasury as platform fee
+                let remaining = transaction.sale_price
+                    .checked_sub(total_refund)
+                    .ok_or(AppMarketError::MathOverflow)?;
+                if remaining > 0 {
+                    let cpi_ctx = CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.escrow.to_account_info(),
+                            to: ctx.accounts.treasury.to_account_info(),
+                        },
+                        signer,
+                    );
+                    anchor_lang::system_program::transfer(cpi_ctx, remaining)?;
+
+                    // Update escrow amount tracking
+                    ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+                        .checked_sub(remaining)
+                        .ok_or(AppMarketError::MathOverflow)?;
                 }
 
                 transaction.status = TransactionStatus::Completed;
@@ -508,6 +714,71 @@ pub mod app_market {
             transaction: transaction.key(),
             resolution,
             notes,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Emergency refund after transfer deadline passes
+    pub fn emergency_refund(ctx: Context<EmergencyRefund>) -> Result<()> {
+        let transaction = &mut ctx.accounts.transaction;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            transaction.status == TransactionStatus::InEscrow,
+            AppMarketError::InvalidTransactionStatus
+        );
+        require!(
+            ctx.accounts.buyer.key() == transaction.buyer,
+            AppMarketError::NotBuyer
+        );
+        require!(
+            clock.unix_timestamp > transaction.transfer_deadline,
+            AppMarketError::DeadlineNotPassed
+        );
+
+        // Validate escrow has sufficient balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        require!(
+            escrow_balance >= transaction.sale_price,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // Refund full amount to buyer
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.listing.to_account_info().key.as_ref(),
+            &[ctx.accounts.escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.buyer.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, transaction.sale_price)?;
+
+        // Update escrow amount tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(transaction.sale_price)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Update transaction status
+        transaction.status = TransactionStatus::Refunded;
+        transaction.completed_at = Some(clock.unix_timestamp);
+
+        emit!(TransactionCompleted {
+            transaction: transaction.key(),
+            seller: transaction.seller,
+            buyer: transaction.buyer,
+            amount: 0,
+            platform_fee: 0,
             timestamp: clock.unix_timestamp,
         });
 
@@ -780,10 +1051,34 @@ pub struct ResolveDispute<'info> {
 }
 
 #[derive(Accounts)]
+pub struct EmergencyRefund<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
+        mut,
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct CancelListing<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
-    
+
     pub seller: Signer<'info>,
 }
 
@@ -1000,4 +1295,22 @@ pub enum AppMarketError {
     DisputeNotOpen,
     #[msg("Listing has bids and cannot be cancelled")]
     HasBids,
+    #[msg("Math overflow occurred")]
+    MathOverflow,
+    #[msg("Invalid previous bidder address")]
+    InvalidPreviousBidder,
+    #[msg("Invalid treasury address")]
+    InvalidTreasury,
+    #[msg("Invalid seller address")]
+    InvalidSeller,
+    #[msg("Invalid buyer address")]
+    InvalidBuyer,
+    #[msg("Insufficient escrow balance")]
+    InsufficientEscrowBalance,
+    #[msg("Deadline has not passed yet")]
+    DeadlineNotPassed,
+    #[msg("Invalid refund amounts")]
+    InvalidRefundAmounts,
+    #[msg("Unauthorized settlement")]
+    UnauthorizedSettlement,
 }
