@@ -252,12 +252,15 @@ pub mod app_market {
                         AppMarketError::StartingPriceMustEqualReserve
                     );
                 }
+                // ENHANCEMENT: Auctions can have buy_now_price for instant purchase during bidding
+                // If someone hits buy_now during auction, they win immediately
             },
             ListingType::BuyNow => {
                 require!(
                     buy_now_price.is_some(),
                     AppMarketError::BuyNowPriceRequired
                 );
+                // Note: BuyNow can also have reserve_price for dual listing functionality
             },
         }
 
@@ -642,18 +645,11 @@ pub mod app_market {
             AppMarketError::UnauthorizedSettlement
         );
 
-        // SECURITY: Reserve is always met if auction started (bids below reserve are rejected)
-        // No bids - cancel auction
-        if listing.current_bidder.is_none() {
-            listing.status = ListingStatus::Cancelled;
-
-            emit!(AuctionCancelled {
-                listing: listing.key(),
-                reason: "No bids received".to_string(),
-            });
-
-            return Ok(());
-        }
+        // SECURITY: Must have bids to settle - use cancel_auction for no-bid scenarios
+        require!(
+            listing.current_bidder.is_some(),
+            AppMarketError::NoBidsToSettle
+        );
 
         // Auction successful - create transaction
         listing.status = ListingStatus::Sold;
@@ -691,6 +687,51 @@ pub mod app_market {
             seller: listing.seller,
             amount: listing.current_bid,
             timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Cancel auction (when no bids received, closes escrow and refunds rent)
+    pub fn cancel_auction(ctx: Context<CancelAuction>) -> Result<()> {
+        let listing = &mut ctx.accounts.listing;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            listing.status == ListingStatus::Active,
+            AppMarketError::ListingNotActive
+        );
+        require!(
+            listing.listing_type == ListingType::Auction,
+            AppMarketError::NotAnAuction
+        );
+        require!(
+            ctx.accounts.seller.key() == listing.seller,
+            AppMarketError::NotSeller
+        );
+
+        // Can only cancel if:
+        // 1. No bids received, OR
+        // 2. Auction ended and reserve not met (auction_started = false means no valid bids)
+        require!(
+            listing.current_bidder.is_none(),
+            AppMarketError::CannotCancelWithBids
+        );
+
+        // If auction has ended, require it to be past end_time
+        if listing.auction_started {
+            require!(
+                clock.unix_timestamp >= listing.end_time,
+                AppMarketError::AuctionNotEnded
+            );
+        }
+
+        listing.status = ListingStatus::Cancelled;
+
+        emit!(AuctionCancelled {
+            listing: listing.key(),
+            reason: "Cancelled by seller - no bids received".to_string(),
         });
 
         Ok(())
@@ -1949,6 +1990,26 @@ pub struct SettleAuction<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CancelAuction<'info> {
+    #[account(mut)]
+    pub listing: Account<'info, Listing>,
+
+    // SECURITY: Close escrow and refund rent to seller when auction cancelled (no bids)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct ExpireListing<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
@@ -2838,4 +2899,8 @@ pub enum AppMarketError {
     CannotFinalizeDisputed,
     #[msg("Seller must sign to finalize")]
     SellerMustSign,
+    #[msg("No bids to settle - use cancel_auction instead")]
+    NoBidsToSettle,
+    #[msg("Cannot cancel auction with active bids")]
+    CannotCancelWithBids,
 }
