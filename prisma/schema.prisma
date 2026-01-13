@@ -286,6 +286,42 @@ model PendingWithdrawal {
 }
 
 // ============================================
+// UPLOADS (Asset Transfer)
+// ============================================
+
+model Upload {
+  id            String     @id @default(cuid())
+
+  // Upload Type
+  type          UploadType
+
+  // File/URL Info
+  url           String?    // GitHub URL, file URL, etc.
+  fileKey       String?    // S3/storage key
+  fileName      String?
+  fileSize      Int?       // in bytes
+
+  // Metadata (credentials, social accounts, etc.)
+  metadata      Json?
+
+  // Verification
+  verified      Boolean    @default(false)
+  verifiedAt    DateTime?
+
+  // Relations
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  // Timestamps
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([transactionId])
+  @@index([type])
+  @@index([verified])
+}
+
+// ============================================
 // TRANSACTIONS & ESCROW
 // ============================================
 
@@ -306,10 +342,16 @@ model Transaction {
   
   // Status
   status              TransactionStatus @default(PENDING)
-  
+
   // Transfer Checklist
   transferChecklist   Json?
-  
+
+  // Upload Verification
+  sellerConfirmedTransfer Boolean        @default(false)
+  uploadsVerified         Boolean        @default(false)
+  verificationHash        String?
+  verifiedAt              DateTime?
+
   // NFT
   ownershipNftMint    String?
   
@@ -322,7 +364,8 @@ model Transaction {
   seller              User              @relation("SellerTransactions", fields: [sellerId], references: [id])
   dispute             Dispute?
   reviews             Review[]
-  
+  uploads             Upload[]
+
   // Timestamps
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -667,4 +710,17 @@ enum OfferStatus {
   ACCEPTED
   CANCELLED
   EXPIRED
+}
+
+enum UploadType {
+  GITHUB
+  FILE
+  CREDENTIALS
+  DOCUMENTATION
+  DOMAIN
+  DATABASE
+  HOSTING
+  SOCIAL_ACCOUNT
+  API_KEYS
+  DESIGN_FILES
 }
