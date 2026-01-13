@@ -7,7 +7,7 @@ declare_id!("AppMkt1111111111111111111111111111111111111");
 ///
 /// Flow:
 /// 1. Seller creates listing + escrow -> Both PDAs created atomically
-/// 2. Buyer places bid / buys now -> Funds locked in existing escrow
+/// 2. Buyer places bid / buys now / makes offer -> Funds locked in escrow/offer PDAs
 /// 3. Auction ends -> Winner determined
 /// 4. Transfer period -> Seller transfers assets and confirms on-chain
 /// 5. Buyer confirms receipt -> Escrow releases to seller
@@ -52,6 +52,9 @@ pub mod app_market {
 
     /// Admin timelock: 48 hours for sensitive operations
     pub const ADMIN_TIMELOCK_SECONDS: i64 = 48 * 60 * 60;
+
+    /// Finalize grace period: 72 hours after seller confirmation
+    pub const FINALIZE_GRACE_PERIOD: i64 = 72 * 60 * 60;
 
     // ============================================
     // INSTRUCTIONS
@@ -222,6 +225,7 @@ pub mod app_market {
     pub fn create_listing(
         ctx: Context<CreateListing>,
         salt: u64,
+        listing_type: ListingType,
         starting_price: u64,
         reserve_price: Option<u64>,
         buy_now_price: Option<u64>,
@@ -234,6 +238,25 @@ pub mod app_market {
             AppMarketError::InvalidDuration
         );
 
+        // Validate listing type requirements
+        match listing_type {
+            ListingType::Auction => {
+                // Auction with reserve: starting bid must equal reserve
+                if let Some(reserve) = reserve_price {
+                    require!(
+                        starting_price == reserve,
+                        AppMarketError::StartingPriceMustEqualReserve
+                    );
+                }
+            },
+            ListingType::BuyNow => {
+                require!(
+                    buy_now_price.is_some(),
+                    AppMarketError::BuyNowPriceRequired
+                );
+            },
+        }
+
         let listing = &mut ctx.accounts.listing;
         let escrow = &mut ctx.accounts.escrow;
         let clock = Clock::get()?;
@@ -241,14 +264,20 @@ pub mod app_market {
         // Initialize listing
         listing.seller = ctx.accounts.seller.key();
         listing.listing_id = format!("{}-{}", ctx.accounts.seller.key(), salt);
+        listing.listing_type = listing_type.clone();
         listing.starting_price = starting_price;
         listing.reserve_price = reserve_price;
         listing.buy_now_price = buy_now_price;
         listing.current_bid = 0;
         listing.current_bidder = None;
-        listing.start_time = clock.unix_timestamp;
+        listing.created_at = clock.unix_timestamp;
+
+        // SECURITY: Auction timer doesn't start until reserve bid placed
+        listing.auction_started = false;
+        listing.auction_start_time = None;
         listing.end_time = clock.unix_timestamp + duration_seconds;
         listing.status = ListingStatus::Active;
+
         // SECURITY: Lock fees at listing creation time
         listing.platform_fee_bps = ctx.accounts.config.platform_fee_bps;
         listing.dispute_fee_bps = ctx.accounts.config.dispute_fee_bps;
@@ -263,6 +292,7 @@ pub mod app_market {
             listing: listing.key(),
             seller: listing.seller,
             listing_id: listing.listing_id.clone(),
+            listing_type,
             starting_price,
             end_time: listing.end_time,
             platform_fee_bps: listing.platform_fee_bps,
@@ -271,7 +301,7 @@ pub mod app_market {
         Ok(())
     }
 
-    /// Place a bid on a listing
+    /// Place a bid on a listing (uses withdrawal pattern for refunds)
     pub fn place_bid(ctx: Context<PlaceBid>, amount: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
 
@@ -280,7 +310,19 @@ pub mod app_market {
 
         // CHECKS: All validations first
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
-        require!(clock.unix_timestamp < listing.end_time, AppMarketError::AuctionEnded);
+        require!(
+            listing.listing_type == ListingType::Auction,
+            AppMarketError::NotAnAuction
+        );
+
+        // Check auction timing
+        if listing.auction_started {
+            require!(
+                clock.unix_timestamp < listing.end_time,
+                AppMarketError::AuctionEnded
+            );
+        }
+
         require!(ctx.accounts.bidder.key() != listing.seller, AppMarketError::SellerCannotBid);
 
         // SECURITY: Pre-check bidder has sufficient balance
@@ -307,33 +349,37 @@ pub mod app_market {
             require!(amount >= listing.starting_price, AppMarketError::BidTooLow);
         }
 
-        // SECURITY: Validate previous_bidder (including None case)
-        if let Some(previous_bidder) = listing.current_bidder {
-            require!(
-                ctx.accounts.previous_bidder.key() == previous_bidder,
-                AppMarketError::InvalidPreviousBidder
-            );
-        } else {
-            // No previous bidder -> must pass system program
-            require!(
-                ctx.accounts.previous_bidder.key() == system_program::ID,
-                AppMarketError::InvalidPreviousBidder
-            );
-        }
-
         // EFFECTS: Update state BEFORE external calls
         let old_bid = listing.current_bid;
         let old_bidder = listing.current_bidder;
+
         listing.current_bid = amount;
         listing.current_bidder = Some(ctx.accounts.bidder.key());
+
+        // Start auction timer if reserve price met (or no reserve)
+        if !listing.auction_started {
+            let reserve_met = if let Some(reserve) = listing.reserve_price {
+                amount >= reserve
+            } else {
+                true
+            };
+
+            if reserve_met {
+                listing.auction_started = true;
+                listing.auction_start_time = Some(clock.unix_timestamp);
+                listing.end_time = clock.unix_timestamp
+                    .checked_add(listing.end_time - listing.created_at)
+                    .ok_or(AppMarketError::MathOverflow)?;
+            }
+        }
 
         // Update escrow amount tracking BEFORE transfers
         ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
             .checked_add(amount)
             .ok_or(AppMarketError::MathOverflow)?;
 
-        // SECURITY: Anti-sniping - extend auction if bid placed near end
-        if clock.unix_timestamp > listing.end_time - ANTI_SNIPE_WINDOW {
+        // SECURITY: Anti-sniping - extend auction if bid placed near end (only if started)
+        if listing.auction_started && clock.unix_timestamp > listing.end_time - ANTI_SNIPE_WINDOW {
             listing.end_time = clock.unix_timestamp
                 .checked_add(ANTI_SNIPE_EXTENSION)
                 .ok_or(AppMarketError::MathOverflow)?;
@@ -349,30 +395,23 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, amount)?;
 
-        // Refund previous bidder if exists
-        if let Some(_previous_bidder) = old_bidder {
+        // SECURITY: Use withdrawal pattern for refunds (prevents DoS)
+        if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
-                let seeds = &[
-                    b"escrow",
-                    listing.to_account_info().key.as_ref(),
-                    &[ctx.accounts.escrow.bump],
-                ];
-                let signer = &[&seeds[..]];
+                // Create pending withdrawal for previous bidder
+                let withdrawal = &mut ctx.accounts.pending_withdrawal;
+                withdrawal.user = previous_bidder;
+                withdrawal.listing = listing.key();
+                withdrawal.amount = old_bid;
+                withdrawal.created_at = clock.unix_timestamp;
+                withdrawal.bump = ctx.bumps.pending_withdrawal;
 
-                let cpi_ctx = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.previous_bidder.to_account_info(),
-                    },
-                    signer,
-                );
-                anchor_lang::system_program::transfer(cpi_ctx, old_bid)?;
-
-                // Update escrow amount tracking
-                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                    .checked_sub(old_bid)
-                    .ok_or(AppMarketError::MathOverflow)?;
+                emit!(WithdrawalCreated {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: old_bid,
+                    timestamp: clock.unix_timestamp,
+                });
             }
         }
 
@@ -380,6 +419,60 @@ pub mod app_market {
             listing: listing.key(),
             bidder: ctx.accounts.bidder.key(),
             amount,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Withdraw funds from pending withdrawal (pull pattern)
+    pub fn withdraw_funds(ctx: Context<WithdrawFunds>) -> Result<()> {
+        let withdrawal = &ctx.accounts.pending_withdrawal;
+        let clock = Clock::get()?;
+
+        // CHECKS: Validate user
+        require!(
+            ctx.accounts.user.key() == withdrawal.user,
+            AppMarketError::NotWithdrawalOwner
+        );
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.escrow.to_account_info().data_len()
+        );
+        require!(
+            escrow_balance >= withdrawal.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // INTERACTIONS: Transfer funds
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.listing.to_account_info().key.as_ref(),
+            &[ctx.accounts.escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.user.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, withdrawal.amount)?;
+
+        // Update escrow tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(withdrawal.amount)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        emit!(WithdrawalClaimed {
+            user: withdrawal.user,
+            listing: ctx.accounts.listing.key(),
+            amount: withdrawal.amount,
             timestamp: clock.unix_timestamp,
         });
 
@@ -395,7 +488,7 @@ pub mod app_market {
 
         // CHECKS
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
-        require!(clock.unix_timestamp < listing.end_time, AppMarketError::AuctionEnded);
+        require!(clock.unix_timestamp < listing.end_time, AppMarketError::ListingExpired);
         require!(listing.buy_now_price.is_some(), AppMarketError::BuyNowNotEnabled);
         require!(ctx.accounts.buyer.key() != listing.seller, AppMarketError::SellerCannotBuy);
 
@@ -407,22 +500,10 @@ pub mod app_market {
             AppMarketError::InsufficientBalance
         );
 
-        // Validate previous_bidder
-        if let Some(previous_bidder) = listing.current_bidder {
-            require!(
-                ctx.accounts.previous_bidder.key() == previous_bidder,
-                AppMarketError::InvalidPreviousBidder
-            );
-        } else {
-            require!(
-                ctx.accounts.previous_bidder.key() == system_program::ID,
-                AppMarketError::InvalidPreviousBidder
-            );
-        }
-
         // EFFECTS
         let old_bid = listing.current_bid;
         let old_bidder = listing.current_bidder;
+
         listing.current_bid = buy_now_price;
         listing.current_bidder = Some(ctx.accounts.buyer.key());
         listing.status = ListingStatus::Sold;
@@ -443,29 +524,22 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, buy_now_price)?;
 
-        // Refund any existing bidder
-        if let Some(_previous_bidder) = old_bidder {
+        // SECURITY: Use withdrawal pattern for any existing bidder
+        if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
-                let seeds = &[
-                    b"escrow",
-                    listing.to_account_info().key.as_ref(),
-                    &[ctx.accounts.escrow.bump],
-                ];
-                let signer = &[&seeds[..]];
+                let withdrawal = &mut ctx.accounts.pending_withdrawal;
+                withdrawal.user = previous_bidder;
+                withdrawal.listing = listing.key();
+                withdrawal.amount = old_bid;
+                withdrawal.created_at = clock.unix_timestamp;
+                withdrawal.bump = ctx.bumps.pending_withdrawal;
 
-                let cpi_ctx = CpiContext::new_with_signer(
-                    ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
-                        from: ctx.accounts.escrow.to_account_info(),
-                        to: ctx.accounts.previous_bidder.to_account_info(),
-                    },
-                    signer,
-                );
-                anchor_lang::system_program::transfer(cpi_ctx, old_bid)?;
-
-                ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                    .checked_sub(old_bid)
-                    .ok_or(AppMarketError::MathOverflow)?;
+                emit!(WithdrawalCreated {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: old_bid,
+                    timestamp: clock.unix_timestamp,
+                });
             }
         }
 
@@ -515,9 +589,20 @@ pub mod app_market {
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
-        // Validations
+        // SECURITY: Fix validation order - check bidder validity FIRST
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
-        require!(clock.unix_timestamp >= listing.end_time, AppMarketError::AuctionNotEnded);
+        require!(
+            listing.listing_type == ListingType::Auction,
+            AppMarketError::NotAnAuction
+        );
+
+        // Only require auction to be ended if it was started
+        if listing.auction_started {
+            require!(
+                clock.unix_timestamp >= listing.end_time,
+                AppMarketError::AuctionNotEnded
+            );
+        }
 
         // SECURITY: Only allow seller, winner, or admin to settle
         let is_seller = ctx.accounts.payer.key() == listing.seller;
@@ -531,59 +616,48 @@ pub mod app_market {
             AppMarketError::UnauthorizedSettlement
         );
 
-        // Check if reserve price was met
-        if let Some(reserve) = listing.reserve_price {
-            if listing.current_bid < reserve {
-                // Reserve not met - refund bidder and cancel
-                if let Some(stored_bidder) = listing.current_bidder {
-                    if listing.current_bid > 0 {
-                        // SECURITY: Validate bidder account matches stored bidder
-                        require!(
-                            ctx.accounts.bidder.key() == stored_bidder,
-                            AppMarketError::InvalidBidder
-                        );
+        // Check if reserve price was met (or if auction never started)
+        let reserve_met = if let Some(reserve) = listing.reserve_price {
+            listing.current_bid >= reserve
+        } else {
+            listing.current_bid > 0
+        };
 
-                        // SECURITY: Validate escrow balance
-                        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
-                        let rent = Rent::get()?.minimum_balance(
-                            ctx.accounts.escrow.to_account_info().data_len()
-                        );
-                        require!(
-                            escrow_balance >= listing.current_bid + rent,
-                            AppMarketError::InsufficientEscrowBalance
-                        );
+        if !reserve_met {
+            // Reserve not met - refund bidder and cancel
+            if let Some(stored_bidder) = listing.current_bidder {
+                if listing.current_bid > 0 {
+                    // SECURITY: Validate bidder account matches BEFORE balance check
+                    require!(
+                        ctx.accounts.bidder.key() == stored_bidder,
+                        AppMarketError::InvalidBidder
+                    );
 
-                        let seeds = &[
-                            b"escrow",
-                            listing.to_account_info().key.as_ref(),
-                            &[ctx.accounts.escrow.bump],
-                        ];
-                        let signer = &[&seeds[..]];
+                    // SECURITY: Use withdrawal pattern
+                    let withdrawal = &mut ctx.accounts.pending_withdrawal;
+                    withdrawal.user = stored_bidder;
+                    withdrawal.listing = listing.key();
+                    withdrawal.amount = listing.current_bid;
+                    withdrawal.created_at = clock.unix_timestamp;
+                    withdrawal.bump = ctx.bumps.pending_withdrawal;
 
-                        let cpi_ctx = CpiContext::new_with_signer(
-                            ctx.accounts.system_program.to_account_info(),
-                            anchor_lang::system_program::Transfer {
-                                from: ctx.accounts.escrow.to_account_info(),
-                                to: ctx.accounts.bidder.to_account_info(),
-                            },
-                            signer,
-                        );
-                        anchor_lang::system_program::transfer(cpi_ctx, listing.current_bid)?;
-
-                        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                            .checked_sub(listing.current_bid)
-                            .ok_or(AppMarketError::MathOverflow)?;
-                    }
+                    emit!(WithdrawalCreated {
+                        user: stored_bidder,
+                        listing: listing.key(),
+                        amount: listing.current_bid,
+                        timestamp: clock.unix_timestamp,
+                    });
                 }
-                listing.status = ListingStatus::Cancelled;
-
-                emit!(AuctionCancelled {
-                    listing: listing.key(),
-                    reason: "Reserve price not met".to_string(),
-                });
-
-                return Ok(());
             }
+
+            listing.status = ListingStatus::Cancelled;
+
+            emit!(AuctionCancelled {
+                listing: listing.key(),
+                reason: "Reserve price not met".to_string(),
+            });
+
+            return Ok(());
         }
 
         // No bids - cancel auction
@@ -639,6 +713,35 @@ pub mod app_market {
         Ok(())
     }
 
+    /// Expire listing (for buy-now listings that reached deadline)
+    pub fn expire_listing(ctx: Context<ExpireListing>) -> Result<()> {
+        let listing = &mut ctx.accounts.listing;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            listing.status == ListingStatus::Active,
+            AppMarketError::ListingNotActive
+        );
+        require!(
+            clock.unix_timestamp >= listing.end_time,
+            AppMarketError::ListingNotExpired
+        );
+        require!(
+            listing.current_bidder.is_none(),
+            AppMarketError::HasBids
+        );
+
+        listing.status = ListingStatus::Expired;
+
+        emit!(ListingExpired {
+            listing: listing.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Seller confirms they have transferred all assets (on-chain proof)
     pub fn seller_confirm_transfer(ctx: Context<SellerConfirmTransfer>) -> Result<()> {
         let transaction = &mut ctx.accounts.transaction;
@@ -664,6 +767,111 @@ pub mod app_market {
         emit!(SellerConfirmedTransfer {
             transaction: transaction.key(),
             seller: transaction.seller,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Finalize transaction after grace period (72h after seller confirmation)
+    pub fn finalize_transaction(ctx: Context<FinalizeTransaction>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
+        let transaction = &mut ctx.accounts.transaction;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            transaction.status == TransactionStatus::InEscrow,
+            AppMarketError::InvalidTransactionStatus
+        );
+        require!(
+            transaction.seller_confirmed_transfer,
+            AppMarketError::SellerNotConfirmed
+        );
+
+        let confirmed_at = transaction.seller_confirmed_at.unwrap();
+        require!(
+            clock.unix_timestamp >= confirmed_at + FINALIZE_GRACE_PERIOD,
+            AppMarketError::GracePeriodNotExpired
+        );
+
+        require!(
+            ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
+            AppMarketError::InvalidTreasury
+        );
+        require!(
+            ctx.accounts.seller.key() == transaction.seller,
+            AppMarketError::InvalidSeller
+        );
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.escrow.to_account_info().data_len()
+        );
+
+        let required_balance = transaction.platform_fee
+            .checked_add(transaction.seller_proceeds)
+            .ok_or(AppMarketError::MathOverflow)?;
+        require!(
+            escrow_balance >= required_balance + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // Transfer funds
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.listing.to_account_info().key.as_ref(),
+            &[ctx.accounts.escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        // Platform fee to treasury
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, transaction.platform_fee)?;
+
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(transaction.platform_fee)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Seller proceeds to seller
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.seller.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, transaction.seller_proceeds)?;
+
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(transaction.seller_proceeds)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Update transaction status
+        transaction.status = TransactionStatus::Completed;
+        transaction.completed_at = Some(clock.unix_timestamp);
+
+        // SECURITY: Use saturating_add for stats
+        let config = &mut ctx.accounts.config;
+        config.total_volume = config.total_volume.saturating_add(transaction.sale_price);
+        config.total_sales = config.total_sales.saturating_add(1);
+
+        emit!(TransactionCompleted {
+            transaction: transaction.key(),
+            seller: transaction.seller,
+            buyer: transaction.buyer,
+            amount: transaction.sale_price,
+            platform_fee: transaction.platform_fee,
             timestamp: clock.unix_timestamp,
         });
 
@@ -766,6 +974,315 @@ pub mod app_market {
             buyer: transaction.buyer,
             amount: transaction.sale_price,
             platform_fee: transaction.platform_fee,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Make an offer on a listing
+    pub fn make_offer(
+        ctx: Context<MakeOffer>,
+        amount: u64,
+        deadline: i64,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
+        let listing = &ctx.accounts.listing;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            listing.status == ListingStatus::Active,
+            AppMarketError::ListingNotActive
+        );
+        require!(amount > 0, AppMarketError::InvalidPrice);
+        require!(
+            deadline > clock.unix_timestamp,
+            AppMarketError::InvalidDeadline
+        );
+        require!(
+            ctx.accounts.buyer.key() != listing.seller,
+            AppMarketError::SellerCannotOffer
+        );
+
+        // SECURITY: Pre-check buyer has sufficient balance
+        require!(
+            ctx.accounts.buyer.lamports() >= amount,
+            AppMarketError::InsufficientBalance
+        );
+
+        // Initialize offer
+        let offer = &mut ctx.accounts.offer;
+        offer.listing = listing.key();
+        offer.buyer = ctx.accounts.buyer.key();
+        offer.amount = amount;
+        offer.deadline = deadline;
+        offer.status = OfferStatus::Active;
+        offer.created_at = clock.unix_timestamp;
+        offer.bump = ctx.bumps.offer;
+
+        // Initialize escrow for offer
+        let offer_escrow = &mut ctx.accounts.offer_escrow;
+        offer_escrow.offer = offer.key();
+        offer_escrow.amount = amount;
+        offer_escrow.bump = ctx.bumps.offer_escrow;
+
+        // Transfer funds to escrow
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.buyer.to_account_info(),
+                to: ctx.accounts.offer_escrow.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, amount)?;
+
+        emit!(OfferCreated {
+            offer: offer.key(),
+            listing: listing.key(),
+            buyer: ctx.accounts.buyer.key(),
+            amount,
+            deadline,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Cancel offer and get refund
+    pub fn cancel_offer(ctx: Context<CancelOffer>) -> Result<()> {
+        let offer = &mut ctx.accounts.offer;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            ctx.accounts.buyer.key() == offer.buyer,
+            AppMarketError::NotOfferOwner
+        );
+        require!(
+            offer.status == OfferStatus::Active,
+            AppMarketError::OfferNotActive
+        );
+
+        // Update offer status
+        offer.status = OfferStatus::Cancelled;
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.offer_escrow.to_account_info().data_len()
+        );
+        require!(
+            escrow_balance >= offer.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // Refund buyer (escrow will be closed, rent returned to buyer)
+        let seeds = &[
+            b"offer_escrow",
+            offer.to_account_info().key.as_ref(),
+            &[ctx.accounts.offer_escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.offer_escrow.to_account_info(),
+                to: ctx.accounts.buyer.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, offer.amount)?;
+
+        emit!(OfferCancelled {
+            offer: offer.key(),
+            listing: ctx.accounts.listing.key(),
+            buyer: offer.buyer,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Claim expired offer refund
+    pub fn claim_expired_offer(ctx: Context<ClaimExpiredOffer>) -> Result<()> {
+        let offer = &mut ctx.accounts.offer;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            ctx.accounts.buyer.key() == offer.buyer,
+            AppMarketError::NotOfferOwner
+        );
+        require!(
+            offer.status == OfferStatus::Active,
+            AppMarketError::OfferNotActive
+        );
+        require!(
+            clock.unix_timestamp > offer.deadline,
+            AppMarketError::OfferNotExpired
+        );
+
+        // Update offer status
+        offer.status = OfferStatus::Expired;
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.offer_escrow.to_account_info().data_len()
+        );
+        require!(
+            escrow_balance >= offer.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // Refund buyer
+        let seeds = &[
+            b"offer_escrow",
+            offer.to_account_info().key.as_ref(),
+            &[ctx.accounts.offer_escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.offer_escrow.to_account_info(),
+                to: ctx.accounts.buyer.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, offer.amount)?;
+
+        emit!(OfferExpired {
+            offer: offer.key(),
+            listing: ctx.accounts.listing.key(),
+            buyer: offer.buyer,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Accept offer (seller only)
+    pub fn accept_offer(ctx: Context<AcceptOffer>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
+        let listing = &mut ctx.accounts.listing;
+        let offer = &mut ctx.accounts.offer;
+        let clock = Clock::get()?;
+
+        // Validations
+        require!(
+            ctx.accounts.seller.key() == listing.seller,
+            AppMarketError::NotSeller
+        );
+        require!(
+            listing.status == ListingStatus::Active,
+            AppMarketError::ListingNotActive
+        );
+        require!(
+            offer.status == OfferStatus::Active,
+            AppMarketError::OfferNotActive
+        );
+        require!(
+            clock.unix_timestamp <= offer.deadline,
+            AppMarketError::OfferExpired
+        );
+
+        // Update statuses
+        offer.status = OfferStatus::Accepted;
+        listing.status = ListingStatus::Sold;
+        listing.current_bid = offer.amount;
+        listing.current_bidder = Some(offer.buyer);
+
+        // Transfer funds from offer escrow to listing escrow
+        let offer_escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.offer_escrow.to_account_info().data_len()
+        );
+        require!(
+            offer_escrow_balance >= offer.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        let seeds = &[
+            b"offer_escrow",
+            offer.to_account_info().key.as_ref(),
+            &[ctx.accounts.offer_escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.offer_escrow.to_account_info(),
+                to: ctx.accounts.listing_escrow.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, offer.amount)?;
+
+        // Update listing escrow tracking
+        ctx.accounts.listing_escrow.amount = ctx.accounts.listing_escrow.amount
+            .checked_add(offer.amount)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        // Handle any existing bidder with withdrawal pattern
+        if let Some(previous_bidder) = listing.current_bidder {
+            if previous_bidder != offer.buyer && listing.current_bid > 0 {
+                let withdrawal = &mut ctx.accounts.pending_withdrawal;
+                withdrawal.user = previous_bidder;
+                withdrawal.listing = listing.key();
+                withdrawal.amount = listing.current_bid;
+                withdrawal.created_at = clock.unix_timestamp;
+                withdrawal.bump = ctx.bumps.pending_withdrawal;
+
+                emit!(WithdrawalCreated {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: listing.current_bid,
+                    timestamp: clock.unix_timestamp,
+                });
+            }
+        }
+
+        // Create transaction record
+        let transaction = &mut ctx.accounts.transaction;
+        transaction.listing = listing.key();
+        transaction.seller = listing.seller;
+        transaction.buyer = offer.buyer;
+        transaction.sale_price = offer.amount;
+
+        // SECURITY: Use LOCKED fees from listing
+        transaction.platform_fee = offer.amount
+            .checked_mul(listing.platform_fee_bps)
+            .ok_or(AppMarketError::MathOverflow)?
+            .checked_div(BASIS_POINTS_DIVISOR)
+            .ok_or(AppMarketError::MathOverflow)?;
+        transaction.seller_proceeds = offer.amount
+            .checked_sub(transaction.platform_fee)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        transaction.status = TransactionStatus::InEscrow;
+        transaction.transfer_deadline = clock.unix_timestamp
+            .checked_add(TRANSFER_DEADLINE_SECONDS)
+            .ok_or(AppMarketError::MathOverflow)?;
+        transaction.created_at = clock.unix_timestamp;
+        transaction.seller_confirmed_transfer = false;
+        transaction.seller_confirmed_at = None;
+        transaction.completed_at = None;
+        transaction.bump = ctx.bumps.transaction;
+
+        emit!(OfferAccepted {
+            offer: offer.key(),
+            listing: listing.key(),
+            transaction: transaction.key(),
+            buyer: offer.buyer,
+            seller: listing.seller,
+            amount: offer.amount,
             timestamp: clock.unix_timestamp,
         });
 
@@ -947,6 +1464,9 @@ pub mod app_market {
                 transaction.status = TransactionStatus::Completed;
             },
             DisputeResolution::PartialRefund { buyer_amount, seller_amount } => {
+                // SECURITY: Validate no zero amounts
+                require!(buyer_amount > 0 || seller_amount > 0, AppMarketError::InvalidRefundAmounts);
+
                 let total_refund = buyer_amount
                     .checked_add(seller_amount)
                     .ok_or(AppMarketError::MathOverflow)?;
@@ -1121,6 +1641,8 @@ pub mod app_market {
         // Validations
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(ctx.accounts.seller.key() == listing.seller, AppMarketError::NotSeller);
+
+        // SECURITY: Prevent cancellation if auction has started (has bids)
         require!(listing.current_bidder.is_none(), AppMarketError::HasBids);
 
         listing.status = ListingStatus::Cancelled;
@@ -1233,12 +1755,48 @@ pub struct PlaceBid<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
+    // SECURITY: Create pending withdrawal for previous bidder
+    #[account(
+        init,
+        payer = bidder,
+        space = 8 + PendingWithdrawal::INIT_SPACE,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+        ],
+        bump
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
     #[account(mut)]
     pub bidder: Signer<'info>,
 
-    /// CHECK: Previous bidder to refund (validated in instruction)
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFunds<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    // SECURITY: Close withdrawal account and return rent to user
+    #[account(
+        mut,
+        close = user,
+        seeds = [b"withdrawal", listing.key().as_ref(), user.key().as_ref()],
+        bump = pending_withdrawal.bump
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
     #[account(mut)]
-    pub previous_bidder: AccountInfo<'info>,
+    pub user: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -1268,12 +1826,22 @@ pub struct BuyNow<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
+    // SECURITY: Pending withdrawal for previous bidder if exists
+    #[account(
+        init,
+        payer = buyer,
+        space = 8 + PendingWithdrawal::INIT_SPACE,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+        ],
+        bump
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
     #[account(mut)]
     pub buyer: Signer<'info>,
-
-    /// CHECK: Previous bidder to refund
-    #[account(mut)]
-    pub previous_bidder: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -1306,10 +1874,44 @@ pub struct SettleAuction<'info> {
     #[account(mut)]
     pub bidder: AccountInfo<'info>,
 
+    // SECURITY: Pending withdrawal for failed auction refund
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + PendingWithdrawal::INIT_SPACE,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+        ],
+        bump
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
     #[account(mut)]
     pub payer: Signer<'info>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ExpireListing<'info> {
+    #[account(mut)]
+    pub listing: Account<'info, Listing>,
+
+    // SECURITY: Close escrow when listing expires without bids
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump,
+        constraint = listing.seller == seller.key() @ AppMarketError::NotSeller
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    /// CHECK: Seller receives rent
+    #[account(mut)]
+    pub seller: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1324,6 +1926,46 @@ pub struct SellerConfirmTransfer<'info> {
     pub listing: Account<'info, Listing>,
 
     pub seller: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct FinalizeTransaction<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    pub listing: Account<'info, Listing>,
+
+    // SECURITY: Close accounts and return rent
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump,
+        constraint = transaction.buyer == buyer.key() @ AppMarketError::InvalidBuyer
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    /// CHECK: Buyer - rent recipient
+    #[account(mut)]
+    pub buyer: AccountInfo<'info>,
+
+    /// CHECK: Seller to receive funds
+    #[account(mut)]
+    pub seller: AccountInfo<'info>,
+
+    /// CHECK: Treasury to receive fees
+    #[account(mut)]
+    pub treasury: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1360,6 +2002,143 @@ pub struct ConfirmReceipt<'info> {
     /// CHECK: Treasury to receive fees
     #[account(mut)]
     pub treasury: AccountInfo<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(amount: u64, deadline: i64)]
+pub struct MakeOffer<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        init,
+        payer = buyer,
+        space = 8 + Offer::INIT_SPACE,
+        seeds = [b"offer", listing.key().as_ref(), buyer.key().as_ref(), &Clock::get().unwrap().unix_timestamp.to_le_bytes()],
+        bump
+    )]
+    pub offer: Account<'info, Offer>,
+
+    #[account(
+        init,
+        payer = buyer,
+        space = 8 + OfferEscrow::INIT_SPACE,
+        seeds = [b"offer_escrow", offer.key().as_ref()],
+        bump
+    )]
+    pub offer_escrow: Account<'info, OfferEscrow>,
+
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CancelOffer<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(mut)]
+    pub offer: Account<'info, Offer>,
+
+    // SECURITY: Close escrow and return rent to buyer
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"offer_escrow", offer.key().as_ref()],
+        bump = offer_escrow.bump
+    )]
+    pub offer_escrow: Account<'info, OfferEscrow>,
+
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ClaimExpiredOffer<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(mut)]
+    pub offer: Account<'info, Offer>,
+
+    // SECURITY: Close escrow and return rent to buyer
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"offer_escrow", offer.key().as_ref()],
+        bump = offer_escrow.bump
+    )]
+    pub offer_escrow: Account<'info, OfferEscrow>,
+
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptOffer<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    #[account(mut)]
+    pub listing: Account<'info, Listing>,
+
+    #[account(mut)]
+    pub offer: Account<'info, Offer>,
+
+    // Transfer funds from offer escrow to listing escrow
+    #[account(
+        mut,
+        close = buyer,
+        seeds = [b"offer_escrow", offer.key().as_ref()],
+        bump = offer_escrow.bump,
+        constraint = offer.buyer == buyer.key() @ AppMarketError::InvalidBuyer
+    )]
+    pub offer_escrow: Account<'info, OfferEscrow>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = listing_escrow.bump
+    )]
+    pub listing_escrow: Account<'info, Escrow>,
+
+    #[account(
+        init,
+        payer = seller,
+        space = 8 + Transaction::INIT_SPACE,
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    // Pending withdrawal for previous bidder if exists
+    #[account(
+        init,
+        payer = seller,
+        space = 8 + PendingWithdrawal::INIT_SPACE,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+        ],
+        bump
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
+    #[account(mut)]
+    pub seller: Signer<'info>,
+
+    /// CHECK: Buyer - rent recipient for offer escrow
+    #[account(mut)]
+    pub buyer: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -1478,6 +2257,16 @@ pub struct CancelListing<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
+    // SECURITY: Close escrow when cancelling (rent returns to seller)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(mut)]
     pub seller: Signer<'info>,
 }
 
@@ -1517,12 +2306,16 @@ pub struct Listing {
     pub seller: Pubkey,
     #[max_len(64)]
     pub listing_id: String,
+    pub listing_type: ListingType,
     pub starting_price: u64,
     pub reserve_price: Option<u64>,
     pub buy_now_price: Option<u64>,
     pub current_bid: u64,
     pub current_bidder: Option<Pubkey>,
-    pub start_time: i64,
+    pub created_at: i64,
+    // SECURITY: Auction timing fields
+    pub auction_started: bool,
+    pub auction_start_time: Option<i64>,
     pub end_time: i64,
     pub status: ListingStatus,
     // SECURITY: Lock fees at listing creation
@@ -1576,9 +2369,45 @@ pub struct Dispute {
     pub bump: u8,
 }
 
+#[account]
+#[derive(InitSpace)]
+pub struct PendingWithdrawal {
+    pub user: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub created_at: i64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct Offer {
+    pub listing: Pubkey,
+    pub buyer: Pubkey,
+    pub amount: u64,
+    pub deadline: i64,
+    pub status: OfferStatus,
+    pub created_at: i64,
+    pub bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct OfferEscrow {
+    pub offer: Pubkey,
+    pub amount: u64,
+    pub bump: u8,
+}
+
 // ============================================
 // ENUMS
 // ============================================
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+pub enum ListingType {
+    Auction,
+    BuyNow,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum ListingStatus {
@@ -1611,6 +2440,14 @@ pub enum DisputeResolution {
     PartialRefund { buyer_amount: u64, seller_amount: u64 },
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
+pub enum OfferStatus {
+    Active,
+    Accepted,
+    Cancelled,
+    Expired,
+}
+
 // ============================================
 // EVENTS
 // ============================================
@@ -1620,6 +2457,7 @@ pub struct ListingCreated {
     pub listing: Pubkey,
     pub seller: Pubkey,
     pub listing_id: String,
+    pub listing_type: ListingType,
     pub starting_price: u64,
     pub end_time: i64,
     pub platform_fee_bps: u64,
@@ -1664,6 +2502,12 @@ pub struct TransactionCompleted {
 pub struct AuctionCancelled {
     pub listing: Pubkey,
     pub reason: String,
+}
+
+#[event]
+pub struct ListingExpired {
+    pub listing: Pubkey,
+    pub timestamp: i64,
 }
 
 #[event]
@@ -1716,6 +2560,59 @@ pub struct AdminChanged {
     pub timestamp: i64,
 }
 
+#[event]
+pub struct WithdrawalCreated {
+    pub user: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct WithdrawalClaimed {
+    pub user: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct OfferCreated {
+    pub offer: Pubkey,
+    pub listing: Pubkey,
+    pub buyer: Pubkey,
+    pub amount: u64,
+    pub deadline: i64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct OfferCancelled {
+    pub offer: Pubkey,
+    pub listing: Pubkey,
+    pub buyer: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct OfferExpired {
+    pub offer: Pubkey,
+    pub listing: Pubkey,
+    pub buyer: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct OfferAccepted {
+    pub offer: Pubkey,
+    pub listing: Pubkey,
+    pub transaction: Pubkey,
+    pub buyer: Pubkey,
+    pub seller: Pubkey,
+    pub amount: u64,
+    pub timestamp: i64,
+}
+
 // ============================================
 // ERRORS
 // ============================================
@@ -1732,12 +2629,18 @@ pub enum AppMarketError {
     AuctionEnded,
     #[msg("Auction has not ended yet")]
     AuctionNotEnded,
+    #[msg("Listing has expired")]
+    ListingExpired,
+    #[msg("Listing has not expired yet")]
+    ListingNotExpired,
     #[msg("Bid is too low")]
     BidTooLow,
     #[msg("Seller cannot bid on their own listing")]
     SellerCannotBid,
     #[msg("Seller cannot buy their own listing")]
     SellerCannotBuy,
+    #[msg("Seller cannot make offers on their own listing")]
+    SellerCannotOffer,
     #[msg("Buy now is not enabled for this listing")]
     BuyNowNotEnabled,
     #[msg("Invalid transaction status")]
@@ -1774,7 +2677,7 @@ pub enum AppMarketError {
     InsufficientBalance,
     #[msg("Deadline has not passed yet")]
     DeadlineNotPassed,
-    #[msg("Invalid refund amounts: total exceeds sale price")]
+    #[msg("Invalid refund amounts: total exceeds sale price or both amounts are zero")]
     InvalidRefundAmounts,
     #[msg("Unauthorized settlement: only seller, winner, or admin can settle")]
     UnauthorizedSettlement,
@@ -1792,4 +2695,26 @@ pub enum AppMarketError {
     MustOpenDispute,
     #[msg("Transfer already confirmed by seller")]
     AlreadyConfirmed,
+    #[msg("Not the owner of this withdrawal")]
+    NotWithdrawalOwner,
+    #[msg("Not the owner of this offer")]
+    NotOfferOwner,
+    #[msg("Offer is not active")]
+    OfferNotActive,
+    #[msg("Offer has expired")]
+    OfferExpired,
+    #[msg("Offer has not expired yet")]
+    OfferNotExpired,
+    #[msg("Invalid deadline: must be in the future")]
+    InvalidDeadline,
+    #[msg("This is not an auction listing")]
+    NotAnAuction,
+    #[msg("Seller has not confirmed transfer yet")]
+    SellerNotConfirmed,
+    #[msg("Grace period has not expired: must wait 72 hours after seller confirmation")]
+    GracePeriodNotExpired,
+    #[msg("Starting price must equal reserve price for reserve auctions")]
+    StartingPriceMustEqualReserve,
+    #[msg("Buy now price is required for BuyNow listings")]
+    BuyNowPriceRequired,
 }
