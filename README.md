@@ -173,29 +173,6 @@ app-market/
 | Featured Listings | TBD | Premium placement (coming soon) |
 | Verified Badges | TBD | Trust verification (coming soon) |
 
-## Roadmap
-
-### Phase 1 ✅ (Current)
-- [x] Core marketplace functionality
-- [x] Solana escrow smart contract
-- [x] Auction and Buy Now
-- [x] Transfer checklist system
-- [x] Dispute resolution (manual)
-- [x] Stripe fiat payments
-
-### Phase 2 (Next)
-- [ ] Token launch feature
-- [ ] Auto-buyback mechanism
-- [ ] Featured listings
-- [ ] Verified seller badges
-- [ ] Advanced search and filters
-
-### Phase 3 (Future)
-- [ ] Community arbitration
-- [ ] Platform governance token
-- [ ] Mobile app
-- [ ] API for third-party integrations
-
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
