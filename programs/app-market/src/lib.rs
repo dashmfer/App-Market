@@ -264,6 +264,18 @@ pub mod app_market {
             },
         }
 
+        // SECURITY: Validate GitHub username format if provided
+        if requires_github && !required_github_username.is_empty() {
+            require!(
+                required_github_username.len() <= 64,
+                AppMarketError::InvalidGithubUsername
+            );
+            require!(
+                required_github_username.chars().all(|c| c.is_alphanumeric() || c == '-'),
+                AppMarketError::InvalidGithubUsername
+            );
+        }
+
         let listing = &mut ctx.accounts.listing;
         let escrow = &mut ctx.accounts.escrow;
         let clock = Clock::get()?;
@@ -553,15 +565,53 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, buy_now_price)?;
 
-        // SECURITY: Use withdrawal pattern for any existing bidder
+        // SECURITY: Use withdrawal pattern for any existing bidder (only initialize if needed)
         if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
-                let withdrawal = &mut ctx.accounts.pending_withdrawal;
+                // Derive PDA and bump
+                let withdrawal_seeds = &[
+                    b"withdrawal",
+                    listing.key().as_ref(),
+                    previous_bidder.as_ref(),
+                ];
+                let (withdrawal_pda, bump) = Pubkey::find_program_address(
+                    withdrawal_seeds,
+                    ctx.program_id
+                );
+
+                require!(
+                    withdrawal_pda == ctx.accounts.pending_withdrawal.key(),
+                    AppMarketError::InvalidPreviousBidder
+                );
+
+                // Create the account
+                let rent = Rent::get()?;
+                let space = 8 + PendingWithdrawal::INIT_SPACE;
+                let lamports = rent.minimum_balance(space);
+
+                anchor_lang::system_program::create_account(
+                    CpiContext::new(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::CreateAccount {
+                            from: ctx.accounts.buyer.to_account_info(),
+                            to: ctx.accounts.pending_withdrawal.to_account_info(),
+                        },
+                    ),
+                    lamports,
+                    space as u64,
+                    ctx.program_id,
+                )?;
+
+                // Initialize the withdrawal data
+                let mut withdrawal_data = ctx.accounts.pending_withdrawal.try_borrow_mut_data()?;
+                let mut withdrawal = PendingWithdrawal::try_from_slice(&vec![0u8; space])?;
                 withdrawal.user = previous_bidder;
                 withdrawal.listing = listing.key();
                 withdrawal.amount = old_bid;
                 withdrawal.created_at = clock.unix_timestamp;
-                withdrawal.bump = ctx.bumps.pending_withdrawal;
+                withdrawal.bump = bump;
+
+                withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
 
                 emit!(WithdrawalCreated {
                     user: previous_bidder,
@@ -898,6 +948,12 @@ pub mod app_market {
             AppMarketError::InsufficientEscrowBalance
         );
 
+        // SECURITY: Verify tracked amount matches what we're distributing (prevents theft of pending withdrawals)
+        require!(
+            ctx.accounts.escrow.amount == required_balance,
+            AppMarketError::PendingWithdrawalsExist
+        );
+
         // Transfer funds
         let seeds = &[
             b"escrow",
@@ -976,6 +1032,12 @@ pub mod app_market {
             AppMarketError::InvalidSeller
         );
 
+        // SECURITY: Require upload verification before buyer can confirm receipt
+        require!(
+            transaction.uploads_verified,
+            AppMarketError::UploadsNotVerified
+        );
+
         // SECURITY: Validate escrow balance (4 checks)
         let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
         let rent = Rent::get()?.minimum_balance(
@@ -998,6 +1060,12 @@ pub mod app_market {
         require!(
             escrow_balance >= tracked_with_rent,
             AppMarketError::EscrowBalanceMismatch
+        );
+
+        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        require!(
+            ctx.accounts.escrow.amount == required_balance,
+            AppMarketError::PendingWithdrawalsExist
         );
 
         // Transfer funds
@@ -1410,12 +1478,12 @@ pub mod app_market {
             AppMarketError::InsufficientBalance
         );
 
-        // Charge dispute fee from initiator
+        // SECURITY: Hold dispute fee in Dispute PDA (refunded to buyer if they win)
         let cpi_ctx = CpiContext::new(
             ctx.accounts.system_program.to_account_info(),
             anchor_lang::system_program::Transfer {
                 from: ctx.accounts.initiator.to_account_info(),
-                to: ctx.accounts.treasury.to_account_info(),
+                to: ctx.accounts.dispute.to_account_info(),
             },
         );
         anchor_lang::system_program::transfer(cpi_ctx, dispute_fee)?;
@@ -1625,6 +1693,41 @@ pub mod app_market {
             },
         }
 
+        // SECURITY: Distribute dispute fee based on resolution outcome
+        let dispute_seeds = &[
+            b"dispute",
+            transaction.key().as_ref(),
+            &[dispute.bump],
+        ];
+        let dispute_signer = &[&dispute_seeds[..]];
+
+        match resolution {
+            DisputeResolution::FullRefund => {
+                // Buyer wins - refund dispute fee to buyer
+                let cpi_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.dispute.to_account_info(),
+                        to: ctx.accounts.buyer.to_account_info(),
+                    },
+                    dispute_signer,
+                );
+                anchor_lang::system_program::transfer(cpi_ctx, dispute.dispute_fee)?;
+            },
+            DisputeResolution::ReleaseToSeller | DisputeResolution::PartialRefund { .. } => {
+                // Seller wins or compromise - send dispute fee to treasury
+                let cpi_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.dispute.to_account_info(),
+                        to: ctx.accounts.treasury.to_account_info(),
+                    },
+                    dispute_signer,
+                );
+                anchor_lang::system_program::transfer(cpi_ctx, dispute.dispute_fee)?;
+            },
+        }
+
         // Update dispute
         dispute.status = DisputeStatus::Resolved;
         dispute.resolution = Some(resolution);
@@ -1683,6 +1786,12 @@ pub mod app_market {
         require!(
             escrow_balance >= tracked_with_rent,
             AppMarketError::EscrowBalanceMismatch
+        );
+
+        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        require!(
+            ctx.accounts.escrow.amount == transaction.sale_price,
+            AppMarketError::PendingWithdrawalsExist
         );
 
         // Refund full amount to buyer
@@ -1921,19 +2030,10 @@ pub struct BuyNow<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Pending withdrawal for previous bidder if exists
-    #[account(
-        init,
-        payer = buyer,
-        space = 8 + PendingWithdrawal::INIT_SPACE,
-        seeds = [
-            b"withdrawal",
-            listing.key().as_ref(),
-            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
-        ],
-        bump
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+    // SECURITY: Pending withdrawal for previous bidder (only initialized if previous bidder exists)
+    /// CHECK: Only used if listing.current_bidder exists, manually initialized in instruction
+    #[account(mut)]
+    pub pending_withdrawal: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,
@@ -1968,20 +2068,6 @@ pub struct SettleAuction<'info> {
     /// CHECK: Current bidder (validated in instruction)
     #[account(mut)]
     pub bidder: AccountInfo<'info>,
-
-    // SECURITY: Pending withdrawal for failed auction refund (DEPRECATED - not used after reserve fix)
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + PendingWithdrawal::INIT_SPACE,
-        seeds = [
-            b"withdrawal",
-            listing.key().as_ref(),
-            &(listing.withdrawal_count + 1).to_le_bytes()
-        ],
-        bump
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -2334,10 +2420,10 @@ pub struct ResolveDispute<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to buyer (from transaction.buyer)
+    // SECURITY: Close escrow - rent goes to seller (seller paid escrow rent during listing creation)
     #[account(
         mut,
-        close = transaction.buyer,
+        close = transaction.seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2903,4 +2989,8 @@ pub enum AppMarketError {
     NoBidsToSettle,
     #[msg("Cannot cancel auction with active bids")]
     CannotCancelWithBids,
+    #[msg("Cannot close escrow: pending withdrawals exist")]
+    PendingWithdrawalsExist,
+    #[msg("Invalid GitHub username: must be 64 chars or less, alphanumeric and hyphens only")]
+    InvalidGithubUsername,
 }
