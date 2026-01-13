@@ -340,5 +340,4 @@ With proper operational security:
 ---
 
 *Last Updated: January 12, 2026*
-*Analyst: Claude (AI Security Analysis Tool)*
 *Contract Version: Post Phase 2 Hardening*

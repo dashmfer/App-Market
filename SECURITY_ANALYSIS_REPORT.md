@@ -8,7 +8,6 @@
 
 **Analysis Date:** January 12, 2026
 **Contract Location:** `/programs/app-market/src/lib.rs`
-**Analyst:** Claude (AI Security Analysis Tool)
 
 ---
 
