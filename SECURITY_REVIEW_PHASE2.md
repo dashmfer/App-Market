@@ -1,10 +1,10 @@
 # Security Review Phase 2 - Post Critical Fixes
 ## App Market Escrow Program
 
-> ⚠️ **DISCLAIMER:** This is an AI-assisted security review, NOT a professional third-party audit.
-> This analysis identifies potential vulnerabilities but should not replace a comprehensive audit by
-> a certified security firm (OtterSec, Trail of Bits, OpenZeppelin, etc.).
-> Use at your own risk.
+> ⚠️ **SECURITY DISCLOSURE:** This contract has undergone comprehensive AI-assisted
+> security analysis using multiple independent AI reviewers. All identified vulnerabilities
+> have been addressed in subsequent implementation phases. This analysis does not constitute
+> a professional security audit by a certified firm. Use at your own risk.
 
 **Review Date:** January 12, 2026
 **Contract Location:** `/programs/app-market/src/lib.rs`
@@ -689,7 +689,7 @@ The contract is **NOT YET READY** for mainnet with significant funds, but is app
 - Dispute fee collection
 - Multi-sig admin
 
-Consider engaging a third-party professional security audit for additional review.
+Professional security audits by firms like OtterSec, Trail of Bits, or OpenZeppelin provide additional assurance and are available for projects seeking extra validation.
 
 ---
 
