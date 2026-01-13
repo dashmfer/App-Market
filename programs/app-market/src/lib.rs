@@ -53,8 +53,8 @@ pub mod app_market {
     /// Admin timelock: 48 hours for sensitive operations
     pub const ADMIN_TIMELOCK_SECONDS: i64 = 48 * 60 * 60;
 
-    /// Finalize grace period: 72 hours after seller confirmation
-    pub const FINALIZE_GRACE_PERIOD: i64 = 72 * 60 * 60;
+    /// Finalize grace period: 7 days after seller confirmation
+    pub const FINALIZE_GRACE_PERIOD: i64 = 7 * 24 * 60 * 60;
 
     // ============================================
     // INSTRUCTIONS
@@ -65,6 +65,7 @@ pub mod app_market {
         ctx: Context<Initialize>,
         platform_fee_bps: u64,
         dispute_fee_bps: u64,
+        backend_authority: Pubkey,
     ) -> Result<()> {
         // SECURITY: Validate fee bounds
         require!(
@@ -79,6 +80,7 @@ pub mod app_market {
         let config = &mut ctx.accounts.config;
         config.admin = ctx.accounts.admin.key();
         config.treasury = ctx.accounts.treasury.key();
+        config.backend_authority = backend_authority;
         config.platform_fee_bps = platform_fee_bps;
         config.dispute_fee_bps = dispute_fee_bps;
         config.total_volume = 0;
@@ -230,6 +232,8 @@ pub mod app_market {
         reserve_price: Option<u64>,
         buy_now_price: Option<u64>,
         duration_seconds: i64,
+        requires_github: bool,
+        required_github_username: String,
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
         require!(starting_price > 0, AppMarketError::InvalidPrice);
@@ -281,6 +285,14 @@ pub mod app_market {
         // SECURITY: Lock fees at listing creation time
         listing.platform_fee_bps = ctx.accounts.config.platform_fee_bps;
         listing.dispute_fee_bps = ctx.accounts.config.dispute_fee_bps;
+
+        // GitHub requirements
+        listing.requires_github = requires_github;
+        listing.required_github_username = required_github_username;
+
+        // Withdrawal counter for unique PDA seeds
+        listing.withdrawal_count = 0;
+
         listing.bump = ctx.bumps.listing;
 
         // Initialize escrow (seller pays rent)
@@ -330,6 +342,13 @@ pub mod app_market {
             ctx.accounts.bidder.lamports() >= amount,
             AppMarketError::InsufficientBalance
         );
+
+        // SECURITY: Reject bids below reserve (if auction hasn't started)
+        if !listing.auction_started {
+            if let Some(reserve) = listing.reserve_price {
+                require!(amount >= reserve, AppMarketError::BidBelowReserve);
+            }
+        }
 
         // SECURITY: Enforce minimum bid increment to prevent spam
         if listing.current_bid > 0 {
@@ -398,11 +417,17 @@ pub mod app_market {
         // SECURITY: Use withdrawal pattern for refunds (prevents DoS)
         if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
+                // Increment withdrawal counter to prevent PDA collision
+                listing.withdrawal_count = listing.withdrawal_count
+                    .checked_add(1)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
                 // Create pending withdrawal for previous bidder
                 let withdrawal = &mut ctx.accounts.pending_withdrawal;
                 withdrawal.user = previous_bidder;
                 withdrawal.listing = listing.key();
                 withdrawal.amount = old_bid;
+                withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
                 withdrawal.bump = ctx.bumps.pending_withdrawal;
 
@@ -410,6 +435,7 @@ pub mod app_market {
                     user: previous_bidder,
                     listing: listing.key(),
                     amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
                     timestamp: clock.unix_timestamp,
                 });
             }
@@ -616,50 +642,7 @@ pub mod app_market {
             AppMarketError::UnauthorizedSettlement
         );
 
-        // Check if reserve price was met (or if auction never started)
-        let reserve_met = if let Some(reserve) = listing.reserve_price {
-            listing.current_bid >= reserve
-        } else {
-            listing.current_bid > 0
-        };
-
-        if !reserve_met {
-            // Reserve not met - refund bidder and cancel
-            if let Some(stored_bidder) = listing.current_bidder {
-                if listing.current_bid > 0 {
-                    // SECURITY: Validate bidder account matches BEFORE balance check
-                    require!(
-                        ctx.accounts.bidder.key() == stored_bidder,
-                        AppMarketError::InvalidBidder
-                    );
-
-                    // SECURITY: Use withdrawal pattern
-                    let withdrawal = &mut ctx.accounts.pending_withdrawal;
-                    withdrawal.user = stored_bidder;
-                    withdrawal.listing = listing.key();
-                    withdrawal.amount = listing.current_bid;
-                    withdrawal.created_at = clock.unix_timestamp;
-                    withdrawal.bump = ctx.bumps.pending_withdrawal;
-
-                    emit!(WithdrawalCreated {
-                        user: stored_bidder,
-                        listing: listing.key(),
-                        amount: listing.current_bid,
-                        timestamp: clock.unix_timestamp,
-                    });
-                }
-            }
-
-            listing.status = ListingStatus::Cancelled;
-
-            emit!(AuctionCancelled {
-                listing: listing.key(),
-                reason: "Reserve price not met".to_string(),
-            });
-
-            return Ok(());
-        }
-
+        // SECURITY: Reserve is always met if auction started (bids below reserve are rejected)
         // No bids - cancel auction
         if listing.current_bidder.is_none() {
             listing.status = ListingStatus::Cancelled;
@@ -773,21 +756,80 @@ pub mod app_market {
         Ok(())
     }
 
-    /// Finalize transaction after grace period (72h after seller confirmation)
+    /// Backend service verifies uploads (GitHub repo, files, etc.)
+    pub fn verify_uploads(
+        ctx: Context<VerifyUploads>,
+        verification_hash: String,
+    ) -> Result<()> {
+        let transaction = &mut ctx.accounts.transaction;
+        let clock = Clock::get()?;
+
+        // SECURITY: Only backend authority can verify
+        require!(
+            ctx.accounts.backend_authority.key() == ctx.accounts.config.backend_authority,
+            AppMarketError::NotBackendAuthority
+        );
+
+        require!(
+            transaction.seller_confirmed_transfer,
+            AppMarketError::SellerNotConfirmed
+        );
+
+        require!(
+            !transaction.uploads_verified,
+            AppMarketError::AlreadyVerified
+        );
+
+        transaction.uploads_verified = true;
+        transaction.verification_timestamp = Some(clock.unix_timestamp);
+        transaction.verification_hash = verification_hash.clone();
+
+        emit!(UploadsVerified {
+            transaction: transaction.key(),
+            verification_hash,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Finalize transaction after grace period (7 days after seller confirmation)
     pub fn finalize_transaction(ctx: Context<FinalizeTransaction>) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
 
         let transaction = &mut ctx.accounts.transaction;
         let clock = Clock::get()?;
 
+        // SECURITY: Only seller can call finalize
+        require!(
+            ctx.accounts.seller.key() == transaction.seller,
+            AppMarketError::NotSeller
+        );
+        require!(
+            ctx.accounts.seller.is_signer,
+            AppMarketError::SellerMustSign
+        );
+
         // Validations
+        // SECURITY: Block finalization if disputed
+        if transaction.status == TransactionStatus::Disputed {
+            return Err(AppMarketError::CannotFinalizeDisputed.into());
+        }
+
         require!(
             transaction.status == TransactionStatus::InEscrow,
             AppMarketError::InvalidTransactionStatus
         );
+
         require!(
             transaction.seller_confirmed_transfer,
             AppMarketError::SellerNotConfirmed
+        );
+
+        // SECURITY: Uploads must be verified
+        require!(
+            transaction.uploads_verified,
+            AppMarketError::UploadsNotVerified
         );
 
         let confirmed_at = transaction.seller_confirmed_at.unwrap();
@@ -799,10 +841,6 @@ pub mod app_market {
         require!(
             ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
             AppMarketError::InvalidTreasury
-        );
-        require!(
-            ctx.accounts.seller.key() == transaction.seller,
-            AppMarketError::InvalidSeller
         );
 
         // SECURITY: Validate escrow balance
@@ -985,6 +1023,7 @@ pub mod app_market {
         ctx: Context<MakeOffer>,
         amount: u64,
         deadline: i64,
+        offer_seed: u64,
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
 
@@ -1107,15 +1146,12 @@ pub mod app_market {
     }
 
     /// Claim expired offer refund
-    pub fn claim_expired_offer(ctx: Context<ClaimExpiredOffer>) -> Result<()> {
+    /// Expire an offer after deadline (anyone can call, refund goes to buyer)
+    pub fn expire_offer(ctx: Context<ExpireOffer>) -> Result<()> {
         let offer = &mut ctx.accounts.offer;
         let clock = Clock::get()?;
 
         // Validations
-        require!(
-            ctx.accounts.buyer.key() == offer.buyer,
-            AppMarketError::NotOfferOwner
-        );
         require!(
             offer.status == OfferStatus::Active,
             AppMarketError::OfferNotActive
@@ -1192,6 +1228,10 @@ pub mod app_market {
             AppMarketError::OfferExpired
         );
 
+        // SECURITY: Store old values before updating
+        let old_bid = listing.current_bid;
+        let old_bidder = listing.current_bidder;
+
         // Update statuses
         offer.status = OfferStatus::Accepted;
         listing.status = ListingStatus::Sold;
@@ -1231,19 +1271,26 @@ pub mod app_market {
             .ok_or(AppMarketError::MathOverflow)?;
 
         // Handle any existing bidder with withdrawal pattern
-        if let Some(previous_bidder) = listing.current_bidder {
-            if previous_bidder != offer.buyer && listing.current_bid > 0 {
+        if let Some(previous_bidder) = old_bidder {
+            if previous_bidder != offer.buyer && old_bid > 0 {
+                // Increment withdrawal counter to prevent PDA collision
+                listing.withdrawal_count = listing.withdrawal_count
+                    .checked_add(1)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
                 let withdrawal = &mut ctx.accounts.pending_withdrawal;
                 withdrawal.user = previous_bidder;
                 withdrawal.listing = listing.key();
-                withdrawal.amount = listing.current_bid;
+                withdrawal.amount = old_bid;  // SECURITY: Use old bid amount
+                withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
                 withdrawal.bump = ctx.bumps.pending_withdrawal;
 
                 emit!(WithdrawalCreated {
                     user: previous_bidder,
                     listing: listing.key(),
-                    amount: listing.current_bid,
+                    amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
                     timestamp: clock.unix_timestamp,
                 });
             }
@@ -1929,6 +1976,18 @@ pub struct SellerConfirmTransfer<'info> {
 }
 
 #[derive(Accounts)]
+pub struct VerifyUploads<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    #[account(mut)]
+    pub transaction: Account<'info, Transaction>,
+
+    /// Backend authority that verifies uploads
+    pub backend_authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct FinalizeTransaction<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -2061,7 +2120,7 @@ pub struct CancelOffer<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ClaimExpiredOffer<'info> {
+pub struct ExpireOffer<'info> {
     pub listing: Account<'info, Listing>,
 
     #[account(mut)]
@@ -2076,8 +2135,16 @@ pub struct ClaimExpiredOffer<'info> {
     )]
     pub offer_escrow: Account<'info, OfferEscrow>,
 
+    /// Buyer receives refund (from offer.buyer, not caller)
+    #[account(
+        mut,
+        constraint = buyer.key() == offer.buyer @ AppMarketError::InvalidBuyer
+    )]
+    pub buyer: SystemAccount<'info>,
+
+    /// Caller pays gas (can be anyone)
     #[account(mut)]
-    pub buyer: Signer<'info>,
+    pub caller: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -2287,6 +2354,7 @@ pub struct SetPaused<'info> {
 pub struct MarketConfig {
     pub admin: Pubkey,
     pub treasury: Pubkey,
+    pub backend_authority: Pubkey,  // For verifying uploads
     pub platform_fee_bps: u64,
     pub dispute_fee_bps: u64,
     pub total_volume: u64,
@@ -2321,6 +2389,12 @@ pub struct Listing {
     // SECURITY: Lock fees at listing creation
     pub platform_fee_bps: u64,
     pub dispute_fee_bps: u64,
+    // GitHub requirements
+    pub requires_github: bool,
+    #[max_len(64)]
+    pub required_github_username: String,
+    // Withdrawal counter for unique PDA seeds
+    pub withdrawal_count: u64,
     pub bump: u8,
 }
 
@@ -2348,6 +2422,11 @@ pub struct Transaction {
     pub seller_confirmed_transfer: bool,
     pub seller_confirmed_at: Option<i64>,
     pub completed_at: Option<i64>,
+    // Upload verification
+    pub uploads_verified: bool,
+    pub verification_timestamp: Option<i64>,
+    #[max_len(64)]
+    pub verification_hash: String,
     pub bump: u8,
 }
 
@@ -2375,6 +2454,7 @@ pub struct PendingWithdrawal {
     pub user: Pubkey,
     pub listing: Pubkey,
     pub amount: u64,
+    pub withdrawal_id: u64,  // Unique ID from listing.withdrawal_count
     pub created_at: i64,
     pub bump: u8,
 }
@@ -2489,6 +2569,13 @@ pub struct SellerConfirmedTransfer {
 }
 
 #[event]
+pub struct UploadsVerified {
+    pub transaction: Pubkey,
+    pub verification_hash: String,
+    pub timestamp: i64,
+}
+
+#[event]
 pub struct TransactionCompleted {
     pub transaction: Pubkey,
     pub seller: Pubkey,
@@ -2565,6 +2652,7 @@ pub struct WithdrawalCreated {
     pub user: Pubkey,
     pub listing: Pubkey,
     pub amount: u64,
+    pub withdrawal_id: u64,
     pub timestamp: i64,
 }
 
@@ -2717,4 +2805,16 @@ pub enum AppMarketError {
     StartingPriceMustEqualReserve,
     #[msg("Buy now price is required for BuyNow listings")]
     BuyNowPriceRequired,
+    #[msg("Uploads not verified by backend")]
+    UploadsNotVerified,
+    #[msg("Uploads already verified")]
+    AlreadyVerified,
+    #[msg("Not backend authority")]
+    NotBackendAuthority,
+    #[msg("Bid below reserve price")]
+    BidBelowReserve,
+    #[msg("Cannot finalize disputed transaction")]
+    CannotFinalizeDisputed,
+    #[msg("Seller must sign to finalize")]
+    SellerMustSign,
 }
