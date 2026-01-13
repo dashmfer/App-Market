@@ -689,8 +689,6 @@ The contract is **NOT YET READY** for mainnet with significant funds, but is app
 - Dispute fee collection
 - Multi-sig admin
 
-Professional security audits by firms like OtterSec, Trail of Bits, or OpenZeppelin provide additional assurance and are available for projects seeking extra validation.
-
 ---
 
 **End of Second Security Review Report**

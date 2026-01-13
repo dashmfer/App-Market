@@ -1046,8 +1046,6 @@ This security analysis was performed by automated review. Additional issues may 
 - Subtle economic exploits
 - Social engineering vectors
 
-Professional security audits by firms like OtterSec, Trail of Bits, or OpenZeppelin provide additional assurance and are available for projects seeking extra validation.
-
 ---
 
 **End of Security Analysis Report**
