@@ -46,7 +46,7 @@ model User {
   displayName     String?
   websiteUrl      String?
   discordHandle   String?
-  telegramHandle  String?
+  discordVerified Boolean   @default(false)
   githubVerified  Boolean   @default(false)
   walletVerified  Boolean   @default(false)
 
