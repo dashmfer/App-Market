@@ -1787,6 +1787,7 @@ pub struct CreateListing<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(amount: u64)]
 pub struct PlaceBid<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -1802,7 +1803,7 @@ pub struct PlaceBid<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
-    // SECURITY: Create pending withdrawal for previous bidder
+    // SECURITY: Create pending withdrawal for previous bidder with unique withdrawal_id
     #[account(
         init,
         payer = bidder,
@@ -1810,7 +1811,7 @@ pub struct PlaceBid<'info> {
         seeds = [
             b"withdrawal",
             listing.key().as_ref(),
-            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+            &(listing.withdrawal_count + 1).to_le_bytes()
         ],
         bump
     )]
@@ -1834,11 +1835,17 @@ pub struct WithdrawFunds<'info> {
     pub escrow: Account<'info, Escrow>,
 
     // SECURITY: Close withdrawal account and return rent to user
+    // Uses withdrawal_id from PendingWithdrawal struct (not seeds - we look it up)
     #[account(
         mut,
         close = user,
-        seeds = [b"withdrawal", listing.key().as_ref(), user.key().as_ref()],
-        bump = pending_withdrawal.bump
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            &pending_withdrawal.withdrawal_id.to_le_bytes()
+        ],
+        bump = pending_withdrawal.bump,
+        constraint = pending_withdrawal.user == user.key() @ AppMarketError::NotWithdrawalOwner
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 
@@ -1921,7 +1928,7 @@ pub struct SettleAuction<'info> {
     #[account(mut)]
     pub bidder: AccountInfo<'info>,
 
-    // SECURITY: Pending withdrawal for failed auction refund
+    // SECURITY: Pending withdrawal for failed auction refund (DEPRECATED - not used after reserve fix)
     #[account(
         init,
         payer = payer,
@@ -1929,7 +1936,7 @@ pub struct SettleAuction<'info> {
         seeds = [
             b"withdrawal",
             listing.key().as_ref(),
-            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+            &(listing.withdrawal_count + 1).to_le_bytes()
         ],
         bump
     )]
@@ -1994,31 +2001,32 @@ pub struct FinalizeTransaction<'info> {
 
     pub listing: Account<'info, Listing>,
 
-    // SECURITY: Close accounts and return rent
     #[account(
         mut,
-        close = seller,
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    // SECURITY: Close escrow - rent goes to seller (from transaction.seller, not unchecked AccountInfo)
+    #[account(
+        mut,
+        close = transaction.seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
     pub escrow: Account<'info, Escrow>,
 
+    /// CHECK: Seller to receive funds (validated via transaction.seller)
     #[account(
         mut,
-        close = buyer,
-        seeds = [b"transaction", listing.key().as_ref()],
-        bump = transaction.bump,
-        constraint = transaction.buyer == buyer.key() @ AppMarketError::InvalidBuyer
+        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
     )]
-    pub transaction: Account<'info, Transaction>,
+    pub seller: AccountInfo<'info>,
 
-    /// CHECK: Buyer - rent recipient
+    /// CHECK: Buyer (not used for rent, just fund transfer)
     #[account(mut)]
     pub buyer: AccountInfo<'info>,
-
-    /// CHECK: Seller to receive funds
-    #[account(mut)]
-    pub seller: AccountInfo<'info>,
 
     /// CHECK: Treasury to receive fees
     #[account(mut)]
@@ -2034,28 +2042,30 @@ pub struct ConfirmReceipt<'info> {
 
     pub listing: Account<'info, Listing>,
 
-    // SECURITY: Close escrow and transaction accounts, return rent
     #[account(
         mut,
-        close = seller,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
-    #[account(
-        mut,
-        close = buyer,
         seeds = [b"transaction", listing.key().as_ref()],
         bump = transaction.bump
     )]
     pub transaction: Account<'info, Transaction>,
 
+    // SECURITY: Close escrow - rent goes to seller (from transaction.seller)
+    #[account(
+        mut,
+        close = transaction.seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    /// CHECK: Seller to receive funds
-    #[account(mut)]
+    /// CHECK: Seller to receive funds (validated via transaction.seller)
+    #[account(
+        mut,
+        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
+    )]
     pub seller: AccountInfo<'info>,
 
     /// CHECK: Treasury to receive fees
@@ -2066,18 +2076,24 @@ pub struct ConfirmReceipt<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, deadline: i64)]
+#[instruction(amount: u64, deadline: i64, offer_seed: u64)]
 pub struct MakeOffer<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
 
     pub listing: Account<'info, Listing>,
 
+    // SECURITY: Use deterministic offer_seed instead of Clock::get() to prevent consensus issues
     #[account(
         init,
         payer = buyer,
         space = 8 + Offer::INIT_SPACE,
-        seeds = [b"offer", listing.key().as_ref(), buyer.key().as_ref(), &Clock::get().unwrap().unix_timestamp.to_le_bytes()],
+        seeds = [
+            b"offer",
+            listing.key().as_ref(),
+            buyer.key().as_ref(),
+            &offer_seed.to_le_bytes()
+        ],
         bump
     )]
     pub offer: Account<'info, Offer>,
@@ -2194,7 +2210,7 @@ pub struct AcceptOffer<'info> {
         seeds = [
             b"withdrawal",
             listing.key().as_ref(),
-            listing.current_bidder.unwrap_or(system_program::ID).as_ref()
+            &(listing.withdrawal_count + 1).to_le_bytes()
         ],
         bump
     )]
@@ -2250,22 +2266,21 @@ pub struct ResolveDispute<'info> {
 
     pub listing: Account<'info, Listing>,
 
-    // SECURITY: Close escrow, transaction, and dispute accounts
     #[account(
         mut,
-        close = buyer,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
-    #[account(
-        mut,
-        close = seller,
         seeds = [b"transaction", listing.key().as_ref()],
         bump = transaction.bump
     )]
     pub transaction: Account<'info, Transaction>,
+
+    // SECURITY: Close escrow - rent goes to buyer (from transaction.buyer)
+    #[account(
+        mut,
+        close = transaction.buyer,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
 
     #[account(
         mut,
@@ -2277,12 +2292,18 @@ pub struct ResolveDispute<'info> {
 
     pub admin: Signer<'info>,
 
-    /// CHECK: Buyer
-    #[account(mut)]
+    /// CHECK: Buyer (validated via transaction.buyer)
+    #[account(
+        mut,
+        constraint = buyer.key() == transaction.buyer @ AppMarketError::InvalidBuyer
+    )]
     pub buyer: AccountInfo<'info>,
 
-    /// CHECK: Seller
-    #[account(mut)]
+    /// CHECK: Seller (validated via transaction.seller)
+    #[account(
+        mut,
+        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
+    )]
     pub seller: AccountInfo<'info>,
 
     /// CHECK: Treasury
