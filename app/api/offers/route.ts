@@ -1,0 +1,167 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+
+const createOfferSchema = z.object({
+  listingId: z.string(),
+  amount: z.number().positive(),
+  deadline: z.string().datetime(),
+});
+
+/**
+ * POST /api/offers
+ * Create a new offer on a listing
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const validatedData = createOfferSchema.parse(body);
+
+    // Check if listing exists and is active
+    const listing = await prisma.listing.findUnique({
+      where: { id: validatedData.listingId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        sellerId: true,
+      },
+    });
+
+    if (!listing) {
+      return NextResponse.json(
+        { error: 'Listing not found' },
+        { status: 404 }
+      );
+    }
+
+    if (listing.status !== 'ACTIVE') {
+      return NextResponse.json(
+        { error: 'Listing is not active' },
+        { status: 400 }
+      );
+    }
+
+    // Can't make offer on own listing
+    if (listing.sellerId === session.user.id) {
+      return NextResponse.json(
+        { error: 'Cannot make offer on your own listing' },
+        { status: 400 }
+      );
+    }
+
+    // Create offer in database
+    const offer = await prisma.offer.create({
+      data: {
+        amount: validatedData.amount,
+        deadline: new Date(validatedData.deadline),
+        listingId: validatedData.listingId,
+        buyerId: session.user.id,
+        status: 'ACTIVE',
+      },
+      include: {
+        buyer: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            image: true,
+          },
+        },
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    // Create notification for seller
+    await prisma.notification.create({
+      data: {
+        userId: listing.sellerId,
+        type: 'SYSTEM',
+        title: 'New Offer Received',
+        message: `You received an offer of ${validatedData.amount} SOL on "${listing.title}"`,
+        data: {
+          offerId: offer.id,
+          listingId: listing.id,
+          amount: validatedData.amount,
+        },
+      },
+    });
+
+    return NextResponse.json(offer, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid data', details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    console.error('Error creating offer:', error);
+    return NextResponse.json(
+      { error: 'Failed to create offer' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/offers
+ * Get current user's offers
+ */
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const offers = await prisma.offer.findMany({
+      where: {
+        buyerId: session.user.id,
+      },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            thumbnailUrl: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json(offers);
+  } catch (error) {
+    console.error('Error fetching offers:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch offers' },
+      { status: 500 }
+    );
+  }
+}
