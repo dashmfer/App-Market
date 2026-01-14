@@ -94,8 +94,8 @@ export default function HomePage() {
 
             {/* Subheadline */}
             <p className="mt-6 text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-100">
-              The marketplace for AI-generated apps, prototypes, and MVPs. 
-              Secure on-chain auctions, instant transfers, and token launches.
+              The marketplace for AI-generated apps, prototypes, and MVPs.
+              Secure on-chain auctions and transfer.
             </p>
 
             {/* CTA Buttons */}
