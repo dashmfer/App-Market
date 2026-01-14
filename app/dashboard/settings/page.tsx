@@ -8,7 +8,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 export default function SettingsPage() {
-  const { data: session, update: updateSession } = useSession();
+  const { data: session, update: updateSession, status } = useSession();
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const [activeTab, setActiveTab] = useState("profile");
@@ -17,6 +17,15 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Debug session status
+  useEffect(() => {
+    console.log("[Settings] Session status:", status);
+    console.log("[Settings] Session data:", session);
+    console.log("[Settings] Has session:", !!session);
+    console.log("[Settings] Has user:", !!session?.user);
+    console.log("[Settings] User ID:", session?.user?.id);
+  }, [session, status]);
 
   // Load initial profile data from session
   useEffect(() => {
@@ -42,6 +51,19 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check session first
+    if (status !== "authenticated" || !session?.user?.id) {
+      console.error("[Settings] Upload blocked - No active session");
+      alert("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    console.log("[Settings] Starting upload with session:", {
+      status,
+      userId: session.user.id,
+      hasSession: !!session
+    });
+
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert("File too large. Maximum size is 5MB.");
@@ -59,11 +81,14 @@ export default function SettingsPage() {
       const formData = new FormData();
       formData.append("file", file);
 
+      console.log("[Settings] Sending upload request...");
       const res = await fetch("/api/profile/upload-picture", {
         method: "POST",
         body: formData,
         credentials: "include",
       });
+
+      console.log("[Settings] Upload response status:", res.status);
 
       if (!res.ok) {
         const error = await res.json();
@@ -206,11 +231,12 @@ export default function SettingsPage() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => fileInputRef.current?.click()}
-                              disabled={uploading}
-                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50"
+                              disabled={uploading || status !== "authenticated" || !session?.user?.id}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={status !== "authenticated" ? "Please sign in to upload" : undefined}
                             >
                               <Upload className="w-4 h-4" />
-                              {uploading ? "Uploading..." : "Upload Photo"}
+                              {uploading ? "Uploading..." : status !== "authenticated" ? "Sign in to upload" : "Upload Photo"}
                             </button>
                             {(profileImage || session?.user?.image) && (
                               <button

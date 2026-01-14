@@ -46,7 +46,11 @@ export function Providers({ children }: ProvidersProps) {
       enableSystem
       disableTransitionOnChange
     >
-      <SessionProvider>
+      <SessionProvider
+        refetchInterval={5 * 60}
+        refetchOnWindowFocus={true}
+        basePath="/api/auth"
+      >
         <ConnectionProvider endpoint={endpoint}>
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>{children}</WalletModalProvider>
