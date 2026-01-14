@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // TODO: Call Solana contract place_offer instruction here
+    // This will throw MaxConsecutiveOffersExceeded if buyer has 10 consecutive offers
+
     // Create offer in database
     const offer = await prisma.offer.create({
       data: {
@@ -110,6 +113,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid data', details: error.errors },
         { status: 400 }
+      );
+    }
+
+    // Handle Solana contract errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Check for MaxConsecutiveOffersExceeded error from contract
+    if (errorMessage.includes('MaxConsecutiveOffersExceeded') ||
+        errorMessage.includes('Maximum consecutive offers')) {
+      return NextResponse.json(
+        {
+          error: 'You have reached the maximum of 10 consecutive offers on this listing. Please cancel one of your existing offers or wait for another buyer to outbid you.',
+          code: 'MAX_CONSECUTIVE_OFFERS'
+        },
+        { status: 429 } // 429 Too Many Requests
       );
     }
 
