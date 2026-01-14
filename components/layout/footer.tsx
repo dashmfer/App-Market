@@ -11,11 +11,9 @@ const footerLinks = {
   sellers: [
     { label: "List Your Project", href: "/create" },
     { label: "Seller Guide", href: "/guides/sellers" },
-    { label: "Pricing", href: "/pricing" },
   ],
   buyers: [
     { label: "How to Buy", href: "/guides/buyers" },
-    { label: "Due Diligence", href: "/guides/due-diligence" },
     { label: "Escrow Protection", href: "/escrow" },
   ],
   company: [
