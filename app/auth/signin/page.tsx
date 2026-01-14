@@ -35,11 +35,20 @@ function SignInContent() {
 
   // Auto-trigger authentication when wallet connects
   useEffect(() => {
+    console.log("[Wallet Auth] State:", {
+      connected,
+      publicKey: publicKey?.toBase58(),
+      hasSignMessage: !!signMessage,
+      authMethod,
+      isLoading
+    });
+
     if (connected && publicKey && signMessage && authMethod === "wallet" && !isLoading) {
+      console.log("[Wallet Auth] Auto-triggering wallet authentication");
       handleWalletConnect();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connected, publicKey, authMethod]);
+  }, [connected, publicKey, signMessage, authMethod]);
 
   const handleGitHubSignIn = async () => {
     setIsLoading(true);
@@ -76,15 +85,20 @@ function SignInContent() {
   };
 
   const handleWalletConnect = async () => {
+    console.log("[Wallet Auth] handleWalletConnect called", { connected, publicKey: publicKey?.toBase58(), hasSignMessage: !!signMessage });
+
     if (!connected) {
       // Open wallet modal if not connected
+      console.log("[Wallet Auth] Opening wallet modal");
+      setAuthMethod("wallet");
       setWalletModalVisible(true);
       return;
     }
 
     // If already connected, sign message and authenticate
     if (!publicKey || !signMessage) {
-      setFormError("Wallet not properly connected");
+      console.error("[Wallet Auth] Wallet not properly connected", { publicKey, hasSignMessage: !!signMessage });
+      setFormError("Wallet not properly connected. Please reconnect your wallet.");
       return;
     }
 
@@ -94,16 +108,21 @@ function SignInContent() {
     try {
       // Create a message to sign
       const message = `Sign this message to authenticate with App Market.\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${new Date().toISOString()}`;
+      console.log("[Wallet Auth] Message to sign:", message);
+
       const encodedMessage = new TextEncoder().encode(message);
 
       // Request signature from wallet
+      console.log("[Wallet Auth] Requesting signature from wallet...");
       const signature = await signMessage(encodedMessage);
+      console.log("[Wallet Auth] Signature received");
 
       // Convert signature to base58
       const bs58 = await import("bs58");
       const signatureBase58 = bs58.default.encode(signature);
 
       // Authenticate with NextAuth using wallet credentials
+      console.log("[Wallet Auth] Authenticating with NextAuth...");
       const result = await signIn("wallet", {
         publicKey: publicKey.toBase58(),
         signature: signatureBase58,
@@ -111,18 +130,24 @@ function SignInContent() {
         redirect: false,
       });
 
+      console.log("[Wallet Auth] NextAuth result:", result);
+
       if (result?.error) {
+        console.error("[Wallet Auth] Authentication failed:", result.error);
         setFormError("Wallet authentication failed. Please try again.");
         setIsLoading(false);
       } else {
+        console.log("[Wallet Auth] Authentication successful, redirecting...");
         router.push(callbackUrl);
       }
     } catch (error: any) {
-      console.error("Wallet auth error:", error);
-      if (error.message?.includes("User rejected")) {
+      console.error("[Wallet Auth] Error during authentication:", error);
+      if (error.message?.includes("User rejected") || error.message?.includes("rejected")) {
         setFormError("Signature request was rejected");
+      } else if (error.message?.includes("not support")) {
+        setFormError("Your wallet does not support message signing");
       } else {
-        setFormError("Failed to authenticate with wallet");
+        setFormError(`Failed to authenticate with wallet: ${error.message || "Unknown error"}`);
       }
       setIsLoading(false);
     }
