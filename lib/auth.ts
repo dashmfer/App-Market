@@ -28,6 +28,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_SECRET!,
     }),
     CredentialsProvider({
+      id: "credentials",
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -57,6 +58,48 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           image: user.image,
+        };
+      },
+    }),
+    CredentialsProvider({
+      id: "wallet",
+      name: "Solana Wallet",
+      credentials: {
+        publicKey: { label: "Public Key", type: "text" },
+        signature: { label: "Signature", type: "text" },
+        message: { label: "Message", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.publicKey || !credentials?.signature || !credentials?.message) {
+          throw new Error("Missing wallet credentials");
+        }
+
+        // The verification endpoint will create the user if needed
+        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/wallet/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            publicKey: credentials.publicKey,
+            signature: credentials.signature,
+            message: credentials.message,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Wallet verification failed");
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.user) {
+          throw new Error("Wallet verification failed");
+        }
+
+        return {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.username,
+          walletAddress: data.user.walletAddress,
         };
       },
     }),

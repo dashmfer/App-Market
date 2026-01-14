@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -32,6 +32,14 @@ function SignInContent() {
 
   const { connected, publicKey, signMessage } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
+
+  // Auto-trigger authentication when wallet connects
+  useEffect(() => {
+    if (connected && publicKey && signMessage && authMethod === "wallet" && !isLoading) {
+      handleWalletConnect();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected, publicKey, authMethod]);
 
   const handleGitHubSignIn = async () => {
     setIsLoading(true);
@@ -67,13 +75,58 @@ function SignInContent() {
     }
   };
 
-  const handleWalletConnect = () => {
-    setWalletModalVisible(true);
-  };
+  const handleWalletConnect = async () => {
+    if (!connected) {
+      // Open wallet modal if not connected
+      setWalletModalVisible(true);
+      return;
+    }
 
-  // Auto-redirect when wallet connects
-  // In production, you'd verify wallet ownership with a signature
-  // and create/link the user account
+    // If already connected, sign message and authenticate
+    if (!publicKey || !signMessage) {
+      setFormError("Wallet not properly connected");
+      return;
+    }
+
+    setIsLoading(true);
+    setFormError(null);
+
+    try {
+      // Create a message to sign
+      const message = `Sign this message to authenticate with App Market.\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${new Date().toISOString()}`;
+      const encodedMessage = new TextEncoder().encode(message);
+
+      // Request signature from wallet
+      const signature = await signMessage(encodedMessage);
+
+      // Convert signature to base58
+      const bs58 = await import("bs58");
+      const signatureBase58 = bs58.default.encode(signature);
+
+      // Authenticate with NextAuth using wallet credentials
+      const result = await signIn("wallet", {
+        publicKey: publicKey.toBase58(),
+        signature: signatureBase58,
+        message,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setFormError("Wallet authentication failed. Please try again.");
+        setIsLoading(false);
+      } else {
+        router.push(callbackUrl);
+      }
+    } catch (error: any) {
+      console.error("Wallet auth error:", error);
+      if (error.message?.includes("User rejected")) {
+        setFormError("Signature request was rejected");
+      } else {
+        setFormError("Failed to authenticate with wallet");
+      }
+      setIsLoading(false);
+    }
+  };
 
   const errorMessages: Record<string, string> = {
     OAuthSignin: "Error starting OAuth sign in",
@@ -131,16 +184,25 @@ function SignInContent() {
           {/* Wallet Connect - Primary */}
           <div className="space-y-4">
             <Button
-              onClick={handleWalletConnect}
+              onClick={() => {
+                setAuthMethod("wallet");
+                handleWalletConnect();
+              }}
               variant="primary"
               size="lg"
               className="w-full"
               disabled={isLoading}
+              loading={isLoading && authMethod === "wallet"}
             >
-              {connected ? (
+              {isLoading && authMethod === "wallet" ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Authenticating...
+                </>
+              ) : connected ? (
                 <>
                   <Wallet className="w-5 h-5" />
-                  Connected: {publicKey?.toBase58().slice(0, 8)}...
+                  Sign to Continue
                 </>
               ) : (
                 <>
