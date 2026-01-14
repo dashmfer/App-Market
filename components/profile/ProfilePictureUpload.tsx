@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { Upload, X, Camera } from 'lucide-react';
 
@@ -13,14 +14,26 @@ export default function ProfilePictureUpload({
   currentImage,
   onImageUpdate,
 }: ProfilePictureUploadProps) {
+  const { data: session, status } = useSession();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentImage || null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  console.log('[ProfilePictureUpload] Session status:', status, 'Has session:', !!session, 'User ID:', session?.user?.id);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Check session first
+    if (!session || !session.user?.id) {
+      console.error('[ProfilePictureUpload] No active session found');
+      setError('Session expired. Please sign in again.');
+      return;
+    }
+
+    console.log('[ProfilePictureUpload] Uploading file for user:', session.user.id);
 
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -52,11 +65,14 @@ export default function ProfilePictureUpload({
       const formData = new FormData();
       formData.append('file', file);
 
+      console.log('[ProfilePictureUpload] Sending upload request...');
       const response = await fetch('/api/profile/upload-picture', {
         method: 'POST',
         body: formData,
-        credentials: 'same-origin',
+        credentials: 'include',
       });
+
+      console.log('[ProfilePictureUpload] Upload response status:', response.status);
 
       if (!response.ok) {
         const data = await response.json();
@@ -76,13 +92,23 @@ export default function ProfilePictureUpload({
   };
 
   const handleRemove = async () => {
+    // Check session first
+    if (!session || !session.user?.id) {
+      console.error('[ProfilePictureUpload] No active session found for removal');
+      setError('Session expired. Please sign in again.');
+      return;
+    }
+
     try {
       setUploading(true);
 
+      console.log('[ProfilePictureUpload] Sending remove request...');
       const response = await fetch('/api/profile/upload-picture', {
         method: 'DELETE',
-        credentials: 'same-origin',
+        credentials: 'include',
       });
+
+      console.log('[ProfilePictureUpload] Remove response status:', response.status);
 
       if (!response.ok) {
         throw new Error('Failed to remove image');
@@ -147,11 +173,12 @@ export default function ProfilePictureUpload({
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || status === 'loading' || !session}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+          title={!session ? 'Please sign in to upload' : undefined}
         >
           <Upload className="w-4 h-4" />
-          {uploading ? 'Uploading...' : previewUrl ? 'Change Picture' : 'Upload Picture'}
+          {uploading ? 'Uploading...' : status === 'loading' ? 'Loading...' : !session ? 'Sign in to upload' : previewUrl ? 'Change Picture' : 'Upload Picture'}
         </button>
 
         <p className="text-xs text-gray-500 text-center">
