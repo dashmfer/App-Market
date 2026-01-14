@@ -88,7 +88,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id as string;
 
-        // Fetch additional user data
+        // Fetch additional user data including image
         const user = await prisma.user.findUnique({
           where: { id: token.id as string },
           select: {
@@ -96,6 +96,7 @@ export const authOptions: NextAuthOptions = {
             walletAddress: true,
             isVerified: true,
             githubUsername: true,
+            image: true,
           },
         });
 
@@ -104,6 +105,8 @@ export const authOptions: NextAuthOptions = {
           (session.user as any).walletAddress = user.walletAddress;
           (session.user as any).isVerified = user.isVerified;
           (session.user as any).githubUsername = user.githubUsername;
+          // Update session with current image from database
+          session.user.image = user.image;
         }
       }
       return session;
