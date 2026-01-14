@@ -126,6 +126,8 @@ export interface OnChainListing {
   startTime: BN;
   endTime: BN;
   status: ListingStatus;
+  lastOfferBuyer: PublicKey | null;
+  consecutiveOfferCount: BN;
   bump: number;
 }
 

@@ -7,6 +7,7 @@ interface MakeOfferFormProps {
   listingId: string;
   listingTitle: string;
   currentPrice?: number;
+  consecutiveOfferCount?: number; // From on-chain listing data
   onSuccess?: () => void;
 }
 
@@ -14,6 +15,7 @@ export default function MakeOfferForm({
   listingId,
   listingTitle,
   currentPrice,
+  consecutiveOfferCount = 0,
   onSuccess,
 }: MakeOfferFormProps) {
   const [amount, setAmount] = useState('');
@@ -120,6 +122,37 @@ export default function MakeOfferForm({
           </p>
         </div>
 
+        {/* Consecutive Offer Warning */}
+        {consecutiveOfferCount >= 7 && consecutiveOfferCount < 10 && (
+          <div className="text-sm text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start gap-2">
+              <span className="text-lg">⚠️</span>
+              <div>
+                <p className="font-medium">Approaching offer limit</p>
+                <p className="text-xs mt-1">
+                  You have made {consecutiveOfferCount} consecutive offers on this listing.
+                  Maximum is 10. Consider canceling an existing offer if you reach the limit.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {consecutiveOfferCount >= 10 && (
+          <div className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="flex items-start gap-2">
+              <span className="text-lg">🚫</span>
+              <div>
+                <p className="font-medium">Maximum consecutive offers reached</p>
+                <p className="text-xs mt-1">
+                  You've made 10 consecutive offers on this listing.
+                  Please cancel one of your existing offers or wait for another buyer to place an offer.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg">
@@ -130,7 +163,7 @@ export default function MakeOfferForm({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || consecutiveOfferCount >= 10}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
         >
           {submitting ? (
