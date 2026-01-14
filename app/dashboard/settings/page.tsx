@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -8,7 +8,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const [activeTab, setActiveTab] = useState("profile");
@@ -17,6 +17,14 @@ export default function SettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load initial profile data from session
+  useEffect(() => {
+    if (session?.user) {
+      setProfileImage(session.user.image || null);
+      setDisplayName(session.user.name || "");
+    }
+  }, [session]);
 
   const handleConnectWallet = () => {
     setWalletModalVisible(true);
@@ -54,6 +62,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/profile/upload-picture", {
         method: "POST",
         body: formData,
+        credentials: "same-origin",
       });
 
       if (!res.ok) {
@@ -63,30 +72,46 @@ export default function SettingsPage() {
 
       const data = await res.json();
       setProfileImage(data.imageUrl);
+
+      // Refresh the session to update the image everywhere
+      await updateSession();
+
       alert("Profile picture updated successfully!");
     } catch (error: any) {
       console.error("Upload error:", error);
       alert(error.message || "Failed to upload image");
     } finally {
       setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
   const handleRemoveImage = async () => {
     if (!confirm("Remove profile picture?")) return;
 
+    setUploading(true);
     try {
       const res = await fetch("/api/profile/upload-picture", {
         method: "DELETE",
+        credentials: "same-origin",
       });
 
       if (!res.ok) throw new Error("Failed to remove image");
 
       setProfileImage(null);
+
+      // Refresh the session to update the image everywhere
+      await updateSession();
+
       alert("Profile picture removed");
     } catch (error) {
       console.error("Remove error:", error);
       alert("Failed to remove image");
+    } finally {
+      setUploading(false);
     }
   };
 

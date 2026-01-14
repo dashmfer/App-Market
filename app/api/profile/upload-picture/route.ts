@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
@@ -12,9 +12,19 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
+    console.log('Upload Picture - Session Debug:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email,
+      cookies: req.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
+    });
+
     if (!session?.user?.id) {
+      console.error('Upload Picture - No session or user ID found');
+      console.error('Available cookies:', req.cookies.getAll().map(c => c.name));
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - No active session found. Please sign in again.' },
         { status: 401 }
       );
     }

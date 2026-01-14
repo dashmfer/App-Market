@@ -55,6 +55,7 @@ export default function ProfilePictureUpload({
       const response = await fetch('/api/profile/upload-picture', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
       });
 
       if (!response.ok) {
@@ -80,6 +81,7 @@ export default function ProfilePictureUpload({
 
       const response = await fetch('/api/profile/upload-picture', {
         method: 'DELETE',
+        credentials: 'same-origin',
       });
 
       if (!response.ok) {
