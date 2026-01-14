@@ -1269,6 +1269,11 @@ pub mod app_market {
             clock.unix_timestamp > offer.deadline,
             AppMarketError::OfferNotExpired
         );
+        // SECURITY: Only offer owner (buyer) can expire their own offer
+        require!(
+            ctx.accounts.caller.key() == offer.buyer,
+            AppMarketError::NotOfferOwner
+        );
 
         // Update offer status
         offer.status = OfferStatus::Expired;
