@@ -1466,6 +1466,14 @@ pub mod app_market {
             AppMarketError::InvalidTreasury
         );
 
+        // SECURITY: Allow disputes during grace period, block after grace period expires
+        if let Some(confirmed_at) = transaction.seller_confirmed_at {
+            require!(
+                clock.unix_timestamp <= confirmed_at + FINALIZE_GRACE_PERIOD,
+                AppMarketError::DisputeDeadlineExpired
+            );
+        }
+
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
         let dispute_fee = transaction.sale_price
             .checked_mul(ctx.accounts.config.dispute_fee_bps)
@@ -2993,4 +3001,6 @@ pub enum AppMarketError {
     PendingWithdrawalsExist,
     #[msg("Invalid GitHub username: must be 64 chars or less, alphanumeric and hyphens only")]
     InvalidGithubUsername,
+    #[msg("Dispute deadline expired: must dispute within grace period")]
+    DisputeDeadlineExpired,
 }
