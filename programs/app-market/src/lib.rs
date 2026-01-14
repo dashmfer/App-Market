@@ -352,9 +352,12 @@ pub mod app_market {
 
         require!(ctx.accounts.bidder.key() != listing.seller, AppMarketError::SellerCannotBid);
 
-        // SECURITY: Pre-check bidder has sufficient balance
+        // SECURITY: Pre-check bidder has sufficient balance including rent for withdrawal PDA
+        let rent = Rent::get()?;
+        let withdrawal_space = 8 + PendingWithdrawal::INIT_SPACE;
+        let withdrawal_rent = rent.minimum_balance(withdrawal_space);
         require!(
-            ctx.accounts.bidder.lamports() >= amount,
+            ctx.accounts.bidder.lamports() >= amount.checked_add(withdrawal_rent).ok_or(AppMarketError::MathOverflow)?,
             AppMarketError::InsufficientBalance
         );
 
