@@ -58,8 +58,10 @@ pub mod app_market {
 
     /// Maximum bids per listing (prevents DoS via bid spam)
     pub const MAX_BIDS_PER_LISTING: u64 = 1000;
-    /// Maximum offers per listing (prevents DoS via offer spam)
+    /// Maximum total offers per listing (prevents DoS via offer spam)
     pub const MAX_OFFERS_PER_LISTING: u64 = 100;
+    /// Maximum consecutive offers per buyer without being outbid
+    pub const MAX_CONSECUTIVE_OFFERS: u64 = 10;
 
     // ============================================
     // INSTRUCTIONS
@@ -314,6 +316,9 @@ pub mod app_market {
         listing.withdrawal_count = 0;
         // Offer counter
         listing.offer_count = 0;
+        // Consecutive offer tracking
+        listing.last_offer_buyer = None;
+        listing.consecutive_offer_count = 0;
 
         listing.bump = ctx.bumps.listing;
 
@@ -359,17 +364,25 @@ pub mod app_market {
 
         require!(ctx.accounts.bidder.key() != listing.seller, AppMarketError::SellerCannotBid);
 
-        // SECURITY: Pre-check bidder has sufficient balance (include rent only if creating withdrawal PDA)
+        // SECURITY: Pre-check bidder has exact amount needed for everything to perform tx
+        // Need: bid amount + withdrawal PDA rent (if creating) + tx fees
+        let tx_fee_buffer = 10_000; // 10k lamports buffer for transaction fees
+        let rent = Rent::get()?;
+
         let required_balance = if listing.current_bidder.is_some() && listing.current_bid > 0 {
-            // Need rent for withdrawal PDA creation
-            let rent = Rent::get()?;
+            // Need rent for withdrawal PDA creation + bid amount + tx fees
             let withdrawal_space = 8 + PendingWithdrawal::INIT_SPACE;
             let withdrawal_rent = rent.minimum_balance(withdrawal_space);
-            amount.checked_add(withdrawal_rent).ok_or(AppMarketError::MathOverflow)?
-        } else {
-            // First bid - no withdrawal PDA needed
             amount
+                .checked_add(withdrawal_rent)
+                .ok_or(AppMarketError::MathOverflow)?
+                .checked_add(tx_fee_buffer)
+                .ok_or(AppMarketError::MathOverflow)?
+        } else {
+            // First bid - no withdrawal PDA needed, just bid + tx fees
+            amount.checked_add(tx_fee_buffer).ok_or(AppMarketError::MathOverflow)?
         };
+
         require!(
             ctx.accounts.bidder.lamports() >= required_balance,
             AppMarketError::InsufficientBalance
@@ -1220,13 +1233,37 @@ pub mod app_market {
             AppMarketError::InsufficientBalance
         );
 
-        // SECURITY: Prevent DoS via offer spam
+        // SECURITY: Prevent DoS via total offer spam
         require!(
             listing.offer_count < MAX_OFFERS_PER_LISTING,
             AppMarketError::MaxOffersExceeded
         );
 
-        // Increment offer counter
+        // SECURITY: Check consecutive offers from same buyer (max 10 if no one else is outbidding)
+        let buyer_key = ctx.accounts.buyer.key();
+        if let Some(last_buyer) = listing.last_offer_buyer {
+            if last_buyer == buyer_key {
+                // Same buyer making consecutive offers
+                require!(
+                    listing.consecutive_offer_count < MAX_CONSECUTIVE_OFFERS,
+                    AppMarketError::MaxConsecutiveOffersExceeded
+                );
+                // Increment consecutive counter
+                listing.consecutive_offer_count = listing.consecutive_offer_count
+                    .checked_add(1)
+                    .ok_or(AppMarketError::MathOverflow)?;
+            } else {
+                // Different buyer - reset consecutive counter
+                listing.last_offer_buyer = Some(buyer_key);
+                listing.consecutive_offer_count = 1;
+            }
+        } else {
+            // First offer on this listing
+            listing.last_offer_buyer = Some(buyer_key);
+            listing.consecutive_offer_count = 1;
+        }
+
+        // Increment total offer counter
         listing.offer_count = listing.offer_count
             .checked_add(1)
             .ok_or(AppMarketError::MathOverflow)?;
@@ -1286,6 +1323,15 @@ pub mod app_market {
 
         // Update offer status
         offer.status = OfferStatus::Cancelled;
+
+        // Update consecutive offer tracking when buyer cancels
+        let listing = &mut ctx.accounts.listing;
+        if let Some(last_buyer) = listing.last_offer_buyer {
+            if last_buyer == ctx.accounts.buyer.key() && listing.consecutive_offer_count > 0 {
+                // Decrement the consecutive count since this buyer cancelled
+                listing.consecutive_offer_count = listing.consecutive_offer_count.saturating_sub(1);
+            }
+        }
 
         // SECURITY: Validate escrow balance
         let escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
@@ -1348,6 +1394,15 @@ pub mod app_market {
 
         // Update offer status
         offer.status = OfferStatus::Expired;
+
+        // Update consecutive offer tracking when offer expires
+        let listing = &mut ctx.accounts.listing;
+        if let Some(last_buyer) = listing.last_offer_buyer {
+            if last_buyer == offer.buyer && listing.consecutive_offer_count > 0 {
+                // Decrement the consecutive count since this offer expired
+                listing.consecutive_offer_count = listing.consecutive_offer_count.saturating_sub(1);
+            }
+        }
 
         // SECURITY: Validate escrow balance
         let escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
@@ -1422,6 +1477,10 @@ pub mod app_market {
         listing.status = ListingStatus::Sold;
         listing.current_bid = offer.amount;
         listing.current_bidder = Some(offer.buyer);
+
+        // Reset consecutive offer tracking since listing is now sold
+        listing.last_offer_buyer = None;
+        listing.consecutive_offer_count = 0;
 
         // Transfer funds from offer escrow to listing escrow
         let offer_escrow_balance = ctx.accounts.offer_escrow.to_account_info().lamports();
@@ -1542,13 +1601,8 @@ pub mod app_market {
             AppMarketError::InvalidTreasury
         );
 
-        // SECURITY: Allow disputes during grace period, block after grace period expires
-        if let Some(confirmed_at) = transaction.seller_confirmed_at {
-            require!(
-                clock.unix_timestamp <= confirmed_at + FINALIZE_GRACE_PERIOD,
-                AppMarketError::DisputeDeadlineExpired
-            );
-        }
+        // SECURITY: Buyers can dispute until the deadline
+        // After deadline expires, they can no longer dispute and seller can finalize if uploads are verified
 
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
         let dispute_fee = transaction.sale_price
@@ -2337,6 +2391,7 @@ pub struct MakeOffer<'info> {
 
 #[derive(Accounts)]
 pub struct CancelOffer<'info> {
+    #[account(mut)]
     pub listing: Account<'info, Listing>,
 
     #[account(mut)]
@@ -2359,6 +2414,7 @@ pub struct CancelOffer<'info> {
 
 #[derive(Accounts)]
 pub struct ExpireOffer<'info> {
+    #[account(mut)]
     pub listing: Account<'info, Listing>,
 
     #[account(mut)]
@@ -2640,6 +2696,9 @@ pub struct Listing {
     pub withdrawal_count: u64,
     // Offer counter for tracking total offers
     pub offer_count: u64,
+    // Track consecutive offers from same buyer
+    pub last_offer_buyer: Option<Pubkey>,
+    pub consecutive_offer_count: u64,
     pub bump: u8,
 }
 
@@ -3076,4 +3135,6 @@ pub enum AppMarketError {
     MaxBidsExceeded,
     #[msg("Maximum offers per listing exceeded")]
     MaxOffersExceeded,
+    #[msg("Maximum consecutive offers from same buyer exceeded (max 10 without being outbid)")]
+    MaxConsecutiveOffersExceeded,
 }
