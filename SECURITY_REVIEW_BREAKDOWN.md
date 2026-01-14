@@ -1,8 +1,8 @@
-# Security Audit Breakdown & Your Questions Answered
+# Security Review Breakdown & Your Questions Answered
 
 **Date**: 2026-01-14
 **Contract Version**: Latest (lib.rs)
-**Reviews Analyzed**: 3 independent security audits
+**Reviews Analyzed**: 3 independent security reviews
 
 ---
 
@@ -32,7 +32,7 @@ if transaction.status == TransactionStatus::Disputed {
 - Once disputed, admin resolves it (not seller)
 - **This is by design and protects buyers**
 
-**VERDICT**: ❌ **FALSE ALARM** - Audit reviewers misunderstood the flow. Dispute doesn't "block forever" - admin resolves it. This is correct behavior.
+**VERDICT**: ❌ **FALSE ALARM** - Security reviewers misunderstood the flow. Dispute doesn't "block forever" - admin resolves it. This is correct behavior.
 
 **ACTION**: ✅ **NO CHANGE NEEDED**
 
@@ -43,7 +43,7 @@ if transaction.status == TransactionStatus::Disputed {
 **YOUR CONCERN**: If they can only call it for expired offers, that's fair game. You want to call expiry onchain for your offer to become top offer.
 
 **CURRENT REALITY**:
-- ✅ **AUDIT IS WRONG** - `expire_offer` has STRICT expiry check
+- ✅ **REVIEW IS WRONG** - `expire_offer` has STRICT expiry check
 - lib.rs:1268-1271:
 ```rust
 require!(
@@ -67,7 +67,7 @@ require!(
 - Caller pays gas (but you're OK with this - it's fair game)
 - No griefing possible since expiry check prevents premature closure
 
-**VERDICT**: ❌ **FALSE ALARM** - Audit missed the expiry check. This is safe and correct design.
+**VERDICT**: ❌ **FALSE ALARM** - Review missed the expiry check. This is safe and correct design.
 
 **ACTION**: ✅ **NO CHANGE NEEDED**
 
@@ -77,7 +77,7 @@ require!(
 
 **YOUR CONCERN**: Transaction fails unexpectedly if balance check doesn't account for all costs.
 
-**CURRENT REALITY**: ✅ **AUDIT IS CORRECT** - Balance check is incomplete
+**CURRENT REALITY**: ✅ **REVIEW IS CORRECT** - Balance check is incomplete
 
 **CURRENT CODE** (lib.rs:356-359):
 ```rust
@@ -121,7 +121,7 @@ require!(
 
 **YOUR CONCERN**: Fix the inefficiency of always creating withdrawal PDA.
 
-**CURRENT REALITY**: ✅ **AUDIT IS CORRECT** - First bid wastes rent
+**CURRENT REALITY**: ✅ **REVIEW IS CORRECT** - First bid wastes rent
 
 **CURRENT CODE** (lib.rs:1957-1968):
 ```rust
@@ -167,7 +167,7 @@ pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 
 **YOUR CONCERN**: Offer wars should be allowed. Maybe cap back-to-back offers from same buyer at 10.
 
-**CURRENT REALITY**: ✅ **AUDIT IS CORRECT** - No limits exist
+**CURRENT REALITY**: ✅ **REVIEW IS CORRECT** - No limits exist
 
 **THE PROBLEM**:
 - Attacker could create 10,000 offers on single listing
@@ -219,11 +219,11 @@ if let Some(last_buyer) = listing.last_offer_buyer {
 
 ---
 
-## 6-10. **WHY AUDIT CLAIMS ARE WRONG**
+## 6-10. **WHY REVIEW CLAIMS ARE WRONG**
 
-### 6. **Reentrancy in buy_now** ❌ AUDIT WRONG
+### 6. **Reentrancy in buy_now** ❌ REVIEW WRONG
 
-**AUDIT CLAIM**: "Manual PDA creation violates CEI pattern, reentrancy risk"
+**REVIEW CLAIM**: "Manual PDA creation violates CEI pattern, reentrancy risk"
 
 **WHY IT'S FACTUALLY WRONG**:
 
@@ -255,13 +255,13 @@ pub fn buy_now(ctx: Context<BuyNow>) -> Result<()> {
 3. Even if attacker reenters, status check at **line 530** prevents re-execution
 4. State is immutable after first execution
 
-**VERDICT**: Auditor didn't read the code carefully. CEI pattern is correctly implemented. No reentrancy possible.
+**VERDICT**: Reviewer didn't read the code carefully. CEI pattern is correctly implemented. No reentrancy possible.
 
 ---
 
-### 7. **Rent Leakage in Cancellation** ❌ AUDIT WRONG
+### 7. **Rent Leakage in Cancellation** ❌ REVIEW WRONG
 
-**AUDIT CLAIM**: "cancel_auction doesn't close accounts, rent leaked"
+**REVIEW CLAIM**: "cancel_auction doesn't close accounts, rent leaked"
 
 **WHY IT'S FACTUALLY WRONG**:
 
@@ -285,13 +285,13 @@ pub escrow: Account<'info, Escrow>,
 - ✅ `FinalizeTransaction` (lib.rs:2159): `close = transaction.seller`
 - ✅ `ConfirmReceipt` (lib.rs:2199): `close = transaction.seller`
 
-**VERDICT**: Auditor didn't search the codebase properly. Rent is properly reclaimed in all paths. No leakage exists.
+**VERDICT**: Reviewer didn't search the codebase properly. Rent is properly reclaimed in all paths. No leakage exists.
 
 ---
 
-### 8. **Clock-Based Deadline Issues** ❌ AUDIT WRONG
+### 8. **Clock-Based Deadline Issues** ❌ REVIEW WRONG
 
-**AUDIT CLAIM**: "transfer_deadline can be in past, no validation"
+**REVIEW CLAIM**: "transfer_deadline can be in past, no validation"
 
 **WHY IT'S FACTUALLY WRONG**:
 
@@ -330,13 +330,13 @@ if listing.auction_started && clock.unix_timestamp > listing.end_time - ANTI_SNI
 }
 ```
 
-**VERDICT**: All deadlines validated correctly. Auditor made assumptions without checking code. No validation gaps exist.
+**VERDICT**: All deadlines validated correctly. Reviewer made assumptions without checking code. No validation gaps exist.
 
 ---
 
-### 9. **Fee Rounding/Leakage** ❌ AUDIT WRONG
+### 9. **Fee Rounding/Leakage** ❌ REVIEW WRONG
 
-**AUDIT CLAIM**: "Small transactions may result in 0 fees due to rounding"
+**REVIEW CLAIM**: "Small transactions may result in 0 fees due to rounding"
 
 **WHY IT'S FACTUALLY WRONG**:
 
@@ -360,13 +360,13 @@ transaction.platform_fee = buy_now_price
 **Even at 1 lamport**:
 - 1 × 500 ÷ 10,000 = 0 (but this is below minimum bid anyway)
 
-**VERDICT**: Auditor didn't do the math. No rounding issues exist at valid bid amounts. Division by 10,000 gives exact integers.
+**VERDICT**: Reviewer didn't do the math. No rounding issues exist at valid bid amounts. Division by 10,000 gives exact integers.
 
 ---
 
 ### 10. **Integer Overflow in Statistics** ⚠️ DESIGN DECISION (You accepted this)
 
-**AUDIT CLAIM**: "saturating_add silently wraps at u64::MAX, stats become meaningless"
+**REVIEW CLAIM**: "saturating_add silently wraps at u64::MAX, stats become meaningless"
 
 **ACTUAL CODE** (lib.rs:999-1001):
 ```rust
@@ -392,7 +392,7 @@ ctx.accounts.config.total_volume = new_volume.unwrap_or(ctx.accounts.config.tota
 
 **YOUR DECISION**: This is acceptable - stats are non-critical, better than panic
 
-**VERDICT**: Audit is technically correct, but this is an intentional design choice. Stats overflow is acceptable.
+**VERDICT**: Review is technically correct, but this is an intentional design choice. Stats overflow is acceptable.
 
 ---
 
@@ -485,7 +485,7 @@ pub fn verify_uploads(ctx: Context<VerifyUploads>) -> Result<()> {
 - Issue #3 (Balance check)?
 - Issue #4 (First bid PDA)?
 - Issue #5 (Max offers)?
-- Something else from the audits?
+- Something else from the reviews?
 
 I need to know which specific issue you want me to dig deeper into before I can provide more details.
 
@@ -504,7 +504,7 @@ I need to know which specific issue you want me to dig deeper into before I can 
 
 ---
 
-### ✅ **NO CHANGES (Audit Wrong or Acceptable)**
+### ✅ **NO CHANGES (Review Wrong or Acceptable)**
 
 1. ❌ Dispute griefing - FALSE ALARM (admin resolves disputes, not blocked) [Issue #1]
 2. ❌ expire_offer permissions - FALSE ALARM (expiry check prevents abuse) [Issue #2]
@@ -523,9 +523,9 @@ I need to know which specific issue you want me to dig deeper into before I can 
 
 ## SUMMARY
 
-**Out of 14 audit issues**:
+**Out of 14 review issues**:
 - **3 Real Issues** → Need fixes ✅
-- **6 False Positives** → Auditors wrong ❌
+- **6 False Positives** → Reviewers wrong ❌
 - **3 Design Decisions** → You accepted ✅
 - **1 Unclear** → Need your clarification on #14
 
