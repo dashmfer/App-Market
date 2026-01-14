@@ -87,18 +87,20 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        
+
         // Fetch additional user data
         const user = await prisma.user.findUnique({
           where: { id: token.id as string },
           select: {
+            username: true,
             walletAddress: true,
             isVerified: true,
             githubUsername: true,
           },
         });
-        
+
         if (user) {
+          (session.user as any).username = user.username;
           (session.user as any).walletAddress = user.walletAddress;
           (session.user as any).isVerified = user.isVerified;
           (session.user as any).githubUsername = user.githubUsername;
@@ -137,6 +139,7 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      username?: string | null;
       walletAddress?: string | null;
       isVerified?: boolean;
       githubUsername?: string | null;
