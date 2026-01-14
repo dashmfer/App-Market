@@ -6,9 +6,17 @@ import prisma from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("[Wallet Verify API] Request received");
     const { publicKey, signature, message } = await req.json();
 
+    console.log("[Wallet Verify API] Payload:", {
+      publicKey,
+      signatureLength: signature?.length,
+      messageLength: message?.length
+    });
+
     if (!publicKey || !signature || !message) {
+      console.error("[Wallet Verify API] Missing required fields");
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -16,6 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the signature
+    console.log("[Wallet Verify API] Verifying signature...");
     const publicKeyObj = new PublicKey(publicKey);
     const signatureUint8 = bs58.decode(signature);
     const messageUint8 = new TextEncoder().encode(message);
@@ -27,13 +36,17 @@ export async function POST(req: NextRequest) {
       publicKeyUint8
     );
 
+    console.log("[Wallet Verify API] Signature verification result:", verified);
+
     if (!verified) {
+      console.error("[Wallet Verify API] Invalid signature");
       return NextResponse.json(
         { error: "Invalid signature" },
         { status: 401 }
       );
     }
 
+    console.log("[Wallet Verify API] Checking if user exists...");
     // Check if user exists with this wallet
     let user = await prisma.user.findUnique({
       where: { walletAddress: publicKey },
@@ -41,6 +54,7 @@ export async function POST(req: NextRequest) {
 
     // If user doesn't exist, create one
     if (!user) {
+      console.log("[Wallet Verify API] User not found, creating new user...");
       // Generate a unique username from wallet address
       const baseUsername = `user_${publicKey.slice(0, 8).toLowerCase()}`;
 
@@ -63,8 +77,12 @@ export async function POST(req: NextRequest) {
           isVerified: true, // Wallet ownership is verified
         },
       });
+      console.log("[Wallet Verify API] New user created:", { id: user.id, username: user.username });
+    } else {
+      console.log("[Wallet Verify API] Existing user found:", { id: user.id, username: user.username });
     }
 
+    console.log("[Wallet Verify API] Verification successful");
     return NextResponse.json({
       success: true,
       user: {
@@ -75,7 +93,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Wallet verification error:", error);
+    console.error("[Wallet Verify API] Error during verification:", error);
     return NextResponse.json(
       { error: "Verification failed" },
       { status: 500 }
