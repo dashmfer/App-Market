@@ -62,7 +62,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/profile/upload-picture", {
         method: "POST",
         body: formData,
-        credentials: "same-origin",
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -96,7 +96,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/profile/upload-picture", {
         method: "DELETE",
-        credentials: "same-origin",
+        credentials: "include",
       });
 
       if (!res.ok) throw new Error("Failed to remove image");
@@ -120,6 +120,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           displayName,
           bio,
