@@ -56,6 +56,11 @@ pub mod app_market {
     /// Finalize grace period: 7 days after seller confirmation
     pub const FINALIZE_GRACE_PERIOD: i64 = 7 * 24 * 60 * 60;
 
+    /// Maximum bids per listing (prevents DoS via bid spam)
+    pub const MAX_BIDS_PER_LISTING: u64 = 1000;
+    /// Maximum offers per listing (prevents DoS via offer spam)
+    pub const MAX_OFFERS_PER_LISTING: u64 = 100;
+
     // ============================================
     // INSTRUCTIONS
     // ============================================
@@ -307,6 +312,8 @@ pub mod app_market {
 
         // Withdrawal counter for unique PDA seeds
         listing.withdrawal_count = 0;
+        // Offer counter
+        listing.offer_count = 0;
 
         listing.bump = ctx.bumps.listing;
 
@@ -366,6 +373,12 @@ pub mod app_market {
         require!(
             ctx.accounts.bidder.lamports() >= required_balance,
             AppMarketError::InsufficientBalance
+        );
+
+        // SECURITY: Prevent DoS via bid spam
+        require!(
+            listing.withdrawal_count < MAX_BIDS_PER_LISTING,
+            AppMarketError::MaxBidsExceeded
         );
 
         // SECURITY: Reject bids below reserve (if auction hasn't started)
@@ -1183,7 +1196,7 @@ pub mod app_market {
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
 
-        let listing = &ctx.accounts.listing;
+        let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
         // Validations
@@ -1206,6 +1219,17 @@ pub mod app_market {
             ctx.accounts.buyer.lamports() >= amount,
             AppMarketError::InsufficientBalance
         );
+
+        // SECURITY: Prevent DoS via offer spam
+        require!(
+            listing.offer_count < MAX_OFFERS_PER_LISTING,
+            AppMarketError::MaxOffersExceeded
+        );
+
+        // Increment offer counter
+        listing.offer_count = listing.offer_count
+            .checked_add(1)
+            .ok_or(AppMarketError::MathOverflow)?;
 
         // Initialize offer
         let offer = &mut ctx.accounts.offer;
@@ -2614,6 +2638,8 @@ pub struct Listing {
     pub required_github_username: String,
     // Withdrawal counter for unique PDA seeds
     pub withdrawal_count: u64,
+    // Offer counter for tracking total offers
+    pub offer_count: u64,
     pub bump: u8,
 }
 
@@ -3046,4 +3072,8 @@ pub enum AppMarketError {
     InvalidGithubUsername,
     #[msg("Dispute deadline expired: must dispute within grace period")]
     DisputeDeadlineExpired,
+    #[msg("Maximum bids per listing exceeded")]
+    MaxBidsExceeded,
+    #[msg("Maximum offers per listing exceeded")]
+    MaxOffersExceeded,
 }
