@@ -139,13 +139,15 @@ pub mod app_market {
             AppMarketError::NoPendingChange
         );
 
-        let proposed_at = config.pending_treasury_at.unwrap();
+        let proposed_at = config.pending_treasury_at
+            .ok_or(AppMarketError::NoPendingChange)?;
         require!(
             clock.unix_timestamp >= proposed_at + ADMIN_TIMELOCK_SECONDS,
             AppMarketError::TimelockNotExpired
         );
 
-        config.treasury = config.pending_treasury.unwrap();
+        config.treasury = config.pending_treasury
+            .ok_or(AppMarketError::NoPendingChange)?;
         config.pending_treasury = None;
         config.pending_treasury_at = None;
 
@@ -195,13 +197,15 @@ pub mod app_market {
             AppMarketError::NoPendingChange
         );
 
-        let proposed_at = config.pending_admin_at.unwrap();
+        let proposed_at = config.pending_admin_at
+            .ok_or(AppMarketError::NoPendingChange)?;
         require!(
             clock.unix_timestamp >= proposed_at + ADMIN_TIMELOCK_SECONDS,
             AppMarketError::TimelockNotExpired
         );
 
-        config.admin = config.pending_admin.unwrap();
+        config.admin = config.pending_admin
+            .ok_or(AppMarketError::NoPendingChange)?;
         config.pending_admin = None;
         config.pending_admin_at = None;
 
@@ -606,7 +610,8 @@ pub mod app_market {
         require!(listing.buy_now_price.is_some(), AppMarketError::BuyNowNotEnabled);
         require!(ctx.accounts.buyer.key() != listing.seller, AppMarketError::SellerCannotBuy);
 
-        let buy_now_price = listing.buy_now_price.unwrap();
+        let buy_now_price = listing.buy_now_price
+            .ok_or(AppMarketError::BuyNowNotEnabled)?;
 
         // SECURITY: Pre-check buyer has sufficient balance
         require!(
@@ -780,7 +785,8 @@ pub mod app_market {
         let transaction = &mut ctx.accounts.transaction;
         transaction.listing = listing.key();
         transaction.seller = listing.seller;
-        transaction.buyer = listing.current_bidder.unwrap();
+        transaction.buyer = listing.current_bidder
+            .ok_or(AppMarketError::NoBidsToSettle)?;
         transaction.sale_price = listing.current_bid;
 
         // SECURITY: Use LOCKED fees from listing, not current config
@@ -996,7 +1002,8 @@ pub mod app_market {
             AppMarketError::UploadsNotVerified
         );
 
-        let confirmed_at = transaction.seller_confirmed_at.unwrap();
+        let confirmed_at = transaction.seller_confirmed_at
+            .ok_or(AppMarketError::SellerNotConfirmed)?;
         require!(
             clock.unix_timestamp >= confirmed_at + FINALIZE_GRACE_PERIOD,
             AppMarketError::GracePeriodNotExpired
