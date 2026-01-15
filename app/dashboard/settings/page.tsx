@@ -25,7 +25,9 @@ export default function SettingsPage() {
     console.log("[Settings] Has session:", !!session);
     console.log("[Settings] Has user:", !!session?.user);
     console.log("[Settings] User ID:", session?.user?.id);
-  }, [session, status]);
+    console.log("[Settings] Wallet connected:", connected);
+    console.log("[Settings] Wallet pubkey:", publicKey?.toBase58());
+  }, [session, status, connected, publicKey]);
 
   // Load initial profile data from session
   useEffect(() => {
@@ -233,10 +235,22 @@ export default function SettingsPage() {
                               onClick={() => fileInputRef.current?.click()}
                               disabled={uploading || status !== "authenticated" || !session?.user?.id}
                               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                              title={status !== "authenticated" ? "Please sign in to upload" : undefined}
+                              title={
+                                status === "loading" && connected
+                                  ? "Authenticating wallet..."
+                                  : status !== "authenticated"
+                                  ? "Please connect wallet or sign in to upload"
+                                  : undefined
+                              }
                             >
                               <Upload className="w-4 h-4" />
-                              {uploading ? "Uploading..." : status !== "authenticated" ? "Sign in to upload" : "Upload Photo"}
+                              {uploading
+                                ? "Uploading..."
+                                : status === "loading" && connected
+                                ? "Authenticating..."
+                                : status !== "authenticated"
+                                ? "Connect Wallet to Upload"
+                                : "Upload Photo"}
                             </button>
                             {(profileImage || session?.user?.image) && (
                               <button
@@ -249,6 +263,16 @@ export default function SettingsPage() {
                             )}
                           </div>
                           <p className="text-xs text-zinc-500 mt-2">JPG, PNG or WebP. Max 5MB.</p>
+                          {connected && status === "loading" && (
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                              🔐 Authenticating your wallet... Please approve the signature request.
+                            </p>
+                          )}
+                          {connected && status === "unauthenticated" && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                              ⚠️ Wallet connected but not authenticated. Try reconnecting your wallet.
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
