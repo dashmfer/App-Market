@@ -5,6 +5,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import prisma from "@/lib/db";
+import { verifyWalletSignature } from "@/lib/wallet-verification";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -74,32 +75,22 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
-        // The verification endpoint will create the user if needed
-        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/wallet/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            publicKey: credentials.publicKey,
-            signature: credentials.signature,
-            message: credentials.message,
-          }),
-        });
+        // Verify wallet signature directly (no HTTP request needed)
+        const result = await verifyWalletSignature(
+          credentials.publicKey,
+          credentials.signature,
+          credentials.message
+        );
 
-        if (!response.ok) {
-          throw new Error("Wallet verification failed");
-        }
-
-        const data = await response.json();
-
-        if (!data.success || !data.user) {
-          throw new Error("Wallet verification failed");
+        if (!result.success || !result.user) {
+          throw new Error(result.error || "Wallet verification failed");
         }
 
         return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.username,
-          walletAddress: data.user.walletAddress,
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.username,
+          walletAddress: result.user.walletAddress,
         };
       },
     }),
