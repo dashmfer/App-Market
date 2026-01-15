@@ -1,8 +1,9 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
+import IDL_JSON from "../target/idl/app_market.json";
 
-// Program ID - replace with actual deployed program ID
-export const PROGRAM_ID = new PublicKey("AppMkt1111111111111111111111111111111111111");
+// Program ID from deployed/generated smart contract
+export const PROGRAM_ID = new PublicKey("FMqnbWG4pExkkXQjbtAiPmEFfsdopMfYnEaRT5pjnetZ");
 
 // Platform treasury wallet - receives fees
 export const TREASURY_WALLET = new PublicKey("TreasuryXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
@@ -29,30 +30,51 @@ export const getConfigPDA = () => {
   );
 };
 
-export const getListingPDA = (listingId: string) => {
+export const getListingPDA = (seller: PublicKey, salt: number) => {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("listing"), Buffer.from(listingId)],
+    [Buffer.from("listing"), seller.toBuffer(), new BN(salt).toArrayLike(Buffer, "le", 8)],
     PROGRAM_ID
   );
 };
 
-export const getEscrowPDA = (listingId: string) => {
+export const getEscrowPDA = (listing: PublicKey) => {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow"), Buffer.from(listingId)],
+    [Buffer.from("escrow"), listing.toBuffer()],
     PROGRAM_ID
   );
 };
 
-export const getBidPDA = (listingId: string, bidder: PublicKey) => {
+export const getTransactionPDA = (listing: PublicKey) => {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("bid"), Buffer.from(listingId), bidder.toBuffer()],
+    [Buffer.from("transaction"), listing.toBuffer()],
     PROGRAM_ID
   );
 };
 
-export const getDisputePDA = (listingId: string) => {
+export const getWithdrawalPDA = (listing: PublicKey, withdrawalId: number) => {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("dispute"), Buffer.from(listingId)],
+    [Buffer.from("withdrawal"), listing.toBuffer(), new BN(withdrawalId).toArrayLike(Buffer, "le", 8)],
+    PROGRAM_ID
+  );
+};
+
+export const getOfferPDA = (listing: PublicKey, buyer: PublicKey) => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("offer"), listing.toBuffer(), buyer.toBuffer()],
+    PROGRAM_ID
+  );
+};
+
+export const getOfferEscrowPDA = (offer: PublicKey) => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("offer_escrow"), offer.toBuffer()],
+    PROGRAM_ID
+  );
+};
+
+export const getDisputePDA = (transaction: PublicKey) => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("dispute"), transaction.toBuffer()],
     PROGRAM_ID
   );
 };
@@ -169,16 +191,8 @@ export const getTimeRemaining = (endTime: number | BN): { days: number; hours: n
   };
 };
 
-// IDL type placeholder - replace with generated IDL after building program
-export const IDL: Idl = {
-  version: "0.1.0",
-  name: "app_market",
-  instructions: [],
-  accounts: [],
-  types: [],
-  events: [],
-  errors: [],
-};
+// Import IDL from built smart contract
+export const IDL: Idl = IDL_JSON as Idl;
 
 // Create program instance
 export const getProgram = (provider: AnchorProvider): Program => {
