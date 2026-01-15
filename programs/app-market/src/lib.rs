@@ -509,13 +509,14 @@ pub mod app_market {
 
                 // Initialize withdrawal data
                 let mut withdrawal_data = ctx.accounts.pending_withdrawal.try_borrow_mut_data()?;
-                let mut withdrawal = PendingWithdrawal::try_from_slice(&vec![0u8; space])?;
-                withdrawal.user = previous_bidder;
-                withdrawal.listing = listing.key();
-                withdrawal.amount = old_bid;
-                withdrawal.withdrawal_id = listing.withdrawal_count;
-                withdrawal.created_at = clock.unix_timestamp;
-                withdrawal.bump = bump;
+                let withdrawal = PendingWithdrawal {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
+                    created_at: clock.unix_timestamp,
+                    bump,
+                };
 
                 withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
 
