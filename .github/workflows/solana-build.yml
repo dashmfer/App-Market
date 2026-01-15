@@ -37,41 +37,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Setup Anchor
+        uses: metadaoproject/setup-anchor@v2
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          profile: minimal
-          override: true
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            programs/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          solana --version
-
-      - name: Install Anchor CLI
-        run: |
-          # Download pre-built Anchor CLI binary for faster installation
-          curl -L https://github.com/coral-xyz/anchor/releases/download/v${{ env.ANCHOR_VERSION }}/anchor-cli-v${{ env.ANCHOR_VERSION }}-x86_64-unknown-linux-gnu.tar.gz -o anchor.tar.gz
-          tar -xzf anchor.tar.gz
-          mkdir -p ~/.local/bin
-          mv anchor ~/.local/bin/
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          export PATH="$HOME/.local/bin:$PATH"
-          anchor --version
+          anchor-version: ${{ env.ANCHOR_VERSION }}
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
 
       - name: Build Solana program
         run: |
