@@ -55,6 +55,40 @@ export async function PUT(req: NextRequest) {
     // Validate and sanitize input
     const updateData: any = {};
 
+    if (data.username !== undefined) {
+      const username = data.username.trim().toLowerCase();
+
+      // Validate username format (alphanumeric, underscores, hyphens only)
+      if (!/^[a-z0-9_-]+$/.test(username)) {
+        return NextResponse.json(
+          { error: "Username can only contain letters, numbers, underscores, and hyphens" },
+          { status: 400 }
+        );
+      }
+
+      // Check length
+      if (username.length < 3 || username.length > 30) {
+        return NextResponse.json(
+          { error: "Username must be between 3 and 30 characters" },
+          { status: 400 }
+        );
+      }
+
+      // Check if username is already taken by another user
+      const existingUser = await prisma.user.findUnique({
+        where: { username },
+      });
+
+      if (existingUser && existingUser.id !== session.user.id) {
+        return NextResponse.json(
+          { error: "Username is already taken" },
+          { status: 400 }
+        );
+      }
+
+      updateData.username = username;
+    }
+
     if (data.displayName !== undefined) {
       updateData.displayName = data.displayName.trim().slice(0, 50);
     }

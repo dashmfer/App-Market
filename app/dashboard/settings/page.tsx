@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +35,7 @@ export default function SettingsPage() {
     if (session?.user) {
       setProfileImage(session.user.image || null);
       setDisplayName(session.user.name || "");
+      setUsername(session.user.username || "");
     }
   }, [session]);
 
@@ -150,16 +152,23 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           displayName,
+          username,
           bio,
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to save profile");
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to save profile");
+      }
+
+      // Refresh the session to update the username everywhere
+      await updateSession();
 
       alert("Profile updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save error:", error);
-      alert("Failed to save profile");
+      alert(error.message || "Failed to save profile");
     }
   };
 
@@ -289,17 +298,17 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    {/* Username - Read Only */}
+                    {/* Username */}
                     <div>
                       <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Username</label>
                       <input
                         type="text"
-                        value={session?.user?.username || ""}
-                        disabled
-                        className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                         placeholder="username"
                       />
-                      <p className="text-xs text-zinc-500 mt-1">Username cannot be changed</p>
+                      <p className="text-xs text-zinc-500 mt-1">Your unique username for the marketplace</p>
                     </div>
 
                     {/* Bio */}
