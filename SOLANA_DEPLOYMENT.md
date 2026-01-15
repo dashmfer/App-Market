@@ -189,47 +189,143 @@ BACKEND_AUTHORITY_SECRET=<backend-authority-secret-key>
 The following files handle Solana integration:
 
 - **`lib/solana.ts`**: Core Solana utilities, PDAs, constants
-- **`lib/solana-contract.ts`**: Contract interaction functions
+- **`hooks/useSolanaContract.ts`**: React hooks for contract interactions
 - **`target/idl/app_market.json`**: Contract IDL (interface)
+
+**Note**: If `anchor build` fails due to toolchain issues, the IDL has been manually generated from the contract source code and is ready to use for frontend development.
 
 ### Step 4: Usage Examples
 
-#### Create a Listing
+#### Using the Contract Hooks
 
 ```typescript
-import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { AnchorProvider } from "@coral-xyz/anchor";
-import { createListing } from "@/lib/solana-contract";
+import { useSolanaContract } from "@/hooks/useSolanaContract";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 
-const wallet = useAnchorWallet();
-const { connection } = useConnection();
-const provider = new AnchorProvider(connection, wallet, {});
+function MyComponent() {
+  const { publicKey, connected } = useWallet();
+  const {
+    createListing,
+    placeBid,
+    buyNow,
+    makeOffer,
+    fetchActiveListings
+  } = useSolanaContract();
 
-const tx = await createListing({
-  provider,
-  salt: Date.now(),
-  listingType: "Auction",
-  startingPrice: 1.0, // 1 SOL
-  reservePrice: 1.0,
-  buyNowPrice: 5.0,
-  durationSeconds: 86400 * 7, // 7 days
-  requiresGithub: true,
-  requiredGithubUsername: "octocat",
-});
+  // Create a listing
+  const handleCreateListing = async () => {
+    try {
+      const { tx, listingPDA, salt } = await createListing(
+        "my-app-listing-id",  // unique listing ID
+        0.1,                   // 0.1 SOL starting price
+        7 * 24 * 60 * 60,      // 7 days duration (seconds)
+        0.05,                  // reserve price (optional)
+        1.0                    // buy now price (optional)
+      );
+      console.log("Listing created at:", listingPDA);
+      console.log("Transaction:", tx);
+    } catch (error) {
+      console.error("Error creating listing:", error);
+    }
+  };
+
+  // Place a bid
+  const handlePlaceBid = async (listingAddress: string) => {
+    try {
+      const listingPDA = new PublicKey(listingAddress);
+      const tx = await placeBid(listingPDA, 0.15); // bid 0.15 SOL
+      console.log("Bid placed:", tx);
+    } catch (error) {
+      console.error("Error placing bid:", error);
+    }
+  };
+
+  // Buy now
+  const handleBuyNow = async (listingAddress: string) => {
+    try {
+      const listingPDA = new PublicKey(listingAddress);
+      const tx = await buyNow(listingPDA);
+      console.log("Purchase complete:", tx);
+    } catch (error) {
+      console.error("Error buying:", error);
+    }
+  };
+
+  // Make an offer
+  const handleMakeOffer = async (listingAddress: string) => {
+    try {
+      const listingPDA = new PublicKey(listingAddress);
+      const { tx, offerPDA } = await makeOffer(
+        listingPDA,
+        0.08,                 // offer 0.08 SOL
+        "Interested in buying this app!"
+      );
+      console.log("Offer created:", offerPDA);
+    } catch (error) {
+      console.error("Error making offer:", error);
+    }
+  };
+
+  // Fetch active listings
+  const loadListings = async () => {
+    try {
+      const listings = await fetchActiveListings();
+      console.log("Active listings:", listings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+    }
+  };
+
+  return (
+    <div>
+      {connected ? (
+        <>
+          <button onClick={handleCreateListing}>Create Listing</button>
+          <button onClick={loadListings}>Load Listings</button>
+        </>
+      ) : (
+        <p>Connect your wallet to interact with the marketplace</p>
+      )}
+    </div>
+  );
+}
 ```
 
-#### Place a Bid
+#### Available Hook Functions
 
-```typescript
-import { placeBid } from "@/lib/solana-contract";
+The `useSolanaContract()` hook provides these functions:
 
-const tx = await placeBid({
-  provider,
-  listing: listingPubkey,
-  amount: 2.5, // 2.5 SOL
-  withdrawalCount: 0, // Get from listing account
-});
-```
+**Listing Operations:**
+- `createListing(listingId, startingPrice, duration, reservePrice?, buyNowPrice?)` - Create new listing
+- `cancelListing(listingPDA)` - Cancel active listing
+- `fetchListing(listingPDA)` - Get listing details
+- `fetchSellerListings(sellerPubkey)` - Get all listings for a seller
+- `fetchActiveListings()` - Get all active listings
+
+**Bidding Operations:**
+- `placeBid(listingPDA, bidAmount)` - Place a bid
+- `buyNow(listingPDA)` - Instant purchase
+- `endAuction(listingPDA)` - End auction (after time expires)
+
+**Transaction Operations:**
+- `confirmTransfer(listingPDA)` - Buyer confirms receipt
+- `requestWithdrawal(listingPDA, amount, reason)` - Seller requests payment
+- `approveWithdrawal(listingPDA, withdrawalId)` - Buyer approves withdrawal
+- `fetchTransaction(transactionPDA)` - Get transaction details
+
+**Offer Operations:**
+- `makeOffer(listingPDA, amount, message)` - Make an offer
+- `acceptOffer(listingPDA, buyerPubkey)` - Accept buyer's offer
+- `cancelOffer(listingPDA)` - Cancel your offer
+- `fetchOffer(offerPDA)` - Get offer details
+
+**Dispute Operations:**
+- `raiseDispute(listingPDA, reason, evidence)` - Raise a dispute
+- `resolveDispute(listingPDA, refundBuyer, resolution)` - Admin resolves dispute
+
+**Admin Operations:**
+- `initializeMarketplace(treasuryWallet, platformTokenMint, platformFeeBps, disputeFeeBps, tokenLaunchFeeBps)` - Initialize marketplace
 
 ## Testing
 
@@ -292,6 +388,10 @@ anchor test --skip-local-validator
 ```bash
 # Solution: Install Solana CLI completely
 sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+
+# Or install Agave toolchain (new Solana validator client)
+cargo install agave-install
+agave-install init stable
 ```
 
 **Problem**: Anchor version mismatch
@@ -299,7 +399,18 @@ sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
 # Solution: Update Anchor.toml
 [toolchain]
 anchor_version = "0.29.0"
+
+# Or install the matching version
+avm install 0.29.0
+avm use 0.29.0
 ```
+
+**Problem**: Network issues downloading Solana platform-tools
+If you encounter network errors during build:
+1. The IDL has been manually generated from the contract source
+2. Frontend integration can proceed without building the contract
+3. Actual deployment will need proper Solana/Anchor toolchain setup
+4. Consider using a different network environment or trying again later
 
 ### Deployment Issues
 
