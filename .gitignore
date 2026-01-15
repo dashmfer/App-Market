@@ -5,3 +5,10 @@ node_modules
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Rust/Anchor build artifacts
+target/
+Cargo.lock
+**/*.rs.bk
+.anchor
+test-ledger/
