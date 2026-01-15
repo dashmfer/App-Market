@@ -2,6 +2,23 @@
 
 This document outlines the steps to deploy the App Market Solana smart contract and integrate it with the frontend.
 
+## ⚠️ Important: Network Requirements
+
+**The Solana build process requires internet access to download platform-tools from GitHub.** If you're in a restricted network environment, you have these options:
+
+1. **Local Development**: Build on your local machine with proper internet access
+2. **GitHub Actions**: Use the provided CI/CD workflow (recommended)
+3. **Cloud Environment**: Use GitHub Codespaces, Gitpod, or similar with unrestricted network access
+4. **Pre-built Binaries**: Use verifiable builds from another environment
+
+**Current Status**:
+- ✅ Anchor CLI v0.32.1 installed
+- ✅ Rust toolchain ready
+- ✅ Frontend integration complete (`hooks/useSolanaContract.ts`)
+- ✅ Contract code ready (`programs/app-market/src/lib.rs`)
+- ⚠️ Network access needed for platform-tools download
+- ⏳ Deployment pending proper network environment
+
 ## Prerequisites
 
 - Solana CLI installed (v1.18.18 or later)
@@ -9,6 +26,7 @@ This document outlines the steps to deploy the App Market Solana smart contract 
 - Rust toolchain installed
 - Node.js and npm/yarn installed
 - Solana wallet with SOL for deployment
+- **Unrestricted internet access** (GitHub downloads required)
 
 ## Smart Contract Overview
 
@@ -30,7 +48,44 @@ The App Market smart contract is a comprehensive escrow and marketplace system b
 
 ## Building the Contract
 
-### Step 1: Install Dependencies
+### Option 1: GitHub Actions (Recommended) ⭐
+
+The easiest way to build the contract is using GitHub Actions, which has proper network access:
+
+1. **Push your code** to GitHub
+2. **Navigate** to the Actions tab in your repository
+3. **Run** the "Solana Smart Contract Build" workflow
+4. **Download** the build artifacts (app_market.so, app_market.json)
+
+To enable automatic deployment to Devnet:
+- Add `SOLANA_DEPLOY_KEYPAIR` secret in GitHub repository settings
+- Run workflow with "deploy" option enabled
+
+**Workflow location**: `.github/workflows/solana-build.yml`
+
+### Option 2: Local Build Script 🖥️
+
+If you have unrestricted internet access locally:
+
+```bash
+# Build the contract
+./scripts/build-solana.sh
+
+# Deploy to Devnet
+./scripts/deploy-devnet.sh
+```
+
+These scripts will:
+- ✅ Check prerequisites
+- ✅ Verify network connectivity
+- ✅ Build the smart contract
+- ✅ (Deploy script) Deploy to Devnet and show next steps
+
+### Option 3: Manual Build 🔧
+
+If you prefer manual control:
+
+#### Step 1: Install Dependencies
 
 ```bash
 # Install Solana CLI
@@ -42,17 +97,16 @@ cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
 # Install Anchor CLI
 avm install 0.29.0
 avm use 0.29.0
-
-# Or install latest
-avm install latest
-avm use latest
 ```
 
-### Step 2: Build the Contract
+#### Step 2: Build the Contract
 
 ```bash
 # Navigate to project root
 cd /path/to/App-Market
+
+# Sync program keys
+anchor keys sync
 
 # Build the smart contract
 anchor build
@@ -63,7 +117,7 @@ anchor build
 # - target/types/app_market.ts (TypeScript types)
 ```
 
-### Step 3: Run Tests (Optional)
+#### Step 3: Run Tests (Optional)
 
 ```bash
 # Run Anchor tests
