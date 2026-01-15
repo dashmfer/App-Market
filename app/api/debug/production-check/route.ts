@@ -67,8 +67,8 @@ export async function GET() {
   };
 
   // Overall Status
-  const hasAllEnvVars = Object.values(checks.envVars).every((v: string) => v.includes('✅'));
-  const dbOk = checks.database.status?.includes('✅');
+  const hasAllEnvVars = Object.values(checks.envVars).every((v) => String(v).includes('✅'));
+  const dbOk = String(checks.database.status).includes('✅');
 
   checks.overallStatus = hasAllEnvVars && dbOk
     ? '✅ All systems operational'
