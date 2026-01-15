@@ -9,13 +9,13 @@ skip-lint = false
 app_market = "FMqnbWG4pExkkXQjbtAiPmEFfsdopMfYnEaRT5pjnetZ"
 
 [programs.localnet]
-app_market = "AppMkt1111111111111111111111111111111111111"
+app_market = "FMqnbWG4pExkkXQjbtAiPmEFfsdopMfYnEaRT5pjnetZ"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
@@ -23,5 +23,3 @@ members = ["programs/app-market"]
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[hooks]
