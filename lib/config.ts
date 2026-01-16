@@ -131,7 +131,7 @@ export const PLATFORM_CONFIG = {
   // ============================================
   wallets: {
     // Platform treasury (receives fees)
-    treasury: process.env.PLATFORM_TREASURY_WALLET || "TreasuryXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    treasury: process.env.PLATFORM_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
     
     // Platform token mint (when launched)
     tokenMint: process.env.PLATFORM_TOKEN_MINT || null,

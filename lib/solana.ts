@@ -5,7 +5,7 @@ import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 export const PROGRAM_ID = new PublicKey("FMqnbWG4pExkkXQjbtAiPmEFfsdopMfYnEaRT5pjnetZ");
 
 // Platform treasury wallet - receives fees
-export const TREASURY_WALLET = new PublicKey("TreasuryXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+export const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6");
 
 // Platform token mint (for future auto-buyback feature)
 export const PLATFORM_TOKEN_MINT = new PublicKey("APPMktTokenXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
