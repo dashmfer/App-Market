@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -14,177 +15,234 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Upload,
-  ExternalLink,
   Shield,
   MessageSquare,
   Flag,
   Loader2,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { LucideIcon } from "lucide-react";
 
-// Mock transfer data
-const mockTransfer = {
-  id: "t1",
+interface ChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+  iconType: string;
+  required: boolean;
+  sellerConfirmed: boolean;
+  sellerConfirmedAt: string | null;
+  sellerEvidence: string | null;
+  buyerConfirmed: boolean;
+  buyerConfirmedAt: string | null;
+}
+
+interface Transfer {
+  id: string;
   listing: {
-    id: "l1",
-    title: "AI Recipe Generator",
-    slug: "ai-recipe-generator",
-  },
-  salePrice: 45,
-  platformFee: 2.25,
-  sellerProceeds: 42.75,
-  currency: "SOL",
-  status: "TRANSFER_IN_PROGRESS",
+    id: string;
+    title: string;
+    slug: string;
+  };
+  salePrice: number;
+  platformFee: number;
+  sellerProceeds: number;
+  currency: string;
+  status: string;
   buyer: {
-    id: "b1",
-    name: "buyer1.sol",
-    walletAddress: "7x...def",
-  },
+    id: string;
+    name: string;
+    walletAddress: string | null;
+  };
   seller: {
-    id: "s1",
-    name: "alex.sol",
-    walletAddress: "9y...abc",
-  },
-  escrowAddress: "Es...xyz",
-  createdAt: new Date(Date.now() - 86400000),
-  transferDeadline: new Date(Date.now() + 86400000 * 6),
-  checklist: [
-    {
-      id: "github",
-      label: "GitHub Repository",
-      description: "Transfer ownership of the repository to buyer",
-      icon: Github,
-      required: true,
-      sellerConfirmed: true,
-      sellerConfirmedAt: new Date(Date.now() - 3600000),
-      sellerEvidence: "Transferred to @buyer1",
-      buyerConfirmed: false,
-      buyerConfirmedAt: null,
-      verifiable: true,
-      verified: true,
-    },
-    {
-      id: "domain",
-      label: "Domain",
-      description: "Transfer domain ownership via registrar",
-      icon: Globe,
-      required: true,
-      sellerConfirmed: true,
-      sellerConfirmedAt: new Date(Date.now() - 1800000),
-      sellerEvidence: "Transfer initiated, auth code sent",
-      buyerConfirmed: false,
-      buyerConfirmedAt: null,
-      verifiable: true,
-      verified: false,
-    },
-    {
-      id: "database",
-      label: "Database Access",
-      description: "Provide database credentials and data export",
-      icon: Database,
-      required: true,
-      sellerConfirmed: false,
-      sellerConfirmedAt: null,
-      sellerEvidence: null,
-      buyerConfirmed: false,
-      buyerConfirmedAt: null,
-      verifiable: false,
-      verified: false,
-    },
-    {
-      id: "apiKeys",
-      label: "API Keys & Credentials",
-      description: "Share all necessary API keys and service credentials",
-      icon: Key,
-      required: true,
-      sellerConfirmed: false,
-      sellerConfirmedAt: null,
-      sellerEvidence: null,
-      buyerConfirmed: false,
-      buyerConfirmedAt: null,
-      verifiable: false,
-      verified: false,
-    },
-    {
-      id: "designFiles",
-      label: "Design Files",
-      description: "Share Figma/Sketch files",
-      icon: Palette,
-      required: false,
-      sellerConfirmed: true,
-      sellerConfirmedAt: new Date(Date.now() - 7200000),
-      sellerEvidence: "Figma access shared",
-      buyerConfirmed: true,
-      buyerConfirmedAt: new Date(Date.now() - 3600000),
-      verifiable: false,
-      verified: false,
-    },
-    {
-      id: "documentation",
-      label: "Documentation",
-      description: "Provide setup guides and documentation",
-      icon: FileText,
-      required: false,
-      sellerConfirmed: true,
-      sellerConfirmedAt: new Date(Date.now() - 7200000),
-      sellerEvidence: "Docs in /docs folder",
-      buyerConfirmed: true,
-      buyerConfirmedAt: new Date(Date.now() - 3600000),
-      verifiable: false,
-      verified: false,
-    },
-  ],
+    id: string;
+    name: string;
+    walletAddress: string | null;
+  };
+  escrowAddress: string | null;
+  createdAt: string;
+  transferDeadline: string;
+  checklist: ChecklistItem[];
+  isSeller: boolean;
+  isBuyer: boolean;
+}
+
+const iconMap: Record<string, LucideIcon> = {
+  github: Github,
+  domain: Globe,
+  database: Database,
+  apiKeys: Key,
+  designFiles: Palette,
+  documentation: FileText,
 };
 
-type ViewMode = "seller" | "buyer";
-
 export default function TransferPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>("seller");
+  const params = useParams();
+  const router = useRouter();
+  const [transfer, setTransfer] = useState<Transfer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [evidence, setEvidence] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [completingTransfer, setCompletingTransfer] = useState(false);
 
-  const transfer = mockTransfer;
-  const isSeller = viewMode === "seller";
-  const isBuyer = viewMode === "buyer";
+  useEffect(() => {
+    fetchTransfer();
+  }, [params.id]);
 
-  const completedItems = transfer.checklist.filter(
-    (item) => item.sellerConfirmed && item.buyerConfirmed
-  ).length;
-  const totalRequiredItems = transfer.checklist.filter((item) => item.required).length;
-  const pendingSellerItems = transfer.checklist.filter(
-    (item) => item.required && !item.sellerConfirmed
-  ).length;
-  const pendingBuyerItems = transfer.checklist.filter(
-    (item) => item.required && item.sellerConfirmed && !item.buyerConfirmed
-  ).length;
+  const fetchTransfer = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/transfers/${params.id}`, {
+        credentials: "include",
+      });
 
-  const timeLeft = formatDistanceToNow(transfer.transferDeadline, { addSuffix: false });
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+        if (res.status === 404) {
+          setError("Transfer not found");
+          return;
+        }
+        throw new Error("Failed to fetch transfer");
+      }
+
+      const data = await res.json();
+      setTransfer(data);
+    } catch (err) {
+      console.error("Error fetching transfer:", err);
+      setError("Failed to load transfer details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSellerConfirm = async (itemId: string) => {
+    if (!evidence.trim()) return;
+
     setIsSubmitting(true);
-    // API call to confirm
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsSubmitting(false);
-    setSelectedItem(null);
-    setEvidence("");
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/seller-confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ itemId, evidence }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to confirm transfer");
+      }
+
+      // Refresh transfer data
+      await fetchTransfer();
+      setSelectedItem(null);
+      setEvidence("");
+    } catch (err: unknown) {
+      console.error("Error confirming transfer:", err);
+      alert(err instanceof Error ? err.message : "Failed to confirm transfer");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBuyerConfirm = async (itemId: string) => {
     setIsSubmitting(true);
-    // API call to confirm
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsSubmitting(false);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/buyer-confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ itemId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to confirm receipt");
+      }
+
+      // Refresh transfer data
+      await fetchTransfer();
+    } catch (err: unknown) {
+      console.error("Error confirming receipt:", err);
+      alert(err instanceof Error ? err.message : "Failed to confirm receipt");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompleteTransfer = async () => {
+    if (!confirm("Are you sure you want to release escrow funds to the seller? This action cannot be undone.")) {
+      return;
+    }
+
+    setCompletingTransfer(true);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/complete`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to complete transfer");
+      }
+
+      // Refresh transfer data
+      await fetchTransfer();
+      alert("Transfer completed successfully! Funds have been released to the seller.");
+    } catch (err: unknown) {
+      console.error("Error completing transfer:", err);
+      alert(err instanceof Error ? err.message : "Failed to complete transfer");
+    } finally {
+      setCompletingTransfer(false);
+    }
   };
 
   const handleBuyerDispute = async (itemId: string) => {
-    // Navigate to dispute flow
+    router.push(`/dashboard/disputes/new?transaction=${params.id}&item=${itemId}`);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  if (error || !transfer) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+            {error || "Transfer not found"}
+          </h1>
+          <Link href="/dashboard" className="text-green-600 hover:underline">
+            Return to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isSeller = transfer.isSeller;
+  const isBuyer = transfer.isBuyer;
+
+  const completedItems = transfer.checklist.filter(
+    (item) => item.sellerConfirmed && item.buyerConfirmed
+  ).length;
+
+  const timeLeft = formatDistanceToNow(new Date(transfer.transferDeadline), { addSuffix: false });
 
   const allConfirmed = transfer.checklist
     .filter((item) => item.required)
     .every((item) => item.sellerConfirmed && item.buyerConfirmed);
+
+  const isCompleted = transfer.status === "COMPLETED";
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -204,32 +262,20 @@ export default function TransferPage() {
                 Transfer: {transfer.listing.title}
               </h1>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                Complete the asset transfer to release escrow funds
+                {isCompleted
+                  ? "Transfer completed successfully"
+                  : "Complete the asset transfer to release escrow funds"}
               </p>
             </div>
-            
-            {/* View Toggle (for demo) */}
-            <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode("seller")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === "seller"
-                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400"
-                }`}
-              >
-                Seller View
-              </button>
-              <button
-                onClick={() => setViewMode("buyer")}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  viewMode === "buyer"
-                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400"
-                }`}
-              >
-                Buyer View
-              </button>
+
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                isCompleted
+                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                  : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
+              }`}>
+                {isSeller ? "Seller" : "Buyer"} View
+              </span>
             </div>
           </div>
         </div>
@@ -288,7 +334,7 @@ export default function TransferPage() {
 
               <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {transfer.checklist.map((item) => {
-                  const Icon = item.icon;
+                  const Icon = iconMap[item.iconType] || FileText;
                   const isComplete = item.sellerConfirmed && item.buyerConfirmed;
                   const awaitingBuyer = item.sellerConfirmed && !item.buyerConfirmed;
                   const awaitingSeller = !item.sellerConfirmed;
@@ -322,11 +368,6 @@ export default function TransferPage() {
                                 Required
                               </span>
                             )}
-                            {item.verified && (
-                              <span className="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                                ✓ Verified
-                              </span>
-                            )}
                           </div>
                           <p className="text-sm text-zinc-500 mt-0.5">
                             {item.description}
@@ -356,43 +397,50 @@ export default function TransferPage() {
                           </div>
 
                           {/* Actions */}
-                          <div className="mt-4 flex items-center gap-3">
-                            {/* Seller Actions */}
-                            {isSeller && awaitingSeller && (
-                              <button
-                                onClick={() => setSelectedItem(item.id)}
-                                className="btn-primary text-sm py-2"
-                              >
-                                Mark as Transferred
-                              </button>
-                            )}
-
-                            {/* Buyer Actions */}
-                            {isBuyer && awaitingBuyer && (
-                              <>
+                          {!isCompleted && (
+                            <div className="mt-4 flex items-center gap-3">
+                              {/* Seller Actions */}
+                              {isSeller && awaitingSeller && (
                                 <button
-                                  onClick={() => handleBuyerConfirm(item.id)}
-                                  className="btn-success text-sm py-2"
+                                  onClick={() => setSelectedItem(item.id)}
+                                  className="btn-primary text-sm py-2"
                                 >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  Confirm Receipt
+                                  Mark as Transferred
                                 </button>
-                                <button
-                                  onClick={() => handleBuyerDispute(item.id)}
-                                  className="btn-outline text-sm py-2 text-red-600 border-red-300 hover:bg-red-50"
-                                >
-                                  <Flag className="w-4 h-4" />
-                                  Dispute
-                                </button>
-                              </>
-                            )}
+                              )}
 
-                            {isComplete && (
-                              <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                                ✓ Complete
-                              </span>
-                            )}
-                          </div>
+                              {/* Buyer Actions */}
+                              {isBuyer && awaitingBuyer && (
+                                <>
+                                  <button
+                                    onClick={() => handleBuyerConfirm(item.id)}
+                                    disabled={isSubmitting}
+                                    className="btn-success text-sm py-2"
+                                  >
+                                    {isSubmitting ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    )}
+                                    Confirm Receipt
+                                  </button>
+                                  <button
+                                    onClick={() => handleBuyerDispute(item.id)}
+                                    className="btn-outline text-sm py-2 text-red-600 border-red-300 hover:bg-red-50"
+                                  >
+                                    <Flag className="w-4 h-4" />
+                                    Dispute
+                                  </button>
+                                </>
+                              )}
+
+                              {isComplete && (
+                                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                                  ✓ Complete
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -449,7 +497,7 @@ export default function TransferPage() {
             </div>
 
             {/* Complete Transfer Button */}
-            {allConfirmed && isBuyer && (
+            {allConfirmed && isBuyer && !isCompleted && (
               <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800 p-6">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -462,10 +510,44 @@ export default function TransferPage() {
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
                       Click below to finalize the transfer and release funds to the seller.
                     </p>
-                    <button className="btn-success mt-4">
-                      <Shield className="w-5 h-5" />
-                      Release Escrow & Complete Transfer
+                    <button
+                      onClick={handleCompleteTransfer}
+                      disabled={completingTransfer}
+                      className="btn-success mt-4"
+                    >
+                      {completingTransfer ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="w-5 h-5" />
+                          Release Escrow & Complete Transfer
+                        </>
+                      )}
                     </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transfer Completed */}
+            {isCompleted && (
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800 p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-green-800 dark:text-green-200">
+                      Transfer Completed!
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      {isSeller
+                        ? `Congratulations! ${transfer.sellerProceeds} ${transfer.currency} has been released to your wallet.`
+                        : "The transfer is complete. Enjoy your new acquisition!"}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -504,36 +586,40 @@ export default function TransferPage() {
                 </div>
               </div>
 
-              <div className="mt-6 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
-                <div className="flex items-center gap-2 text-sm">
-                  <Shield className="w-4 h-4 text-green-500" />
-                  <span className="text-zinc-600 dark:text-zinc-400">
-                    Funds held in escrow
-                  </span>
+              {transfer.escrowAddress && (
+                <div className="mt-6 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Shield className="w-4 h-4 text-green-500" />
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      {isCompleted ? "Funds released" : "Funds held in escrow"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1 font-mono">
+                    {transfer.escrowAddress}
+                  </p>
                 </div>
-                <p className="text-xs text-zinc-500 mt-1 font-mono">
-                  {transfer.escrowAddress}
-                </p>
-              </div>
+              )}
             </div>
 
             {/* Deadline */}
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800 p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <Clock className="w-5 h-5 text-yellow-600" />
-                <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
-                  Transfer Deadline
-                </h3>
+            {!isCompleted && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <Clock className="w-5 h-5 text-yellow-600" />
+                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
+                    Transfer Deadline
+                  </h3>
+                </div>
+                <p className="text-2xl font-display font-semibold text-yellow-900 dark:text-yellow-100">
+                  {timeLeft} left
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
+                  {isSeller
+                    ? "Complete all transfers before the deadline to receive payment."
+                    : "If seller doesn't complete transfer, you can dispute."}
+                </p>
               </div>
-              <p className="text-2xl font-display font-semibold text-yellow-900 dark:text-yellow-100">
-                {timeLeft} left
-              </p>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-                {isSeller
-                  ? "Complete all transfers before the deadline to receive payment."
-                  : "If seller doesn't complete transfer, you can dispute."}
-              </p>
-            </div>
+            )}
 
             {/* Parties */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
@@ -583,10 +669,15 @@ export default function TransferPage() {
                   <MessageSquare className="w-4 h-4" />
                   Contact Support
                 </button>
-                <button className="w-full btn-outline text-sm py-2 justify-center text-red-600 border-red-300 hover:bg-red-50">
-                  <Flag className="w-4 h-4" />
-                  Open Dispute
-                </button>
+                {!isCompleted && (
+                  <button
+                    onClick={() => router.push(`/dashboard/disputes/new?transaction=${transfer.id}`)}
+                    className="w-full btn-outline text-sm py-2 justify-center text-red-600 border-red-300 hover:bg-red-50"
+                  >
+                    <Flag className="w-4 h-4" />
+                    Open Dispute
+                  </button>
+                )}
               </div>
             </div>
           </div>
