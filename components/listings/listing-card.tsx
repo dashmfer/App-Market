@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2 } from "lucide-react";
+import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ListingCardProps {
   listing: {
@@ -19,31 +20,119 @@ interface ListingCardProps {
     currentBid?: number;
     startingPrice?: number;
     buyNowPrice?: number;
+    buyNowEnabled?: boolean;
     endTime: string | Date;
     bidCount?: number;
     _count?: { bids: number };
+    watchlistId?: string;
     seller?: {
+      id?: string;
       name?: string;
+      displayName?: string;
       username?: string;
+      image?: string;
       rating?: number;
       verified?: boolean;
+      isVerified?: boolean;
     };
   };
   index?: number;
+  initialWatchlisted?: boolean;
 }
 
-export function ListingCard({ listing, index = 0 }: ListingCardProps) {
-  const [isWatchlisted, setIsWatchlisted] = useState(false);
+export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingCardProps) {
+  const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlisted || !!listing.watchlistId);
+  const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const { toast } = useToast();
+
+  const handleWatchlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setIsWatchlistLoading(true);
+    try {
+      if (isWatchlisted) {
+        // Remove from watchlist
+        const response = await fetch(`/api/watchlist?listingId=${listing.id}`, {
+          method: "DELETE",
+        });
+
+        if (response.ok) {
+          setIsWatchlisted(false);
+          toast({
+            title: "Removed from watchlist",
+            description: `${listing.title} has been removed from your watchlist.`,
+          });
+        } else {
+          const data = await response.json();
+          if (response.status === 401) {
+            toast({
+              title: "Sign in required",
+              description: "Please sign in to manage your watchlist.",
+              variant: "destructive",
+            });
+          } else {
+            throw new Error(data.error || "Failed to remove from watchlist");
+          }
+        }
+      } else {
+        // Add to watchlist
+        const response = await fetch("/api/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ listingId: listing.id }),
+        });
+
+        if (response.ok) {
+          setIsWatchlisted(true);
+          toast({
+            title: "Added to watchlist",
+            description: `${listing.title} has been added to your watchlist.`,
+          });
+        } else {
+          const data = await response.json();
+          if (response.status === 401) {
+            toast({
+              title: "Sign in required",
+              description: "Please sign in to manage your watchlist.",
+              variant: "destructive",
+            });
+          } else if (data.error === "Already in watchlist") {
+            setIsWatchlisted(true);
+          } else {
+            throw new Error(data.error || "Failed to add to watchlist");
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Watchlist error:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsWatchlistLoading(false);
+    }
+  };
 
   // Convert endTime to Date if it's a string
   const endDate = typeof listing.endTime === 'string' ? new Date(listing.endTime) : listing.endTime;
   const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
   const isEndingSoon = endDate.getTime() - Date.now() < 86400000; // 24 hours
 
-  // Get current bid or starting price
-  const displayPrice = listing.currentBid || listing.startingPrice || 0;
+  // Check if this is a Buy Now only listing
+  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+
+  // Get current bid or starting price (for Buy Now only, show the buy now price)
+  const displayPrice = isBuyNowOnly
+    ? (listing.buyNowPrice || 0)
+    : (listing.currentBid || listing.startingPrice || 0);
   const bidCount = listing.bidCount || listing._count?.bids || 0;
+
+  // Get seller display name
+  const sellerName = listing.seller?.displayName || listing.seller?.name || listing.seller?.username || "Anonymous";
 
   const categoryLabels: Record<string, string> = {
     SAAS: "SaaS",
@@ -95,17 +184,19 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
 
             {/* Watchlist Button */}
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                setIsWatchlisted(!isWatchlisted);
-              }}
+              onClick={handleWatchlistToggle}
+              disabled={isWatchlistLoading}
               className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
                 isWatchlisted
                   ? "bg-red-500 text-white"
                   : "bg-white/90 dark:bg-black/70 backdrop-blur-sm text-zinc-600 dark:text-zinc-400 hover:text-red-500"
-              }`}
+              } ${isWatchlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <Heart className={`w-4 h-4 ${isWatchlisted ? "fill-current" : ""}`} />
+              {isWatchlistLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Heart className={`w-4 h-4 ${isWatchlisted ? "fill-current" : ""}`} />
+              )}
             </button>
 
             {/* Ending Soon Badge */}
@@ -153,15 +244,25 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
             {/* Seller */}
             {listing.seller && (
               <div className="mt-4 flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                  <span className="text-[10px] font-medium text-white">
-                    {(listing.seller.name || listing.seller.username || "?")[0].toUpperCase()}
-                  </span>
-                </div>
+                {listing.seller.image ? (
+                  <Image
+                    src={listing.seller.image}
+                    alt={sellerName}
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                    <span className="text-[10px] font-medium text-white">
+                      {sellerName[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  {listing.seller.name || listing.seller.username || "Anonymous"}
+                  {sellerName}
                 </span>
-                {listing.seller.verified && (
+                {(listing.seller.verified || listing.seller.isVerified) && (
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
                 )}
                 {listing.seller.rating && (
@@ -175,32 +276,51 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
             {/* Price & Actions */}
             <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-                    <Gavel className="w-4 h-4" />
-                    <span>{bidCount} bids</span>
-                  </div>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                      {displayPrice}
-                    </span>
-                    <span className="text-sm text-zinc-500">SOL</span>
-                  </div>
-                </div>
-
-                {listing.buyNowPrice && (
-                  <div className="text-right">
+                {isBuyNowOnly ? (
+                  /* Buy Now Only Listing */
+                  <div>
                     <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
                       <ShoppingCart className="w-4 h-4" />
                       <span>Buy Now</span>
                     </div>
-                    <div className="mt-1 flex items-baseline gap-1 justify-end">
-                      <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-xl font-semibold text-green-600 dark:text-green-400">
                         {listing.buyNowPrice}
                       </span>
                       <span className="text-sm text-zinc-500">SOL</span>
                     </div>
                   </div>
+                ) : (
+                  /* Auction Listing */
+                  <>
+                    <div>
+                      <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+                        <Gavel className="w-4 h-4" />
+                        <span>{bidCount} bids</span>
+                      </div>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                          {displayPrice}
+                        </span>
+                        <span className="text-sm text-zinc-500">SOL</span>
+                      </div>
+                    </div>
+
+                    {listing.buyNowPrice && (
+                      <div className="text-right">
+                        <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+                          <ShoppingCart className="w-4 h-4" />
+                          <span>Buy Now</span>
+                        </div>
+                        <div className="mt-1 flex items-baseline gap-1 justify-end">
+                          <span className="text-lg font-semibold text-green-600 dark:text-green-400">
+                            {listing.buyNowPrice}
+                          </span>
+                          <span className="text-sm text-zinc-500">SOL</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

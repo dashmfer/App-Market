@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            displayName: true,
             username: true,
             walletAddress: true,
             image: true,
@@ -199,12 +200,14 @@ export async function POST(request: NextRequest) {
       duration,
     } = body;
 
-    // Validate required fields (githubRepo is optional - can use code files instead)
+    // Validate required fields
+    // startingPrice is optional if buyNowEnabled is true (Buy Now only listing)
     const missingFields: string[] = [];
     if (!title) missingFields.push("title");
     if (!description) missingFields.push("description");
     if (!category) missingFields.push("category");
-    if (!startingPrice) missingFields.push("starting price");
+    if (!startingPrice && !buyNowEnabled) missingFields.push("starting price or enable Buy Now");
+    if (buyNowEnabled && !buyNowPrice) missingFields.push("buy now price");
 
     if (missingFields.length > 0) {
       return NextResponse.json(
@@ -263,7 +266,7 @@ export async function POST(request: NextRequest) {
         monthlyUsers: monthlyUsers ? parseInt(monthlyUsers) : null,
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
         githubStars: githubStars ? parseInt(githubStars) : null,
-        startingPrice: parseFloat(startingPrice),
+        startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
         reservePrice: reservePrice ? parseFloat(reservePrice) : null,
         buyNowEnabled,
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,

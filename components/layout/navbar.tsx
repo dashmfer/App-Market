@@ -41,7 +41,8 @@ export function Navbar() {
   const { setVisible: setWalletModalVisible } = useWalletModal();
 
   const isAuthenticated = session?.user || connected;
-  const displayName = session?.user?.name || 
+  // Use displayName, then name, then username, then wallet address
+  const displayName = (session?.user as any)?.displayName || session?.user?.name || (session?.user as any)?.username ||
     (publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : null);
 
   useEffect(() => {
