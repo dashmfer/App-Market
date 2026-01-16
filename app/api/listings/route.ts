@@ -231,7 +231,9 @@ export async function POST(request: NextRequest) {
         hasHosting,
         hostingProvider,
         hasSocialAccounts,
-        socialAccounts: socialAccounts ? JSON.parse(socialAccounts) : null,
+        socialAccounts: socialAccounts && typeof socialAccounts === 'string' && socialAccounts.trim()
+          ? JSON.parse(socialAccounts)
+          : (typeof socialAccounts === 'object' ? socialAccounts : null),
         hasApiKeys,
         hasDesignFiles,
         hasDocumentation,
