@@ -1,12 +1,33 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
+import { ListingCard } from "@/components/listings/listing-card";
 
 export default function RecentSalesPage() {
-  // Sales loaded from database
-  const recentSales: any[] = [];
+  const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchSales() {
+      try {
+        // Fetch sold listings
+        const response = await fetch("/api/listings?status=SOLD&sort=newest&limit=20");
+        if (response.ok) {
+          const data = await response.json();
+          setRecentSales(data.listings || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch recent sales:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSales();
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -22,7 +43,11 @@ export default function RecentSalesPage() {
       </div>
 
       <div className="container-wide py-12">
-        {recentSales.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          </div>
+        ) : recentSales.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -48,8 +73,10 @@ export default function RecentSalesPage() {
             </div>
           </motion.div>
         ) : (
-          <div className="space-y-4">
-            {/* Sales will render here when data exists */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recentSales.map((listing, index) => (
+              <ListingCard key={listing.id} listing={listing} index={index} />
+            ))}
           </div>
         )}
       </div>

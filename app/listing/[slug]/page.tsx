@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -26,123 +26,159 @@ import {
   AlertCircle,
   ChevronRight,
   Play,
+  Loader2,
+  Package,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 
-// Mock listing data
-const mockListing = {
-  id: "1",
-  slug: "ai-recipe-generator",
-  title: "AI Recipe Generator",
-  tagline: "Generate personalized recipes with AI based on your ingredients and preferences",
-  description: `
-    A fully functional AI-powered recipe generator that creates personalized recipes based on available ingredients, dietary preferences, and cuisine types.
-
-    ## Features
-    - **Ingredient-based search**: Enter what you have, get recipes you can make
-    - **Dietary filters**: Vegan, vegetarian, keto, gluten-free support
-    - **AI-powered suggestions**: GPT-4 generates unique recipes
-    - **Save favorites**: User accounts with saved recipes
-    - **Shopping lists**: Auto-generate shopping lists from recipes
-    - **Nutritional info**: Automatic calorie and macro calculations
-
-    ## Tech Stack
-    Built with modern technologies for scalability and performance:
-    - Next.js 14 with App Router
-    - OpenAI GPT-4 API integration
-    - Prisma + PostgreSQL
-    - Tailwind CSS + shadcn/ui
-    - NextAuth.js authentication
-    - Vercel deployment ready
-
-    ## Why I'm Selling
-    I built this as a side project but don't have time to market it properly. The tech is solid and it's ready for someone to take it to the next level.
-  `,
-  category: "AI_ML",
-  techStack: ["Next.js", "OpenAI", "Prisma", "PostgreSQL", "Tailwind"],
-  frameworks: ["Next.js 14", "React 18"],
-  languages: ["TypeScript", "SQL"],
-  
-  // Assets
-  githubRepo: "github.com/seller/recipe-ai",
-  hasDomain: true,
-  domain: "recipe-ai.app",
-  hasDatabase: true,
-  databaseType: "PostgreSQL on Supabase",
-  hasHosting: true,
-  hostingProvider: "Vercel",
-  hasSocialAccounts: false,
-  hasApiKeys: true,
-  hasDesignFiles: true,
-  hasDocumentation: true,
-  
-  // Media
-  thumbnailUrl: null,
-  screenshotUrls: [],
-  demoUrl: "https://recipe-ai.app/demo",
-  videoUrl: null,
-  
-  // Metrics
-  monthlyUsers: 1200,
-  monthlyRevenue: null,
-  githubStars: 45,
-  
-  // Auction
-  listingType: "AUCTION",
-  startingPrice: 25,
-  reservePrice: 40,
-  buyNowPrice: 80,
-  buyNowEnabled: true,
-  currency: "SOL",
-  startTime: new Date(Date.now() - 86400000 * 3),
-  endTime: new Date(Date.now() + 86400000 * 2),
-  
-  // Current state
-  currentBid: 45,
-  bidCount: 12,
-  
-  // Seller
+interface Listing {
+  id: string;
+  slug: string;
+  title: string;
+  tagline?: string;
+  description: string;
+  category: string;
+  techStack: string[];
+  githubRepo?: string;
+  hasDomain: boolean;
+  domain?: string;
+  hasDatabase: boolean;
+  databaseType?: string;
+  hasHosting: boolean;
+  hostingProvider?: string;
+  hasSocialAccounts: boolean;
+  hasApiKeys: boolean;
+  hasDesignFiles: boolean;
+  hasDocumentation: boolean;
+  thumbnailUrl?: string;
+  screenshotUrls: string[];
+  demoUrl?: string;
+  videoUrl?: string;
+  monthlyUsers?: number;
+  monthlyRevenue?: number;
+  githubStars?: number;
+  listingType: string;
+  startingPrice: number;
+  reservePrice?: number;
+  buyNowPrice?: number;
+  buyNowEnabled: boolean;
+  currency: string;
+  startTime: string;
+  endTime: string;
+  currentBid: number;
+  bidCount: number;
   seller: {
-    id: "seller1",
-    name: "alex.sol",
-    walletAddress: "7x...abc",
-    image: null,
-    rating: 4.9,
-    ratingCount: 23,
-    verified: true,
-    totalSales: 8,
-    joinedAt: new Date("2024-01-15"),
-  },
-  
-  // Bids
-  bids: [
-    { id: "b1", amount: 45, bidder: "buyer1.sol", time: new Date(Date.now() - 3600000) },
-    { id: "b2", amount: 42, bidder: "anon...xyz", time: new Date(Date.now() - 7200000) },
-    { id: "b3", amount: 38, bidder: "dev_mike", time: new Date(Date.now() - 10800000) },
-    { id: "b4", amount: 35, bidder: "buyer1.sol", time: new Date(Date.now() - 14400000) },
-    { id: "b5", amount: 30, bidder: "crypto_fan", time: new Date(Date.now() - 18000000) },
-  ],
-};
+    id: string;
+    name?: string;
+    username?: string;
+    walletAddress?: string;
+    image?: string;
+    isVerified: boolean;
+    totalSales: number;
+    createdAt: string;
+  };
+  bids: Array<{
+    id: string;
+    amount: number;
+    createdAt: string;
+    bidder: {
+      id: string;
+      name?: string;
+      username?: string;
+      walletAddress?: string;
+    };
+  }>;
+}
 
 export default function ListingPage() {
   const params = useParams();
-  const [bidAmount, setBidAmount] = useState(mockListing.currentBid + 1);
+  const slug = params.slug as string;
+
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [bidAmount, setBidAmount] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<"description" | "assets" | "bids">("description");
-  
-  const listing = mockListing;
-  const timeLeft = formatDistanceToNow(listing.endTime, { addSuffix: false });
-  const isEndingSoon = listing.endTime.getTime() - Date.now() < 86400000;
-  const minimumBid = listing.currentBid + 1;
+
+  useEffect(() => {
+    async function fetchListing() {
+      try {
+        const response = await fetch(`/api/listings/${slug}`);
+        if (response.ok) {
+          const data = await response.json();
+          setListing(data.listing);
+          setBidAmount((data.listing.currentBid || data.listing.startingPrice) + 1);
+        } else if (response.status === 404) {
+          setError("Listing not found");
+        } else {
+          setError("Failed to load listing");
+        }
+      } catch (err) {
+        setError("Failed to load listing");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (slug) {
+      fetchListing();
+    }
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
+
+  if (error || !listing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Package className="w-16 h-16 text-zinc-300 mx-auto mb-4" />
+          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+            {error || "Listing not found"}
+          </h1>
+          <p className="text-zinc-500 mb-6">
+            The listing you're looking for doesn't exist or has been removed.
+          </p>
+          <Link href="/explore" className="btn-primary">
+            Browse Listings
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const endDate = new Date(listing.endTime);
+  const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
+  const isEndingSoon = endDate.getTime() - Date.now() < 86400000;
+  const minimumBid = (listing.currentBid || listing.startingPrice) + 1;
+  const sellerName = listing.seller.name || listing.seller.username || listing.seller.walletAddress?.slice(0, 8) || "Anonymous";
+
+  const categoryLabels: Record<string, string> = {
+    SAAS: "SaaS",
+    AI_ML: "AI & ML",
+    MOBILE_APP: "Mobile App",
+    WEB_APP: "Web App",
+    BROWSER_EXTENSION: "Extension",
+    CRYPTO_WEB3: "Crypto & Web3",
+    ECOMMERCE: "E-commerce",
+    DEVELOPER_TOOLS: "Dev Tools",
+    OTHER: "Other",
+  };
 
   const assetsList = [
-    { key: "github", label: "GitHub Repository", value: listing.githubRepo, icon: Github, included: true },
+    { key: "github", label: "GitHub Repository", value: listing.githubRepo, icon: Github, included: !!listing.githubRepo },
     { key: "domain", label: "Domain", value: listing.domain, icon: Globe, included: listing.hasDomain },
     { key: "database", label: "Database", value: listing.databaseType, icon: Database, included: listing.hasDatabase },
     { key: "hosting", label: "Hosting", value: listing.hostingProvider, icon: Globe, included: listing.hasHosting },
     { key: "apiKeys", label: "API Keys & Credentials", value: "Included", icon: Key, included: listing.hasApiKeys },
-    { key: "design", label: "Design Files", value: "Figma files included", icon: Palette, included: listing.hasDesignFiles },
-    { key: "docs", label: "Documentation", value: "Full docs included", icon: FileText, included: listing.hasDocumentation },
+    { key: "design", label: "Design Files", value: "Included", icon: Palette, included: listing.hasDesignFiles },
+    { key: "docs", label: "Documentation", value: "Included", icon: FileText, included: listing.hasDocumentation },
   ];
 
   return (
@@ -156,7 +192,7 @@ export default function ListingPage() {
             </Link>
             <ChevronRight className="w-4 h-4" />
             <Link href={`/explore?category=${listing.category.toLowerCase()}`} className="hover:text-zinc-700 dark:hover:text-zinc-300">
-              {listing.category.replace("_", " & ")}
+              {categoryLabels[listing.category] || listing.category}
             </Link>
             <ChevronRight className="w-4 h-4" />
             <span className="text-zinc-900 dark:text-zinc-100">{listing.title}</span>
@@ -173,7 +209,7 @@ export default function ListingPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="badge-green">{listing.category.replace("_", " & ")}</span>
+                    <span className="badge-green">{categoryLabels[listing.category] || listing.category}</span>
                     {isEndingSoon && (
                       <span className="badge-yellow flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
@@ -184,11 +220,13 @@ export default function ListingPage() {
                   <h1 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
                     {listing.title}
                   </h1>
-                  <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
-                    {listing.tagline}
-                  </p>
+                  {listing.tagline && (
+                    <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+                      {listing.tagline}
+                    </p>
+                  )}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setIsWatchlisted(!isWatchlisted)}
@@ -208,26 +246,25 @@ export default function ListingPage() {
 
               {/* Seller Info */}
               <div className="mt-6 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                  <span className="text-lg font-medium text-white">
-                    {listing.seller.name[0].toUpperCase()}
-                  </span>
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden">
+                  {listing.seller.image ? (
+                    <Image src={listing.seller.image} alt={sellerName} width={48} height={48} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-medium text-white">
+                      {sellerName[0].toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                      {listing.seller.name}
+                      {sellerName}
                     </span>
-                    {listing.seller.verified && (
+                    {listing.seller.isVerified && (
                       <CheckCircle2 className="w-4 h-4 text-green-500" />
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-sm text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      {listing.seller.rating} ({listing.seller.ratingCount} reviews)
-                    </span>
-                    <span>•</span>
                     <span>{listing.seller.totalSales} sales</span>
                   </div>
                 </div>
@@ -236,7 +273,9 @@ export default function ListingPage() {
 
             {/* Demo/Preview */}
             <div className="aspect-video bg-zinc-100 dark:bg-zinc-900 rounded-2xl overflow-hidden relative">
-              {listing.demoUrl ? (
+              {listing.thumbnailUrl ? (
+                <Image src={listing.thumbnailUrl} alt={listing.title} fill className="object-cover" />
+              ) : listing.demoUrl ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <a
                     href={listing.demoUrl}
@@ -251,22 +290,24 @@ export default function ListingPage() {
                 </div>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-6xl">🤖</span>
+                  <Package className="w-16 h-16 text-zinc-300" />
                 </div>
               )}
             </div>
 
             {/* Tech Stack */}
-            <div className="flex flex-wrap gap-2">
-              {listing.techStack.map((tech) => (
-                <span
-                  key={tech}
-                  className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
+            {listing.techStack && listing.techStack.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {listing.techStack.map((tech) => (
+                  <span
+                    key={tech}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="border-b border-zinc-200 dark:border-zinc-800">
@@ -340,42 +381,52 @@ export default function ListingPage() {
 
               {activeTab === "bids" && (
                 <div className="space-y-3">
-                  {listing.bids.map((bid, index) => (
-                    <div
-                      key={bid.id}
-                      className={`flex items-center justify-between p-4 rounded-xl ${
-                        index === 0
-                          ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
-                          : "bg-zinc-50 dark:bg-zinc-900"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-400 to-zinc-500 flex items-center justify-center">
-                          <span className="text-sm font-medium text-white">
-                            {bid.bidder[0].toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {bid.bidder}
-                          </div>
-                          <div className="text-sm text-zinc-500" suppressHydrationWarning>
-                            {formatDistanceToNow(bid.time, { addSuffix: true })}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          {bid.amount} SOL
-                        </div>
-                        {index === 0 && (
-                          <div className="text-sm text-green-600 dark:text-green-400">
-                            Highest bid
-                          </div>
-                        )}
-                      </div>
+                  {listing.bids.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Gavel className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
+                      <p className="text-zinc-500">No bids yet. Be the first to bid!</p>
                     </div>
-                  ))}
+                  ) : (
+                    listing.bids.map((bid, index) => {
+                      const bidderName = bid.bidder.name || bid.bidder.username || bid.bidder.walletAddress?.slice(0, 8) || "Anonymous";
+                      return (
+                        <div
+                          key={bid.id}
+                          className={`flex items-center justify-between p-4 rounded-xl ${
+                            index === 0
+                              ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800"
+                              : "bg-zinc-50 dark:bg-zinc-900"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-400 to-zinc-500 flex items-center justify-center">
+                              <span className="text-sm font-medium text-white">
+                                {bidderName[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                                {bidderName}
+                              </div>
+                              <div className="text-sm text-zinc-500" suppressHydrationWarning>
+                                {formatDistanceToNow(new Date(bid.createdAt), { addSuffix: true })}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                              {bid.amount} {listing.currency}
+                            </div>
+                            {index === 0 && (
+                              <div className="text-sm text-green-600 dark:text-green-400">
+                                Highest bid
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
             </div>
@@ -390,7 +441,7 @@ export default function ListingPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
                       <Gavel className="w-4 h-4" />
-                      <span>Current bid ({listing.bidCount} bids)</span>
+                      <span>{listing.bidCount > 0 ? `Current bid (${listing.bidCount} bids)` : "Starting price"}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="w-4 h-4 text-zinc-400" />
@@ -401,12 +452,9 @@ export default function ListingPage() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-                      {listing.currentBid}
+                      {listing.currentBid || listing.startingPrice}
                     </span>
-                    <span className="text-xl text-zinc-500">SOL</span>
-                  </div>
-                  <div className="text-sm text-zinc-500 mt-1">
-                    ≈ ${(listing.currentBid * 150).toLocaleString()} USD
+                    <span className="text-xl text-zinc-500">{listing.currency}</span>
                   </div>
                 </div>
 
@@ -422,15 +470,15 @@ export default function ListingPage() {
                         value={bidAmount}
                         onChange={(e) => setBidAmount(Number(e.target.value))}
                         min={minimumBid}
-                        step={1}
+                        step={0.01}
                         className="w-full px-4 py-3 pr-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-lg font-medium"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                        SOL
+                        {listing.currency}
                       </span>
                     </div>
                     <p className="text-sm text-zinc-500 mt-2">
-                      Minimum bid: {minimumBid} SOL
+                      Minimum bid: {minimumBid} {listing.currency}
                     </p>
                   </div>
 
@@ -454,7 +502,7 @@ export default function ListingPage() {
 
                       <button className="w-full btn-success py-4 text-lg">
                         <ShoppingCart className="w-5 h-5" />
-                        Buy Now for {listing.buyNowPrice} SOL
+                        Buy Now for {listing.buyNowPrice} {listing.currency}
                       </button>
                     </>
                   )}
@@ -472,7 +520,7 @@ export default function ListingPage() {
                     <div className="flex items-center gap-3 text-sm">
                       <CheckCircle2 className="w-5 h-5 text-green-500" />
                       <span className="text-zinc-600 dark:text-zinc-400">
-                        Verified GitHub ownership
+                        Verified ownership
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
