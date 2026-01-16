@@ -16,7 +16,7 @@ The premier marketplace for buying and selling AI-generated apps, prototypes, an
 ### For Buyers
 - **Discover Projects**: Browse by category, filter by tech stack, price range
 - **Place Bids**: Real-time bidding with auto-bid option
-- **Multiple Payment Options**: SOL, USDC, or credit card
+- **Multiple Payment Options**: $SOL, $USDC, or $APP
 - **Protected Purchases**: Funds held in escrow until transfer complete
 - **Dispute Resolution**: Fair resolution process if issues arise
 
@@ -24,8 +24,6 @@ The premier marketplace for buying and selling AI-generated apps, prototypes, an
 - **Trustless Escrow**: Solana smart contracts hold funds securely
 - **5% Platform Fee**: Competitive marketplace fee
 - **2% Dispute Fee**: Charged to losing party in disputes
-- **Token Launches**: (Coming Soon) Launch tokens for acquired projects
-- **Auto-Buyback**: (Coming Soon) Revenue automatically buys platform token
 
 ## Tech Stack
 
@@ -48,8 +46,9 @@ The premier marketplace for buying and selling AI-generated apps, prototypes, an
 - **Solana Wallet Adapter** - Wallet connectivity
 
 ### Payments
-- **Stripe** - Credit card payments
-- **Solana Pay** - Crypto payments
+- **$SOL** - Native Solana token
+- **$USDC** - USD stablecoin
+- **$APP** - Platform token (coming soon)
 
 ## Getting Started
 
@@ -57,7 +56,6 @@ The premier marketplace for buying and selling AI-generated apps, prototypes, an
 - Node.js 18+
 - PostgreSQL database
 - Solana CLI (for smart contract deployment)
-- Stripe account (for fiat payments)
 
 ### Installation
 
@@ -120,8 +118,7 @@ app-market/
 │   │   ├── bids/          # Bid endpoints
 │   │   ├── transactions/  # Transaction endpoints
 │   │   ├── disputes/      # Dispute endpoints
-│   │   ├── payments/      # Stripe payment endpoints
-│   │   └── webhooks/      # Stripe webhooks
+│   │   └── payments/      # Payment endpoints
 │   ├── explore/           # Browse listings
 │   ├── listing/[slug]/    # Individual listing page
 │   ├── create/            # Create listing flow
@@ -169,7 +166,6 @@ app-market/
 |---------------|------|-------------|
 | Platform Fee | 5% | Deducted from sale price |
 | Dispute Fee | 2% | Charged to losing party |
-| Token Launch Fee | 1% | Of token supply (coming soon) |
 | Featured Listings | TBD | Premium placement (coming soon) |
 | Verified Badges | TBD | Trust verification (coming soon) |
 
