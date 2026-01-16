@@ -401,8 +401,15 @@ export default function CreateListingPage() {
       if (response.ok) {
         router.push("/dashboard/listings");
       } else {
-        const data = await response.json();
-        setSubmitError(data.error || "Failed to create listing");
+        let errorMessage = "Failed to create listing";
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          // Response might be empty or not JSON
+          errorMessage = `Server error (${response.status}). Please try again.`;
+        }
+        setSubmitError(errorMessage);
       }
     } catch (error: any) {
       if (error.message?.includes("User rejected") || error.message?.includes("rejected")) {
