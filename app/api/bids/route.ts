@@ -120,12 +120,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check minimum bid
-    const currentHighBid = listing.bids[0]?.amount || listing.startingPrice;
-    if (amount <= currentHighBid) {
-      return NextResponse.json(
-        { error: `Bid must be higher than ${currentHighBid} ${listing.currency}` },
-        { status: 400 }
-      );
+    const currentHighBid = listing.bids[0]?.amount || null;
+
+    if (currentHighBid !== null) {
+      // There are existing bids - new bid must be higher
+      if (amount <= currentHighBid) {
+        return NextResponse.json(
+          { error: `Bid must be higher than ${currentHighBid} ${listing.currency}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // No bids yet - bid must be at least the starting price
+      if (amount < listing.startingPrice) {
+        return NextResponse.json(
+          { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Mark previous winning bid as outbid
