@@ -107,6 +107,8 @@ export const authOptions: NextAuthOptions = {
             const user = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: {
+                name: true,
+                displayName: true,
                 username: true,
                 walletAddress: true,
                 isVerified: true,
@@ -116,6 +118,9 @@ export const authOptions: NextAuthOptions = {
             });
 
             if (user) {
+              // Update session with latest user data
+              session.user.name = user.displayName || user.name;
+              (session.user as any).displayName = user.displayName;
               (session.user as any).username = user.username;
               (session.user as any).walletAddress = user.walletAddress;
               (session.user as any).isVerified = user.isVerified;

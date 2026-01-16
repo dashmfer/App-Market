@@ -171,10 +171,13 @@ export default function ListingPage() {
   const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
   const isEndingSoon = endDate.getTime() - Date.now() < 86400000;
 
+  // Check if this is a Buy Now only listing (no auction)
+  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+
   // Minimum bid: if no bids, use starting price; if there are bids, use current bid + 0.01
   const minimumBid = listing.bidCount > 0
     ? Math.round((listing.currentBid + 0.01) * 100) / 100
-    : listing.startingPrice;
+    : (listing.startingPrice || 0.01);
 
   const sellerName = listing.seller.name || listing.seller.username || listing.seller.walletAddress?.slice(0, 8) || "Anonymous";
 
@@ -351,8 +354,11 @@ export default function ListingPage() {
               </div>
 
               {/* Seller Info */}
-              <div className="mt-6 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden">
+              <Link
+                href={listing.seller.username ? `/user/${listing.seller.username}` : `/user/${listing.seller.id}`}
+                className="mt-6 flex items-center gap-4 group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-green-500 transition-all">
                   {listing.seller.image ? (
                     <Image src={listing.seller.image} alt={sellerName} width={48} height={48} className="w-full h-full object-cover" />
                   ) : (
@@ -363,7 +369,7 @@ export default function ListingPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                       {sellerName}
                     </span>
                     {listing.seller.isVerified && (
@@ -374,7 +380,7 @@ export default function ListingPage() {
                     <span>{listing.seller.totalSales} sales</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* Demo/Preview */}
@@ -546,8 +552,17 @@ export default function ListingPage() {
                 <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2 text-sm text-zinc-500">
-                      <Gavel className="w-4 h-4" />
-                      <span>{listing.bidCount > 0 ? `Current bid (${listing.bidCount} bids)` : "Starting price"}</span>
+                      {isBuyNowOnly ? (
+                        <>
+                          <ShoppingCart className="w-4 h-4" />
+                          <span>Buy Now Price</span>
+                        </>
+                      ) : (
+                        <>
+                          <Gavel className="w-4 h-4" />
+                          <span>{listing.bidCount > 0 ? `Current bid (${listing.bidCount} bids)` : "Starting price"}</span>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="w-4 h-4 text-zinc-400" />
@@ -558,72 +573,80 @@ export default function ListingPage() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-                      {listing.currentBid || listing.startingPrice}
+                      {isBuyNowOnly ? listing.buyNowPrice : (listing.currentBid || listing.startingPrice)}
                     </span>
                     <span className="text-xl text-zinc-500">{listing.currency}</span>
                   </div>
                 </div>
 
-                {/* Bid Input */}
+                {/* Bid/Buy Input */}
                 <div className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                      Your Bid
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(Number(e.target.value))}
-                        min={minimumBid}
-                        step={0.01}
-                        className="w-full px-4 py-3 pr-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-lg font-medium"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                        {listing.currency}
-                      </span>
-                    </div>
-                    <p className="text-sm text-zinc-500 mt-2">
-                      Minimum bid: {minimumBid} {listing.currency}
-                    </p>
-                  </div>
-
-                  {bidError && (
-                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                      <p className="text-sm text-red-600 dark:text-red-400">{bidError}</p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handlePlaceBid}
-                    disabled={bidding || bidAmount < minimumBid}
-                    className="w-full btn-primary py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {bidding ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Placing Bid...
-                      </>
-                    ) : (
-                      <>
-                        <Gavel className="w-5 h-5" />
-                        Place Bid
-                      </>
-                    )}
-                  </button>
-
-                  {listing.buyNowEnabled && listing.buyNowPrice && (
+                  {/* Show bid input only for auction listings */}
+                  {!isBuyNowOnly && (
                     <>
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-                        </div>
-                        <div className="relative flex justify-center">
-                          <span className="px-3 bg-white dark:bg-zinc-900 text-sm text-zinc-500">
-                            or
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                          Your Bid
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={bidAmount}
+                            onChange={(e) => setBidAmount(Number(e.target.value))}
+                            min={minimumBid}
+                            step={0.01}
+                            className="w-full px-4 py-3 pr-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-lg font-medium"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                            {listing.currency}
                           </span>
                         </div>
+                        <p className="text-sm text-zinc-500 mt-2">
+                          Minimum bid: {minimumBid} {listing.currency}
+                        </p>
                       </div>
+
+                      {bidError && (
+                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                          <p className="text-sm text-red-600 dark:text-red-400">{bidError}</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handlePlaceBid}
+                        disabled={bidding || bidAmount < minimumBid}
+                        className="w-full btn-primary py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bidding ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Placing Bid...
+                          </>
+                        ) : (
+                          <>
+                            <Gavel className="w-5 h-5" />
+                            Place Bid
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {/* Show Buy Now button */}
+                  {listing.buyNowEnabled && listing.buyNowPrice && (
+                    <>
+                      {!isBuyNowOnly && (
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
+                          </div>
+                          <div className="relative flex justify-center">
+                            <span className="px-3 bg-white dark:bg-zinc-900 text-sm text-zinc-500">
+                              or
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       <button className="w-full btn-success py-4 text-lg">
                         <ShoppingCart className="w-5 h-5" />
