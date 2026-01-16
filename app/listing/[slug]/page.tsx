@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -92,7 +94,10 @@ interface Listing {
 
 export default function ListingPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
+  const { data: session } = useSession();
+  const { publicKey, signMessage } = useWallet();
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +105,8 @@ export default function ListingPage() {
   const [bidAmount, setBidAmount] = useState(0);
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<"description" | "assets" | "bids">("description");
+  const [bidding, setBidding] = useState(false);
+  const [bidError, setBidError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchListing() {
@@ -108,7 +115,11 @@ export default function ListingPage() {
         if (response.ok) {
           const data = await response.json();
           setListing(data.listing);
-          setBidAmount((data.listing.currentBid || data.listing.startingPrice) + 1);
+          // Set initial bid amount: if no bids, use starting price; otherwise use current bid + 0.01
+          const initialBid = data.listing.bidCount > 0
+            ? Math.round((data.listing.currentBid + 0.01) * 100) / 100
+            : data.listing.startingPrice;
+          setBidAmount(initialBid);
         } else if (response.status === 404) {
           setError("Listing not found");
         } else {
@@ -156,8 +167,62 @@ export default function ListingPage() {
   const endDate = new Date(listing.endTime);
   const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
   const isEndingSoon = endDate.getTime() - Date.now() < 86400000;
-  const minimumBid = (listing.currentBid || listing.startingPrice) + 1;
+
+  // Minimum bid: if no bids, use starting price; if there are bids, use current bid + 0.01
+  const minimumBid = listing.bidCount > 0
+    ? Math.round((listing.currentBid + 0.01) * 100) / 100
+    : listing.startingPrice;
+
   const sellerName = listing.seller.name || listing.seller.username || listing.seller.walletAddress?.slice(0, 8) || "Anonymous";
+
+  const handlePlaceBid = async () => {
+    if (!session?.user) {
+      router.push("/auth/signin");
+      return;
+    }
+
+    if (!publicKey || !signMessage) {
+      setBidError("Please connect your wallet to place a bid");
+      return;
+    }
+
+    if (bidAmount < minimumBid) {
+      setBidError(`Bid must be at least ${minimumBid} ${listing.currency}`);
+      return;
+    }
+
+    setBidding(true);
+    setBidError(null);
+
+    try {
+      const response = await fetch("/api/bids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          amount: bidAmount,
+          currency: listing.currency,
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh the listing to show the new bid
+        const listingResponse = await fetch(`/api/listings/${slug}`);
+        if (listingResponse.ok) {
+          const data = await listingResponse.json();
+          setListing(data.listing);
+          setBidAmount(Math.round((data.listing.currentBid + 0.01) * 100) / 100);
+        }
+      } else {
+        const data = await response.json();
+        setBidError(data.error || "Failed to place bid");
+      }
+    } catch (err) {
+      setBidError("Failed to place bid. Please try again.");
+    } finally {
+      setBidding(false);
+    }
+  };
 
   const categoryLabels: Record<string, string> = {
     SAAS: "SaaS",
@@ -482,9 +547,28 @@ export default function ListingPage() {
                     </p>
                   </div>
 
-                  <button className="w-full btn-primary py-4 text-lg">
-                    <Gavel className="w-5 h-5" />
-                    Place Bid
+                  {bidError && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                      <p className="text-sm text-red-600 dark:text-red-400">{bidError}</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handlePlaceBid}
+                    disabled={bidding || bidAmount < minimumBid}
+                    className="w-full btn-primary py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bidding ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Placing Bid...
+                      </>
+                    ) : (
+                      <>
+                        <Gavel className="w-5 h-5" />
+                        Place Bid
+                      </>
+                    )}
                   </button>
 
                   {listing.buyNowEnabled && listing.buyNowPrice && (
