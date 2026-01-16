@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
+  username: z.string().min(3).max(30).regex(/^[a-z0-9_]+$/, "Username must be lowercase letters, numbers, and underscores only").optional(),
   bio: z.string().max(500).optional(),
   websiteUrl: z.string().url().optional().or(z.literal('')),
   discordHandle: z.string().max(50).optional(),
@@ -92,6 +93,22 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const validatedData = updateProfileSchema.parse(body);
+
+    // Check username uniqueness if being updated
+    if (validatedData.username) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          username: validatedData.username,
+          id: { not: userId },
+        },
+      });
+      if (existingUser) {
+        return NextResponse.json(
+          { error: 'Username is already taken' },
+          { status: 400 }
+        );
+      }
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },

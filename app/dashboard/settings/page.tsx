@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +42,7 @@ export default function SettingsPage() {
             const data = await res.json();
             setProfileImage(data.image || null);
             setDisplayName(data.displayName || data.name || "");
+            setUsername(data.username || "");
             setBio(data.bio || "");
           }
         } catch (error) {
@@ -167,6 +169,7 @@ export default function SettingsPage() {
         credentials: "include",
         body: JSON.stringify({
           displayName,
+          username: username || undefined,
           bio,
         }),
       });
@@ -309,17 +312,21 @@ export default function SettingsPage() {
                       />
                     </div>
 
-                    {/* Username - Read Only */}
+                    {/* Username */}
                     <div>
                       <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Username</label>
-                      <input
-                        type="text"
-                        value={session?.user?.username || ""}
-                        disabled
-                        className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed"
-                        placeholder="username"
-                      />
-                      <p className="text-xs text-zinc-500 mt-1">Username cannot be changed</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-zinc-500">@</span>
+                        <input
+                          type="text"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                          className="flex-1 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                          placeholder="your_username"
+                          maxLength={30}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-1">Lowercase letters, numbers, and underscores only. This is your unique identifier.</p>
                     </div>
 
                     {/* Bio */}
