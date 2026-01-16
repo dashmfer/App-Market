@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::pubkey;
 
-declare_id!("AppMkt1111111111111111111111111111111111111");
+declare_id!("8MRpcxokiUbxcZvjGpiYCxBRTBKEhbSCAQPoawgePGaU");
 
 /// App Market Escrow Program
 /// Handles secure escrow for marketplace transactions
@@ -62,6 +63,20 @@ pub mod app_market {
     pub const MAX_OFFERS_PER_LISTING: u64 = 100;
     /// Maximum consecutive offers per buyer without being outbid
     pub const MAX_CONSECUTIVE_OFFERS: u64 = 10;
+    /// Maximum consecutive bids per bidder without being outbid
+    pub const MAX_CONSECUTIVE_BIDS: u64 = 10;
+
+    /// Transaction fee buffer (10k lamports) for balance pre-checks
+    pub const TX_FEE_BUFFER_LAMPORTS: u64 = 10_000;
+
+    /// Backend verification timeout: 30 days (fallback if backend unresponsive)
+    pub const BACKEND_TIMEOUT_SECONDS: i64 = 30 * 24 * 60 * 60;
+
+    /// Dispute resolution timelock: 48 hours for parties to contest
+    pub const DISPUTE_RESOLUTION_TIMELOCK_SECONDS: i64 = 48 * 60 * 60;
+
+    /// Expected admin pubkey (prevents initialization frontrunning)
+    pub const EXPECTED_ADMIN: Pubkey = pubkey!("63jQ3qffMgacpUw8ebDZPuyUHf7DsfsYnQ7sk8fmFaF1");
 
     // ============================================
     // INSTRUCTIONS
@@ -74,6 +89,12 @@ pub mod app_market {
         dispute_fee_bps: u64,
         backend_authority: Pubkey,
     ) -> Result<()> {
+        // SECURITY: Only expected admin can initialize (prevents frontrunning)
+        require!(
+            ctx.accounts.admin.key() == EXPECTED_ADMIN,
+            AppMarketError::NotExpectedAdmin
+        );
+
         // SECURITY: Validate fee bounds
         require!(
             platform_fee_bps <= MAX_PLATFORM_FEE_BPS,
@@ -98,6 +119,16 @@ pub mod app_market {
         config.pending_admin = None;
         config.pending_admin_at = None;
         config.bump = ctx.bumps.config;
+
+        emit!(MarketplaceInitialized {
+            admin: config.admin,
+            treasury: config.treasury,
+            backend_authority: config.backend_authority,
+            platform_fee_bps,
+            dispute_fee_bps,
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
         Ok(())
     }
 
@@ -272,13 +303,32 @@ pub mod app_market {
         }
 
         // SECURITY: Validate GitHub username format if provided
+        // Rules: 1-39 chars, alphanumeric or hyphen, cannot start/end with hyphen, no consecutive hyphens
         if requires_github && !required_github_username.is_empty() {
+            let username = &required_github_username;
+            // Max 39 chars (GitHub's actual limit)
             require!(
-                required_github_username.len() <= 64,
+                username.len() <= 39,
                 AppMarketError::InvalidGithubUsername
             );
+            // Only alphanumeric or hyphen
             require!(
-                required_github_username.chars().all(|c| c.is_alphanumeric() || c == '-'),
+                username.chars().all(|c| c.is_alphanumeric() || c == '-'),
+                AppMarketError::InvalidGithubUsername
+            );
+            // Cannot start with hyphen
+            require!(
+                !username.starts_with('-'),
+                AppMarketError::InvalidGithubUsername
+            );
+            // Cannot end with hyphen
+            require!(
+                !username.ends_with('-'),
+                AppMarketError::InvalidGithubUsername
+            );
+            // No consecutive hyphens
+            require!(
+                !username.contains("--"),
                 AppMarketError::InvalidGithubUsername
             );
         }
@@ -319,6 +369,9 @@ pub mod app_market {
         // Consecutive offer tracking
         listing.last_offer_buyer = None;
         listing.consecutive_offer_count = 0;
+        // Consecutive bid tracking
+        listing.last_bidder = None;
+        listing.consecutive_bid_count = 0;
 
         listing.bump = ctx.bumps.listing;
 
@@ -366,7 +419,6 @@ pub mod app_market {
 
         // SECURITY: Pre-check bidder has exact amount needed for everything to perform tx
         // Need: bid amount + withdrawal PDA rent (if creating) + tx fees
-        let tx_fee_buffer = 10_000; // 10k lamports buffer for transaction fees
         let rent = Rent::get()?;
 
         let required_balance = if listing.current_bidder.is_some() && listing.current_bid > 0 {
@@ -376,11 +428,11 @@ pub mod app_market {
             amount
                 .checked_add(withdrawal_rent)
                 .ok_or(AppMarketError::MathOverflow)?
-                .checked_add(tx_fee_buffer)
+                .checked_add(TX_FEE_BUFFER_LAMPORTS)
                 .ok_or(AppMarketError::MathOverflow)?
         } else {
             // First bid - no withdrawal PDA needed, just bid + tx fees
-            amount.checked_add(tx_fee_buffer).ok_or(AppMarketError::MathOverflow)?
+            amount.checked_add(TX_FEE_BUFFER_LAMPORTS).ok_or(AppMarketError::MathOverflow)?
         };
 
         require!(
@@ -393,6 +445,19 @@ pub mod app_market {
             listing.withdrawal_count < MAX_BIDS_PER_LISTING,
             AppMarketError::MaxBidsExceeded
         );
+
+        // SECURITY: Track consecutive bids from same bidder (max 10 without being outbid)
+        let bidder_key = ctx.accounts.bidder.key();
+        if let Some(last_bidder) = listing.last_bidder {
+            if last_bidder == bidder_key {
+                // Same bidder making consecutive bids
+                require!(
+                    listing.consecutive_bid_count < MAX_CONSECUTIVE_BIDS,
+                    AppMarketError::MaxConsecutiveBidsExceeded
+                );
+            }
+            // Note: The counter will be updated in EFFECTS section below
+        }
 
         // SECURITY: Reject bids below reserve (if auction hasn't started)
         if !listing.auction_started {
@@ -425,6 +490,24 @@ pub mod app_market {
 
         listing.current_bid = amount;
         listing.current_bidder = Some(ctx.accounts.bidder.key());
+
+        // Update consecutive bid tracking
+        if let Some(last_bidder) = listing.last_bidder {
+            if last_bidder == bidder_key {
+                // Same bidder - increment counter
+                listing.consecutive_bid_count = listing.consecutive_bid_count
+                    .checked_add(1)
+                    .ok_or(AppMarketError::MathOverflow)?;
+            } else {
+                // Different bidder - reset counter
+                listing.last_bidder = Some(bidder_key);
+                listing.consecutive_bid_count = 1;
+            }
+        } else {
+            // First bid on this listing
+            listing.last_bidder = Some(bidder_key);
+            listing.consecutive_bid_count = 1;
+        }
 
         // Start auction timer if reserve price met (or no reserve)
         if !listing.auction_started {
@@ -509,13 +592,14 @@ pub mod app_market {
 
                 // Initialize withdrawal data
                 let mut withdrawal_data = ctx.accounts.pending_withdrawal.try_borrow_mut_data()?;
-                let mut withdrawal = PendingWithdrawal::try_from_slice(&vec![0u8; space])?;
-                withdrawal.user = previous_bidder;
-                withdrawal.listing = listing.key();
-                withdrawal.amount = old_bid;
-                withdrawal.withdrawal_id = listing.withdrawal_count;
-                withdrawal.created_at = clock.unix_timestamp;
-                withdrawal.bump = bump;
+                let withdrawal = PendingWithdrawal {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
+                    created_at: clock.unix_timestamp,
+                    bump,
+                };
 
                 withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
 
@@ -957,6 +1041,98 @@ pub mod app_market {
         Ok(())
     }
 
+    /// Emergency auto-verification by buyer after backend timeout (30 days)
+    /// SECURITY: Fallback mechanism if backend is unresponsive
+    pub fn emergency_auto_verify(ctx: Context<EmergencyAutoVerify>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
+        let transaction = &mut ctx.accounts.transaction;
+        let clock = Clock::get()?;
+
+        // SECURITY: Only buyer can trigger emergency auto-verify
+        require!(
+            ctx.accounts.buyer.key() == transaction.buyer,
+            AppMarketError::NotBuyer
+        );
+
+        require!(
+            transaction.seller_confirmed_transfer,
+            AppMarketError::SellerNotConfirmed
+        );
+
+        require!(
+            !transaction.uploads_verified,
+            AppMarketError::AlreadyVerified
+        );
+
+        // SECURITY: Must wait 30 days from seller confirmation
+        let confirmed_at = transaction.seller_confirmed_at.ok_or(AppMarketError::SellerNotConfirmed)?;
+        require!(
+            clock.unix_timestamp >= confirmed_at + BACKEND_TIMEOUT_SECONDS,
+            AppMarketError::BackendTimeoutNotExpired
+        );
+
+        // Auto-verify
+        transaction.uploads_verified = true;
+        transaction.verification_timestamp = Some(clock.unix_timestamp);
+        transaction.verification_hash = "EMERGENCY_BUYER_TIMEOUT".to_string();
+
+        emit!(EmergencyVerification {
+            transaction: transaction.key(),
+            verified_by: ctx.accounts.buyer.key(),
+            verification_type: "buyer_timeout".to_string(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Admin emergency verification after backend timeout (30 days)
+    /// SECURITY: Admin can only intervene after same 30-day timeout as buyer
+    pub fn admin_emergency_verify(ctx: Context<AdminEmergencyVerify>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
+
+        let transaction = &mut ctx.accounts.transaction;
+        let clock = Clock::get()?;
+
+        // SECURITY: Only admin can call
+        require!(
+            ctx.accounts.admin.key() == ctx.accounts.config.admin,
+            AppMarketError::NotAdmin
+        );
+
+        require!(
+            transaction.seller_confirmed_transfer,
+            AppMarketError::SellerNotConfirmed
+        );
+
+        require!(
+            !transaction.uploads_verified,
+            AppMarketError::AlreadyVerified
+        );
+
+        // SECURITY: Admin must also wait 30 days - no special privileges
+        let confirmed_at = transaction.seller_confirmed_at.ok_or(AppMarketError::SellerNotConfirmed)?;
+        require!(
+            clock.unix_timestamp >= confirmed_at + BACKEND_TIMEOUT_SECONDS,
+            AppMarketError::BackendTimeoutNotExpired
+        );
+
+        // Admin verify
+        transaction.uploads_verified = true;
+        transaction.verification_timestamp = Some(clock.unix_timestamp);
+        transaction.verification_hash = "EMERGENCY_ADMIN_OVERRIDE".to_string();
+
+        emit!(EmergencyVerification {
+            transaction: transaction.key(),
+            verified_by: ctx.accounts.admin.key(),
+            verification_type: "admin_override".to_string(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Finalize transaction after grace period (7 days after seller confirmation)
     pub fn finalize_transaction(ctx: Context<FinalizeTransaction>) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
@@ -1262,6 +1438,12 @@ pub mod app_market {
             listing.last_offer_buyer = Some(buyer_key);
             listing.consecutive_offer_count = 1;
         }
+
+        // SECURITY: Validate offer_seed matches current counter (prevents arbitrary seeds)
+        require!(
+            offer_seed == listing.offer_count,
+            AppMarketError::InvalidOfferSeed
+        );
 
         // Increment total offer counter
         listing.offer_count = listing.offer_count
@@ -1601,8 +1783,14 @@ pub mod app_market {
             AppMarketError::InvalidTreasury
         );
 
-        // SECURITY: Buyers can dispute until the deadline
-        // After deadline expires, they can no longer dispute and seller can finalize if uploads are verified
+        // SECURITY: Dispute deadline - must open within 7 days of seller confirmation
+        // After deadline expires, buyer can no longer dispute and seller can finalize
+        if let Some(confirmed_at) = transaction.seller_confirmed_at {
+            require!(
+                clock.unix_timestamp <= confirmed_at + FINALIZE_GRACE_PERIOD,
+                AppMarketError::DisputeDeadlineExpired
+            );
+        }
 
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
         let dispute_fee = transaction.sale_price
@@ -1655,18 +1843,130 @@ pub mod app_market {
     }
 
     /// Resolve dispute (admin only)
-    pub fn resolve_dispute(
-        ctx: Context<ResolveDispute>,
+    /// Propose dispute resolution (starts 48hr timelock)
+    /// SECURITY: Resolution is not executed immediately - parties can contest
+    pub fn propose_dispute_resolution(
+        ctx: Context<ProposeDisputeResolution>,
         resolution: DisputeResolution,
         notes: String,
     ) -> Result<()> {
-        let transaction = &mut ctx.accounts.transaction;
+        let transaction = &ctx.accounts.transaction;
         let dispute = &mut ctx.accounts.dispute;
         let clock = Clock::get()?;
 
         // Validations
         require!(ctx.accounts.admin.key() == ctx.accounts.config.admin, AppMarketError::NotAdmin);
         require!(dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview, AppMarketError::DisputeNotOpen);
+
+        // SECURITY: Validate partial refund amounts upfront
+        if let DisputeResolution::PartialRefund { buyer_amount, seller_amount } = resolution {
+            require!(buyer_amount > 0 || seller_amount > 0, AppMarketError::InvalidRefundAmounts);
+            let total_refund = buyer_amount
+                .checked_add(seller_amount)
+                .ok_or(AppMarketError::MathOverflow)?;
+            require!(
+                total_refund == transaction.sale_price,
+                AppMarketError::PartialRefundMustEqualSalePrice
+            );
+
+            dispute.pending_buyer_amount = Some(buyer_amount);
+            dispute.pending_seller_amount = Some(seller_amount);
+        } else {
+            dispute.pending_buyer_amount = None;
+            dispute.pending_seller_amount = None;
+        }
+
+        // Store pending resolution (starts 48hr timelock)
+        dispute.pending_resolution = Some(resolution);
+        dispute.pending_resolution_at = Some(clock.unix_timestamp);
+        dispute.contested = false;
+        dispute.status = DisputeStatus::UnderReview;
+        dispute.resolution_notes = Some(notes.clone());
+
+        let executable_at = clock.unix_timestamp + DISPUTE_RESOLUTION_TIMELOCK_SECONDS;
+
+        emit!(DisputeResolutionProposed {
+            dispute: dispute.key(),
+            resolution,
+            buyer_amount: dispute.pending_buyer_amount.unwrap_or(0),
+            seller_amount: dispute.pending_seller_amount.unwrap_or(0),
+            executable_at,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Contest dispute resolution (within 48hr window)
+    /// SECURITY: Either party can contest - emits event for admin review
+    pub fn contest_dispute_resolution(ctx: Context<ContestDisputeResolution>) -> Result<()> {
+        let transaction = &ctx.accounts.transaction;
+        let dispute = &mut ctx.accounts.dispute;
+        let clock = Clock::get()?;
+
+        // Must be buyer or seller
+        let caller = ctx.accounts.caller.key();
+        require!(
+            caller == transaction.buyer || caller == transaction.seller,
+            AppMarketError::NotPartyToTransaction
+        );
+
+        // Must have pending resolution
+        require!(
+            dispute.pending_resolution.is_some(),
+            AppMarketError::NoPendingChange
+        );
+
+        // Must be within timelock window
+        let proposed_at = dispute.pending_resolution_at.unwrap();
+        require!(
+            clock.unix_timestamp < proposed_at + DISPUTE_RESOLUTION_TIMELOCK_SECONDS,
+            AppMarketError::TimelockNotExpired
+        );
+
+        // Cannot contest twice
+        require!(
+            !dispute.contested,
+            AppMarketError::AlreadyContested
+        );
+
+        dispute.contested = true;
+
+        emit!(DisputeContested {
+            dispute: dispute.key(),
+            contested_by: caller,
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Execute dispute resolution (after 48hr timelock)
+    /// SECURITY: If contested, admin must re-propose new resolution
+    pub fn execute_dispute_resolution(ctx: Context<ExecuteDisputeResolution>) -> Result<()> {
+        let transaction = &mut ctx.accounts.transaction;
+        let dispute = &mut ctx.accounts.dispute;
+        let clock = Clock::get()?;
+
+        // Must have pending resolution
+        require!(
+            dispute.pending_resolution.is_some(),
+            AppMarketError::NoPendingChange
+        );
+
+        // Cannot execute if contested
+        require!(
+            !dispute.contested,
+            AppMarketError::AlreadyContested
+        );
+
+        // Timelock must have expired
+        let proposed_at = dispute.pending_resolution_at.unwrap();
+        require!(
+            clock.unix_timestamp >= proposed_at + DISPUTE_RESOLUTION_TIMELOCK_SECONDS,
+            AppMarketError::DisputeTimelockNotExpired
+        );
+
         require!(
             ctx.accounts.treasury.key() == ctx.accounts.config.treasury,
             AppMarketError::InvalidTreasury
@@ -1679,6 +1979,8 @@ pub mod app_market {
             ctx.accounts.seller.key() == transaction.seller,
             AppMarketError::InvalidSeller
         );
+
+        let resolution = dispute.pending_resolution.unwrap();
 
         // SECURITY: Validate escrow balance before any transfers
         let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
@@ -1758,16 +2060,9 @@ pub mod app_market {
                 transaction.status = TransactionStatus::Completed;
             },
             DisputeResolution::PartialRefund { buyer_amount, seller_amount } => {
-                // SECURITY: Validate no zero amounts
-                require!(buyer_amount > 0 || seller_amount > 0, AppMarketError::InvalidRefundAmounts);
-
                 let total_refund = buyer_amount
                     .checked_add(seller_amount)
                     .ok_or(AppMarketError::MathOverflow)?;
-                require!(
-                    total_refund <= transaction.sale_price,
-                    AppMarketError::InvalidRefundAmounts
-                );
                 require!(
                     escrow_balance >= total_refund + rent,
                     AppMarketError::InsufficientEscrowBalance
@@ -1804,26 +2099,6 @@ pub mod app_market {
 
                     ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
                         .checked_sub(seller_amount)
-                        .ok_or(AppMarketError::MathOverflow)?;
-                }
-
-                // Remainder to treasury
-                let remaining = transaction.sale_price
-                    .checked_sub(total_refund)
-                    .ok_or(AppMarketError::MathOverflow)?;
-                if remaining > 0 {
-                    let cpi_ctx = CpiContext::new_with_signer(
-                        ctx.accounts.system_program.to_account_info(),
-                        anchor_lang::system_program::Transfer {
-                            from: ctx.accounts.escrow.to_account_info(),
-                            to: ctx.accounts.treasury.to_account_info(),
-                        },
-                        signer,
-                    );
-                    anchor_lang::system_program::transfer(cpi_ctx, remaining)?;
-
-                    ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                        .checked_sub(remaining)
                         .ok_or(AppMarketError::MathOverflow)?;
                 }
 
@@ -1869,14 +2144,15 @@ pub mod app_market {
         // Update dispute
         dispute.status = DisputeStatus::Resolved;
         dispute.resolution = Some(resolution);
-        dispute.resolution_notes = Some(notes.clone());
         dispute.resolved_at = Some(clock.unix_timestamp);
+        dispute.pending_resolution = None;
+        dispute.pending_resolution_at = None;
 
         emit!(DisputeResolved {
             dispute: dispute.key(),
             transaction: transaction.key(),
             resolution,
-            notes,
+            notes: dispute.resolution_notes.clone().unwrap_or_default(),
             timestamp: clock.unix_timestamp,
         });
 
@@ -2271,6 +2547,30 @@ pub struct VerifyUploads<'info> {
 }
 
 #[derive(Accounts)]
+pub struct EmergencyAutoVerify<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    #[account(mut)]
+    pub transaction: Account<'info, Transaction>,
+
+    /// Buyer who triggers emergency verification
+    pub buyer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AdminEmergencyVerify<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    #[account(mut)]
+    pub transaction: Account<'info, Transaction>,
+
+    /// Admin who triggers emergency verification
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct FinalizeTransaction<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -2344,8 +2644,11 @@ pub struct ConfirmReceipt<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    /// CHECK: Treasury to receive fees
-    #[account(mut)]
+    /// CHECK: Treasury to receive fees - SECURITY: validated against config
+    #[account(
+        mut,
+        constraint = treasury.key() == config.treasury @ AppMarketError::InvalidTreasury
+    )]
     pub treasury: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
@@ -2530,15 +2833,65 @@ pub struct OpenDispute<'info> {
     #[account(mut)]
     pub initiator: Signer<'info>,
 
-    /// CHECK: Treasury to receive dispute fees
-    #[account(mut)]
+    /// CHECK: Treasury to receive dispute fees - SECURITY: validated against config
+    #[account(
+        mut,
+        constraint = treasury.key() == config.treasury @ AppMarketError::InvalidTreasury
+    )]
     pub treasury: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct ResolveDispute<'info> {
+pub struct ProposeDisputeResolution<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    #[account(
+        mut,
+        seeds = [b"dispute", transaction.key().as_ref()],
+        bump = dispute.bump
+    )]
+    pub dispute: Account<'info, Dispute>,
+
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ContestDisputeResolution<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    #[account(
+        mut,
+        seeds = [b"dispute", transaction.key().as_ref()],
+        bump = dispute.bump
+    )]
+    pub dispute: Account<'info, Dispute>,
+
+    /// Buyer or seller contesting the resolution
+    pub caller: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ExecuteDisputeResolution<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
 
@@ -2562,13 +2915,11 @@ pub struct ResolveDispute<'info> {
 
     #[account(
         mut,
-        close = admin,
+        close = caller,
         seeds = [b"dispute", transaction.key().as_ref()],
         bump = dispute.bump
     )]
     pub dispute: Account<'info, Dispute>,
-
-    pub admin: Signer<'info>,
 
     /// CHECK: Buyer (validated via transaction.buyer)
     #[account(
@@ -2584,9 +2935,15 @@ pub struct ResolveDispute<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    /// CHECK: Treasury
-    #[account(mut)]
+    /// CHECK: Treasury - SECURITY: validated against config
+    #[account(
+        mut,
+        constraint = treasury.key() == config.treasury @ AppMarketError::InvalidTreasury
+    )]
     pub treasury: AccountInfo<'info>,
+
+    /// Anyone can execute after timelock (typically admin or party)
+    pub caller: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -2699,6 +3056,9 @@ pub struct Listing {
     // Track consecutive offers from same buyer
     pub last_offer_buyer: Option<Pubkey>,
     pub consecutive_offer_count: u64,
+    // Track consecutive bids from same bidder
+    pub last_bidder: Option<Pubkey>,
+    pub consecutive_bid_count: u64,
     pub bump: u8,
 }
 
@@ -2749,6 +3109,12 @@ pub struct Dispute {
     pub dispute_fee: u64,
     pub created_at: i64,
     pub resolved_at: Option<i64>,
+    // SECURITY: Timelock fields for dispute resolution
+    pub pending_resolution: Option<DisputeResolution>,
+    pub pending_buyer_amount: Option<u64>,
+    pub pending_seller_amount: Option<u64>,
+    pub pending_resolution_at: Option<i64>,
+    pub contested: bool,
     pub bump: u8,
 }
 
@@ -2876,6 +3242,31 @@ pub struct SellerConfirmedTransfer {
 pub struct UploadsVerified {
     pub transaction: Pubkey,
     pub verification_hash: String,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct EmergencyVerification {
+    pub transaction: Pubkey,
+    pub verified_by: Pubkey,
+    pub verification_type: String, // "buyer_timeout" or "admin_override"
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct DisputeResolutionProposed {
+    pub dispute: Pubkey,
+    pub resolution: DisputeResolution,
+    pub buyer_amount: u64,
+    pub seller_amount: u64,
+    pub executable_at: i64,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct DisputeContested {
+    pub dispute: Pubkey,
+    pub contested_by: Pubkey,
     pub timestamp: i64,
 }
 
@@ -3127,7 +3518,7 @@ pub enum AppMarketError {
     CannotCancelWithBids,
     #[msg("Cannot close escrow: pending withdrawals exist")]
     PendingWithdrawalsExist,
-    #[msg("Invalid GitHub username: must be 64 chars or less, alphanumeric and hyphens only")]
+    #[msg("Invalid GitHub username: max 39 chars, alphanumeric/hyphens, no start/end/consecutive hyphens")]
     InvalidGithubUsername,
     #[msg("Dispute deadline expired: must dispute within grace period")]
     DisputeDeadlineExpired,
@@ -3137,4 +3528,18 @@ pub enum AppMarketError {
     MaxOffersExceeded,
     #[msg("Maximum consecutive offers from same buyer exceeded (max 10 without being outbid)")]
     MaxConsecutiveOffersExceeded,
+    #[msg("Maximum consecutive bids from same bidder exceeded (max 10 without being outbid)")]
+    MaxConsecutiveBidsExceeded,
+    #[msg("Backend timeout not expired: must wait 30 days from seller confirmation")]
+    BackendTimeoutNotExpired,
+    #[msg("Only expected admin can initialize marketplace")]
+    NotExpectedAdmin,
+    #[msg("Partial refund amounts must equal sale price")]
+    PartialRefundMustEqualSalePrice,
+    #[msg("Dispute resolution timelock not expired: must wait 48 hours")]
+    DisputeTimelockNotExpired,
+    #[msg("Resolution already contested")]
+    AlreadyContested,
+    #[msg("Invalid offer seed: counter mismatch")]
+    InvalidOfferSeed,
 }

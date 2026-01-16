@@ -8,6 +8,7 @@ interface MakeOfferFormProps {
   listingTitle: string;
   currentPrice?: number;
   consecutiveOfferCount?: number; // From on-chain listing data
+  offerCount?: number; // Current offer count from listing (used as offer_seed for on-chain)
   onSuccess?: () => void;
 }
 
