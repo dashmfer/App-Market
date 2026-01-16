@@ -1,15 +1,32 @@
 # Build Issues and Solutions
 
-## Current Build Failure
+## Status: RESOLVED ✓
+
+The build failures have been resolved by updating the GitHub Actions workflow to download Solana directly from GitHub releases instead of using the unreliable install script.
+
+## Previous Build Failure
 
 ### Problem Summary
-The Solana/Anchor smart contract build is failing because:
+The Solana/Anchor smart contract build was failing because:
 
-1. **Missing Solana CLI**: The `solana` command is not available in the environment
-2. **Missing Platform Tools**: `cargo-build-sbf` requires platform-tools (v1.41) which must be downloaded from GitHub
-3. **Network Restrictions**: The environment has network restrictions that prevent downloading from:
-   - `https://release.solana.com/` (Solana CLI installer)
-   - `https://github.com/` (platform-tools release assets)
+1. **Unreliable Install Script**: The `https://release.solana.com/stable/install` endpoint was returning 403 errors
+2. **Missing Solana CLI**: The `solana` command was not available in the environment
+3. **Missing Platform Tools**: `cargo-build-sbf` requires platform-tools which must be downloaded
+
+### Solution Implemented
+Updated `.github/workflows/solana-build.yml` to:
+- Download Solana 1.18.18 directly from GitHub releases
+- Cache Solana and Anchor installations for faster builds
+- Use explicit version pins for reproducibility
+
+---
+
+## Local Development Issues
+
+### Problem Summary
+Local builds may fail due to network restrictions that prevent downloading from:
+- `https://release.solana.com/` (Solana CLI installer)
+- `https://github.com/` (platform-tools release assets)
 
 ### Error Details
 

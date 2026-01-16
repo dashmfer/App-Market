@@ -23,14 +23,44 @@ jobs:
         with:
           toolchain: 1.79.0
 
+      - name: Cache Solana
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-${{ runner.os }}-v1.18.18
+
       - name: Install Solana
+        if: steps.cache-solana.outputs.cache-hit != 'true'
         run: |
-          sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          wget -q https://github.com/solana-labs/solana/releases/download/v1.18.18/solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          tar -xf solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          mkdir -p ~/.local/share/solana/install/releases
+          mv solana-release ~/.local/share/solana/install/releases/1.18.18
+
+      - name: Add Solana to PATH
+        run: |
+          echo "$HOME/.local/share/solana/install/releases/1.18.18/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/share/solana/install/releases/1.18.18/bin:$PATH"
+          solana --version
+
+      - name: Cache Anchor
+        id: cache-anchor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/anchor
+          key: anchor-${{ runner.os }}-v0.30.0
 
       - name: Install Anchor
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor --tag v0.30.0 anchor-cli --locked --force
+          cargo install --git https://github.com/coral-xyz/anchor --tag v0.30.0 anchor-cli --locked
+
+      - name: Verify Anchor installation
+        run: anchor --version
 
       - name: Build program
         run: |
