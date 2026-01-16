@@ -38,7 +38,7 @@
         },
         {
           "name": "backendAuthority",
-          "type": "publicKey"
+          "type": "pubkey"
         }
       ]
     }
@@ -51,15 +51,15 @@
         "fields": [
           {
             "name": "admin",
-            "type": "publicKey"
+            "type": "pubkey"
           },
           {
             "name": "treasury",
-            "type": "publicKey"
+            "type": "pubkey"
           },
           {
             "name": "backendAuthority",
-            "type": "publicKey"
+            "type": "pubkey"
           },
           {
             "name": "platformFeeBps",
@@ -84,7 +84,7 @@
           {
             "name": "pendingTreasury",
             "type": {
-              "option": "publicKey"
+              "option": "pubkey"
             }
           },
           {
@@ -96,7 +96,7 @@
           {
             "name": "pendingAdmin",
             "type": {
-              "option": "publicKey"
+              "option": "pubkey"
             }
           },
           {
