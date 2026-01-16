@@ -1,7 +1,14 @@
-import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import { AnchorProvider, Program, BN, Wallet, Idl } from "@coral-xyz/anchor";
+import {
+  Connection,
+  PublicKey,
+  Keypair,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from "@solana/web3.js";
 import * as fs from "fs";
 import * as path from "path";
+import * as crypto from "crypto";
 
 // Program ID (deployed to devnet)
 const PROGRAM_ID = new PublicKey("9rJdJg5NNNk7iELme83LXMDRasqtsdBdaGqWyPGQK93Y");
@@ -13,22 +20,22 @@ const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgY
 const PLATFORM_FEE_BPS = 500; // 5%
 const DISPUTE_FEE_BPS = 200;  // 2%
 
-// Load IDL (check tracked idl/ folder first, then target/)
-const idlPath = fs.existsSync(path.join(__dirname, "../idl/app_market.json"))
-  ? path.join(__dirname, "../idl/app_market.json")
-  : path.join(__dirname, "../target/idl/app_market.json");
+// Calculate Anchor instruction discriminator (first 8 bytes of SHA256 hash of "global:<instruction_name>")
+function getInstructionDiscriminator(name: string): Buffer {
+  const preimage = `global:${name}`;
+  const hash = crypto.createHash("sha256").update(preimage).digest();
+  return hash.slice(0, 8);
+}
+
+// Encode a u64 as little-endian bytes
+function encodeU64(value: number | bigint): Buffer {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(BigInt(value));
+  return buf;
+}
 
 async function main() {
   console.log("Initializing App Market on Devnet...\n");
-
-  // Check if IDL exists
-  if (!fs.existsSync(idlPath)) {
-    console.error("IDL file not found at:", idlPath);
-    console.error("   Please run 'anchor build' first to generate the IDL.");
-    process.exit(1);
-  }
-
-  const IDL: Idl = JSON.parse(fs.readFileSync(idlPath, "utf8"));
 
   // Connect to devnet
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
@@ -48,98 +55,98 @@ async function main() {
     Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
   );
 
-  const wallet = new Wallet(walletKeypair);
-  console.log(`Loaded wallet: ${wallet.publicKey.toBase58()}`);
+  console.log(`Loaded wallet: ${walletKeypair.publicKey.toBase58()}`);
 
   // Check balance
-  const balance = await connection.getBalance(wallet.publicKey);
+  const balance = await connection.getBalance(walletKeypair.publicKey);
   console.log(`   Balance: ${balance / 1e9} SOL`);
 
   if (balance < 0.1 * 1e9) {
     console.log("\nLow balance! Requesting airdrop...");
-    const sig = await connection.requestAirdrop(wallet.publicKey, 2 * 1e9);
+    const sig = await connection.requestAirdrop(walletKeypair.publicKey, 2 * 1e9);
     await connection.confirmTransaction(sig);
     console.log("Airdrop complete!");
   }
 
-  // Create provider
-  const provider = new AnchorProvider(connection, wallet, {
-    commitment: "confirmed",
-  });
-
-  // Create program instance (newer Anchor API - provider only, ID from IDL metadata)
-  // @ts-ignore - IDL typing compatibility
-  const program = new Program(IDL, provider);
-  console.log(`Program loaded: ${PROGRAM_ID.toBase58()}`);
-
   // Derive config PDA
-  const [configPda] = PublicKey.findProgramAddressSync(
+  const [configPda, configBump] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
     PROGRAM_ID
   );
   console.log(`\nConfig PDA: ${configPda.toBase58()}`);
 
-  // Check if already initialized
-  try {
-    // @ts-ignore - account access typing
-    const existingConfig = await program.account.marketConfig.fetch(configPda);
+  // Check if already initialized by checking if account exists
+  const configAccount = await connection.getAccountInfo(configPda);
+  if (configAccount !== null) {
     console.log("\nMarketplace is already initialized!");
-    console.log("   Admin:", existingConfig.admin.toBase58());
-    console.log("   Treasury:", existingConfig.treasury.toBase58());
-    console.log("   Platform Fee:", existingConfig.platformFeeBps.toString(), "bps");
-    console.log("   Dispute Fee:", existingConfig.disputeFeeBps.toString(), "bps");
-    console.log("   Total Volume:", existingConfig.totalVolume.toString());
-    console.log("   Total Sales:", existingConfig.totalSales.toString());
-    console.log("   Paused:", existingConfig.paused);
+    console.log("   Config account exists with", configAccount.data.length, "bytes");
     return;
-  } catch (e) {
-    // Not initialized yet, continue
-    console.log("   Config account not found - proceeding with initialization");
   }
 
-  // Backend authority (using admin wallet for now - you can change this)
-  const backendAuthority = wallet.publicKey;
+  console.log("   Config account not found - proceeding with initialization");
+
+  // Backend authority (using admin wallet for now)
+  const backendAuthority = walletKeypair.publicKey;
 
   console.log("\nInitialization Parameters:");
-  console.log("   Admin:", wallet.publicKey.toBase58());
+  console.log("   Admin:", walletKeypair.publicKey.toBase58());
   console.log("   Treasury:", TREASURY_WALLET.toBase58());
   console.log("   Backend Authority:", backendAuthority.toBase58());
   console.log("   Platform Fee:", PLATFORM_FEE_BPS, "bps (5%)");
   console.log("   Dispute Fee:", DISPUTE_FEE_BPS, "bps (2%)");
 
-  // Initialize the marketplace
+  // Build the instruction data
+  // Format: [8-byte discriminator][u64 platform_fee_bps][u64 dispute_fee_bps][32-byte backend_authority]
+  const discriminator = getInstructionDiscriminator("initialize");
+  const instructionData = Buffer.concat([
+    discriminator,
+    encodeU64(PLATFORM_FEE_BPS),
+    encodeU64(DISPUTE_FEE_BPS),
+    backendAuthority.toBuffer(),
+  ]);
+
+  // Create the instruction
+  const initializeIx = new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: configPda, isSigner: false, isWritable: true },
+      { pubkey: TREASURY_WALLET, isSigner: false, isWritable: false },
+      { pubkey: walletKeypair.publicKey, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data: instructionData,
+  });
+
+  // Create and send transaction
   console.log("\nSending initialize transaction...");
 
   try {
-    // @ts-ignore - methods typing
-    const tx = await program.methods
-      .initialize(
-        new BN(PLATFORM_FEE_BPS),
-        new BN(DISPUTE_FEE_BPS),
-        backendAuthority
-      )
-      .accounts({
-        config: configPda,
-        treasury: TREASURY_WALLET,
-        admin: wallet.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    const transaction = new Transaction().add(initializeIx);
+    transaction.feePayer = walletKeypair.publicKey;
+    transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+
+    transaction.sign(walletKeypair);
+
+    const txSignature = await connection.sendRawTransaction(transaction.serialize());
+    console.log("\nTransaction sent:", txSignature);
+
+    // Wait for confirmation
+    const confirmation = await connection.confirmTransaction(txSignature, "confirmed");
+
+    if (confirmation.value.err) {
+      console.error("\nTransaction failed:", confirmation.value.err);
+      return;
+    }
 
     console.log("\nMarketplace initialized successfully!");
-    console.log("   Transaction:", tx);
-    console.log("   Explorer: https://explorer.solana.com/tx/" + tx + "?cluster=devnet");
+    console.log("   Transaction:", txSignature);
+    console.log("   Explorer: https://explorer.solana.com/tx/" + txSignature + "?cluster=devnet");
 
-    // Fetch and display the config
-    // @ts-ignore - account access typing
-    const config = await program.account.marketConfig.fetch(configPda);
-    console.log("\nMarketplace Config:");
-    console.log("   Admin:", config.admin.toBase58());
-    console.log("   Treasury:", config.treasury.toBase58());
-    console.log("   Backend Authority:", config.backendAuthority.toBase58());
-    console.log("   Platform Fee:", config.platformFeeBps.toString(), "bps");
-    console.log("   Dispute Fee:", config.disputeFeeBps.toString(), "bps");
-    console.log("   Paused:", config.paused);
+    // Verify the account was created
+    const newConfigAccount = await connection.getAccountInfo(configPda);
+    if (newConfigAccount) {
+      console.log("\nConfig account created with", newConfigAccount.data.length, "bytes");
+    }
 
   } catch (error: any) {
     console.error("\nError initializing marketplace:");
