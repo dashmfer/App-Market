@@ -1,6 +1,5 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
-import IDL_JSON from "../target/idl/app_market.json";
 
 // Program ID from deployed/generated smart contract
 export const PROGRAM_ID = new PublicKey("FMqnbWG4pExkkXQjbtAiPmEFfsdopMfYnEaRT5pjnetZ");
@@ -191,8 +190,17 @@ export const getTimeRemaining = (endTime: number | BN): { days: number; hours: n
   };
 };
 
-// Import IDL from built smart contract
-export const IDL: Idl = IDL_JSON as Idl;
+// IDL placeholder - replace with generated IDL after building Solana program with `anchor build`
+// The actual IDL will be at target/idl/app_market.json after build
+export const IDL: Idl = {
+  version: "0.1.0",
+  name: "app_market",
+  instructions: [],
+  accounts: [],
+  types: [],
+  events: [],
+  errors: [],
+} as Idl;
 
 // Create program instance
 export const getProgram = (provider: AnchorProvider): Program => {
