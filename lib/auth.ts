@@ -5,7 +5,8 @@ import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  // Don't use adapter with credentials provider + JWT
+  // adapter: PrismaAdapter(prisma) as any,
   providers: [
     // Wallet provider - only authentication method
     CredentialsProvider({
@@ -21,7 +22,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
-        // Verify wallet signature directly (no HTTP request needed)
+        // Verify wallet signature directly
         const result = await verifyWalletSignature(
           credentials.publicKey,
           credentials.signature,
@@ -45,17 +46,6 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  cookies: {
-    sessionToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
@@ -63,15 +53,19 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, user }) {
+      // When signing in, add user data to token
       if (user) {
         token.id = user.id;
+        token.walletAddress = (user as any).walletAddress;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token) {
         session.user.id = token.id as string;
+        (session.user as any).walletAddress = token.walletAddress;
 
+        // Fetch additional user data from database
         if (token.id) {
           try {
             const user = await prisma.user.findUnique({
@@ -100,26 +94,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  events: {
-    async createUser({ user }) {
-      // Generate username from wallet address or name
-      const baseUsername = (user.name?.toLowerCase().replace(/\s/g, "_") || "user")
-        .slice(0, 20);
-
-      const existingUser = await prisma.user.findFirst({
-        where: { username: { startsWith: baseUsername } },
-      });
-
-      const username = existingUser
-        ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
-        : baseUsername;
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { username },
-      });
-    },
-  },
 };
 
 // Type augmentation for next-auth
@@ -141,5 +115,6 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    walletAddress?: string;
   }
 }

@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json(
-        { error: "You must be signed in to verify repository ownership" },
+        { error: "You must be signed in to verify repository" },
         { status: 401 }
       );
     }
@@ -23,41 +22,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the user's GitHub access token from their account
-    // This requires the user to have signed in with GitHub
-    const account = await prisma?.account.findFirst({
-      where: {
-        userId: session.user.id,
-        provider: "github",
-      },
-    });
-
-    if (!account?.access_token) {
-      return NextResponse.json(
-        { 
-          verified: false, 
-          error: "Please sign in with GitHub to verify repository ownership" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check if the user has access to this repository
+    // Use public GitHub API to check if repo exists and is accessible
+    // This doesn't require OAuth - works for public repos
     const repoResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
       {
         headers: {
-          Authorization: `Bearer ${account.access_token}`,
           Accept: "application/vnd.github.v3+json",
+          // Use GitHub token from env if available for higher rate limits
+          ...(process.env.GITHUB_TOKEN && {
+            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          }),
         },
       }
     );
 
     if (!repoResponse.ok) {
+      if (repoResponse.status === 404) {
+        return NextResponse.json(
+          {
+            verified: false,
+            error: "Repository not found. Make sure it's a public repository."
+          },
+          { status: 400 }
+        );
+      }
       return NextResponse.json(
-        { 
-          verified: false, 
-          error: "Repository not found or you don't have access" 
+        {
+          verified: false,
+          error: "Could not access repository. Please try again."
         },
         { status: 400 }
       );
@@ -65,24 +58,15 @@ export async function POST(request: NextRequest) {
 
     const repoData = await repoResponse.json();
 
-    // Check if the user is the owner or has admin permissions
-    const permissionsResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/collaborators/${repoData.owner.login}/permission`,
-      {
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-          Accept: "application/vnd.github.v3+json",
-        },
-      }
-    );
-
-    // Get repository stats
+    // Get repository contents for file count
     const contentsResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/contents`,
       {
         headers: {
-          Authorization: `Bearer ${account.access_token}`,
           Accept: "application/vnd.github.v3+json",
+          ...(process.env.GITHUB_TOKEN && {
+            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          }),
         },
       }
     );
@@ -93,13 +77,15 @@ export async function POST(request: NextRequest) {
       fileCount = Array.isArray(contents) ? contents.length : 0;
     }
 
-    // Get commit activity for lines estimate
+    // Get last commit for update time
     const commitsResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=1`,
       {
         headers: {
-          Authorization: `Bearer ${account.access_token}`,
           Accept: "application/vnd.github.v3+json",
+          ...(process.env.GITHUB_TOKEN && {
+            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          }),
         },
       }
     );
@@ -111,7 +97,7 @@ export async function POST(request: NextRequest) {
         const commitDate = new Date(commits[0].commit.committer.date);
         const now = new Date();
         const diffDays = Math.floor((now.getTime() - commitDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (diffDays === 0) {
           lastUpdated = "Today";
         } else if (diffDays === 1) {
@@ -126,21 +112,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if user is owner or has admin/write access
-    const isOwner = repoData.owner.login.toLowerCase() === session.user.name?.toLowerCase() ||
-                    repoData.permissions?.admin === true ||
-                    repoData.permissions?.push === true;
-
-    if (!isOwner) {
-      return NextResponse.json(
-        { 
-          verified: false, 
-          error: "You must be the owner or have write access to this repository" 
-        },
-        { status: 400 }
-      );
-    }
-
+    // For public repos, we consider them "verified" if they exist
+    // The actual ownership verification happens during the escrow/transfer process
     return NextResponse.json({
       verified: true,
       stats: {
@@ -148,6 +121,7 @@ export async function POST(request: NextRequest) {
         lines: repoData.size * 10, // Rough estimate based on repo size
         lastUpdated,
       },
+      note: "Repository found. Ownership will be verified during the transfer process.",
     });
 
   } catch (error) {

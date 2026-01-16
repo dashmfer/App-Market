@@ -745,8 +745,21 @@ export default function CreateListingPage() {
                 {/* Code & Repository Section */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Code & Repository</h2>
-                  <p className="text-zinc-500 mb-6">Source code and version control access</p>
-                  
+                  <p className="text-zinc-500 mb-4">Source code and version control access</p>
+
+                  {/* Required notice */}
+                  <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      <strong>Required:</strong> You must include at least one - either Code Files or a GitHub Repository (or both).
+                    </p>
+                  </div>
+
+                  {errors.assets && (
+                    <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                      <p className="text-sm text-red-600 dark:text-red-400">{errors.assets}</p>
+                    </div>
+                  )}
+
                   <div className="space-y-6">
                     {/* Code Files */}
                     <div className={`p-4 rounded-xl border ${formData.hasCodeFiles ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>

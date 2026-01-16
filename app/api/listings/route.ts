@@ -185,10 +185,10 @@ export async function POST(request: NextRequest) {
       duration,
     } = body;
 
-    // Validate required fields
-    if (!title || !description || !category || !githubRepo || !startingPrice) {
+    // Validate required fields (githubRepo is optional - can use code files instead)
+    if (!title || !description || !category || !startingPrice) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: title, description, category, and starting price are required" },
         { status: 400 }
       );
     }
