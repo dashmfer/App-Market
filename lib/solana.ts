@@ -2,7 +2,7 @@ import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } f
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 
 // Program ID from deployed/generated smart contract
-export const PROGRAM_ID = new PublicKey("9rJdJg5NNNk7iELme83LXMDRasqtsdBdaGqWyPGQK93Y");
+export const PROGRAM_ID = new PublicKey("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog");
 
 // Platform treasury wallet - receives fees
 export const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6");

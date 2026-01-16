@@ -11,7 +11,7 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 // Program ID (deployed to devnet)
-const PROGRAM_ID = new PublicKey("9rJdJg5NNNk7iELme83LXMDRasqtsdBdaGqWyPGQK93Y");
+const PROGRAM_ID = new PublicKey("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog");
 
 // Treasury wallet to receive platform fees
 const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6");
