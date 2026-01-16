@@ -387,11 +387,38 @@ export default function CreateListingPage() {
       const signatureBase58 = bs58.default.encode(signature);
 
       // Submit to API with wallet signature
+      // Map form fields to API expected fields
       const response = await fetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          title: formData.title,
+          tagline: formData.tagline,
+          description: formData.description,
+          category: formData.category,
+          techStack: formData.techStack,
+          thumbnailUrl: formData.profileImagePreview || null, // Map profileImagePreview to thumbnailUrl
+          demoUrl: formData.demoUrl,
+          videoUrl: formData.videoUrl,
+          githubRepo: formData.githubRepo,
+          hasDomain: formData.hasDomain,
+          domain: formData.domain,
+          hasDatabase: formData.hasDatabase,
+          databaseType: formData.databaseType,
+          hasHosting: formData.hasHosting,
+          hostingProvider: formData.hostingProvider,
+          hasSocialAccounts: formData.socialAccounts.length > 0,
+          socialAccounts: formData.socialAccounts.length > 0 ? JSON.stringify(formData.socialAccounts) : null,
+          hasApiKeys: formData.hasApiKeys,
+          hasDesignFiles: formData.hasDesignFiles,
+          hasDocumentation: formData.hasDocumentation,
+          additionalAssets: formData.additionalAssets,
+          startingPrice: formData.startingPrice,
+          reservePrice: formData.reservePrice || null,
+          buyNowEnabled: formData.enableBuyNow,
+          buyNowPrice: formData.buyNowPrice || null,
+          currency: formData.currency,
+          duration: formData.duration,
           walletAddress: publicKey.toBase58(),
           walletSignature: signatureBase58,
           signedMessage: message,

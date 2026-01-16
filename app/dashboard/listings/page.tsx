@@ -219,12 +219,13 @@ export default function ListingsPage() {
                     >
                       <Eye className="w-5 h-5" />
                     </Link>
-                    <button
+                    <Link
+                      href={`/listing/${listing.slug}/edit`}
                       className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                       title="Edit listing"
                     >
                       <Edit className="w-5 h-5" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -97,7 +99,8 @@ export default function ListingPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const { data: session } = useSession();
-  const { publicKey, signMessage } = useWallet();
+  const { publicKey, signMessage, sendTransaction, connected } = useWallet();
+  const { connection } = useConnection();
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +184,7 @@ export default function ListingPage() {
       return;
     }
 
-    if (!publicKey || !signMessage) {
+    if (!connected || !publicKey || !sendTransaction) {
       setBidError("Please connect your wallet to place a bid");
       return;
     }
@@ -195,6 +198,35 @@ export default function ListingPage() {
     setBidError(null);
 
     try {
+      // Platform escrow wallet - in production this would be a PDA from the smart contract
+      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+
+      // Create transfer transaction
+      const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: escrowPubkey,
+          lamports,
+        })
+      );
+
+      // Get latest blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // Send and confirm transaction
+      const txSignature = await sendTransaction(transaction, connection);
+
+      // Wait for confirmation
+      await connection.confirmTransaction({
+        blockhash,
+        lastValidBlockHeight,
+        signature: txSignature,
+      });
+
+      // Record bid in database with transaction signature
       const response = await fetch("/api/bids", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -202,6 +234,8 @@ export default function ListingPage() {
           listingId: listing.id,
           amount: bidAmount,
           currency: listing.currency,
+          onChainTx: txSignature,
+          walletAddress: publicKey.toBase58(),
         }),
       });
 
@@ -217,8 +251,15 @@ export default function ListingPage() {
         const data = await response.json();
         setBidError(data.error || "Failed to place bid");
       }
-    } catch (err) {
-      setBidError("Failed to place bid. Please try again.");
+    } catch (err: any) {
+      console.error("Bid error:", err);
+      if (err.message?.includes("User rejected") || err.message?.includes("rejected")) {
+        setBidError("Transaction was rejected. Please try again.");
+      } else if (err.message?.includes("insufficient")) {
+        setBidError("Insufficient funds in your wallet.");
+      } else {
+        setBidError(err.message || "Failed to place bid. Please try again.");
+      }
     } finally {
       setBidding(false);
     }

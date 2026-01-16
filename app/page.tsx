@@ -23,13 +23,13 @@ import { CategoryCard } from "@/components/home/category-card";
 import { StatsCounter } from "@/components/home/stats-counter";
 import { HowItWorksStep } from "@/components/home/how-it-works-step";
 
-const categories = [
-  { name: "SaaS", slug: "saas", count: 0, icon: "💼" },
-  { name: "AI & ML", slug: "ai-ml", count: 0, icon: "🤖" },
-  { name: "Mobile Apps", slug: "mobile-app", count: 0, icon: "📱" },
-  { name: "Crypto & Web3", slug: "crypto-web3", count: 0, icon: "⛓️" },
-  { name: "E-commerce", slug: "ecommerce", count: 0, icon: "🛒" },
-  { name: "Developer Tools", slug: "developer-tools", count: 0, icon: "🛠️" },
+const categoriesBase = [
+  { name: "SaaS", slug: "saas", dbKey: "SAAS", icon: "💼" },
+  { name: "AI & ML", slug: "ai-ml", dbKey: "AI_ML", icon: "🤖" },
+  { name: "Mobile Apps", slug: "mobile-app", dbKey: "MOBILE_APP", icon: "📱" },
+  { name: "Crypto & Web3", slug: "crypto-web3", dbKey: "CRYPTO_WEB3", icon: "⛓️" },
+  { name: "E-commerce", slug: "ecommerce", dbKey: "ECOMMERCE", icon: "🛒" },
+  { name: "Developer Tools", slug: "developer-tools", dbKey: "DEVELOPER_TOOLS", icon: "🛠️" },
 ];
 
 const stats = [
@@ -69,6 +69,7 @@ const howItWorks = [
 export default function HomePage() {
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     async function fetchListings() {
@@ -86,8 +87,27 @@ export default function HomePage() {
       }
     }
 
+    async function fetchCategoryCounts() {
+      try {
+        const response = await fetch("/api/categories");
+        if (response.ok) {
+          const data = await response.json();
+          setCategoryCounts(data.counts || {});
+        }
+      } catch (error) {
+        console.error("Failed to fetch category counts:", error);
+      }
+    }
+
     fetchListings();
+    fetchCategoryCounts();
   }, []);
+
+  // Map categories with dynamic counts
+  const categories = categoriesBase.map((cat) => ({
+    ...cat,
+    count: categoryCounts[cat.dbKey] || 0,
+  }));
 
   return (
     <div className="relative">
