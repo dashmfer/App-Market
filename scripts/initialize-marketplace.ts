@@ -1,5 +1,5 @@
 import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
-import { AnchorProvider, Program, BN, Wallet } from "@coral-xyz/anchor";
+import { AnchorProvider, Program, BN, Wallet, Idl } from "@coral-xyz/anchor";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -19,20 +19,20 @@ const idlPath = fs.existsSync(path.join(__dirname, "../idl/app_market.json"))
   : path.join(__dirname, "../target/idl/app_market.json");
 
 async function main() {
-  console.log("🚀 Initializing App Market on Devnet...\n");
+  console.log("Initializing App Market on Devnet...\n");
 
   // Check if IDL exists
   if (!fs.existsSync(idlPath)) {
-    console.error("❌ IDL file not found at:", idlPath);
+    console.error("IDL file not found at:", idlPath);
     console.error("   Please run 'anchor build' first to generate the IDL.");
     process.exit(1);
   }
 
-  const IDL = JSON.parse(fs.readFileSync(idlPath, "utf8"));
+  const IDL: Idl = JSON.parse(fs.readFileSync(idlPath, "utf8"));
 
   // Connect to devnet
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
-  console.log("✅ Connected to Solana devnet");
+  console.log("Connected to Solana devnet");
 
   // Load wallet from default Solana CLI location
   const walletPath = path.join(
@@ -49,17 +49,17 @@ async function main() {
   );
 
   const wallet = new Wallet(walletKeypair);
-  console.log(`✅ Loaded wallet: ${wallet.publicKey.toBase58()}`);
+  console.log(`Loaded wallet: ${wallet.publicKey.toBase58()}`);
 
   // Check balance
   const balance = await connection.getBalance(wallet.publicKey);
   console.log(`   Balance: ${balance / 1e9} SOL`);
 
   if (balance < 0.1 * 1e9) {
-    console.log("\n⚠️  Low balance! Requesting airdrop...");
+    console.log("\nLow balance! Requesting airdrop...");
     const sig = await connection.requestAirdrop(wallet.publicKey, 2 * 1e9);
     await connection.confirmTransaction(sig);
-    console.log("✅ Airdrop complete!");
+    console.log("Airdrop complete!");
   }
 
   // Create provider
@@ -67,21 +67,23 @@ async function main() {
     commitment: "confirmed",
   });
 
-  // Create program instance (Anchor 0.29+ API)
-  const program = new Program(IDL as any, PROGRAM_ID, provider);
-  console.log(`✅ Program loaded: ${PROGRAM_ID.toBase58()}`);
+  // Create program instance (newer Anchor API - provider only, ID from IDL metadata)
+  // @ts-ignore - IDL typing compatibility
+  const program = new Program(IDL, provider);
+  console.log(`Program loaded: ${PROGRAM_ID.toBase58()}`);
 
   // Derive config PDA
   const [configPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
     PROGRAM_ID
   );
-  console.log(`\n📍 Config PDA: ${configPda.toBase58()}`);
+  console.log(`\nConfig PDA: ${configPda.toBase58()}`);
 
   // Check if already initialized
   try {
-    const existingConfig = await (program.account as any).marketConfig.fetch(configPda);
-    console.log("\n⚠️  Marketplace is already initialized!");
+    // @ts-ignore - account access typing
+    const existingConfig = await program.account.marketConfig.fetch(configPda);
+    console.log("\nMarketplace is already initialized!");
     console.log("   Admin:", existingConfig.admin.toBase58());
     console.log("   Treasury:", existingConfig.treasury.toBase58());
     console.log("   Platform Fee:", existingConfig.platformFeeBps.toString(), "bps");
@@ -98,7 +100,7 @@ async function main() {
   // Backend authority (using admin wallet for now - you can change this)
   const backendAuthority = wallet.publicKey;
 
-  console.log("\n📝 Initialization Parameters:");
+  console.log("\nInitialization Parameters:");
   console.log("   Admin:", wallet.publicKey.toBase58());
   console.log("   Treasury:", TREASURY_WALLET.toBase58());
   console.log("   Backend Authority:", backendAuthority.toBase58());
@@ -106,10 +108,11 @@ async function main() {
   console.log("   Dispute Fee:", DISPUTE_FEE_BPS, "bps (2%)");
 
   // Initialize the marketplace
-  console.log("\n⏳ Sending initialize transaction...");
+  console.log("\nSending initialize transaction...");
 
   try {
-    const tx = await (program.methods as any)
+    // @ts-ignore - methods typing
+    const tx = await program.methods
       .initialize(
         new BN(PLATFORM_FEE_BPS),
         new BN(DISPUTE_FEE_BPS),
@@ -123,13 +126,14 @@ async function main() {
       })
       .rpc();
 
-    console.log("\n✅ Marketplace initialized successfully!");
+    console.log("\nMarketplace initialized successfully!");
     console.log("   Transaction:", tx);
     console.log("   Explorer: https://explorer.solana.com/tx/" + tx + "?cluster=devnet");
 
     // Fetch and display the config
-    const config = await (program.account as any).marketConfig.fetch(configPda);
-    console.log("\n📊 Marketplace Config:");
+    // @ts-ignore - account access typing
+    const config = await program.account.marketConfig.fetch(configPda);
+    console.log("\nMarketplace Config:");
     console.log("   Admin:", config.admin.toBase58());
     console.log("   Treasury:", config.treasury.toBase58());
     console.log("   Backend Authority:", config.backendAuthority.toBase58());
@@ -138,7 +142,7 @@ async function main() {
     console.log("   Paused:", config.paused);
 
   } catch (error: any) {
-    console.error("\n❌ Error initializing marketplace:");
+    console.error("\nError initializing marketplace:");
     console.error(error.message || error);
 
     if (error.logs) {
