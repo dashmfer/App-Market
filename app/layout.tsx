@@ -39,6 +39,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
+          {/* Devnet Banner */}
+          <div className="bg-amber-500 text-amber-950 text-center py-2 px-4 text-sm">
+            <span className="font-semibold">🔧 DEVNET MODE</span>
+            <span className="hidden sm:inline"> — This is a test deployment on Solana Devnet. You&apos;ll need Devnet SOL to interact. To connect, open Phantom → Settings → Developer Settings → Enable Testnet Mode → Select Devnet. Get free Devnet SOL: </span>
+            <span className="sm:hidden"> — </span>
+            <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-amber-800">Solana Faucet</a>
+            <span className="mx-1">|</span>
+            <a href="https://faucet.quicknode.com/solana/devnet" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-amber-800">QuickNode Faucet</a>
+          </div>
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <main className="flex-1">
