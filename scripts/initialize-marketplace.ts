@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
+import { Connection, PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Wallet } from "@coral-xyz/anchor";
 import * as fs from "fs";
 import * as path from "path";
@@ -13,16 +13,22 @@ const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgY
 const PLATFORM_FEE_BPS = 500; // 5%
 const DISPUTE_FEE_BPS = 200;  // 2%
 
-// Load IDL
-const IDL = JSON.parse(
-  fs.readFileSync(
-    path.join(__dirname, "../target/idl/app_market.json"),
-    "utf8"
-  )
-);
+// Load IDL (check tracked idl/ folder first, then target/)
+const idlPath = fs.existsSync(path.join(__dirname, "../idl/app_market.json"))
+  ? path.join(__dirname, "../idl/app_market.json")
+  : path.join(__dirname, "../target/idl/app_market.json");
 
 async function main() {
   console.log("🚀 Initializing App Market on Devnet...\n");
+
+  // Check if IDL exists
+  if (!fs.existsSync(idlPath)) {
+    console.error("❌ IDL file not found at:", idlPath);
+    console.error("   Please run 'anchor build' first to generate the IDL.");
+    process.exit(1);
+  }
+
+  const IDL = JSON.parse(fs.readFileSync(idlPath, "utf8"));
 
   // Connect to devnet
   const connection = new Connection("https://api.devnet.solana.com", "confirmed");
@@ -61,12 +67,12 @@ async function main() {
     commitment: "confirmed",
   });
 
-  // Create program instance
-  const program = new Program(IDL, PROGRAM_ID, provider);
+  // Create program instance (Anchor 0.29+ API)
+  const program = new Program(IDL as any, PROGRAM_ID, provider);
   console.log(`✅ Program loaded: ${PROGRAM_ID.toBase58()}`);
 
   // Derive config PDA
-  const [configPda, configBump] = PublicKey.findProgramAddressSync(
+  const [configPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
     PROGRAM_ID
   );
@@ -74,7 +80,7 @@ async function main() {
 
   // Check if already initialized
   try {
-    const existingConfig = await program.account.marketConfig.fetch(configPda);
+    const existingConfig = await (program.account as any).marketConfig.fetch(configPda);
     console.log("\n⚠️  Marketplace is already initialized!");
     console.log("   Admin:", existingConfig.admin.toBase58());
     console.log("   Treasury:", existingConfig.treasury.toBase58());
@@ -103,7 +109,7 @@ async function main() {
   console.log("\n⏳ Sending initialize transaction...");
 
   try {
-    const tx = await program.methods
+    const tx = await (program.methods as any)
       .initialize(
         new BN(PLATFORM_FEE_BPS),
         new BN(DISPUTE_FEE_BPS),
@@ -113,7 +119,7 @@ async function main() {
         config: configPda,
         treasury: TREASURY_WALLET,
         admin: wallet.publicKey,
-        systemProgram: PublicKey.default,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
 
@@ -122,7 +128,7 @@ async function main() {
     console.log("   Explorer: https://explorer.solana.com/tx/" + tx + "?cluster=devnet");
 
     // Fetch and display the config
-    const config = await program.account.marketConfig.fetch(configPda);
+    const config = await (program.account as any).marketConfig.fetch(configPda);
     console.log("\n📊 Marketplace Config:");
     console.log("   Admin:", config.admin.toBase58());
     console.log("   Treasury:", config.treasury.toBase58());
