@@ -1,0 +1,252 @@
+# Semgrep Rules for Solana Anchor Smart Contracts
+# These rules detect common security vulnerabilities in Anchor programs
+# Note: Semgrep has experimental Rust support - these patterns may need adjustment
+
+rules:
+  # ===========================================
+  # CRITICAL: Missing Access Control
+  # ===========================================
+
+  - id: anchor-missing-admin-check
+    languages: [rust]
+    severity: ERROR
+    message: |
+      Function modifies admin/authority fields without explicit access control check.
+      An attacker could call this function to take over admin privileges.
+      Add: require!(ctx.accounts.signer.key() == expected_admin, Unauthorized)
+    patterns:
+      - pattern: |
+          pub fn $FUNC($CTX: Context<$ACCOUNTS>, ...) -> Result<()> {
+            ...
+            $CONFIG.admin = ...;
+            ...
+          }
+      - pattern-not-inside: |
+          require!($SIGNER.key() == $CONFIG.admin, ...)
+    metadata:
+      cwe: "CWE-284"
+      category: "access-control"
+      confidence: HIGH
+
+  - id: anchor-initialize-no-access-control
+    languages: [rust]
+    severity: WARNING
+    message: |
+      Initialize function sets admin without verifying caller identity.
+      First caller becomes admin - vulnerable to deployment frontrunning.
+      Consider: Add expected_admin parameter and validate, or use hardcoded pubkey.
+    pattern: |
+      pub fn initialize($CTX: Context<$INIT>, ...) -> Result<()> {
+        ...
+        $CONFIG.admin = $CTX.accounts.$SIGNER.key();
+        ...
+      }
+    metadata:
+      cwe: "CWE-284"
+      category: "access-control"
+      confidence: MEDIUM
+
+  # ===========================================
+  # HIGH: Unchecked Account Validation
+  # ===========================================
+
+  - id: anchor-unchecked-account-info
+    languages: [rust]
+    severity: WARNING
+    message: |
+      AccountInfo marked with CHECK comment but no constraint validation.
+      Ensure instruction-level validation exists or add constraint.
+    pattern: |
+      /// CHECK: $MSG
+      pub $ACCOUNT: AccountInfo<'info>
+    metadata:
+      cwe: "CWE-20"
+      category: "input-validation"
+      confidence: LOW
+
+  - id: anchor-treasury-no-validation
+    languages: [rust]
+    severity: ERROR
+    message: |
+      Treasury account has no validation constraints.
+      Could be set to non-SOL-receivable address, causing fund loss.
+      Add: constraint = treasury.owner == &system_program::ID
+    patterns:
+      - pattern: |
+          /// CHECK: $TREASURY_MSG
+          $VIS $TREASURY: AccountInfo<'info>
+      - metavariable-regex:
+          metavariable: $TREASURY
+          regex: "treasury"
+    metadata:
+      cwe: "CWE-20"
+      category: "input-validation"
+      confidence: MEDIUM
+
+  # ===========================================
+  # HIGH: Arithmetic Safety
+  # ===========================================
+
+  - id: anchor-unchecked-arithmetic
+    languages: [rust]
+    severity: ERROR
+    message: |
+      Unchecked arithmetic operation on u64 value.
+      In release builds, Rust wraps on overflow instead of panicking.
+      Use: checked_add(), checked_sub(), checked_mul(), checked_div()
+    pattern-either:
+      - pattern: $VAR + $OTHER
+      - pattern: $VAR - $OTHER
+      - pattern: $VAR * $OTHER
+    fix: $VAR.checked_add($OTHER).ok_or(Error::MathOverflow)?
+    metadata:
+      cwe: "CWE-190"
+      category: "arithmetic"
+      confidence: LOW
+
+  - id: anchor-division-before-multiplication
+    languages: [rust]
+    severity: WARNING
+    message: |
+      Division before multiplication can cause precision loss.
+      Reorder: (a * b) / c instead of (a / c) * b
+    pattern: |
+      $A.checked_div($B)?.checked_mul($C)?
+    metadata:
+      cwe: "CWE-682"
+      category: "arithmetic"
+      confidence: MEDIUM
+
+  # ===========================================
+  # MEDIUM: Fund Handling
+  # ===========================================
+
+  - id: anchor-partial-refund-remainder
+    languages: [rust]
+    severity: WARNING
+    message: |
+      Partial refund where buyer + seller amounts can be less than total.
+      Remainder goes to treasury - admin can extract value.
+      Consider: require total == sale_price
+    pattern: |
+      $BUYER_AMOUNT.checked_add($SELLER_AMOUNT)?
+      ...
+      require!($TOTAL <= $SALE_PRICE, ...)
+    metadata:
+      cwe: "CWE-863"
+      category: "fund-handling"
+      confidence: MEDIUM
+
+  - id: anchor-escrow-amount-tracking
+    languages: [rust]
+    severity: INFO
+    message: |
+      Escrow amount updated after transfer (not before).
+      While safe in Solana's single-threaded model, verify atomicity.
+    pattern: |
+      anchor_lang::system_program::transfer($CTX, $AMOUNT)?;
+      ...
+      $ESCROW.amount = $ESCROW.amount.checked_sub($AMOUNT)?
+    metadata:
+      cwe: "CWE-362"
+      category: "fund-handling"
+      confidence: LOW
+
+  # ===========================================
+  # MEDIUM: Timelock and Delays
+  # ===========================================
+
+  - id: anchor-missing-timelock
+    languages: [rust]
+    severity: WARNING
+    message: |
+      Privileged function without timelock delay.
+      Admin actions should have time delay for transparency.
+    patterns:
+      - pattern: |
+          pub fn $FUNC($CTX: Context<$ACCOUNTS>, ...) -> Result<()> {
+            require!($CTX.accounts.$ADMIN.key() == $CTX.accounts.config.admin, ...);
+            ...
+          }
+      - pattern-not: |
+          require!($CLOCK.unix_timestamp >= $PROPOSED_AT + $TIMELOCK, ...)
+    metadata:
+      cwe: "CWE-269"
+      category: "access-control"
+      confidence: LOW
+
+  # ===========================================
+  # LOW: Best Practices
+  # ===========================================
+
+  - id: anchor-magic-numbers
+    languages: [rust]
+    severity: INFO
+    message: |
+      Magic number in security-sensitive code.
+      Define as named constant for clarity and maintainability.
+    pattern-either:
+      - pattern: let $VAR = 10_000;
+      - pattern: let $VAR = 100_000_000;
+      - pattern: "... >= 1000 ..."
+    metadata:
+      category: "code-quality"
+      confidence: LOW
+
+  - id: anchor-unused-error-variant
+    languages: [rust]
+    severity: INFO
+    message: |
+      Error variant defined but grep shows no usage.
+      Remove dead code or implement the check.
+    pattern: |
+      #[msg($MSG)]
+      $VARIANT,
+    metadata:
+      category: "code-quality"
+      confidence: LOW
+
+  - id: anchor-saturating-without-event
+    languages: [rust]
+    severity: INFO
+    message: |
+      Using saturating_add for stats - overflow will silently cap values.
+      Consider emitting event when overflow detected.
+    pattern: |
+      $VAR.saturating_add($OTHER)
+    metadata:
+      category: "observability"
+      confidence: LOW
+
+  # ===========================================
+  # Solana-Specific Patterns
+  # ===========================================
+
+  - id: anchor-pda-seeds-client-controlled
+    languages: [rust]
+    severity: WARNING
+    message: |
+      PDA seeds include client-controlled value.
+      If client reuses seed, transaction fails with PDA collision.
+      Consider using monotonic counter instead.
+    pattern: |
+      seeds = [
+        ...,
+        &$CLIENT_PARAM.to_le_bytes()
+      ]
+    metadata:
+      category: "usability"
+      confidence: LOW
+
+  - id: anchor-init-if-needed
+    languages: [rust]
+    severity: WARNING
+    message: |
+      init_if_needed can be vulnerable to rent drain attacks.
+      Prefer explicit init or conditional creation with checks.
+    pattern: |
+      #[account(init_if_needed, ...)]
+    metadata:
+      cwe: "CWE-400"
+      category: "resource-management"
+      confidence: MEDIUM

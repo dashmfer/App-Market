@@ -1,0 +1,145 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "name": "SBOM-SPDX-solana-1.18.20",
+  "creationInfo": {
+    "created": "2026-01-15T15:42:07Z",
+    "creators": [
+      "Tool: https://github.com/Homebrew/brew@5.0.10"
+    ]
+  },
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://formulae.brew.sh/spdx/solana-1.18.20.json",
+  "documentDescribes": [
+    "SPDXRef-Archive-solana-src",
+    "SPDXRef-Package-SPDXRef-ca-certificates-2025-12-02",
+    "SPDXRef-Package-SPDXRef-openssl@3-3.6.0",
+    "SPDXRef-Compiler",
+    "SPDXRef-Bottle-solana"
+  ],
+  "files": [],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Archive-solana-src",
+      "name": "solana",
+      "versionInfo": "1.18.20",
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "builtDate": "2024-07-24 21:06:04 UTC",
+      "licenseConcluded": "Apache-2.0",
+      "downloadLocation": "https://github.com/solana-labs/solana/archive/refs/tags/v1.18.20.tar.gz",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [],
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "909000aab630d73c566f1573436e6a656e80528bd57a067e79e80fbe58afcd07"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-SPDXRef-ca-certificates-2025-12-02",
+      "name": "ca-certificates",
+      "versionInfo": "2025-12-02",
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "licenseConcluded": "MPL-2.0",
+      "downloadLocation": "https://ghcr.io/v2/homebrew/core/ca-certificates/blobs/sha256:dd8e78402d2feff017ecf5dd9b8a7f3edea2310631323f24b093ebc85727dd21",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "dd8e78402d2feff017ecf5dd9b8a7f3edea2310631323f24b093ebc85727dd21"
+        }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:brew/ca-certificates@2025-12-02",
+          "referenceType": "purl"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-SPDXRef-openssl@3-3.6.0",
+      "name": "openssl@3",
+      "versionInfo": "3.6.0",
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "licenseConcluded": "Apache-2.0",
+      "downloadLocation": "https://ghcr.io/v2/homebrew/core/openssl/3/blobs/sha256:9a8fa2ae1ef3424b116d7e6422d979e0290f4affdef072b1592e4535d2617d92",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "9a8fa2ae1ef3424b116d7e6422d979e0290f4affdef072b1592e4535d2617d92"
+        }
+      ],
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:brew/openssl@3@3.6.0",
+          "referenceType": "purl"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Compiler",
+      "name": "clang",
+      "versionInfo": "16.2",
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "downloadLocation": "NOASSERTION",
+      "checksums": [],
+      "externalRefs": []
+    },
+    {
+      "SPDXID": "SPDXRef-Bottle-solana",
+      "name": "solana",
+      "versionInfo": "1.18.20",
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "builtDate": "2024-07-24 21:06:04 UTC",
+      "licenseConcluded": "Apache-2.0",
+      "downloadLocation": "https://ghcr.io/v2/homebrew/core/solana/blobs/sha256:587663fffc9f10da1338bd74511ee9997dab9283353b6f1cc57dc52e5dedca0f",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceLocator": "pkg:brew/homebrew/core/solana@1.18.20",
+          "referenceType": "purl"
+        }
+      ],
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "587663fffc9f10da1338bd74511ee9997dab9283353b6f1cc57dc52e5dedca0f"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-SPDXRef-ca-certificates-2025-12-02",
+      "relationshipType": "RUNTIME_DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-Bottle-solana"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-SPDXRef-openssl@3-3.6.0",
+      "relationshipType": "RUNTIME_DEPENDENCY_OF",
+      "relatedSpdxElement": "SPDXRef-Bottle-solana"
+    },
+    {
+      "spdxElementId": "SPDXRef-File-solana",
+      "relationshipType": "PACKAGE_OF",
+      "relatedSpdxElement": "SPDXRef-Archive-solana-src"
+    },
+    {
+      "spdxElementId": "SPDXRef-Compiler",
+      "relationshipType": "BUILD_TOOL_OF",
+      "relatedSpdxElement": "SPDXRef-Package-solana-src"
+    }
+  ]
+}
