@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -141,14 +140,17 @@ export async function GET(request: NextRequest) {
 // POST /api/listings - Create a new listing
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req: request });
+
+    if (!token?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - please sign in with your wallet" },
         { status: 401 }
       );
     }
+
+    const userId = token.id as string;
 
     const body = await request.json();
     const {
@@ -248,7 +250,7 @@ export async function POST(request: NextRequest) {
         currency,
         endTime,
         status: "ACTIVE",
-        sellerId: session.user.id,
+        sellerId: userId,
         publishedAt: new Date(),
       },
       include: {

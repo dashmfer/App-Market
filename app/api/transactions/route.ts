@@ -1,35 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 import { calculatePlatformFee, calculateSellerProceeds, PLATFORM_FEE_BPS } from "@/lib/solana";
 
 // GET /api/transactions - Get user's transactions
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req: request });
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const userId = token.id as string;
+
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role") || "all"; // buyer, seller, or all
     const status = searchParams.get("status");
 
     const where: any = {};
-    
+
     if (role === "buyer") {
-      where.buyerId = session.user.id;
+      where.buyerId = userId;
     } else if (role === "seller") {
-      where.sellerId = session.user.id;
+      where.sellerId = userId;
     } else {
       where.OR = [
-        { buyerId: session.user.id },
-        { sellerId: session.user.id },
+        { buyerId: userId },
+        { sellerId: userId },
       ];
     }
 
@@ -82,14 +84,17 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions - Create a transaction (Buy Now or Auction Win)
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req: request });
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const userId = token.id as string;
 
     const body = await request.json();
     const { listingId, paymentMethod, stripePaymentId, onChainTx } = body;
@@ -135,7 +140,7 @@ export async function POST(request: NextRequest) {
       }
       
       const winningBid = listing.bids[0];
-      if (!winningBid || winningBid.bidderId !== session.user.id) {
+      if (!winningBid || winningBid.bidderId !== userId) {
         return NextResponse.json(
           { error: "You did not win this auction" },
           { status: 400 }
@@ -173,7 +178,7 @@ export async function POST(request: NextRequest) {
         status: onChainTx ? "IN_ESCROW" : "PENDING",
         transferChecklist,
         listingId,
-        buyerId: session.user.id,
+        buyerId: userId,
         sellerId: listing.sellerId,
         paidAt: new Date(),
       },
@@ -207,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     // Update buyer stats
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: {
         totalPurchases: { increment: 1 },
       },

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -18,17 +17,20 @@ const updateProfileSchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req });
 
-    if (!session?.user?.id) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
+    const userId = token.id as string;
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       select: {
         id: true,
         email: true,
@@ -76,20 +78,23 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req });
 
-    if (!session?.user?.id) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
+    const userId = token.id as string;
+
     const body = await req.json();
     const validatedData = updateProfileSchema.parse(body);
 
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: validatedData,
       select: {
         id: true,

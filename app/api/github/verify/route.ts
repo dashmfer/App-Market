@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getToken } from "next-auth/jwt";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    // Use getToken for JWT-based authentication (works better with credentials provider)
+    const token = await getToken({ req: request });
 
-    if (!session?.user) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: "You must be signed in to verify repository" },
         { status: 401 }
