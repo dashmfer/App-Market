@@ -21,7 +21,7 @@ jobs:
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: 1.83.0
+          toolchain: 1.79.0
 
       - name: Cache Solana
         id: cache-solana
@@ -52,15 +52,27 @@ jobs:
         with:
           path: |
             ~/.cargo/bin/anchor
-          key: anchor-${{ runner.os }}-v0.32.1
+            ~/.cargo/bin/avm
+            ~/.avm
+          key: anchor-${{ runner.os }}-v0.32.1-avm
 
-      - name: Install Anchor
+      - name: Install Anchor via AVM
         if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --locked
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 0.32.1
+          avm use 0.32.1
+
+      - name: Add AVM to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.avm/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
 
       - name: Verify Anchor installation
-        run: anchor --version
+        run: |
+          which anchor || echo "Anchor not found in PATH"
+          anchor --version
 
       - name: Build program
         run: |
