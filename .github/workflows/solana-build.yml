@@ -25,6 +25,16 @@ jobs:
         with:
           toolchain: 1.85.0
 
+      - name: Verify and update toolchain
+        run: |
+          rustup default 1.85.0
+          rustup update
+          rustc --version
+          cargo --version
+          echo "Clearing cargo registry cache to avoid edition2024 errors"
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/registry/src
+
       - name: Cache Solana
         id: cache-solana
         uses: actions/cache@v4
