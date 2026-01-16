@@ -6,7 +6,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface ListingCardProps {
   listing: {
@@ -44,7 +44,6 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
   const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlisted || !!listing.watchlistId);
   const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const { toast } = useToast();
 
   const handleWatchlistToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -60,18 +59,11 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
 
         if (response.ok) {
           setIsWatchlisted(false);
-          toast({
-            title: "Removed from watchlist",
-            description: `${listing.title} has been removed from your watchlist.`,
-          });
+          toast.success("Removed from watchlist");
         } else {
           const data = await response.json();
           if (response.status === 401) {
-            toast({
-              title: "Sign in required",
-              description: "Please sign in to manage your watchlist.",
-              variant: "destructive",
-            });
+            toast.error("Please sign in to manage your watchlist");
           } else {
             throw new Error(data.error || "Failed to remove from watchlist");
           }
@@ -86,18 +78,11 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
 
         if (response.ok) {
           setIsWatchlisted(true);
-          toast({
-            title: "Added to watchlist",
-            description: `${listing.title} has been added to your watchlist.`,
-          });
+          toast.success("Added to watchlist");
         } else {
           const data = await response.json();
           if (response.status === 401) {
-            toast({
-              title: "Sign in required",
-              description: "Please sign in to manage your watchlist.",
-              variant: "destructive",
-            });
+            toast.error("Please sign in to manage your watchlist");
           } else if (data.error === "Already in watchlist") {
             setIsWatchlisted(true);
           } else {
@@ -107,11 +92,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
       }
     } catch (error) {
       console.error("Watchlist error:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Something went wrong",
-        variant: "destructive",
-      });
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
       setIsWatchlistLoading(false);
     }
