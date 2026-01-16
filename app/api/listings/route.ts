@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getToken } from "next-auth/jwt";
+import { getAuthToken } from "@/lib/auth";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -140,8 +140,8 @@ export async function GET(request: NextRequest) {
 // POST /api/listings - Create a new listing
 export async function POST(request: NextRequest) {
   try {
-    // Use getToken for JWT-based authentication (works better with credentials provider)
-    const token = await getToken({ req: request });
+    // Use getAuthToken for JWT-based authentication (works better with credentials provider)
+    const token = await getAuthToken(request);
 
     if (!token?.id) {
       return NextResponse.json(

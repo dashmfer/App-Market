@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -17,8 +17,8 @@ const updateProfileSchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
-    // Use getToken for JWT-based authentication (works better with credentials provider)
-    const token = await getToken({ req });
+    // Use getAuthToken for JWT-based authentication (works better with credentials provider)
+    const token = await getAuthToken(req);
 
     if (!token?.id) {
       return NextResponse.json(
@@ -78,8 +78,8 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    // Use getToken for JWT-based authentication (works better with credentials provider)
-    const token = await getToken({ req });
+    // Use getAuthToken for JWT-based authentication (works better with credentials provider)
+    const token = await getAuthToken(req);
 
     if (!token?.id) {
       return NextResponse.json(

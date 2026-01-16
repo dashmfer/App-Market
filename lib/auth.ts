@@ -3,10 +3,28 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
+import { NextRequest } from "next/server";
+import { getToken as nextAuthGetToken } from "next-auth/jwt";
+
+// Get the secret - must be set in environment
+const secret = process.env.NEXTAUTH_SECRET;
+
+if (!secret && process.env.NODE_ENV === "production") {
+  throw new Error("NEXTAUTH_SECRET must be set in production");
+}
+
+// Helper function to get token from request with proper secret
+export async function getAuthToken(req: NextRequest) {
+  return nextAuthGetToken({
+    req,
+    secret: secret || "development-secret-change-in-production"
+  });
+}
 
 export const authOptions: NextAuthOptions = {
   // Don't use adapter with credentials provider + JWT
   // adapter: PrismaAdapter(prisma) as any,
+  secret: secret || "development-secret-change-in-production",
   providers: [
     // Wallet provider - only authentication method
     CredentialsProvider({
