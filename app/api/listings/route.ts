@@ -265,10 +265,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ listing }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating listing:", error);
+    console.error("Error details:", error?.message, error?.code);
     return NextResponse.json(
-      { error: "Failed to create listing" },
+      { error: error?.message || "Failed to create listing" },
       { status: 500 }
     );
   }

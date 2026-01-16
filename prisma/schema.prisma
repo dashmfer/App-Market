@@ -129,7 +129,7 @@ model Listing {
   languages         String[]
   
   // Assets Included
-  githubRepo        String
+  githubRepo        String?
   githubRepoId      String?
   hasDomain         Boolean       @default(false)
   domain            String?
