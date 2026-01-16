@@ -200,9 +200,15 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields (githubRepo is optional - can use code files instead)
-    if (!title || !description || !category || !startingPrice) {
+    const missingFields: string[] = [];
+    if (!title) missingFields.push("title");
+    if (!description) missingFields.push("description");
+    if (!category) missingFields.push("category");
+    if (!startingPrice) missingFields.push("starting price");
+
+    if (missingFields.length > 0) {
       return NextResponse.json(
-        { error: "Missing required fields: title, description, category, and starting price are required" },
+        { error: `Missing required fields: ${missingFields.join(", ")}` },
         { status: 400 }
       );
     }

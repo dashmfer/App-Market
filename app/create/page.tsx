@@ -358,9 +358,15 @@ export default function CreateListingPage() {
   };
 
   const nextStep = () => {
-    if (validateStep(currentStep)) setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    if (validateStep(currentStep)) {
+      setSubmitError(null); // Clear any previous submit errors
+      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    }
   };
-  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+  const prevStep = () => {
+    setSubmitError(null); // Clear any previous submit errors
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
 
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) return;
