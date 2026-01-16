@@ -2584,21 +2584,21 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (from transaction.seller, not unchecked AccountInfo)
-    #[account(
-        mut,
-        close = transaction.seller,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
-    /// CHECK: Seller to receive funds (validated via transaction.seller)
+    /// CHECK: Seller to receive funds and escrow rent (validated via transaction.seller)
     #[account(
         mut,
         constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
     )]
     pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
 
     /// CHECK: Buyer (not used for rent, just fund transfer)
     #[account(mut)]
@@ -2625,24 +2625,24 @@ pub struct ConfirmReceipt<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (from transaction.seller)
-    #[account(
-        mut,
-        close = transaction.seller,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    /// CHECK: Seller to receive funds (validated via transaction.seller)
+    /// CHECK: Seller to receive funds and escrow rent (validated via transaction.seller)
     #[account(
         mut,
         constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
     )]
     pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
 
     /// CHECK: Treasury to receive fees - SECURITY: validated against config
     #[account(
@@ -2904,10 +2904,24 @@ pub struct ExecuteDisputeResolution<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (seller paid escrow rent during listing creation)
+    /// CHECK: Buyer (validated via transaction.buyer)
     #[account(
         mut,
-        close = transaction.seller,
+        constraint = buyer.key() == transaction.buyer @ AppMarketError::InvalidBuyer
+    )]
+    pub buyer: AccountInfo<'info>,
+
+    /// CHECK: Seller to receive escrow rent (validated via transaction.seller)
+    #[account(
+        mut,
+        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
+    )]
+    pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2920,20 +2934,6 @@ pub struct ExecuteDisputeResolution<'info> {
         bump = dispute.bump
     )]
     pub dispute: Account<'info, Dispute>,
-
-    /// CHECK: Buyer (validated via transaction.buyer)
-    #[account(
-        mut,
-        constraint = buyer.key() == transaction.buyer @ AppMarketError::InvalidBuyer
-    )]
-    pub buyer: AccountInfo<'info>,
-
-    /// CHECK: Seller (validated via transaction.seller)
-    #[account(
-        mut,
-        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
-    )]
-    pub seller: AccountInfo<'info>,
 
     /// CHECK: Treasury - SECURITY: validated against config
     #[account(
