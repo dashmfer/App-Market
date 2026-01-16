@@ -94,7 +94,7 @@ export async function POST(
     await prisma.transaction.update({
       where: { id: params.id },
       data: {
-        transferChecklist: checklist,
+        transferChecklist: checklist as unknown as Parameters<typeof prisma.transaction.update>[0]["data"]["transferChecklist"],
         sellerConfirmedTransfer: allRequiredSellerConfirmed,
         status: allRequiredSellerConfirmed ? "AWAITING_CONFIRMATION" : "TRANSFER_IN_PROGRESS",
         transferStartedAt: transaction.transferStartedAt || new Date(),

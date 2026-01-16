@@ -101,7 +101,7 @@ export async function POST(
     await prisma.transaction.update({
       where: { id: params.id },
       data: {
-        transferChecklist: checklist,
+        transferChecklist: checklist as unknown as Parameters<typeof prisma.transaction.update>[0]["data"]["transferChecklist"],
         uploadsVerified: allRequiredConfirmed,
       },
     });
