@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     const category = searchParams.get("category");
-    const status = searchParams.get("status") || "ACTIVE";
+    const status = searchParams.get("status");
+    const sellerId = searchParams.get("sellerId");
     const sort = searchParams.get("sort") || "ending-soon";
     const search = searchParams.get("search");
     const minPrice = searchParams.get("minPrice");
@@ -18,9 +19,20 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
 
     // Build where clause
-    const where: any = {
-      status: status.toUpperCase(),
-    };
+    const where: any = {};
+
+    // Only filter by status if provided (allows getting all statuses for seller's own listings)
+    if (status) {
+      where.status = status.toUpperCase();
+    } else if (!sellerId) {
+      // Default to ACTIVE only for public listings
+      where.status = "ACTIVE";
+    }
+
+    // Filter by seller
+    if (sellerId) {
+      where.sellerId = sellerId;
+    }
 
     if (category && category !== "all") {
       where.category = category.toUpperCase().replace("-", "_");
