@@ -1,11 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Shield, 
-  Zap, 
-  Globe, 
+import {
+  ArrowRight,
+  Shield,
+  Zap,
+  Globe,
   Coins,
   CheckCircle2,
   TrendingUp,
@@ -15,22 +16,20 @@ import {
   Github,
   CreditCard,
   Wallet,
+  Loader2,
 } from "lucide-react";
 import { ListingCard } from "@/components/listings/listing-card";
 import { CategoryCard } from "@/components/home/category-card";
 import { StatsCounter } from "@/components/home/stats-counter";
 import { HowItWorksStep } from "@/components/home/how-it-works-step";
 
-// Listings loaded from database
-const featuredListings: any[] = [];
-
-const categories = [
-  { name: "SaaS", slug: "saas", count: 0, icon: "💼" },
-  { name: "AI & ML", slug: "ai-ml", count: 0, icon: "🤖" },
-  { name: "Mobile Apps", slug: "mobile-app", count: 0, icon: "📱" },
-  { name: "Crypto & Web3", slug: "crypto-web3", count: 0, icon: "⛓️" },
-  { name: "E-commerce", slug: "ecommerce", count: 0, icon: "🛒" },
-  { name: "Developer Tools", slug: "developer-tools", count: 0, icon: "🛠️" },
+const categoriesBase = [
+  { name: "SaaS", slug: "saas", dbKey: "SAAS", icon: "💼" },
+  { name: "AI & ML", slug: "ai-ml", dbKey: "AI_ML", icon: "🤖" },
+  { name: "Mobile Apps", slug: "mobile-app", dbKey: "MOBILE_APP", icon: "📱" },
+  { name: "Crypto & Web3", slug: "crypto-web3", dbKey: "CRYPTO_WEB3", icon: "⛓️" },
+  { name: "E-commerce", slug: "ecommerce", dbKey: "ECOMMERCE", icon: "🛒" },
+  { name: "Developer Tools", slug: "developer-tools", dbKey: "DEVELOPER_TOOLS", icon: "🛠️" },
 ];
 
 const stats = [
@@ -68,6 +67,48 @@ const howItWorks = [
 ];
 
 export default function HomePage() {
+  const [featuredListings, setFeaturedListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    async function fetchListings() {
+      try {
+        // Fetch recent active listings (up to 4 for the homepage)
+        const response = await fetch("/api/listings?status=ACTIVE&sort=newest&limit=4");
+        if (response.ok) {
+          const data = await response.json();
+          setFeaturedListings(data.listings || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch listings:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function fetchCategoryCounts() {
+      try {
+        const response = await fetch("/api/categories");
+        if (response.ok) {
+          const data = await response.json();
+          setCategoryCounts(data.counts || {});
+        }
+      } catch (error) {
+        console.error("Failed to fetch category counts:", error);
+      }
+    }
+
+    fetchListings();
+    fetchCategoryCounts();
+  }, []);
+
+  // Map categories with dynamic counts
+  const categories = categoriesBase.map((cat) => ({
+    ...cat,
+    count: categoryCounts[cat.dbKey] || 0,
+  }));
+
   return (
     <div className="relative">
       {/* Hero Section */}
@@ -94,7 +135,7 @@ export default function HomePage() {
 
             {/* Subheadline */}
             <p className="mt-6 text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-100">
-              The marketplace for AI-generated apps, prototypes, and MVPs.
+              The marketplace for apps, prototypes, and MVPs.
               Secure on-chain auctions and transfers.
             </p>
 
@@ -169,11 +210,26 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredListings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} index={index} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+            </div>
+          ) : featuredListings.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-500 dark:text-zinc-400 mb-4">
+                No projects listed yet. Be the first to list!
+              </p>
+              <Link href="/create" className="btn-primary">
+                List Your Project
+              </Link>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredListings.map((listing, index) => (
+                <ListingCard key={listing.id} listing={listing} index={index} />
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 text-center sm:hidden">
             <Link href="/explore?featured=true" className="btn-secondary">

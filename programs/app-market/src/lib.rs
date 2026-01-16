@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey;
 
-declare_id!("8MRpcxokiUbxcZvjGpiYCxBRTBKEhbSCAQPoawgePGaU");
+declare_id!("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog");
 
 /// App Market Escrow Program
 /// Handles secure escrow for marketplace transactions
@@ -76,7 +75,7 @@ pub mod app_market {
     pub const DISPUTE_RESOLUTION_TIMELOCK_SECONDS: i64 = 48 * 60 * 60;
 
     /// Expected admin pubkey (prevents initialization frontrunning)
-    pub const EXPECTED_ADMIN: Pubkey = pubkey!("63jQ3qffMgacpUw8ebDZPuyUHf7DsfsYnQ7sk8fmFaF1");
+    pub const EXPECTED_ADMIN: Pubkey = solana_program::pubkey!("63jQ3qffMgacpUw8ebDZPuyUHf7DsfsYnQ7sk8fmFaF1");
 
     // ============================================
     // INSTRUCTIONS
@@ -557,10 +556,12 @@ pub mod app_market {
                     .ok_or(AppMarketError::MathOverflow)?;
 
                 // Derive PDA and verify
+                let listing_key = listing.key();
+                let withdrawal_count_bytes = listing.withdrawal_count.to_le_bytes();
                 let withdrawal_seeds = &[
                     b"withdrawal",
-                    listing.key().as_ref(),
-                    &listing.withdrawal_count.to_le_bytes(),
+                    listing_key.as_ref(),
+                    &withdrawal_count_bytes,
                 ];
                 let (withdrawal_pda, bump) = Pubkey::find_program_address(
                     withdrawal_seeds,
@@ -726,9 +727,10 @@ pub mod app_market {
         if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
                 // Derive PDA and bump
+                let listing_key = listing.key();
                 let withdrawal_seeds = &[
                     b"withdrawal",
-                    listing.key().as_ref(),
+                    listing_key.as_ref(),
                     previous_bidder.as_ref(),
                 ];
                 let (withdrawal_pda, bump) = Pubkey::find_program_address(
@@ -765,6 +767,7 @@ pub mod app_market {
                 withdrawal.user = previous_bidder;
                 withdrawal.listing = listing.key();
                 withdrawal.amount = old_bid;
+                withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
                 withdrawal.bump = bump;
 
@@ -774,6 +777,7 @@ pub mod app_market {
                     user: previous_bidder,
                     listing: listing.key(),
                     amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
                     timestamp: clock.unix_timestamp,
                 });
             }
@@ -1767,15 +1771,13 @@ pub mod app_market {
         ctx: Context<OpenDispute>,
         reason: String,
     ) -> Result<()> {
-        let transaction = &mut ctx.accounts.transaction;
-        let dispute = &mut ctx.accounts.dispute;
         let clock = Clock::get()?;
 
         // Validations
-        require!(transaction.status == TransactionStatus::InEscrow, AppMarketError::InvalidTransactionStatus);
+        require!(ctx.accounts.transaction.status == TransactionStatus::InEscrow, AppMarketError::InvalidTransactionStatus);
         require!(
-            ctx.accounts.initiator.key() == transaction.buyer ||
-            ctx.accounts.initiator.key() == transaction.seller,
+            ctx.accounts.initiator.key() == ctx.accounts.transaction.buyer ||
+            ctx.accounts.initiator.key() == ctx.accounts.transaction.seller,
             AppMarketError::NotPartyToTransaction
         );
         require!(
@@ -1785,7 +1787,7 @@ pub mod app_market {
 
         // SECURITY: Dispute deadline - must open within 7 days of seller confirmation
         // After deadline expires, buyer can no longer dispute and seller can finalize
-        if let Some(confirmed_at) = transaction.seller_confirmed_at {
+        if let Some(confirmed_at) = ctx.accounts.transaction.seller_confirmed_at {
             require!(
                 clock.unix_timestamp <= confirmed_at + FINALIZE_GRACE_PERIOD,
                 AppMarketError::DisputeDeadlineExpired
@@ -1793,7 +1795,7 @@ pub mod app_market {
         }
 
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
-        let dispute_fee = transaction.sale_price
+        let dispute_fee = ctx.accounts.transaction.sale_price
             .checked_mul(ctx.accounts.config.dispute_fee_bps)
             .ok_or(AppMarketError::MathOverflow)?
             .checked_div(BASIS_POINTS_DIVISOR)
@@ -1813,6 +1815,10 @@ pub mod app_market {
             },
         );
         anchor_lang::system_program::transfer(cpi_ctx, dispute_fee)?;
+
+        // Now take mutable references after CPI call
+        let transaction = &mut ctx.accounts.transaction;
+        let dispute = &mut ctx.accounts.dispute;
 
         // Update transaction status
         transaction.status = TransactionStatus::Disputed;
@@ -1859,25 +1865,25 @@ pub mod app_market {
         require!(dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview, AppMarketError::DisputeNotOpen);
 
         // SECURITY: Validate partial refund amounts upfront
-        if let DisputeResolution::PartialRefund { buyer_amount, seller_amount } = resolution {
-            require!(buyer_amount > 0 || seller_amount > 0, AppMarketError::InvalidRefundAmounts);
-            let total_refund = buyer_amount
-                .checked_add(seller_amount)
+        if let DisputeResolution::PartialRefund { buyer_amount, seller_amount } = &resolution {
+            require!(*buyer_amount > 0 || *seller_amount > 0, AppMarketError::InvalidRefundAmounts);
+            let total_refund = (*buyer_amount)
+                .checked_add(*seller_amount)
                 .ok_or(AppMarketError::MathOverflow)?;
             require!(
                 total_refund == transaction.sale_price,
                 AppMarketError::PartialRefundMustEqualSalePrice
             );
 
-            dispute.pending_buyer_amount = Some(buyer_amount);
-            dispute.pending_seller_amount = Some(seller_amount);
+            dispute.pending_buyer_amount = Some(*buyer_amount);
+            dispute.pending_seller_amount = Some(*seller_amount);
         } else {
             dispute.pending_buyer_amount = None;
             dispute.pending_seller_amount = None;
         }
 
         // Store pending resolution (starts 48hr timelock)
-        dispute.pending_resolution = Some(resolution);
+        dispute.pending_resolution = Some(resolution.clone());
         dispute.pending_resolution_at = Some(clock.unix_timestamp);
         dispute.contested = false;
         dispute.status = DisputeStatus::UnderReview;
@@ -1944,24 +1950,22 @@ pub mod app_market {
     /// Execute dispute resolution (after 48hr timelock)
     /// SECURITY: If contested, admin must re-propose new resolution
     pub fn execute_dispute_resolution(ctx: Context<ExecuteDisputeResolution>) -> Result<()> {
-        let transaction = &mut ctx.accounts.transaction;
-        let dispute = &mut ctx.accounts.dispute;
         let clock = Clock::get()?;
 
         // Must have pending resolution
         require!(
-            dispute.pending_resolution.is_some(),
+            ctx.accounts.dispute.pending_resolution.is_some(),
             AppMarketError::NoPendingChange
         );
 
         // Cannot execute if contested
         require!(
-            !dispute.contested,
+            !ctx.accounts.dispute.contested,
             AppMarketError::AlreadyContested
         );
 
         // Timelock must have expired
-        let proposed_at = dispute.pending_resolution_at.unwrap();
+        let proposed_at = ctx.accounts.dispute.pending_resolution_at.unwrap();
         require!(
             clock.unix_timestamp >= proposed_at + DISPUTE_RESOLUTION_TIMELOCK_SECONDS,
             AppMarketError::DisputeTimelockNotExpired
@@ -1972,15 +1976,23 @@ pub mod app_market {
             AppMarketError::InvalidTreasury
         );
         require!(
-            ctx.accounts.buyer.key() == transaction.buyer,
+            ctx.accounts.buyer.key() == ctx.accounts.transaction.buyer,
             AppMarketError::InvalidBuyer
         );
         require!(
-            ctx.accounts.seller.key() == transaction.seller,
+            ctx.accounts.seller.key() == ctx.accounts.transaction.seller,
             AppMarketError::InvalidSeller
         );
 
-        let resolution = dispute.pending_resolution.unwrap();
+        let resolution = ctx.accounts.dispute.pending_resolution.clone().unwrap();
+
+        // Extract values needed for CPI before taking mutable references
+        let dispute_bump = ctx.accounts.dispute.bump;
+        let dispute_fee = ctx.accounts.dispute.dispute_fee;
+        let transaction_key = ctx.accounts.transaction.key();
+        let sale_price = ctx.accounts.transaction.sale_price;
+        let platform_fee = ctx.accounts.transaction.platform_fee;
+        let seller_proceeds = ctx.accounts.transaction.seller_proceeds;
 
         // SECURITY: Validate escrow balance before any transfers
         let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
@@ -1995,10 +2007,10 @@ pub mod app_market {
         ];
         let signer = &[&seeds[..]];
 
-        match resolution {
+        match &resolution {
             DisputeResolution::FullRefund => {
                 require!(
-                    escrow_balance >= transaction.sale_price + rent,
+                    escrow_balance >= sale_price + rent,
                     AppMarketError::InsufficientEscrowBalance
                 );
 
@@ -2010,17 +2022,17 @@ pub mod app_market {
                     },
                     signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, transaction.sale_price)?;
+                anchor_lang::system_program::transfer(cpi_ctx, sale_price)?;
 
                 ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                    .checked_sub(transaction.sale_price)
+                    .checked_sub(sale_price)
                     .ok_or(AppMarketError::MathOverflow)?;
 
-                transaction.status = TransactionStatus::Refunded;
+                ctx.accounts.transaction.status = TransactionStatus::Refunded;
             },
             DisputeResolution::ReleaseToSeller => {
-                let required_balance = transaction.platform_fee
-                    .checked_add(transaction.seller_proceeds)
+                let required_balance = platform_fee
+                    .checked_add(seller_proceeds)
                     .ok_or(AppMarketError::MathOverflow)?;
                 require!(
                     escrow_balance >= required_balance + rent,
@@ -2036,10 +2048,10 @@ pub mod app_market {
                     },
                     signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, transaction.platform_fee)?;
+                anchor_lang::system_program::transfer(cpi_ctx, platform_fee)?;
 
                 ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                    .checked_sub(transaction.platform_fee)
+                    .checked_sub(platform_fee)
                     .ok_or(AppMarketError::MathOverflow)?;
 
                 // Seller proceeds
@@ -2051,17 +2063,17 @@ pub mod app_market {
                     },
                     signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, transaction.seller_proceeds)?;
+                anchor_lang::system_program::transfer(cpi_ctx, seller_proceeds)?;
 
                 ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                    .checked_sub(transaction.seller_proceeds)
+                    .checked_sub(seller_proceeds)
                     .ok_or(AppMarketError::MathOverflow)?;
 
-                transaction.status = TransactionStatus::Completed;
+                ctx.accounts.transaction.status = TransactionStatus::Completed;
             },
             DisputeResolution::PartialRefund { buyer_amount, seller_amount } => {
-                let total_refund = buyer_amount
-                    .checked_add(seller_amount)
+                let total_refund = (*buyer_amount)
+                    .checked_add(*seller_amount)
                     .ok_or(AppMarketError::MathOverflow)?;
                 require!(
                     escrow_balance >= total_refund + rent,
@@ -2069,7 +2081,7 @@ pub mod app_market {
                 );
 
                 // Transfer to buyer
-                if buyer_amount > 0 {
+                if *buyer_amount > 0 {
                     let cpi_ctx = CpiContext::new_with_signer(
                         ctx.accounts.system_program.to_account_info(),
                         anchor_lang::system_program::Transfer {
@@ -2078,15 +2090,15 @@ pub mod app_market {
                         },
                         signer,
                     );
-                    anchor_lang::system_program::transfer(cpi_ctx, buyer_amount)?;
+                    anchor_lang::system_program::transfer(cpi_ctx, *buyer_amount)?;
 
                     ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                        .checked_sub(buyer_amount)
+                        .checked_sub(*buyer_amount)
                         .ok_or(AppMarketError::MathOverflow)?;
                 }
 
                 // Transfer to seller
-                if seller_amount > 0 {
+                if *seller_amount > 0 {
                     let cpi_ctx = CpiContext::new_with_signer(
                         ctx.accounts.system_program.to_account_info(),
                         anchor_lang::system_program::Transfer {
@@ -2095,26 +2107,27 @@ pub mod app_market {
                         },
                         signer,
                     );
-                    anchor_lang::system_program::transfer(cpi_ctx, seller_amount)?;
+                    anchor_lang::system_program::transfer(cpi_ctx, *seller_amount)?;
 
                     ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
-                        .checked_sub(seller_amount)
+                        .checked_sub(*seller_amount)
                         .ok_or(AppMarketError::MathOverflow)?;
                 }
 
-                transaction.status = TransactionStatus::Completed;
+                ctx.accounts.transaction.status = TransactionStatus::Completed;
             },
         }
 
         // SECURITY: Distribute dispute fee based on resolution outcome
+        let dispute_bump_arr = [dispute_bump];
         let dispute_seeds = &[
             b"dispute",
-            transaction.key().as_ref(),
-            &[dispute.bump],
+            transaction_key.as_ref(),
+            &dispute_bump_arr,
         ];
         let dispute_signer = &[&dispute_seeds[..]];
 
-        match resolution {
+        match &resolution {
             DisputeResolution::FullRefund => {
                 // Buyer wins - refund dispute fee to buyer
                 let cpi_ctx = CpiContext::new_with_signer(
@@ -2125,7 +2138,7 @@ pub mod app_market {
                     },
                     dispute_signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, dispute.dispute_fee)?;
+                anchor_lang::system_program::transfer(cpi_ctx, dispute_fee)?;
             },
             DisputeResolution::ReleaseToSeller | DisputeResolution::PartialRefund { .. } => {
                 // Seller wins or compromise - send dispute fee to treasury
@@ -2137,22 +2150,23 @@ pub mod app_market {
                     },
                     dispute_signer,
                 );
-                anchor_lang::system_program::transfer(cpi_ctx, dispute.dispute_fee)?;
+                anchor_lang::system_program::transfer(cpi_ctx, dispute_fee)?;
             },
         }
 
         // Update dispute
-        dispute.status = DisputeStatus::Resolved;
-        dispute.resolution = Some(resolution);
-        dispute.resolved_at = Some(clock.unix_timestamp);
-        dispute.pending_resolution = None;
-        dispute.pending_resolution_at = None;
+        let resolution_notes = ctx.accounts.dispute.resolution_notes.clone();
+        ctx.accounts.dispute.status = DisputeStatus::Resolved;
+        ctx.accounts.dispute.resolution = Some(resolution.clone());
+        ctx.accounts.dispute.resolved_at = Some(clock.unix_timestamp);
+        ctx.accounts.dispute.pending_resolution = None;
+        ctx.accounts.dispute.pending_resolution_at = None;
 
         emit!(DisputeResolved {
-            dispute: dispute.key(),
-            transaction: transaction.key(),
+            dispute: ctx.accounts.dispute.key(),
+            transaction: transaction_key,
             resolution,
-            notes: dispute.resolution_notes.clone().unwrap_or_default(),
+            notes: resolution_notes.unwrap_or_default(),
             timestamp: clock.unix_timestamp,
         });
 
@@ -2584,21 +2598,21 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (from transaction.seller, not unchecked AccountInfo)
-    #[account(
-        mut,
-        close = transaction.seller,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
-    /// CHECK: Seller to receive funds (validated via transaction.seller)
+    /// CHECK: Seller to receive funds and escrow rent (validated via transaction.seller)
     #[account(
         mut,
         constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
     )]
     pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
 
     /// CHECK: Buyer (not used for rent, just fund transfer)
     #[account(mut)]
@@ -2625,24 +2639,24 @@ pub struct ConfirmReceipt<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (from transaction.seller)
-    #[account(
-        mut,
-        close = transaction.seller,
-        seeds = [b"escrow", listing.key().as_ref()],
-        bump = escrow.bump
-    )]
-    pub escrow: Account<'info, Escrow>,
-
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    /// CHECK: Seller to receive funds (validated via transaction.seller)
+    /// CHECK: Seller to receive funds and escrow rent (validated via transaction.seller)
     #[account(
         mut,
         constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
     )]
     pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
 
     /// CHECK: Treasury to receive fees - SECURITY: validated against config
     #[account(
@@ -2904,10 +2918,24 @@ pub struct ExecuteDisputeResolution<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // SECURITY: Close escrow - rent goes to seller (seller paid escrow rent during listing creation)
+    /// CHECK: Buyer (validated via transaction.buyer)
     #[account(
         mut,
-        close = transaction.seller,
+        constraint = buyer.key() == transaction.buyer @ AppMarketError::InvalidBuyer
+    )]
+    pub buyer: AccountInfo<'info>,
+
+    /// CHECK: Seller to receive escrow rent (validated via transaction.seller)
+    #[account(
+        mut,
+        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
+    )]
+    pub seller: AccountInfo<'info>,
+
+    // SECURITY: Close escrow - rent goes to seller (validated above)
+    #[account(
+        mut,
+        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2920,20 +2948,6 @@ pub struct ExecuteDisputeResolution<'info> {
         bump = dispute.bump
     )]
     pub dispute: Account<'info, Dispute>,
-
-    /// CHECK: Buyer (validated via transaction.buyer)
-    #[account(
-        mut,
-        constraint = buyer.key() == transaction.buyer @ AppMarketError::InvalidBuyer
-    )]
-    pub buyer: AccountInfo<'info>,
-
-    /// CHECK: Seller (validated via transaction.seller)
-    #[account(
-        mut,
-        constraint = seller.key() == transaction.seller @ AppMarketError::InvalidSeller
-    )]
-    pub seller: AccountInfo<'info>,
 
     /// CHECK: Treasury - SECURITY: validated against config
     #[account(
@@ -3201,6 +3215,16 @@ pub enum OfferStatus {
 // ============================================
 // EVENTS
 // ============================================
+
+#[event]
+pub struct MarketplaceInitialized {
+    pub admin: Pubkey,
+    pub treasury: Pubkey,
+    pub backend_authority: Pubkey,
+    pub platform_fee_bps: u64,
+    pub dispute_fee_bps: u64,
+    pub timestamp: i64,
+}
 
 #[event]
 pub struct ListingCreated {

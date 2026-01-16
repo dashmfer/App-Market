@@ -1,122 +1,146 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
-// Categories with count loaded from database (0 until listings exist)
-const categories = [
+// Categories base data
+const categoriesBase = [
   {
     slug: "saas",
+    dbKey: "SAAS",
     name: "SaaS",
     icon: "💼",
     description: "Software as a Service products with recurring revenue potential",
-    count: 0,
     featured: ["CRM tools", "Analytics platforms", "Marketing automation"],
     color: "from-blue-500 to-cyan-500",
   },
   {
     slug: "ai-ml",
+    dbKey: "AI_ML",
     name: "AI & Machine Learning",
     icon: "🤖",
     description: "AI-powered applications, ML models, and intelligent tools",
-    count: 0,
     featured: ["ChatGPT wrappers", "Image generators", "AI assistants"],
     color: "from-purple-500 to-pink-500",
   },
   {
     slug: "mobile-app",
+    dbKey: "MOBILE_APP",
     name: "Mobile Apps",
     icon: "📱",
     description: "iOS and Android applications ready for the app stores",
-    count: 0,
     featured: ["Fitness apps", "Social apps", "Utility apps"],
     color: "from-green-500 to-emerald-500",
   },
   {
     slug: "crypto-web3",
+    dbKey: "CRYPTO_WEB3",
     name: "Crypto & Web3",
     icon: "⛓️",
     description: "Blockchain projects, DeFi protocols, and NFT platforms",
-    count: 0,
     featured: ["DEX interfaces", "NFT marketplaces", "Wallet apps"],
     color: "from-orange-500 to-yellow-500",
   },
   {
     slug: "ecommerce",
+    dbKey: "ECOMMERCE",
     name: "E-commerce",
     icon: "🛒",
     description: "Online stores, marketplaces, and shopping platforms",
-    count: 0,
     featured: ["Shopify apps", "Dropshipping tools", "Inventory systems"],
     color: "from-pink-500 to-rose-500",
   },
   {
     slug: "developer-tools",
+    dbKey: "DEVELOPER_TOOLS",
     name: "Developer Tools",
     icon: "🛠️",
     description: "Tools and utilities that help developers build faster",
-    count: 0,
     featured: ["Code generators", "API tools", "Dev dashboards"],
     color: "from-zinc-600 to-zinc-800",
   },
   {
     slug: "web-app",
+    dbKey: "WEB_APP",
     name: "Web Apps",
     icon: "🌐",
     description: "Full-stack web applications for various use cases",
-    count: 0,
     featured: ["Dashboards", "Booking systems", "Community platforms"],
     color: "from-teal-500 to-cyan-500",
   },
   {
     slug: "browser-extension",
+    dbKey: "BROWSER_EXTENSION",
     name: "Browser Extensions",
     icon: "🧩",
     description: "Chrome, Firefox, and other browser extensions",
-    count: 0,
     featured: ["Productivity tools", "Ad blockers", "Social tools"],
     color: "from-indigo-500 to-blue-500",
   },
   {
     slug: "api",
+    dbKey: "API",
     name: "APIs & Services",
     icon: "🔌",
     description: "Backend services, APIs, and microservices",
-    count: 0,
     featured: ["Payment APIs", "Auth services", "Data APIs"],
     color: "from-red-500 to-orange-500",
   },
   {
     slug: "productivity",
+    dbKey: "PRODUCTIVITY",
     name: "Productivity",
     icon: "✅",
     description: "Tools to help people work smarter and faster",
-    count: 0,
     featured: ["Note apps", "Task managers", "Time trackers"],
     color: "from-emerald-500 to-teal-500",
   },
   {
     slug: "social",
+    dbKey: "SOCIAL",
     name: "Social & Community",
     icon: "👥",
     description: "Social networks, community platforms, and engagement tools",
-    count: 0,
     featured: ["Forums", "Dating apps", "Networking tools"],
     color: "from-violet-500 to-purple-500",
   },
   {
     slug: "gaming",
+    dbKey: "GAMING",
     name: "Gaming",
     icon: "🎮",
     description: "Games, gaming tools, and entertainment platforms",
-    count: 0,
     featured: ["Casual games", "Gaming utilities", "Esports tools"],
     color: "from-fuchsia-500 to-pink-500",
   },
 ];
 
 export default function CategoriesPage() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        const res = await fetch("/api/categories");
+        if (res.ok) {
+          const data = await res.json();
+          setCounts(data.counts || {});
+        }
+      } catch (error) {
+        console.error("Failed to fetch category counts:", error);
+      }
+    }
+    fetchCounts();
+  }, []);
+
+  // Map categories with counts
+  const categories = categoriesBase.map((cat) => ({
+    ...cat,
+    count: counts[cat.dbKey] || 0,
+  }));
+
   return (
     <div className="min-h-screen">
       {/* Hero */}

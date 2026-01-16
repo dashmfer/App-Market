@@ -15,15 +15,18 @@ interface ListingCardProps {
     tagline?: string;
     thumbnailUrl?: string;
     category: string;
-    techStack: string[];
-    currentBid: number;
+    techStack?: string[];
+    currentBid?: number;
+    startingPrice?: number;
     buyNowPrice?: number;
-    endTime: Date;
-    bidCount: number;
-    seller: {
-      name: string;
-      rating: number;
-      verified: boolean;
+    endTime: string | Date;
+    bidCount?: number;
+    _count?: { bids: number };
+    seller?: {
+      name?: string;
+      username?: string;
+      rating?: number;
+      verified?: boolean;
     };
   };
   index?: number;
@@ -33,8 +36,14 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
   const [isWatchlisted, setIsWatchlisted] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const timeLeft = formatDistanceToNow(listing.endTime, { addSuffix: false });
-  const isEndingSoon = listing.endTime.getTime() - Date.now() < 86400000; // 24 hours
+  // Convert endTime to Date if it's a string
+  const endDate = typeof listing.endTime === 'string' ? new Date(listing.endTime) : listing.endTime;
+  const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
+  const isEndingSoon = endDate.getTime() - Date.now() < 86400000; // 24 hours
+
+  // Get current bid or starting price
+  const displayPrice = listing.currentBid || listing.startingPrice || 0;
+  const bidCount = listing.bidCount || listing._count?.bids || 0;
 
   const categoryLabels: Record<string, string> = {
     SAAS: "SaaS",
@@ -123,39 +132,45 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
             )}
 
             {/* Tech Stack */}
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {listing.techStack.slice(0, 3).map((tech) => (
-                <span
-                  key={tech}
-                  className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400"
-                >
-                  {tech}
-                </span>
-              ))}
-              {listing.techStack.length > 3 && (
-                <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
-                  +{listing.techStack.length - 3}
-                </span>
-              )}
-            </div>
+            {listing.techStack && listing.techStack.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {listing.techStack.slice(0, 3).map((tech) => (
+                  <span
+                    key={tech}
+                    className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400"
+                  >
+                    {tech}
+                  </span>
+                ))}
+                {listing.techStack.length > 3 && (
+                  <span className="px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-xs text-zinc-600 dark:text-zinc-400">
+                    +{listing.techStack.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Seller */}
-            <div className="mt-4 flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                <span className="text-[10px] font-medium text-white">
-                  {listing.seller.name[0].toUpperCase()}
+            {listing.seller && (
+              <div className="mt-4 flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                  <span className="text-[10px] font-medium text-white">
+                    {(listing.seller.name || listing.seller.username || "?")[0].toUpperCase()}
+                  </span>
+                </div>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {listing.seller.name || listing.seller.username || "Anonymous"}
                 </span>
+                {listing.seller.verified && (
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                )}
+                {listing.seller.rating && (
+                  <span className="text-sm text-zinc-400">
+                    {listing.seller.rating}★
+                  </span>
+                )}
               </div>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                {listing.seller.name}
-              </span>
-              {listing.seller.verified && (
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-              )}
-              <span className="text-sm text-zinc-400">
-                {listing.seller.rating}★
-              </span>
-            </div>
+            )}
 
             {/* Price & Actions */}
             <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
@@ -163,11 +178,11 @@ export function ListingCard({ listing, index = 0 }: ListingCardProps) {
                 <div>
                   <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
                     <Gavel className="w-4 h-4" />
-                    <span>{listing.bidCount} bids</span>
+                    <span>{bidCount} bids</span>
                   </div>
                   <div className="mt-1 flex items-baseline gap-1">
                     <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                      {listing.currentBid}
+                      {displayPrice}
                     </span>
                     <span className="text-sm text-zinc-500">SOL</span>
                   </div>

@@ -1,0 +1,141 @@
+{
+  "address": "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog",
+  "version": "0.1.0",
+  "name": "app_market",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "config",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "treasury",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "platformFeeBps",
+          "type": "u64"
+        },
+        {
+          "name": "disputeFeeBps",
+          "type": "u64"
+        },
+        {
+          "name": "backendAuthority",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MarketConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "backendAuthority",
+            "type": "pubkey"
+          },
+          {
+            "name": "platformFeeBps",
+            "type": "u64"
+          },
+          {
+            "name": "disputeFeeBps",
+            "type": "u64"
+          },
+          {
+            "name": "totalVolume",
+            "type": "u64"
+          },
+          {
+            "name": "totalSales",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "pendingTreasury",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "pendingTreasuryAt",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "pendingAdmin",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "pendingAdminAt",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NotAdmin",
+      "msg": "Not authorized: admin only"
+    },
+    {
+      "code": 6001,
+      "name": "NotExpectedAdmin",
+      "msg": "Not the expected admin for initialization"
+    },
+    {
+      "code": 6002,
+      "name": "FeeTooHigh",
+      "msg": "Fee exceeds maximum allowed"
+    },
+    {
+      "code": 6003,
+      "name": "ContractPaused",
+      "msg": "Contract is paused"
+    }
+  ],
+  "metadata": {
+    "address": "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
+  }
+}

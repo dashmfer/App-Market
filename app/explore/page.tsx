@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -9,6 +9,7 @@ import {
   List,
   ChevronDown,
   X,
+  Loader2,
 } from "lucide-react";
 import { ListingCard } from "@/components/listings/listing-card";
 
@@ -40,16 +41,93 @@ const priceRanges = [
   { value: "100+", label: "100+ SOL" },
 ];
 
-// Listings loaded from database
-const mockListings: any[] = [];
+interface Listing {
+  id: string;
+  slug: string;
+  title: string;
+  tagline?: string;
+  description: string;
+  category: string;
+  status: string;
+  startingPrice: number;
+  currentBid?: number;
+  currency: string;
+  thumbnailUrl?: string;
+  endTime: string;
+  createdAt: string;
+  seller: {
+    id: string;
+    name?: string;
+    username?: string;
+  };
+  _count?: {
+    bids: number;
+  };
+}
 
 export default function ExplorePage() {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedSort, setSelectedSort] = useState("ending-soon");
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+
+  const fetchListings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      params.set("status", "ACTIVE");
+      params.set("sort", selectedSort);
+
+      if (selectedCategory !== "all") {
+        params.set("category", selectedCategory);
+      }
+
+      if (searchQuery) {
+        params.set("search", searchQuery);
+      }
+
+      if (selectedPrice !== "all") {
+        const [min, max] = selectedPrice.split("-");
+        if (min) params.set("minPrice", min);
+        if (max && max !== "+") params.set("maxPrice", max);
+        if (selectedPrice === "100+") params.set("minPrice", "100");
+      }
+
+      const response = await fetch(`/api/listings?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setListings(data.listings || []);
+      } else {
+        setError("Failed to load listings");
+      }
+    } catch (err) {
+      setError("Failed to load listings");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, selectedSort, selectedPrice, searchQuery]);
+
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== "") {
+        fetchListings();
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const activeFiltersCount = [
     selectedCategory !== "all",
@@ -235,27 +313,59 @@ export default function ExplorePage() {
         {/* Results Count */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-zinc-500">
-            Showing <span className="font-medium text-zinc-900 dark:text-zinc-100">{mockListings.length}</span> projects
+            {loading ? (
+              "Loading..."
+            ) : (
+              <>
+                Showing{" "}
+                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                  {listings.length}
+                </span>{" "}
+                projects
+              </>
+            )}
           </p>
         </div>
 
-        {/* Listings Grid */}
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "space-y-4"
-          }
-        >
-          {mockListings.map((listing, index) => (
-            <ListingCard key={listing.id} listing={listing} index={index} />
-          ))}
-        </div>
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p className="text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          </div>
+        ) : listings.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-zinc-500 dark:text-zinc-400">
+              No projects found. Try adjusting your filters.
+            </p>
+          </div>
+        ) : (
+          /* Listings Grid */
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : "space-y-4"
+            }
+          >
+            {listings.map((listing, index) => (
+              <ListingCard key={listing.id} listing={listing} index={index} />
+            ))}
+          </div>
+        )}
 
         {/* Load More */}
-        <div className="mt-12 text-center">
-          <button className="btn-secondary">Load More Projects</button>
-        </div>
+        {!loading && listings.length > 0 && (
+          <div className="mt-12 text-center">
+            <button className="btn-secondary">Load More Projects</button>
+          </div>
+        )}
       </div>
     </div>
   );

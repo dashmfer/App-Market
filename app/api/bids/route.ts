@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
@@ -55,14 +54,17 @@ export async function GET(request: NextRequest) {
 // POST /api/bids - Place a bid
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // Use getAuthToken for JWT-based authentication (works better with credentials provider)
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - please sign in with your wallet" },
         { status: 401 }
       );
     }
+
+    const userId = token.id as string;
 
     const body = await request.json();
     const { listingId, amount, maxBid, currency, onChainTx } = body;
@@ -110,7 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check seller not bidding
-    if (listing.sellerId === session.user.id) {
+    if (listing.sellerId === userId) {
       return NextResponse.json(
         { error: "Seller cannot bid on their own listing" },
         { status: 400 }
@@ -118,12 +120,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check minimum bid
-    const currentHighBid = listing.bids[0]?.amount || listing.startingPrice;
-    if (amount <= currentHighBid) {
-      return NextResponse.json(
-        { error: `Bid must be higher than ${currentHighBid} ${listing.currency}` },
-        { status: 400 }
-      );
+    const currentHighBid = listing.bids[0]?.amount || null;
+
+    if (currentHighBid !== null) {
+      // There are existing bids - new bid must be higher
+      if (amount <= currentHighBid) {
+        return NextResponse.json(
+          { error: `Bid must be higher than ${currentHighBid} ${listing.currency}` },
+          { status: 400 }
+        );
+      }
+    } else {
+      // No bids yet - bid must be at least the starting price
+      if (amount < listing.startingPrice) {
+        return NextResponse.json(
+          { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
+          { status: 400 }
+        );
+      }
     }
 
     // Mark previous winning bid as outbid
@@ -161,7 +175,7 @@ export async function POST(request: NextRequest) {
         onChainTx,
         isWinning: true,
         listingId,
-        bidderId: session.user.id,
+        bidderId: userId,
       },
       include: {
         bidder: {

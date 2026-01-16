@@ -94,7 +94,7 @@ const buyerSteps = [
     icon: Shield,
     title: "Ownership Secured",
     description:
-      "Once you confirm receipt, you're the new owner! Receive an NFT certificate of ownership for the project.",
+      "Once you confirm receipt, you're the new owner! All assets are transferred and the sale is complete.",
   },
 ];
 

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
@@ -34,7 +36,10 @@ import {
   CheckCircle2,
   ExternalLink,
   File,
+  Wallet,
 } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 const steps = [
   { id: 1, name: "Basics", description: "Project info" },
@@ -76,10 +81,16 @@ const socialPlatforms = [
 
 export default function CreateListingPage() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const { publicKey, signMessage, connected } = useWallet();
+  const { setVisible: setWalletModalVisible } = useWalletModal();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const isAuthenticated = status === "authenticated";
+  const isLoading = status === "loading";
   
   const [formData, setFormData] = useState({
     // Step 1: Basics
@@ -353,17 +364,85 @@ export default function CreateListingPage() {
 
   const handleSubmit = async () => {
     if (!validateStep(currentStep)) return;
+    setSubmitError(null);
+
+    // Check wallet connection
+    if (!connected || !publicKey || !signMessage) {
+      setSubmitError("Please connect your wallet to publish the listing.");
+      setWalletModalVisible(true);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Submit to API
+      // Create a message to sign for listing creation
+      const message = `Create listing on App Market.\n\nTitle: ${formData.title}\nWallet: ${publicKey.toBase58()}\nTimestamp: ${new Date().toISOString()}`;
+      const encodedMessage = new TextEncoder().encode(message);
+
+      // Request signature from wallet
+      const signature = await signMessage(encodedMessage);
+
+      // Convert signature to base58
+      const bs58 = await import("bs58");
+      const signatureBase58 = bs58.default.encode(signature);
+
+      // Submit to API with wallet signature
+      // Map form fields to API expected fields
       const response = await fetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          title: formData.title,
+          tagline: formData.tagline,
+          description: formData.description,
+          category: formData.category,
+          techStack: formData.techStack,
+          thumbnailUrl: formData.profileImagePreview || null, // Map profileImagePreview to thumbnailUrl
+          demoUrl: formData.demoUrl,
+          videoUrl: formData.videoUrl,
+          githubRepo: formData.githubRepo,
+          hasDomain: formData.hasDomain,
+          domain: formData.domain,
+          hasDatabase: formData.hasDatabase,
+          databaseType: formData.databaseType,
+          hasHosting: formData.hasHosting,
+          hostingProvider: formData.hostingProvider,
+          hasSocialAccounts: formData.socialAccounts.length > 0,
+          socialAccounts: formData.socialAccounts.length > 0 ? JSON.stringify(formData.socialAccounts) : null,
+          hasApiKeys: formData.hasApiKeys,
+          hasDesignFiles: formData.hasDesignFiles,
+          hasDocumentation: formData.hasDocumentation,
+          additionalAssets: formData.additionalAssets,
+          startingPrice: formData.startingPrice,
+          reservePrice: formData.reservePrice || null,
+          buyNowEnabled: formData.enableBuyNow,
+          buyNowPrice: formData.buyNowPrice || null,
+          currency: formData.currency,
+          duration: formData.duration,
+          walletAddress: publicKey.toBase58(),
+          walletSignature: signatureBase58,
+          signedMessage: message,
+        }),
       });
-      
+
       if (response.ok) {
         router.push("/dashboard/listings");
+      } else {
+        let errorMessage = "Failed to create listing";
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch {
+          // Response might be empty or not JSON
+          errorMessage = `Server error (${response.status}). Please try again.`;
+        }
+        setSubmitError(errorMessage);
+      }
+    } catch (error: any) {
+      if (error.message?.includes("User rejected") || error.message?.includes("rejected")) {
+        setSubmitError("Signature request was rejected. Please try again.");
+      } else {
+        setSubmitError(`Failed to create listing: ${error.message || "Unknown error"}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -400,9 +479,53 @@ export default function CreateListingPage() {
     return items;
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+            <Wallet className="w-8 h-8 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+            Sign in required
+          </h2>
+          <p className="mt-2 text-zinc-500">
+            Connect your wallet to create a listing.
+          </p>
+          <Link href="/auth/signin?callbackUrl=/create">
+            <Button variant="primary" size="lg" className="mt-6">
+              <Wallet className="w-5 h-5" />
+              Sign In
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 md:py-12">
       <div className="container-tight">
+        {/* Submit Error */}
+        {submitError && (
+          <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm">{submitError}</span>
+            </div>
+          </div>
+        )}
+
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -656,8 +779,21 @@ export default function CreateListingPage() {
                 {/* Code & Repository Section */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Code & Repository</h2>
-                  <p className="text-zinc-500 mb-6">Source code and version control access</p>
-                  
+                  <p className="text-zinc-500 mb-4">Source code and version control access</p>
+
+                  {/* Required notice */}
+                  <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      <strong>Required:</strong> You must include at least one - either Code Files or a GitHub Repository (or both).
+                    </p>
+                  </div>
+
+                  {errors.assets && (
+                    <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                      <p className="text-sm text-red-600 dark:text-red-400">{errors.assets}</p>
+                    </div>
+                  )}
+
                   <div className="space-y-6">
                     {/* Code Files */}
                     <div className={`p-4 rounded-xl border ${formData.hasCodeFiles ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>

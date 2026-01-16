@@ -29,13 +29,30 @@ export default function SettingsPage() {
     console.log("[Settings] Wallet pubkey:", publicKey?.toBase58());
   }, [session, status, connected, publicKey]);
 
-  // Load initial profile data from session
+  // Load initial profile data from API
   useEffect(() => {
-    if (session?.user) {
-      setProfileImage(session.user.image || null);
-      setDisplayName(session.user.name || "");
+    async function loadProfile() {
+      if (status === "authenticated" && session?.user?.id) {
+        try {
+          const res = await fetch("/api/profile", {
+            credentials: "include",
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setProfileImage(data.image || null);
+            setDisplayName(data.displayName || data.name || "");
+            setBio(data.bio || "");
+          }
+        } catch (error) {
+          console.error("Failed to load profile:", error);
+          // Fallback to session data
+          setProfileImage(session.user.image || null);
+          setDisplayName(session.user.name || "");
+        }
+      }
     }
-  }, [session]);
+    loadProfile();
+  }, [session, status]);
 
   const handleConnectWallet = () => {
     setWalletModalVisible(true);
@@ -144,7 +161,7 @@ export default function SettingsPage() {
 
   const handleSaveProfile = async () => {
     try {
-      const res = await fetch("/api/user/profile", {
+      const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -155,6 +172,9 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) throw new Error("Failed to save profile");
+
+      // Refresh session to update display name across the app
+      await updateSession();
 
       alert("Profile updated successfully!");
     } catch (error) {

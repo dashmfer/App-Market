@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useConnection } from "@solana/wallet-adapter-react";
+import {
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL
+} from "@solana/web3.js";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +28,7 @@ import {
   CheckCircle2,
   Loader2,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import { formatSol, formatCurrency } from "@/lib/utils";
 
@@ -31,11 +39,13 @@ interface BidModalProps {
     id: string;
     title: string;
     currentBid: number;
+    startingPrice: number;
     buyNowPrice?: number | null;
     buyNowEnabled: boolean;
     currency: string;
+    escrowAddress?: string | null;
   };
-  onBidSuccess?: (amount: number, method: string) => void;
+  onBidSuccess?: (amount: number, method: string, txSignature?: string) => void;
 }
 
 type PaymentMethod = "SOL" | "USDC" | "CARD";
@@ -52,8 +62,9 @@ export function BidModal({
   const [step, setStep] = useState<"amount" | "payment" | "confirm">("amount");
   const [error, setError] = useState<string | null>(null);
 
-  const { connected, publicKey } = useWallet();
+  const { connected, publicKey, signMessage, sendTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
+  const { connection } = useConnection();
 
   const minimumBid = listing.currentBid + 1;
   const solPriceUsd = 150; // Would fetch real price
@@ -89,10 +100,66 @@ export function BidModal({
     setError(null);
 
     try {
+      let txSignature: string | undefined;
+
       if (paymentMethod === "SOL") {
-        // Handle Solana payment
-        // This would call the smart contract
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        // Verify wallet is connected
+        if (!connected || !publicKey || !sendTransaction) {
+          setWalletModalVisible(true);
+          throw new Error("Please connect your wallet first");
+        }
+
+        // Get or create escrow address
+        // For now, we'll use a platform escrow wallet
+        // In production, this should be a PDA from the smart contract
+        const escrowPubkey = listing.escrowAddress
+          ? new PublicKey(listing.escrowAddress)
+          : new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB"); // Platform escrow
+
+        // Create transfer transaction
+        const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);
+        const transaction = new Transaction().add(
+          SystemProgram.transfer({
+            fromPubkey: publicKey,
+            toPubkey: escrowPubkey,
+            lamports,
+          })
+        );
+
+        // Get latest blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
+
+        // Send and confirm transaction
+        txSignature = await sendTransaction(transaction, connection);
+
+        // Wait for confirmation
+        await connection.confirmTransaction({
+          blockhash,
+          lastValidBlockHeight,
+          signature: txSignature,
+        });
+
+        // Record bid in database with transaction signature
+        const response = await fetch("/api/bids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listingId: listing.id,
+            amount: bidAmount,
+            currency: "SOL",
+            paymentMethod: "SOL",
+            onChainTx: txSignature,
+            walletAddress: publicKey.toBase58(),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to record bid");
+        }
+
       } else if (paymentMethod === "CARD") {
         // Handle Stripe payment
         const response = await fetch("/api/payments/create-intent", {
@@ -111,13 +178,21 @@ export function BidModal({
 
         // Would redirect to Stripe checkout or use Elements
         await new Promise((resolve) => setTimeout(resolve, 2000));
+      } else if (paymentMethod === "USDC") {
+        // Handle USDC payment (SPL token transfer)
+        throw new Error("USDC payments coming soon");
       }
 
-      onBidSuccess?.(bidAmount, paymentMethod);
+      onBidSuccess?.(bidAmount, paymentMethod, txSignature);
       onOpenChange(false);
       setStep("amount");
     } catch (err: any) {
-      setError(err.message || "Failed to place bid");
+      console.error("Bid error:", err);
+      if (err.message?.includes("User rejected") || err.message?.includes("rejected")) {
+        setError("Transaction was rejected. Please try again.");
+      } else {
+        setError(err.message || "Failed to place bid");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -271,9 +346,19 @@ export function BidModal({
             </div>
 
             <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Your funds will be held in escrow until the auction ends. If you don't win, they'll be refunded automatically.
-              </p>
+              <div className="flex items-start gap-2">
+                <Lock className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    Secure Escrow Transaction
+                  </p>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                    {paymentMethod === "SOL"
+                      ? "You will be prompted to sign a transaction to transfer funds to escrow. Funds are held securely until the auction ends. If you don't win, they'll be refunded automatically."
+                      : "Your funds will be held in escrow until the auction ends."}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {error && (

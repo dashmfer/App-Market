@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -9,7 +8,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     const category = searchParams.get("category");
-    const status = searchParams.get("status") || "ACTIVE";
+    const status = searchParams.get("status");
+    const sellerId = searchParams.get("sellerId");
     const sort = searchParams.get("sort") || "ending-soon";
     const search = searchParams.get("search");
     const minPrice = searchParams.get("minPrice");
@@ -19,9 +19,20 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
 
     // Build where clause
-    const where: any = {
-      status: status.toUpperCase(),
-    };
+    const where: any = {};
+
+    // Only filter by status if provided (allows getting all statuses for seller's own listings)
+    if (status) {
+      where.status = status.toUpperCase();
+    } else if (!sellerId) {
+      // Default to ACTIVE only for public listings
+      where.status = "ACTIVE";
+    }
+
+    // Filter by seller
+    if (sellerId) {
+      where.sellerId = sellerId;
+    }
 
     if (category && category !== "all") {
       where.category = category.toUpperCase().replace("-", "_");
@@ -141,14 +152,17 @@ export async function GET(request: NextRequest) {
 // POST /api/listings - Create a new listing
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // Use getAuthToken for JWT-based authentication (works better with credentials provider)
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized - please sign in with your wallet" },
         { status: 401 }
       );
     }
+
+    const userId = token.id as string;
 
     const body = await request.json();
     const {
@@ -185,10 +199,10 @@ export async function POST(request: NextRequest) {
       duration,
     } = body;
 
-    // Validate required fields
-    if (!title || !description || !category || !githubRepo || !startingPrice) {
+    // Validate required fields (githubRepo is optional - can use code files instead)
+    if (!title || !description || !category || !startingPrice) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: title, description, category, and starting price are required" },
         { status: 400 }
       );
     }
@@ -229,7 +243,9 @@ export async function POST(request: NextRequest) {
         hasHosting,
         hostingProvider,
         hasSocialAccounts,
-        socialAccounts: socialAccounts ? JSON.parse(socialAccounts) : null,
+        socialAccounts: socialAccounts && typeof socialAccounts === 'string' && socialAccounts.trim()
+          ? JSON.parse(socialAccounts)
+          : (typeof socialAccounts === 'object' ? socialAccounts : null),
         hasApiKeys,
         hasDesignFiles,
         hasDocumentation,
@@ -248,7 +264,7 @@ export async function POST(request: NextRequest) {
         currency,
         endTime,
         status: "ACTIVE",
-        sellerId: session.user.id,
+        sellerId: userId,
         publishedAt: new Date(),
       },
       include: {
@@ -263,10 +279,11 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ listing }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating listing:", error);
+    console.error("Error details:", error?.message, error?.code);
     return NextResponse.json(
-      { error: "Failed to create listing" },
+      { error: error?.message || "Failed to create listing" },
       { status: 500 }
     );
   }

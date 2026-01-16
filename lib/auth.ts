@@ -1,67 +1,37 @@
 import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import GithubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
 import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
+import { NextRequest } from "next/server";
+import { getToken as nextAuthGetToken } from "next-auth/jwt";
+
+// Get the secret - must be set in environment
+const secret = process.env.NEXTAUTH_SECRET;
+
+if (!secret && process.env.NODE_ENV === "production") {
+  throw new Error("NEXTAUTH_SECRET must be set in production");
+}
+
+// Helper function to get token from request with proper secret
+export async function getAuthToken(req: NextRequest) {
+  const cookieName = process.env.NODE_ENV === "production"
+    ? "__Secure-next-auth.session-token"
+    : "next-auth.session-token";
+
+  return nextAuthGetToken({
+    req,
+    secret: secret || "development-secret-change-in-production",
+    cookieName,
+  });
+}
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  // Don't use adapter with credentials provider + JWT
+  // adapter: PrismaAdapter(prisma) as any,
+  secret: secret || "development-secret-change-in-production",
   providers: [
-    GithubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-      profile(profile) {
-        return {
-          id: profile.id.toString(),
-          name: profile.name || profile.login,
-          email: profile.email,
-          image: profile.avatar_url,
-          githubId: profile.id.toString(),
-          githubUsername: profile.login,
-        };
-      },
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_ID!,
-      clientSecret: process.env.GOOGLE_SECRET!,
-    }),
-    CredentialsProvider({
-      id: "credentials",
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user || !user.passwordHash) {
-          throw new Error("Invalid credentials");
-        }
-
-        const isValid = await compare(credentials.password, user.passwordHash);
-
-        if (!isValid) {
-          throw new Error("Invalid credentials");
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        };
-      },
-    }),
+    // Wallet provider - only authentication method
     CredentialsProvider({
       id: "wallet",
       name: "Solana Wallet",
@@ -75,7 +45,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
-        // Verify wallet signature directly (no HTTP request needed)
+        // Verify wallet signature directly
         const result = await verifyWalletSignature(
           credentials.publicKey,
           credentials.signature,
@@ -101,12 +71,14 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      name: process.env.NODE_ENV === "production"
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
       },
     },
   },
@@ -116,57 +88,22 @@ export const authOptions: NextAuthOptions = {
   },
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
-    async jwt({ token, user, account }) {
-      console.log('[Auth JWT Callback] Starting JWT callback', {
-        hasToken: !!token,
-        hasUser: !!user,
-        hasAccount: !!account,
-        tokenId: token?.id,
-        userId: user?.id,
-        accountProvider: account?.provider,
-      });
-
+    async jwt({ token, user }) {
+      // When signing in, add user data to token
       if (user) {
         token.id = user.id;
-        console.log('[Auth JWT Callback] Set token.id from user:', token.id);
+        token.walletAddress = (user as any).walletAddress;
       }
-
-      if (account?.provider === "github") {
-        console.log('[Auth JWT Callback] Linking GitHub account');
-        try {
-          // Link GitHub account data
-          await prisma.user.update({
-            where: { id: token.id as string },
-            data: {
-              githubId: account.providerAccountId,
-            },
-          });
-        } catch (error) {
-          console.error('[Auth JWT Callback] Failed to link GitHub account:', error);
-        }
-      }
-
-      console.log('[Auth JWT Callback] Final token.id:', token.id);
       return token;
     },
     async session({ session, token }) {
-      console.log('[Auth Session Callback] Starting session callback', {
-        hasSession: !!session,
-        hasSessionUser: !!session?.user,
-        hasToken: !!token,
-        tokenId: token?.id,
-      });
-
-      if (session.user) {
-        // First, set the ID from the token
+      if (session.user && token) {
         session.user.id = token.id as string;
+        (session.user as any).walletAddress = token.walletAddress;
 
-        console.log('[Auth Session Callback] Set user ID from token:', session.user.id);
-
-        // Only fetch additional data if we have a valid ID
+        // Fetch additional user data from database
         if (token.id) {
           try {
-            // Fetch additional user data including image
             const user = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: {
@@ -178,61 +115,19 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
-            console.log('[Auth Session Callback] Database query result:', {
-              found: !!user,
-              username: user?.username,
-              hasImage: !!user?.image,
-            });
-
             if (user) {
               (session.user as any).username = user.username;
               (session.user as any).walletAddress = user.walletAddress;
               (session.user as any).isVerified = user.isVerified;
               (session.user as any).githubUsername = user.githubUsername;
-              // Update session with current image from database
               session.user.image = user.image;
-            } else {
-              console.error('[Auth Session Callback] User not found in database:', token.id);
             }
           } catch (error) {
             console.error('[Auth Session Callback] Database error:', error);
-            // Don't throw - allow session to continue with just the ID
           }
-        } else {
-          console.error('[Auth Session Callback] Token ID is missing!');
         }
-      } else {
-        console.error('[Auth Session Callback] session.user is missing!');
       }
-
-      console.log('[Auth Session Callback] Final session:', {
-        hasUser: !!session.user,
-        userId: session.user?.id,
-        userEmail: session.user?.email,
-        userName: session.user?.name,
-      });
-
       return session;
-    },
-  },
-  events: {
-    async createUser({ user }) {
-      // Generate username from email or name
-      const baseUsername = (user.email?.split("@")[0] || user.name?.toLowerCase().replace(/\s/g, "_") || "user")
-        .slice(0, 20);
-      
-      const existingUser = await prisma.user.findFirst({
-        where: { username: { startsWith: baseUsername } },
-      });
-
-      const username = existingUser
-        ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
-        : baseUsername;
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { username },
-      });
     },
   },
 };
@@ -256,5 +151,6 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    walletAddress?: string;
   }
 }
