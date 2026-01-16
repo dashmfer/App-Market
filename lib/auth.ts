@@ -1,6 +1,5 @@
 import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import GithubProvider from "next-auth/providers/github";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
@@ -8,22 +7,7 @@ import { verifyWalletSignature } from "@/lib/wallet-verification";
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   providers: [
-    // GitHub provider - used for account verification (linking GitHub to wallet account)
-    GithubProvider({
-      clientId: process.env.GITHUB_ID!,
-      clientSecret: process.env.GITHUB_SECRET!,
-      profile(profile) {
-        return {
-          id: profile.id.toString(),
-          name: profile.name || profile.login,
-          email: profile.email,
-          image: profile.avatar_url,
-          githubId: profile.id.toString(),
-          githubUsername: profile.login,
-        };
-      },
-    }),
-    // Wallet provider - primary authentication method
+    // Wallet provider - only authentication method
     CredentialsProvider({
       id: "wallet",
       name: "Solana Wallet",
@@ -78,57 +62,18 @@ export const authOptions: NextAuthOptions = {
   },
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
-    async jwt({ token, user, account }) {
-      console.log('[Auth JWT Callback] Starting JWT callback', {
-        hasToken: !!token,
-        hasUser: !!user,
-        hasAccount: !!account,
-        tokenId: token?.id,
-        userId: user?.id,
-        accountProvider: account?.provider,
-      });
-
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        console.log('[Auth JWT Callback] Set token.id from user:', token.id);
       }
-
-      if (account?.provider === "github") {
-        console.log('[Auth JWT Callback] Linking GitHub account');
-        try {
-          // Link GitHub account data
-          await prisma.user.update({
-            where: { id: token.id as string },
-            data: {
-              githubId: account.providerAccountId,
-            },
-          });
-        } catch (error) {
-          console.error('[Auth JWT Callback] Failed to link GitHub account:', error);
-        }
-      }
-
-      console.log('[Auth JWT Callback] Final token.id:', token.id);
       return token;
     },
     async session({ session, token }) {
-      console.log('[Auth Session Callback] Starting session callback', {
-        hasSession: !!session,
-        hasSessionUser: !!session?.user,
-        hasToken: !!token,
-        tokenId: token?.id,
-      });
-
       if (session.user) {
-        // First, set the ID from the token
         session.user.id = token.id as string;
 
-        console.log('[Auth Session Callback] Set user ID from token:', session.user.id);
-
-        // Only fetch additional data if we have a valid ID
         if (token.id) {
           try {
-            // Fetch additional user data including image
             const user = await prisma.user.findUnique({
               where: { id: token.id as string },
               select: {
@@ -140,49 +85,27 @@ export const authOptions: NextAuthOptions = {
               },
             });
 
-            console.log('[Auth Session Callback] Database query result:', {
-              found: !!user,
-              username: user?.username,
-              hasImage: !!user?.image,
-            });
-
             if (user) {
               (session.user as any).username = user.username;
               (session.user as any).walletAddress = user.walletAddress;
               (session.user as any).isVerified = user.isVerified;
               (session.user as any).githubUsername = user.githubUsername;
-              // Update session with current image from database
               session.user.image = user.image;
-            } else {
-              console.error('[Auth Session Callback] User not found in database:', token.id);
             }
           } catch (error) {
             console.error('[Auth Session Callback] Database error:', error);
-            // Don't throw - allow session to continue with just the ID
           }
-        } else {
-          console.error('[Auth Session Callback] Token ID is missing!');
         }
-      } else {
-        console.error('[Auth Session Callback] session.user is missing!');
       }
-
-      console.log('[Auth Session Callback] Final session:', {
-        hasUser: !!session.user,
-        userId: session.user?.id,
-        userEmail: session.user?.email,
-        userName: session.user?.name,
-      });
-
       return session;
     },
   },
   events: {
     async createUser({ user }) {
-      // Generate username from email or name
-      const baseUsername = (user.email?.split("@")[0] || user.name?.toLowerCase().replace(/\s/g, "_") || "user")
+      // Generate username from wallet address or name
+      const baseUsername = (user.name?.toLowerCase().replace(/\s/g, "_") || "user")
         .slice(0, 20);
-      
+
       const existingUser = await prisma.user.findFirst({
         where: { username: { startsWith: baseUsername } },
       });

@@ -89,8 +89,6 @@ export default function CreateListingPage() {
   const [isVerifyingGithub, setIsVerifyingGithub] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Check if user has GitHub linked (required to list)
-  const hasGithubLinked = !!(session?.user as any)?.githubUsername;
   const isAuthenticated = status === "authenticated";
   const isLoading = status === "loading";
   
@@ -476,34 +474,6 @@ export default function CreateListingPage() {
               Sign In
             </Button>
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // No GitHub linked
-  if (!hasGithubLinked) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
-            <Github className="w-8 h-8 text-amber-600" />
-          </div>
-          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-            GitHub verification required
-          </h2>
-          <p className="mt-2 text-zinc-500">
-            To list an app for sale, you need to verify your GitHub account first. This helps ensure the authenticity of listings.
-          </p>
-          <Link href="/dashboard/settings">
-            <Button variant="primary" size="lg" className="mt-6">
-              <Github className="w-5 h-5" />
-              Link GitHub Account
-            </Button>
-          </Link>
-          <p className="mt-4 text-sm text-zinc-400">
-            You can link your GitHub account in your dashboard settings.
-          </p>
         </div>
       </div>
     );
