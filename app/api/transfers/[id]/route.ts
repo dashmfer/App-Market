@@ -162,7 +162,7 @@ export async function GET(
       // Save initialized checklist
       await prisma.transaction.update({
         where: { id: params.id },
-        data: { transferChecklist: checklist },
+        data: { transferChecklist: checklist as unknown as Parameters<typeof prisma.transaction.update>[0]["data"]["transferChecklist"] },
       });
     }
 
