@@ -1,11 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { 
-  ArrowRight, 
-  Shield, 
-  Zap, 
-  Globe, 
+import {
+  ArrowRight,
+  Shield,
+  Zap,
+  Globe,
   Coins,
   CheckCircle2,
   TrendingUp,
@@ -15,14 +16,12 @@ import {
   Github,
   CreditCard,
   Wallet,
+  Loader2,
 } from "lucide-react";
 import { ListingCard } from "@/components/listings/listing-card";
 import { CategoryCard } from "@/components/home/category-card";
 import { StatsCounter } from "@/components/home/stats-counter";
 import { HowItWorksStep } from "@/components/home/how-it-works-step";
-
-// Listings loaded from database
-const featuredListings: any[] = [];
 
 const categories = [
   { name: "SaaS", slug: "saas", count: 0, icon: "💼" },
@@ -68,6 +67,28 @@ const howItWorks = [
 ];
 
 export default function HomePage() {
+  const [featuredListings, setFeaturedListings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchListings() {
+      try {
+        // Fetch recent active listings (up to 4 for the homepage)
+        const response = await fetch("/api/listings?status=ACTIVE&sort=newest&limit=4");
+        if (response.ok) {
+          const data = await response.json();
+          setFeaturedListings(data.listings || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch listings:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchListings();
+  }, []);
+
   return (
     <div className="relative">
       {/* Hero Section */}
@@ -169,11 +190,26 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredListings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} index={index} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+            </div>
+          ) : featuredListings.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-zinc-500 dark:text-zinc-400 mb-4">
+                No projects listed yet. Be the first to list!
+              </p>
+              <Link href="/create" className="btn-primary">
+                List Your Project
+              </Link>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredListings.map((listing, index) => (
+                <ListingCard key={listing.id} listing={listing} index={index} />
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 text-center sm:hidden">
             <Link href="/explore?featured=true" className="btn-secondary">
