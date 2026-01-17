@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     const category = searchParams.get("category");
+    const blockchain = searchParams.get("blockchain");
     const status = searchParams.get("status");
     const sellerId = searchParams.get("sellerId");
     const sort = searchParams.get("sort") || "ending-soon";
@@ -36,6 +37,10 @@ export async function GET(request: NextRequest) {
 
     if (category && category !== "all") {
       where.category = category.toUpperCase().replace("-", "_");
+    }
+
+    if (blockchain && blockchain !== "all") {
+      where.blockchain = blockchain.toUpperCase();
     }
 
     if (search) {
@@ -124,6 +129,7 @@ export async function GET(request: NextRequest) {
         tagline: listing.tagline,
         thumbnailUrl: listing.thumbnailUrl,
         category: listing.category,
+        blockchain: listing.blockchain,
         techStack: listing.techStack,
         startingPrice: listing.startingPrice,
         currentBid: isBuyNowOnly ? null : (listing.bids[0]?.amount || listing.startingPrice),
@@ -183,6 +189,7 @@ export async function POST(request: NextRequest) {
       tagline,
       description,
       category,
+      blockchain,
       techStack,
       githubRepo,
       hasDomain,
@@ -255,6 +262,7 @@ export async function POST(request: NextRequest) {
         tagline,
         description,
         category,
+        blockchain: blockchain || null,
         techStack,
         githubRepo,
         hasDomain,
