@@ -424,7 +424,7 @@ export default function ListingPage() {
             {/* Tabs */}
             <div className="border-b border-zinc-200 dark:border-zinc-800">
               <nav className="flex gap-8">
-                {(["description", "assets", "bids"] as const).map((tab) => (
+                {(isBuyNowOnly ? ["description", "assets"] as const : ["description", "assets", "bids"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -491,7 +491,7 @@ export default function ListingPage() {
                 </div>
               )}
 
-              {activeTab === "bids" && (
+              {activeTab === "bids" && !isBuyNowOnly && (
                 <div className="space-y-3">
                   {listing.bids.length === 0 ? (
                     <div className="text-center py-8">
