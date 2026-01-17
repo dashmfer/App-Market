@@ -40,13 +40,15 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
           {/* Devnet Banner */}
-          <div className="bg-amber-500 text-amber-950 text-center py-2 px-4 text-sm">
-            <span className="font-semibold">🔧 DEVNET MODE</span>
-            <span className="hidden sm:inline"> — This is a test deployment on Solana Devnet. You&apos;ll need Devnet SOL to interact. To connect, open Phantom → Settings → Developer Settings → Enable Testnet Mode → Select Devnet. Get free Devnet SOL: </span>
+          <div className="bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 text-white text-center py-2 px-4 text-sm font-medium">
+            <span className="inline-flex items-center gap-2">
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+              <span>DEVNET</span>
+            </span>
+            <span className="hidden sm:inline mx-2 opacity-80">—</span>
+            <span className="hidden sm:inline opacity-90">Test deployment on Solana Devnet. Enable Testnet Mode in Phantom Settings.</span>
             <span className="sm:hidden"> — </span>
-            <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-amber-800">Solana Faucet</a>
-            <span className="mx-1">|</span>
-            <a href="https://faucet.quicknode.com/solana/devnet" target="_blank" rel="noopener noreferrer" className="underline font-medium hover:text-amber-800">QuickNode Faucet</a>
+            <a href="https://faucet.solana.com" target="_blank" rel="noopener noreferrer" className="ml-2 underline decoration-white/50 hover:decoration-white transition-all">Get Devnet SOL</a>
           </div>
           <div className="flex flex-col min-h-screen">
             <Navbar />
