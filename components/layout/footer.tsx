@@ -43,8 +43,7 @@ export function Footer() {
               <span>App Market</span>
             </Link>
             <p className="mt-4 text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed max-w-xs">
-              The premier marketplace for buying and selling digital products,
-              prototypes, and MVPs. Secure, trustless, and built on Solana.
+              The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.
             </p>
             <div className="flex items-center gap-4 mt-6">
               <a

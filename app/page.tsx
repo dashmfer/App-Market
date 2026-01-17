@@ -313,23 +313,10 @@ export default function HomePage() {
               <h3 className="text-xl font-semibold mb-3">Instant Settlement</h3>
               <p className="text-zinc-400 leading-relaxed">
                 No waiting for banks. Solana transactions settle in seconds.
-                Pay with crypto or credit card—your choice.
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="p-8 rounded-3xl bg-zinc-900 border border-zinc-800 hover:border-green-500/50 transition-colors">
-              <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
-                <Coins className="w-7 h-7 text-green-400" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Token Launches</h3>
-              <p className="text-zinc-400 leading-relaxed">
-                Acquire a project and launch a token in one click. 
-                Fair launches, presales, and liquidity—all built in.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
             <div className="p-8 rounded-3xl bg-zinc-900 border border-zinc-800 hover:border-green-500/50 transition-colors">
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Github className="w-7 h-7 text-green-400" />
