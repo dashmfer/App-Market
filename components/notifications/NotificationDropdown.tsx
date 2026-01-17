@@ -15,6 +15,7 @@ import {
   Star,
   Clock,
   ArrowRight,
+  MessageCircle,
 } from "lucide-react";
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 
@@ -31,6 +32,7 @@ const notificationIcons: Record<string, React.ReactNode> = {
   DISPUTE_RESOLVED: <Check className="w-4 h-4 text-green-500" />,
   REVIEW_RECEIVED: <Star className="w-4 h-4 text-amber-500" />,
   WATCHLIST_ENDING: <Clock className="w-4 h-4 text-amber-500" />,
+  MESSAGE_RECEIVED: <MessageCircle className="w-4 h-4 text-blue-500" />,
   SYSTEM: <Bell className="w-4 h-4 text-zinc-500" />,
 };
 
@@ -46,7 +48,14 @@ function NotificationItem({
   );
 
   const listingSlug = notification.data?.listingSlug;
-  const href = listingSlug ? `/listings/${listingSlug}` : "/dashboard/notifications";
+  const conversationId = notification.data?.conversationId;
+
+  let href = "/dashboard/notifications";
+  if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
+    href = `/dashboard/messages?conversation=${conversationId}`;
+  } else if (listingSlug) {
+    href = `/listings/${listingSlug}`;
+  }
 
   return (
     <Link

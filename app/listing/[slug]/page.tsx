@@ -32,7 +32,11 @@ import {
   Play,
   Loader2,
   Package,
+  MessageCircle,
+  Send,
+  X,
 } from "lucide-react";
+import { startConversation } from "@/hooks/useMessages";
 import { formatDistanceToNow, format } from "date-fns";
 
 interface Listing {
@@ -110,6 +114,9 @@ export default function ListingPage() {
   const [activeTab, setActiveTab] = useState<"description" | "assets" | "bids">("description");
   const [bidding, setBidding] = useState(false);
   const [bidError, setBidError] = useState<string | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageContent, setMessageContent] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   useEffect(() => {
     async function fetchListing() {
@@ -268,6 +275,26 @@ export default function ListingPage() {
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!session?.user || !messageContent.trim() || !listing) return;
+
+    setSendingMessage(true);
+    const result = await startConversation(
+      listing.seller.id,
+      messageContent.trim(),
+      listing.id
+    );
+
+    if (result) {
+      setShowMessageModal(false);
+      setMessageContent("");
+      router.push(`/dashboard/messages?conversation=${result.conversationId}`);
+    }
+    setSendingMessage(false);
+  };
+
+  const isOwnListing = session?.user?.id === listing?.seller.id;
+
   const categoryLabels: Record<string, string> = {
     SAAS: "SaaS",
     AI_ML: "AI & ML",
@@ -354,33 +381,52 @@ export default function ListingPage() {
               </div>
 
               {/* Seller Info */}
-              <Link
-                href={listing.seller.username ? `/user/${listing.seller.username}` : `/user/${listing.seller.id}`}
-                className="mt-6 flex items-center gap-4 group cursor-pointer"
-              >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-green-500 transition-all">
-                  {listing.seller.image ? (
-                    <Image src={listing.seller.image} alt={sellerName} width={48} height={48} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-medium text-white">
-                      {sellerName[0].toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                      {sellerName}
-                    </span>
-                    {listing.seller.isVerified && (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <div className="mt-6 flex items-center justify-between">
+                <Link
+                  href={listing.seller.username ? `/user/${listing.seller.username}` : `/user/${listing.seller.id}`}
+                  className="flex items-center gap-4 group cursor-pointer"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center overflow-hidden ring-2 ring-transparent group-hover:ring-green-500 transition-all">
+                    {listing.seller.image ? (
+                      <Image src={listing.seller.image} alt={sellerName} width={48} height={48} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg font-medium text-white">
+                        {sellerName[0].toUpperCase()}
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-zinc-500">
-                    <span>{listing.seller.totalSales} sales</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        {sellerName}
+                      </span>
+                      {listing.seller.isVerified && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-zinc-500">
+                      <span>{listing.seller.totalSales} sales</span>
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+
+                {/* Message Seller Button */}
+                {!isOwnListing && (
+                  <button
+                    onClick={() => {
+                      if (!session?.user) {
+                        router.push("/auth/signin");
+                        return;
+                      }
+                      setShowMessageModal(true);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">Message</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Demo/Preview */}
@@ -711,6 +757,94 @@ export default function ListingPage() {
           </div>
         </div>
       </div>
+
+      {/* Message Modal */}
+      {showMessageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowMessageModal(false)}
+          />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative w-full max-w-lg mx-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                  {listing.seller.image ? (
+                    <Image
+                      src={listing.seller.image}
+                      alt={sellerName}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <span className="text-sm font-medium text-white">
+                      {sellerName[0].toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                    Message {sellerName}
+                  </p>
+                  <p className="text-sm text-zinc-500">
+                    About: {listing.title}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMessageModal(false)}
+                className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <X className="w-5 h-5 text-zinc-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4">
+              <textarea
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+                placeholder={`Ask ${sellerName} a question about this listing...`}
+                rows={4}
+                className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-zinc-200 dark:border-zinc-800">
+              <button
+                onClick={() => setShowMessageModal(false)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={!messageContent.trim() || sendingMessage}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {sendingMessage ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send Message
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

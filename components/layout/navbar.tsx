@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   Heart,
   LayoutDashboard,
+  MessageCircle,
 } from "lucide-react";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 
@@ -198,6 +199,13 @@ export function Navbar() {
                               >
                                 <Heart className="w-4 h-4" />
                                 <span>Watchlist</span>
+                              </Link>
+                              <Link
+                                href="/dashboard/messages"
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                <span>Messages</span>
                               </Link>
                               <Link
                                 href="/dashboard/settings"
