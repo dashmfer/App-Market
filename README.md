@@ -180,7 +180,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Discord**: [Join our community](https://discord.gg/appmarket)
-- **Twitter**: [@appmarket](https://twitter.com/appmarket)
+- **Twitter**: [@appmarketxyz](https://twitter.com/appmarketxyz)
 - **Email**: support@app.market
 
 ---
