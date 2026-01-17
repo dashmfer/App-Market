@@ -15,6 +15,9 @@ export interface Notification {
     listingId?: string;
     listingSlug?: string;
     amount?: number;
+    conversationId?: string;
+    senderId?: string;
+    messagePreview?: string;
   };
 }
 
