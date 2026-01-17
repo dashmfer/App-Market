@@ -113,24 +113,36 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform listings for response
-    const transformedListings = listings.map((listing) => ({
-      id: listing.id,
-      slug: listing.slug,
-      title: listing.title,
-      tagline: listing.tagline,
-      thumbnailUrl: listing.thumbnailUrl,
-      category: listing.category,
-      techStack: listing.techStack,
-      currentBid: listing.bids[0]?.amount || listing.startingPrice,
-      buyNowPrice: listing.buyNowEnabled ? listing.buyNowPrice : null,
-      endTime: listing.endTime,
-      bidCount: listing._count.bids,
-      seller: {
-        name: listing.seller.username || listing.seller.name || "Anonymous",
-        rating: listing.seller.rating,
-        verified: listing.seller.isVerified,
-      },
-    }));
+    const transformedListings = listings.map((listing) => {
+      // Check if this is a Buy Now only listing (no valid starting price)
+      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+
+      return {
+        id: listing.id,
+        slug: listing.slug,
+        title: listing.title,
+        tagline: listing.tagline,
+        thumbnailUrl: listing.thumbnailUrl,
+        category: listing.category,
+        techStack: listing.techStack,
+        startingPrice: listing.startingPrice,
+        currentBid: isBuyNowOnly ? null : (listing.bids[0]?.amount || listing.startingPrice),
+        buyNowPrice: listing.buyNowEnabled ? listing.buyNowPrice : null,
+        buyNowEnabled: listing.buyNowEnabled,
+        endTime: listing.endTime,
+        bidCount: isBuyNowOnly ? 0 : listing._count.bids,
+        seller: {
+          id: listing.seller.id,
+          name: listing.seller.name,
+          displayName: listing.seller.displayName,
+          username: listing.seller.username,
+          image: listing.seller.image,
+          rating: listing.seller.rating,
+          verified: listing.seller.isVerified,
+          isVerified: listing.seller.isVerified,
+        },
+      };
+    });
 
     return NextResponse.json({
       listings: transformedListings,
