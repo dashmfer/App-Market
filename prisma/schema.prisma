@@ -75,6 +75,11 @@ model User {
   referralsGiven  Referral[]       @relation("Referrer")
   referralReceived Referral?       @relation("ReferredUser")
 
+  // Messaging Relations
+  conversationsAsParticipant1 Conversation[] @relation("ConversationParticipant1")
+  conversationsAsParticipant2 Conversation[] @relation("ConversationParticipant2")
+  messagesSent    Message[]        @relation("MessageSender")
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -484,6 +489,63 @@ model Notification {
 }
 
 // ============================================
+// MESSAGING
+// ============================================
+
+model Conversation {
+  id            String    @id @default(cuid())
+
+  // Participants
+  participant1Id String
+  participant1   User      @relation("ConversationParticipant1", fields: [participant1Id], references: [id])
+  participant2Id String
+  participant2   User      @relation("ConversationParticipant2", fields: [participant2Id], references: [id])
+
+  // Optional: Link to listing (for context)
+  listingId     String?
+
+  // Last message preview
+  lastMessageAt DateTime?
+  lastMessagePreview String?
+
+  // Messages
+  messages      Message[]
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([participant1Id, participant2Id])
+  @@index([participant1Id])
+  @@index([participant2Id])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  content        String       @db.Text
+
+  // Sender
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+
+  // Conversation
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Status
+  read           Boolean      @default(false)
+  readAt         DateTime?
+
+  // Timestamps
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([read])
+}
+
+// ============================================
 // TOKEN LAUNCHES
 // ============================================
 
@@ -631,6 +693,7 @@ enum NotificationType {
   DISPUTE_RESOLVED
   REVIEW_RECEIVED
   WATCHLIST_ENDING
+  MESSAGE_RECEIVED
   SYSTEM
 }
 

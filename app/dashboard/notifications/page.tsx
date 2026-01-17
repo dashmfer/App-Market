@@ -15,7 +15,7 @@ import {
   Star,
   Clock,
   Loader2,
-  Filter,
+  MessageCircle,
 } from "lucide-react";
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 
@@ -32,6 +32,7 @@ const notificationIcons: Record<string, React.ReactNode> = {
   DISPUTE_RESOLVED: <Check className="w-5 h-5 text-green-500" />,
   REVIEW_RECEIVED: <Star className="w-5 h-5 text-amber-500" />,
   WATCHLIST_ENDING: <Clock className="w-5 h-5 text-amber-500" />,
+  MESSAGE_RECEIVED: <MessageCircle className="w-5 h-5 text-blue-500" />,
   SYSTEM: <Bell className="w-5 h-5 text-zinc-500" />,
 };
 
@@ -48,6 +49,7 @@ const notificationColors: Record<string, string> = {
   DISPUTE_RESOLVED: "bg-green-100 dark:bg-green-900/30",
   REVIEW_RECEIVED: "bg-amber-100 dark:bg-amber-900/30",
   WATCHLIST_ENDING: "bg-amber-100 dark:bg-amber-900/30",
+  MESSAGE_RECEIVED: "bg-blue-100 dark:bg-blue-900/30",
   SYSTEM: "bg-zinc-100 dark:bg-zinc-800",
 };
 
@@ -63,7 +65,14 @@ function NotificationCard({
   );
   const bgColor = notificationColors[notification.type] || "bg-zinc-100 dark:bg-zinc-800";
   const listingSlug = notification.data?.listingSlug;
-  const href = listingSlug ? `/listings/${listingSlug}` : "#";
+  const conversationId = notification.data?.conversationId;
+
+  let href = "#";
+  if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
+    href = `/dashboard/messages?conversation=${conversationId}`;
+  } else if (listingSlug) {
+    href = `/listings/${listingSlug}`;
+  }
 
   return (
     <motion.div
