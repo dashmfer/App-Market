@@ -12,21 +12,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "App Market | Buy & Sell AI-Generated Apps",
-  description: "The premier marketplace for buying and selling AI-generated prototypes, MVPs, and micro-SaaS projects. Powered by Solana.",
-  keywords: ["marketplace", "AI apps", "MVP", "prototype", "Solana", "crypto", "SaaS"],
+  title: "App Market",
+  description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
+  keywords: ["marketplace", "apps", "MVP", "prototype", "Solana", "crypto", "SaaS"],
   authors: [{ name: "App Market" }],
   openGraph: {
-    title: "App Market | Buy & Sell AI-Generated Apps",
-    description: "The premier marketplace for buying and selling AI-generated prototypes, MVPs, and micro-SaaS projects.",
+    title: "App Market",
+    description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
     url: "https://app.market",
     siteName: "App Market",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "App Market | Buy & Sell AI-Generated Apps",
-    description: "The premier marketplace for buying and selling AI-generated prototypes, MVPs, and micro-SaaS projects.",
+    title: "App Market",
+    description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
   },
 };
 
