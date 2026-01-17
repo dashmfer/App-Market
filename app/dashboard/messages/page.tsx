@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -317,7 +317,7 @@ function MessageThread({
   );
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const searchParams = useSearchParams();
   const conversationParam = searchParams.get("conversation");
   const { conversations, totalUnread, loading, refetch } = useConversations();
@@ -406,5 +406,19 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-green-500 animate-spin" />
+        </div>
+      }
+    >
+      <MessagesPageContent />
+    </Suspense>
   );
 }
