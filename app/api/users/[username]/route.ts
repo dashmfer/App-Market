@@ -37,7 +37,11 @@ export async function GET(
             buyNowPrice: true,
             buyNowEnabled: true,
             endTime: true,
-            currentBid: true,
+            bids: {
+              orderBy: { amount: "desc" },
+              take: 1,
+              select: { amount: true },
+            },
             _count: {
               select: { bids: true },
             },
@@ -77,7 +81,11 @@ export async function GET(
               buyNowPrice: true,
               buyNowEnabled: true,
               endTime: true,
-              currentBid: true,
+              bids: {
+                orderBy: { amount: "desc" },
+                take: 1,
+                select: { amount: true },
+              },
               _count: {
                 select: { bids: true },
               },
@@ -92,7 +100,17 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ user });
+    // Transform listings to include currentBid
+    const transformedUser = {
+      ...user,
+      listings: user.listings.map((listing: any) => ({
+        ...listing,
+        currentBid: listing.bids[0]?.amount || listing.startingPrice,
+        bids: undefined, // Remove the bids array from response
+      })),
+    };
+
+    return NextResponse.json({ user: transformedUser });
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json(
