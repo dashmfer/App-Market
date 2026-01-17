@@ -8,7 +8,7 @@ export default function AboutPage() {
               About
             </h1>
             <p className="text-xl text-zinc-600 dark:text-zinc-400">
-              make it say work in progress
+              Coming Soon
             </p>
           </div>
         </div>
