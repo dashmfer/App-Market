@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -23,6 +24,16 @@ const categories = [
   { value: "crypto-web3", label: "Crypto & Web3" },
   { value: "ecommerce", label: "E-commerce" },
   { value: "developer-tools", label: "Developer Tools" },
+  { value: "gaming", label: "Gaming" },
+];
+
+const blockchains = [
+  { value: "all", label: "All Chains" },
+  { value: "solana", label: "Solana" },
+  { value: "base", label: "Base" },
+  { value: "hyperliquid", label: "Hyperliquid" },
+  { value: "ethereum", label: "Ethereum" },
+  { value: "bitcoin", label: "Bitcoin" },
 ];
 
 const sortOptions = [
@@ -65,16 +76,30 @@ interface Listing {
   };
 }
 
-export default function ExplorePage() {
+function ExploreContent() {
+  const searchParams = useSearchParams();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedBlockchain, setSelectedBlockchain] = useState("all");
   const [selectedSort, setSelectedSort] = useState("ending-soon");
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Read URL params on mount
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    const blockchainParam = searchParams.get("blockchain");
+    if (categoryParam) {
+      setSelectedCategory(categoryParam);
+    }
+    if (blockchainParam) {
+      setSelectedBlockchain(blockchainParam);
+    }
+  }, [searchParams]);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -87,6 +112,10 @@ export default function ExplorePage() {
 
       if (selectedCategory !== "all") {
         params.set("category", selectedCategory);
+      }
+
+      if (selectedBlockchain !== "all") {
+        params.set("blockchain", selectedBlockchain);
       }
 
       if (searchQuery) {
@@ -112,7 +141,7 @@ export default function ExplorePage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedSort, selectedPrice, searchQuery]);
+  }, [selectedCategory, selectedBlockchain, selectedSort, selectedPrice, searchQuery]);
 
   useEffect(() => {
     fetchListings();
@@ -131,6 +160,7 @@ export default function ExplorePage() {
 
   const activeFiltersCount = [
     selectedCategory !== "all",
+    selectedBlockchain !== "all",
     selectedPrice !== "all",
     searchQuery !== "",
   ].filter(Boolean).length;
@@ -286,13 +316,39 @@ export default function ExplorePage() {
                 </div>
               </div>
 
-              {/* More filters can be added here */}
+              {/* Blockchain Filter */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Blockchain
+                </label>
+                <div className="space-y-2">
+                  {blockchains.map((chain) => (
+                    <label
+                      key={chain.value}
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="blockchain"
+                        value={chain.value}
+                        checked={selectedBlockchain === chain.value}
+                        onChange={(e) => setSelectedBlockchain(e.target.value)}
+                        className="w-4 h-4 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {chain.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
               <button
                 onClick={() => {
                   setSelectedCategory("all");
+                  setSelectedBlockchain("all");
                   setSelectedPrice("all");
                   setSearchQuery("");
                 }}
@@ -368,5 +424,17 @@ export default function ExplorePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <ExploreContent />
+    </Suspense>
   );
 }

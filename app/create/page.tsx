@@ -58,7 +58,17 @@ const categories = [
   { value: "ECOMMERCE", label: "E-commerce", icon: "🛒" },
   { value: "CRYPTO_WEB3", label: "Crypto & Web3", icon: "⛓️" },
   { value: "DEVELOPER_TOOLS", label: "Developer Tools", icon: "🛠️" },
+  { value: "GAMING", label: "Gaming", icon: "🎮" },
   { value: "OTHER", label: "Other", icon: "📦" },
+];
+
+const blockchains = [
+  { value: "", label: "Not blockchain-based" },
+  { value: "SOLANA", label: "Solana" },
+  { value: "BASE", label: "Base" },
+  { value: "HYPERLIQUID", label: "Hyperliquid" },
+  { value: "ETHEREUM", label: "Ethereum" },
+  { value: "BITCOIN", label: "Bitcoin" },
 ];
 
 const popularTechStack = [
@@ -100,6 +110,7 @@ export default function CreateListingPage() {
     tagline: "",
     description: "",
     category: "",
+    blockchain: "",
     techStack: [] as string[],
     customTech: "",
     demoUrl: "",
@@ -402,6 +413,7 @@ export default function CreateListingPage() {
           tagline: formData.tagline,
           description: formData.description,
           category: formData.category,
+          blockchain: formData.blockchain || null,
           techStack: formData.techStack,
           thumbnailUrl: formData.profileImagePreview || null, // Map profileImagePreview to thumbnailUrl
           demoUrl: formData.demoUrl,
@@ -700,6 +712,27 @@ export default function CreateListingPage() {
                         ))}
                       </div>
                       {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
+                    </div>
+
+                    {/* Blockchain - Optional */}
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        Blockchain <span className="text-zinc-400">(if on-chain)</span>
+                      </label>
+                      <select
+                        value={formData.blockchain}
+                        onChange={(e) => updateFormData("blockchain", e.target.value)}
+                        className="w-full md:w-auto px-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        {blockchains.map((chain) => (
+                          <option key={chain.value} value={chain.value}>
+                            {chain.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Select if your project is built on a specific blockchain
+                      </p>
                     </div>
 
                     <div>

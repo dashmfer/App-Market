@@ -121,6 +121,7 @@ model Listing {
   tagline           String?
   description       String        @db.Text
   category          Category
+  blockchain        Blockchain?   // Optional: for on-chain/crypto projects
   tags              String[]
   
   // Tech Stack
@@ -543,6 +544,14 @@ enum Category {
   GAMING
   CRYPTO_WEB3
   OTHER
+}
+
+enum Blockchain {
+  SOLANA
+  BASE
+  HYPERLIQUID
+  ETHEREUM
+  BITCOIN
 }
 
 enum ListingType {
