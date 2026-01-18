@@ -97,7 +97,7 @@ export async function POST(
         type: "FALLBACK_TRANSFER_ACTIVE",
         title: "Fallback Transfer Process Started",
         message: `The seller has provided transfer links for "${transaction.listing.title}". Please check the transfer page for instructions.`,
-        link: `/dashboard/transfers/${transaction.id}`,
+        data: { link: `/dashboard/transfers/${transaction.id}`, transactionId: transaction.id },
       },
     });
 

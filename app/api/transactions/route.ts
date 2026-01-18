@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
           type: "BUYER_INFO_REQUIRED",
           title: "Action Required: Provide Transfer Info",
           message: `You have 48 hours to provide your information for "${listing.title}" so the seller can complete the transfer.`,
-          link: `/dashboard/transfers/${transaction.id}/buyer-info`,
+          data: { link: `/dashboard/transfers/${transaction.id}/buyer-info` },
           userId,
         },
       });

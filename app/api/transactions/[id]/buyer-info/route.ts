@@ -158,7 +158,7 @@ export async function POST(
         type: "BUYER_INFO_SUBMITTED",
         title: "Buyer Submitted Transfer Info",
         message: `The buyer has submitted their information for "${transaction.listing.title}". You can now begin the transfer process.`,
-        link: `/dashboard/transfers/${transaction.id}`,
+        data: { link: `/dashboard/transfers/${transaction.id}` },
       },
     });
 

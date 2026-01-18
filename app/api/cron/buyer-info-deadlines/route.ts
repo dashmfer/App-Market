@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
             type: "BUYER_INFO_DEADLINE",
             title: "Buyer Info Deadline Passed",
             message: `The 48-hour deadline to provide your information for "${transaction.listing.title}" has passed. The seller will use the fallback transfer process.`,
-            link: `/dashboard/transfers/${transaction.id}`,
+            data: { link: `/dashboard/transfers/${transaction.id}`, transactionId: transaction.id },
           },
         });
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
             type: "BUYER_INFO_DEADLINE",
             title: "Buyer Info Deadline Passed",
             message: `The buyer didn't provide their information for "${transaction.listing.title}" within 48 hours. You can now use the fallback transfer process.`,
-            link: `/dashboard/transfers/${transaction.id}`,
+            data: { link: `/dashboard/transfers/${transaction.id}`, transactionId: transaction.id },
           },
         });
 
@@ -79,12 +79,11 @@ export async function POST(request: NextRequest) {
       }
       // Check for 6-hour reminder
       else if (deadline <= sixHoursFromNow && deadline > now) {
-        // Check if reminder already sent (we can use a simple check based on notifications)
+        // Check if reminder already sent (within last 5 hours for this transaction)
         const existingReminder = await prisma.notification.findFirst({
           where: {
             userId: transaction.buyerId,
             type: "BUYER_INFO_REMINDER",
-            link: `/dashboard/transfers/${transaction.id}`,
             createdAt: {
               gte: new Date(now.getTime() - 5 * 60 * 60 * 1000), // Within last 5 hours
             },
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
               type: "BUYER_INFO_REMINDER",
               title: "⚠️ 6 Hours Left to Submit Info",
               message: `You have less than 6 hours to provide your information for "${transaction.listing.title}". Submit now to avoid the fallback transfer process.`,
-              link: `/dashboard/transfers/${transaction.id}/buyer-info`,
+              data: { link: `/dashboard/transfers/${transaction.id}/buyer-info`, transactionId: transaction.id },
             },
           });
           results.reminders6h++;
@@ -110,7 +109,6 @@ export async function POST(request: NextRequest) {
           where: {
             userId: transaction.buyerId,
             type: "BUYER_INFO_REMINDER",
-            link: `/dashboard/transfers/${transaction.id}`,
             createdAt: {
               gte: new Date(now.getTime() - 23 * 60 * 60 * 1000), // Within last 23 hours
             },
@@ -124,7 +122,7 @@ export async function POST(request: NextRequest) {
               type: "BUYER_INFO_REMINDER",
               title: "24 Hours Left to Submit Info",
               message: `Reminder: You have 24 hours left to provide your information for "${transaction.listing.title}".`,
-              link: `/dashboard/transfers/${transaction.id}/buyer-info`,
+              data: { link: `/dashboard/transfers/${transaction.id}/buyer-info`, transactionId: transaction.id },
             },
           });
           results.reminders24h++;
