@@ -36,6 +36,7 @@ export async function GET(
             startingPrice: true,
             buyNowPrice: true,
             buyNowEnabled: true,
+            currency: true,
             endTime: true,
             bids: {
               orderBy: { amount: "desc" },
@@ -80,6 +81,7 @@ export async function GET(
               startingPrice: true,
               buyNowPrice: true,
               buyNowEnabled: true,
+              currency: true,
               endTime: true,
               bids: {
                 orderBy: { amount: "desc" },
