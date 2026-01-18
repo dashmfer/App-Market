@@ -2,16 +2,24 @@ import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } f
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 
 // Program ID from deployed/generated smart contract
-export const PROGRAM_ID = new PublicKey("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog");
+export const PROGRAM_ID = new PublicKey(
+  process.env.NEXT_PUBLIC_PROGRAM_ID || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
+);
 
 // Platform treasury wallet - receives fees
-export const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6");
+export const TREASURY_WALLET = new PublicKey(
+  process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6"
+);
 
-// Platform token mint ($APP)
-export const PLATFORM_TOKEN_MINT = new PublicKey("Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS");
+// Platform token mint ($APP) - mainnet address
+export const PLATFORM_TOKEN_MINT = new PublicKey(
+  process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS"
+);
 
 // USDC mint (mainnet)
-export const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+export const USDC_MINT = new PublicKey(
+  process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+);
 
 // Token decimals
 export const TOKEN_DECIMALS = {
