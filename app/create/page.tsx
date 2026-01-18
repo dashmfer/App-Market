@@ -195,7 +195,7 @@ export default function CreateListingPage() {
     duration: "7",
     enableBuyNow: false,
     buyNowPrice: "",
-    currency: "SOL",
+    currency: "APP",
     
     // Terms accepted
     termsAccepted: false,
@@ -1272,8 +1272,8 @@ export default function CreateListingPage() {
                       </label>
                       <div className="flex gap-3">
                         {[
-                          { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana" },
                           { value: "APP", label: "$APP", icon: "✅", description: "Platform Token" },
+                          { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana" },
                           { value: "USDC", label: "USDC", icon: "💵", description: "Stablecoin" },
                         ].map((currency) => (
                           <button

@@ -57,7 +57,7 @@ export function BidModal({
   onBidSuccess,
 }: BidModalProps) {
   const [bidAmount, setBidAmount] = useState(listing.currentBid + 1);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("SOL");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>((listing.currency as PaymentMethod) || "APP");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"amount" | "payment" | "confirm">("amount");
   const [error, setError] = useState<string | null>(null);
@@ -148,8 +148,8 @@ export function BidModal({
           body: JSON.stringify({
             listingId: listing.id,
             amount: bidAmount,
-            currency: "SOL",
-            paymentMethod: "SOL",
+            currency: paymentMethod,
+            paymentMethod: paymentMethod,
             onChainTx: txSignature,
             walletAddress: publicKey.toBase58(),
           }),
@@ -245,17 +245,17 @@ export function BidModal({
 
   const paymentMethods = [
     {
-      id: "SOL" as PaymentMethod,
-      name: "Solana",
-      description: connected ? `Connected: ${publicKey?.toBase58().slice(0, 8)}...` : "Connect wallet",
-      icon: Wallet,
-      enabled: true,
-    },
-    {
       id: "APP" as PaymentMethod,
       name: "$APP",
       description: connected ? "Pay with APP tokens" : "Connect wallet",
       icon: Coins,
+      enabled: true,
+    },
+    {
+      id: "SOL" as PaymentMethod,
+      name: "Solana",
+      description: connected ? `Connected: ${publicKey?.toBase58().slice(0, 8)}...` : "Connect wallet",
+      icon: Wallet,
       enabled: true,
     },
     {
