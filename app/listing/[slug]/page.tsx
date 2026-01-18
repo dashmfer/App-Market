@@ -140,6 +140,8 @@ export default function ListingPage() {
   const [activeTab, setActiveTab] = useState<"description" | "assets" | "bids">("description");
   const [bidding, setBidding] = useState(false);
   const [bidError, setBidError] = useState<string | null>(null);
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -293,11 +295,98 @@ export default function ListingPage() {
         setBidError("Transaction was rejected. Please try again.");
       } else if (err.message?.includes("insufficient")) {
         setBidError("Insufficient funds in your wallet.");
+      } else if (err.message?.includes("403") || err.message?.includes("blockhash")) {
+        setBidError("RPC connection error. Please try again or contact support if the issue persists.");
       } else {
         setBidError(err.message || "Failed to place bid. Please try again.");
       }
     } finally {
       setBidding(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!session?.user) {
+      router.push("/auth/signin");
+      return;
+    }
+
+    if (!connected || !publicKey || !sendTransaction) {
+      setBuyError("Please connect your wallet to purchase");
+      return;
+    }
+
+    if (!listing.buyNowPrice) {
+      setBuyError("Buy Now is not available for this listing");
+      return;
+    }
+
+    setBuying(true);
+    setBuyError(null);
+
+    try {
+      // Platform escrow wallet - in production this would be a PDA from the smart contract
+      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+
+      // Create transfer transaction for buy now price
+      const lamports = Math.floor(listing.buyNowPrice * LAMPORTS_PER_SOL);
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: escrowPubkey,
+          lamports,
+        })
+      );
+
+      // Get latest blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // Send and confirm transaction
+      const txSignature = await sendTransaction(transaction, connection);
+
+      // Wait for confirmation
+      await connection.confirmTransaction({
+        blockhash,
+        lastValidBlockHeight,
+        signature: txSignature,
+      });
+
+      // Record purchase in database
+      const response = await fetch("/api/purchases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          amount: listing.buyNowPrice,
+          currency: listing.currency,
+          onChainTx: txSignature,
+          walletAddress: publicKey.toBase58(),
+          purchaseType: "buyNow",
+        }),
+      });
+
+      if (response.ok) {
+        // Redirect to success page or dashboard
+        router.push(`/dashboard/purchases?success=${listing.id}`);
+      } else {
+        const data = await response.json();
+        setBuyError(data.error || "Failed to record purchase");
+      }
+    } catch (err: any) {
+      console.error("Buy error:", err);
+      if (err.message?.includes("User rejected") || err.message?.includes("rejected")) {
+        setBuyError("Transaction was rejected. Please try again.");
+      } else if (err.message?.includes("insufficient")) {
+        setBuyError("Insufficient funds in your wallet.");
+      } else if (err.message?.includes("403") || err.message?.includes("blockhash")) {
+        setBuyError("RPC connection error. Please try again or contact support if the issue persists.");
+      } else {
+        setBuyError(err.message || "Failed to complete purchase. Please try again.");
+      }
+    } finally {
+      setBuying(false);
     }
   };
 
@@ -720,9 +809,28 @@ export default function ListingPage() {
                         </div>
                       )}
 
-                      <button className="w-full btn-success py-4 text-lg">
-                        <ShoppingCart className="w-5 h-5" />
-                        Buy Now for {listing.buyNowPrice} {formatCurrency(listing.currency)}
+                      {buyError && (
+                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                          <p className="text-sm text-red-600 dark:text-red-400">{buyError}</p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleBuyNow}
+                        disabled={buying}
+                        className="w-full btn-success py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {buying ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-5 h-5" />
+                            Buy Now for {listing.buyNowPrice} {formatCurrency(listing.currency)}
+                          </>
+                        )}
                       </button>
                     </>
                   )}

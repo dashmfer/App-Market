@@ -235,6 +235,10 @@ export function BidModal({
       console.error("Bid error:", err);
       if (err.message?.includes("User rejected") || err.message?.includes("rejected")) {
         setError("Transaction was rejected. Please try again.");
+      } else if (err.message?.includes("insufficient")) {
+        setError("Insufficient funds in your wallet.");
+      } else if (err.message?.includes("403") || err.message?.includes("blockhash")) {
+        setError("RPC connection error. Please try again or contact support if the issue persists.");
       } else {
         setError(err.message || "Failed to place bid");
       }
