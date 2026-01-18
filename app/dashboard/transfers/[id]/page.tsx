@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Github,
@@ -19,9 +19,17 @@ import {
   MessageSquare,
   Flag,
   Loader2,
+  ExternalLink,
+  Copy,
+  Check,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Link as LinkIcon,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
+import { startConversation } from "@/hooks/useMessages";
 
 interface ChecklistItem {
   id: string;
@@ -75,6 +83,114 @@ const iconMap: Record<string, LucideIcon> = {
   documentation: FileText,
 };
 
+// Domain registrar info for auto-generating instructions
+interface DomainRegistrarInfo {
+  id: string;
+  name: string;
+  patterns: RegExp[];
+  instructions: string[];
+}
+
+const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
+  {
+    id: "godaddy",
+    name: "GoDaddy",
+    patterns: [/godaddy\.com/i],
+    instructions: [
+      "Log into your GoDaddy account",
+      "Go to Domain Portfolio and select your domain",
+      "Click 'Transfer' > 'Transfer domain to another GoDaddy account'",
+      "Enter the buyer's GoDaddy email or customer number",
+      "Confirm and share the authorization link with the buyer",
+    ],
+  },
+  {
+    id: "namecheap",
+    name: "Namecheap",
+    patterns: [/namecheap\.com/i],
+    instructions: [
+      "Log into your Namecheap account",
+      "Go to Domain List and select your domain",
+      "Under 'Sharing & Transfer', click 'Transfer Out'",
+      "Unlock the domain and get the EPP code",
+      "Share the EPP code securely with the buyer",
+    ],
+  },
+  {
+    id: "cloudflare",
+    name: "Cloudflare",
+    patterns: [/cloudflare\.com/i, /dash\.cloudflare\.com/i],
+    instructions: [
+      "Log into your Cloudflare dashboard",
+      "Go to Domain Registration and select your domain",
+      "Click 'Configuration' > 'Transfer Out'",
+      "Unlock the domain and request the auth code",
+      "Share the auth code securely with the buyer",
+    ],
+  },
+  {
+    id: "google",
+    name: "Google Domains / Squarespace",
+    patterns: [/domains\.google/i, /squarespace\.com/i],
+    instructions: [
+      "Go to domains.google.com or Squarespace Domains",
+      "Select your domain and click 'Manage'",
+      "Go to 'Registration settings'",
+      "Unlock the domain and get the transfer code",
+      "Share the authorization code securely with the buyer",
+    ],
+  },
+  {
+    id: "porkbun",
+    name: "Porkbun",
+    patterns: [/porkbun\.com/i],
+    instructions: [
+      "Log into your Porkbun account",
+      "Go to Domain Management and select your domain",
+      "Click 'Get Auth Code' to reveal the EPP code",
+      "Ensure the domain is unlocked for transfer",
+      "Share the auth code with the buyer",
+    ],
+  },
+];
+
+const GENERIC_INSTRUCTIONS = [
+  "Log into your domain registrar account",
+  "Navigate to your domain's settings page",
+  "Look for 'Transfer' or 'Transfer Out' options",
+  "Unlock the domain if it's locked",
+  "Request or copy the EPP/Authorization code",
+  "Share the transfer link and auth code with the buyer",
+];
+
+// Parse domain evidence JSON
+interface DomainTransferEvidence {
+  transferLink?: string;
+  authCode?: string;
+  registrar?: string;
+  notes?: string;
+}
+
+function parseDomainEvidence(evidence: string | null): DomainTransferEvidence | null {
+  if (!evidence) return null;
+  try {
+    const parsed = JSON.parse(evidence);
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed as DomainTransferEvidence;
+    }
+  } catch {
+    // Not JSON, return as notes
+    return { notes: evidence };
+  }
+  return null;
+}
+
+function detectRegistrar(url: string): DomainRegistrarInfo | null {
+  return DOMAIN_REGISTRARS.find((r) =>
+    r.patterns.some((p) => p.test(url))
+  ) || null;
+}
+
 export default function TransferPage() {
   const params = useParams();
   const router = useRouter();
@@ -85,6 +201,19 @@ export default function TransferPage() {
   const [evidence, setEvidence] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [completingTransfer, setCompletingTransfer] = useState(false);
+
+  // Domain transfer form state
+  const [domainTransferLink, setDomainTransferLink] = useState("");
+  const [domainAuthCode, setDomainAuthCode] = useState("");
+  const [domainNotes, setDomainNotes] = useState("");
+  const [showAuthCode, setShowAuthCode] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showInstructions, setShowInstructions] = useState(true);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [detectedRegistrar, setDetectedRegistrar] = useState<DomainRegistrarInfo | null>(null);
+
+  // Messaging state
+  const [startingConversation, setStartingConversation] = useState(false);
 
   useEffect(() => {
     fetchTransfer();
@@ -119,7 +248,101 @@ export default function TransferPage() {
     }
   };
 
+  // Handle domain transfer link changes for registrar detection
+  const handleDomainLinkChange = useCallback((value: string) => {
+    setDomainTransferLink(value);
+    setLinkError(null);
+
+    if (value.trim()) {
+      const registrar = detectRegistrar(value);
+      setDetectedRegistrar(registrar);
+    } else {
+      setDetectedRegistrar(null);
+    }
+  }, []);
+
+  // Copy to clipboard helper
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  // Handle messaging the other party
+  const handleMessageParty = async () => {
+    if (!transfer) return;
+
+    setStartingConversation(true);
+    try {
+      const recipientId = transfer.isSeller ? transfer.buyer.id : transfer.seller.id;
+      const message = `Hi! I'm reaching out regarding the transfer for "${transfer.listing.title}".`;
+
+      const result = await startConversation(recipientId, message, transfer.listing.id);
+      if (result?.conversationId) {
+        router.push(`/dashboard/messages?conversation=${result.conversationId}`);
+      }
+    } catch (err) {
+      console.error("Error starting conversation:", err);
+      alert("Failed to start conversation");
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
   const handleSellerConfirm = async (itemId: string) => {
+    // Handle domain transfers differently
+    if (itemId === "domain") {
+      if (!domainTransferLink.trim() && !domainAuthCode.trim()) {
+        setLinkError("Please provide a transfer link or auth code");
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const res = await fetch(`/api/transfers/${params.id}/seller-confirm`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            itemId,
+            transferLink: domainTransferLink.trim() || undefined,
+            authCode: domainAuthCode.trim() || undefined,
+            notes: domainNotes.trim() || undefined,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setLinkError(data.error || "Failed to confirm transfer");
+          if (data.suggestions) {
+            setLinkError(`${data.error}\n\nSuggestions:\n${data.suggestions.join("\n")}`);
+          }
+          return;
+        }
+
+        // Refresh transfer data and reset form
+        await fetchTransfer();
+        setSelectedItem(null);
+        setDomainTransferLink("");
+        setDomainAuthCode("");
+        setDomainNotes("");
+        setDetectedRegistrar(null);
+        setLinkError(null);
+      } catch (err: unknown) {
+        console.error("Error confirming transfer:", err);
+        setLinkError(err instanceof Error ? err.message : "Failed to confirm transfer");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Handle non-domain items
     if (!evidence.trim()) return;
 
     setIsSubmitting(true);
@@ -375,7 +598,89 @@ export default function TransferPage() {
 
                           {/* Status & Evidence */}
                           <div className="mt-3 space-y-2">
-                            {item.sellerConfirmed && (
+                            {item.sellerConfirmed && item.id === "domain" && (() => {
+                              const domainData = parseDomainEvidence(item.sellerEvidence);
+                              if (domainData) {
+                                return (
+                                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 space-y-2">
+                                    <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-300">
+                                      <CheckCircle2 className="w-4 h-4" />
+                                      Domain Transfer Details
+                                      {domainData.registrar && (
+                                        <span className="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-800/50">
+                                          {domainData.registrar}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {domainData.transferLink && (
+                                      <div className="flex items-center gap-2">
+                                        <LinkIcon className="w-3.5 h-3.5 text-zinc-500" />
+                                        <a
+                                          href={domainData.transferLink}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline truncate max-w-[300px]"
+                                        >
+                                          {domainData.transferLink}
+                                        </a>
+                                        <button
+                                          onClick={() => copyToClipboard(domainData.transferLink!, "link")}
+                                          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
+                                          title="Copy link"
+                                        >
+                                          {copiedField === "link" ? (
+                                            <Check className="w-3.5 h-3.5 text-green-500" />
+                                          ) : (
+                                            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                                          )}
+                                        </button>
+                                        <a
+                                          href={domainData.transferLink}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
+                                          title="Open link"
+                                        >
+                                          <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                                        </a>
+                                      </div>
+                                    )}
+                                    {domainData.authCode && (
+                                      <div className="flex items-center gap-2">
+                                        <Key className="w-3.5 h-3.5 text-zinc-500" />
+                                        <code className="text-sm bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded font-mono">
+                                          {showAuthCode ? domainData.authCode : "••••••••••••"}
+                                        </code>
+                                        <button
+                                          onClick={() => setShowAuthCode(!showAuthCode)}
+                                          className="text-xs text-blue-600 hover:underline"
+                                        >
+                                          {showAuthCode ? "Hide" : "Show"}
+                                        </button>
+                                        <button
+                                          onClick={() => copyToClipboard(domainData.authCode!, "authCode")}
+                                          className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded"
+                                          title="Copy auth code"
+                                        >
+                                          {copiedField === "authCode" ? (
+                                            <Check className="w-3.5 h-3.5 text-green-500" />
+                                          ) : (
+                                            <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                                          )}
+                                        </button>
+                                      </div>
+                                    )}
+                                    {domainData.notes && (
+                                      <div className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                                        <span className="font-medium">Notes:</span> {domainData.notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {item.sellerConfirmed && item.id !== "domain" && (
                               <div className="flex items-start gap-2 text-sm">
                                 <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
                                 <div>
@@ -444,8 +749,183 @@ export default function TransferPage() {
                         </div>
                       </div>
 
-                      {/* Seller Evidence Modal */}
-                      {selectedItem === item.id && (
+                      {/* Seller Evidence Modal - Domain Transfer */}
+                      {selectedItem === item.id && item.id === "domain" && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl space-y-4"
+                        >
+                          {/* Auto-generated Instructions */}
+                          <div className="border border-blue-200 dark:border-blue-800 rounded-lg overflow-hidden">
+                            <button
+                              onClick={() => setShowInstructions(!showInstructions)}
+                              className="w-full flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                                  {detectedRegistrar
+                                    ? `${detectedRegistrar.name} Transfer Instructions`
+                                    : "Domain Transfer Instructions"}
+                                </span>
+                              </div>
+                              {showInstructions ? (
+                                <ChevronUp className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 text-blue-600" />
+                              )}
+                            </button>
+                            <AnimatePresence>
+                              {showInstructions && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <ol className="p-3 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400">
+                                    {(detectedRegistrar?.instructions || GENERIC_INSTRUCTIONS).map(
+                                      (instruction, idx) => (
+                                        <li key={idx} className="flex gap-2">
+                                          <span className="font-medium text-blue-600 dark:text-blue-400 min-w-[20px]">
+                                            {idx + 1}.
+                                          </span>
+                                          <span>{instruction}</span>
+                                        </li>
+                                      )
+                                    )}
+                                  </ol>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          {/* Transfer Link Field */}
+                          <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                              <LinkIcon className="w-4 h-4" />
+                              Domain Transfer Link
+                              <span className="text-xs font-normal text-zinc-500">(from your registrar)</span>
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="url"
+                                value={domainTransferLink}
+                                onChange={(e) => handleDomainLinkChange(e.target.value)}
+                                placeholder="https://godaddy.com/... or https://namecheap.com/..."
+                                className={`input-field pr-10 ${
+                                  linkError && !domainAuthCode ? "border-red-300 dark:border-red-700" : ""
+                                }`}
+                              />
+                              {detectedRegistrar && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                  <span className="text-xs px-2 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                    {detectedRegistrar.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              Paste the transfer or authorization link from your domain registrar
+                            </p>
+                          </div>
+
+                          {/* Auth/EPP Code Field */}
+                          <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                              <Key className="w-4 h-4" />
+                              EPP / Authorization Code
+                              <span className="text-xs font-normal text-zinc-500">(if required)</span>
+                            </label>
+                            <div className="relative">
+                              <input
+                                type={showAuthCode ? "text" : "password"}
+                                value={domainAuthCode}
+                                onChange={(e) => setDomainAuthCode(e.target.value)}
+                                placeholder="Enter EPP/Auth code"
+                                className="input-field pr-20"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowAuthCode(!showAuthCode)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                              >
+                                {showAuthCode ? "Hide" : "Show"}
+                              </button>
+                            </div>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              The EPP code is required for most domain transfers between registrars
+                            </p>
+                          </div>
+
+                          {/* Additional Notes Field */}
+                          <div>
+                            <label className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                              <FileText className="w-4 h-4" />
+                              Additional Notes
+                              <span className="text-xs font-normal text-zinc-500">(optional)</span>
+                            </label>
+                            <textarea
+                              value={domainNotes}
+                              onChange={(e) => setDomainNotes(e.target.value)}
+                              placeholder="Any additional instructions or information for the buyer..."
+                              className="input-field min-h-[60px] resize-y"
+                              rows={2}
+                            />
+                          </div>
+
+                          {/* Error Display */}
+                          {linkError && (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                              <div className="flex gap-2 text-sm text-red-700 dark:text-red-300">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <p className="whitespace-pre-wrap">{linkError}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-3 pt-2">
+                            <button
+                              onClick={() => handleSellerConfirm(item.id)}
+                              disabled={
+                                (!domainTransferLink.trim() && !domainAuthCode.trim()) ||
+                                isSubmitting
+                              }
+                              className="btn-success text-sm py-2"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Confirming...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  Confirm Domain Transfer
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedItem(null);
+                                setDomainTransferLink("");
+                                setDomainAuthCode("");
+                                setDomainNotes("");
+                                setLinkError(null);
+                                setDetectedRegistrar(null);
+                              }}
+                              className="btn-secondary text-sm py-2"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Seller Evidence Modal - Other Items */}
+                      {selectedItem === item.id && item.id !== "domain" && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
@@ -656,23 +1136,53 @@ export default function TransferPage() {
               </div>
             </div>
 
+            {/* Communication */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                Communication
+              </h3>
+              <p className="text-sm text-zinc-500 mb-4">
+                Message the {isSeller ? "buyer" : "seller"} directly about this transfer.
+              </p>
+              <button
+                onClick={handleMessageParty}
+                disabled={startingConversation}
+                className="w-full btn-primary text-sm py-2 justify-center"
+              >
+                {startingConversation ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Starting...
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="w-4 h-4" />
+                    Message {isSeller ? "Buyer" : "Seller"}
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Help */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
               <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
                 Need Help?
               </h3>
               <p className="text-sm text-zinc-500 mb-4">
-                Having issues with the transfer? Contact us or open a dispute.
+                Having issues with the transfer? Contact support or open a dispute.
               </p>
               <div className="space-y-2">
-                <button className="w-full btn-secondary text-sm py-2 justify-center">
+                <Link
+                  href="/support"
+                  className="w-full btn-secondary text-sm py-2 justify-center flex items-center gap-2"
+                >
                   <MessageSquare className="w-4 h-4" />
                   Contact Support
-                </button>
+                </Link>
                 {!isCompleted && (
                   <button
                     onClick={() => router.push(`/dashboard/disputes/new?transaction=${transfer.id}`)}
-                    className="w-full btn-outline text-sm py-2 justify-center text-red-600 border-red-300 hover:bg-red-50"
+                    className="w-full btn-outline text-sm py-2 justify-center text-red-600 border-red-300 hover:bg-red-50 dark:border-red-700 dark:hover:bg-red-900/20"
                   >
                     <Flag className="w-4 h-4" />
                     Open Dispute

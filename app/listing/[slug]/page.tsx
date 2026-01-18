@@ -51,6 +51,19 @@ const formatCurrency = (currency: string): string => {
   }
 };
 
+interface RequiredBuyerInfoItem {
+  required: boolean;
+  description?: string;
+}
+
+interface RequiredBuyerInfo {
+  github?: RequiredBuyerInfoItem;
+  domain?: RequiredBuyerInfoItem;
+  email?: RequiredBuyerInfoItem;
+  walletAddress?: RequiredBuyerInfoItem;
+  other?: RequiredBuyerInfoItem;
+}
+
 interface Listing {
   id: string;
   slug: string;
@@ -87,6 +100,7 @@ interface Listing {
   endTime: string;
   currentBid: number;
   bidCount: number;
+  requiredBuyerInfo?: RequiredBuyerInfo;
   seller: {
     id: string;
     name?: string;
@@ -713,6 +727,76 @@ export default function ListingPage() {
                     </>
                   )}
                 </div>
+
+                {/* Required Buyer Information */}
+                {listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (
+                  <div className="p-6 bg-purple-50 dark:bg-purple-900/10 border-t border-purple-200 dark:border-purple-800">
+                    <h4 className="font-medium text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      What You&apos;ll Need to Provide
+                    </h4>
+                    <p className="text-xs text-purple-600 dark:text-purple-500 mb-3">
+                      After purchase, you&apos;ll have 48 hours to provide:
+                    </p>
+                    <div className="space-y-2">
+                      {listing.requiredBuyerInfo.github?.required && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Github className="w-4 h-4 text-purple-600 mt-0.5" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300">GitHub Username</span>
+                            {listing.requiredBuyerInfo.github.description && (
+                              <p className="text-xs text-zinc-500 mt-0.5">{listing.requiredBuyerInfo.github.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {listing.requiredBuyerInfo.domain?.required && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Globe className="w-4 h-4 text-purple-600 mt-0.5" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300">Domain Registrar Info</span>
+                            {listing.requiredBuyerInfo.domain.description && (
+                              <p className="text-xs text-zinc-500 mt-0.5">{listing.requiredBuyerInfo.domain.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {listing.requiredBuyerInfo.email?.required && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <MessageCircle className="w-4 h-4 text-purple-600 mt-0.5" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300">Email Address</span>
+                            {listing.requiredBuyerInfo.email.description && (
+                              <p className="text-xs text-zinc-500 mt-0.5">{listing.requiredBuyerInfo.email.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {listing.requiredBuyerInfo.walletAddress?.required && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Key className="w-4 h-4 text-purple-600 mt-0.5" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300">Wallet Address</span>
+                            {listing.requiredBuyerInfo.walletAddress.description && (
+                              <p className="text-xs text-zinc-500 mt-0.5">{listing.requiredBuyerInfo.walletAddress.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {listing.requiredBuyerInfo.other?.required && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <FileText className="w-4 h-4 text-purple-600 mt-0.5" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300">Other Information</span>
+                            {listing.requiredBuyerInfo.other.description && (
+                              <p className="text-xs text-zinc-500 mt-0.5">{listing.requiredBuyerInfo.other.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Trust Indicators */}
                 <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800">

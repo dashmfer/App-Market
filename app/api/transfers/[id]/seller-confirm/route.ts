@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  validateDomainTransferLink,
+  validateAuthCode,
+  detectRegistrarFromUrl,
+} from "@/lib/domain-transfer";
 
 interface ChecklistItem {
   id: string;
@@ -16,6 +21,14 @@ interface ChecklistItem {
   buyerConfirmedAt: string | null;
 }
 
+// Extended evidence structure for domain transfers
+interface DomainTransferEvidence {
+  transferLink?: string;
+  authCode?: string;
+  registrar?: string;
+  notes?: string;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -27,13 +40,55 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { itemId, evidence } = body;
+    const { itemId, evidence, transferLink, authCode, notes } = body;
 
-    if (!itemId || !evidence) {
-      return NextResponse.json(
-        { error: "Item ID and evidence are required" },
-        { status: 400 }
-      );
+    // For domain transfers, require structured data
+    if (itemId === "domain") {
+      if (!transferLink && !authCode) {
+        return NextResponse.json(
+          { error: "Domain transfer requires a transfer link or auth code" },
+          { status: 400 }
+        );
+      }
+
+      // Validate transfer link if provided
+      if (transferLink) {
+        const linkValidation = validateDomainTransferLink(transferLink);
+        if (!linkValidation.isValid) {
+          return NextResponse.json(
+            {
+              error: linkValidation.error || "Invalid transfer link",
+              suggestions: linkValidation.suggestions,
+            },
+            { status: 400 }
+          );
+        }
+
+        // Warn if not a recognized transfer URL (but don't block)
+        if (!linkValidation.isTransferUrl && linkValidation.registrar) {
+          // We'll include a warning but still allow it
+        }
+      }
+
+      // Validate auth code if provided
+      if (authCode) {
+        const registrar = transferLink ? detectRegistrarFromUrl(transferLink) : null;
+        const codeValidation = validateAuthCode(authCode, registrar || undefined);
+        if (!codeValidation.isValid) {
+          return NextResponse.json(
+            { error: codeValidation.error || "Invalid auth code format" },
+            { status: 400 }
+          );
+        }
+      }
+    } else {
+      // For non-domain items, require basic evidence
+      if (!itemId || !evidence) {
+        return NextResponse.json(
+          { error: "Item ID and evidence are required" },
+          { status: 400 }
+        );
+      }
     }
 
     const transaction = await prisma.transaction.findUnique({
@@ -77,12 +132,35 @@ export async function POST(
       );
     }
 
+    // Build evidence based on item type
+    let evidenceData: string;
+    if (itemId === "domain") {
+      // Store structured domain transfer data as JSON
+      const domainEvidence: DomainTransferEvidence = {};
+      if (transferLink) {
+        domainEvidence.transferLink = transferLink;
+        const registrar = detectRegistrarFromUrl(transferLink);
+        if (registrar) {
+          domainEvidence.registrar = registrar.name;
+        }
+      }
+      if (authCode) {
+        domainEvidence.authCode = authCode;
+      }
+      if (notes) {
+        domainEvidence.notes = notes;
+      }
+      evidenceData = JSON.stringify(domainEvidence);
+    } else {
+      evidenceData = evidence;
+    }
+
     // Update the item
     checklist[itemIndex] = {
       ...checklist[itemIndex],
       sellerConfirmed: true,
       sellerConfirmedAt: new Date().toISOString(),
-      sellerEvidence: evidence,
+      sellerEvidence: evidenceData,
     };
 
     // Check if all required items are confirmed by seller

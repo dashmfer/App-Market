@@ -187,7 +187,16 @@ export default function CreateListingPage() {
     
     // Additional Assets
     additionalAssets: "",
-    
+
+    // Required Buyer Information (what seller needs from buyer to complete transfer)
+    requiredBuyerInfo: {
+      github: { required: false, description: "" },
+      domain: { required: false, description: "" },
+      email: { required: false, description: "" },
+      walletAddress: { required: false, description: "" },
+      other: { required: false, description: "" },
+    } as Record<string, { required: boolean; description: string }>,
+
     // Step 3: Pricing
     enableAuction: true,
     startingPrice: "",
@@ -268,6 +277,13 @@ export default function CreateListingPage() {
   };
   const removeOtherDocument = (index: number) => {
     updateFormData("otherDocuments", formData.otherDocuments.filter((_, i) => i !== index));
+  };
+
+  // Required buyer info helpers
+  const updateRequiredBuyerInfo = (field: string, key: "required" | "description", value: boolean | string) => {
+    const updated = { ...formData.requiredBuyerInfo };
+    updated[field] = { ...updated[field], [key]: value };
+    updateFormData("requiredBuyerInfo", updated);
   };
 
   // GitHub verification - requires user to authenticate with GitHub
@@ -431,6 +447,9 @@ export default function CreateListingPage() {
           hasDesignFiles: formData.hasDesignFiles,
           hasDocumentation: formData.hasDocumentation,
           additionalAssets: formData.additionalAssets,
+          requiredBuyerInfo: Object.values(formData.requiredBuyerInfo).some(v => v.required)
+            ? formData.requiredBuyerInfo
+            : null,
           startingPrice: formData.startingPrice,
           reservePrice: formData.reservePrice || null,
           buyNowEnabled: formData.enableBuyNow,
@@ -1249,6 +1268,192 @@ export default function CreateListingPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Required Buyer Information Section */}
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Required Buyer Information</h2>
+                      <p className="text-zinc-500 text-sm mt-1">What information do you need from the buyer to complete the transfer?</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl mb-6">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4 h-4 text-blue-600 mt-0.5" />
+                      <div className="text-sm text-blue-700 dark:text-blue-400">
+                        <p className="font-medium mb-1">How it works:</p>
+                        <ul className="list-disc ml-4 space-y-1 text-blue-600 dark:text-blue-500">
+                          <li>After purchase, buyers have <strong>48 hours</strong> to provide the information you request</li>
+                          <li>You&apos;ll be notified when they submit their info</li>
+                          <li>If they miss the deadline, a fallback transfer process begins</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* GitHub Username - shown if github repo is included */}
+                    {(formData.githubRepo && formData.githubVerified) && (
+                      <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.github?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.requiredBuyerInfo.github?.required || false}
+                            onChange={(e) => updateRequiredBuyerInfo("github", "required", e.target.checked)}
+                            className="w-5 h-5 mt-0.5 rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Github className="w-5 h-5 text-zinc-600" />
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100">GitHub Username</span>
+                              <span className="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Recommended</span>
+                            </div>
+                            <p className="text-sm text-zinc-500 mt-1">Buyer&apos;s GitHub username for repository transfer</p>
+                          </div>
+                        </label>
+                        {formData.requiredBuyerInfo.github?.required && (
+                          <input
+                            type="text"
+                            value={formData.requiredBuyerInfo.github?.description || ""}
+                            onChange={(e) => updateRequiredBuyerInfo("github", "description", e.target.value)}
+                            placeholder="Instructions for the buyer (optional)"
+                            className="input-field mt-3 ml-8"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Domain Transfer Info - shown if domain is included */}
+                    {formData.hasDomain && (
+                      <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.domain?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.requiredBuyerInfo.domain?.required || false}
+                            onChange={(e) => updateRequiredBuyerInfo("domain", "required", e.target.checked)}
+                            className="w-5 h-5 mt-0.5 rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Globe className="w-5 h-5 text-zinc-600" />
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Registrar Info</span>
+                            </div>
+                            <p className="text-sm text-zinc-500 mt-1">Buyer&apos;s registrar account or email for domain push</p>
+                          </div>
+                        </label>
+                        {formData.requiredBuyerInfo.domain?.required && (
+                          <input
+                            type="text"
+                            value={formData.requiredBuyerInfo.domain?.description || ""}
+                            onChange={(e) => updateRequiredBuyerInfo("domain", "description", e.target.value)}
+                            placeholder="e.g., 'I'll push from GoDaddy - need your GoDaddy email'"
+                            className="input-field mt-3 ml-8"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Email Address - always available */}
+                    <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.email?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.requiredBuyerInfo.email?.required || false}
+                          onChange={(e) => updateRequiredBuyerInfo("email", "required", e.target.checked)}
+                          className="w-5 h-5 mt-0.5 rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <AtSign className="w-5 h-5 text-zinc-600" />
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Email Address</span>
+                          </div>
+                          <p className="text-sm text-zinc-500 mt-1">For sending credentials or transfer instructions</p>
+                        </div>
+                      </label>
+                      {formData.requiredBuyerInfo.email?.required && (
+                        <input
+                          type="text"
+                          value={formData.requiredBuyerInfo.email?.description || ""}
+                          onChange={(e) => updateRequiredBuyerInfo("email", "description", e.target.value)}
+                          placeholder="What will you send to this email?"
+                          className="input-field mt-3 ml-8"
+                        />
+                      )}
+                    </div>
+
+                    {/* Wallet Address - shown if crypto/web3 related */}
+                    {(formData.blockchain || formData.category === "CRYPTO_WEB3") && (
+                      <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.walletAddress?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                        <label className="flex items-start gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.requiredBuyerInfo.walletAddress?.required || false}
+                            onChange={(e) => updateRequiredBuyerInfo("walletAddress", "required", e.target.checked)}
+                            className="w-5 h-5 mt-0.5 rounded"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-5 h-5 text-zinc-600" />
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100">Wallet Address</span>
+                            </div>
+                            <p className="text-sm text-zinc-500 mt-1">For transferring on-chain assets or admin rights</p>
+                          </div>
+                        </label>
+                        {formData.requiredBuyerInfo.walletAddress?.required && (
+                          <input
+                            type="text"
+                            value={formData.requiredBuyerInfo.walletAddress?.description || ""}
+                            onChange={(e) => updateRequiredBuyerInfo("walletAddress", "description", e.target.value)}
+                            placeholder="Which chain/network? What will you transfer?"
+                            className="input-field mt-3 ml-8"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Other - always available */}
+                    <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.other?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.requiredBuyerInfo.other?.required || false}
+                          onChange={(e) => updateRequiredBuyerInfo("other", "required", e.target.checked)}
+                          className="w-5 h-5 mt-0.5 rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-5 h-5 text-zinc-600" />
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Other Information</span>
+                          </div>
+                          <p className="text-sm text-zinc-500 mt-1">Any other info you need to complete the transfer</p>
+                        </div>
+                      </label>
+                      {formData.requiredBuyerInfo.other?.required && (
+                        <textarea
+                          value={formData.requiredBuyerInfo.other?.description || ""}
+                          onChange={(e) => updateRequiredBuyerInfo("other", "description", e.target.value)}
+                          placeholder="Describe what information you need and why"
+                          rows={2}
+                          className="input-field mt-3 ml-8 resize-none"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* No requirements selected info */}
+                  {!Object.values(formData.requiredBuyerInfo).some(v => v.required) && (
+                    <div className="mt-4 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                      <p className="text-sm text-zinc-500 flex items-center gap-2">
+                        <Info className="w-4 h-4" />
+                        No required info selected. The fallback transfer process will be used automatically.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1404,6 +1609,66 @@ export default function CreateListingPage() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Required Buyer Information */}
+                    {Object.values(formData.requiredBuyerInfo).some(v => v.required) && (
+                      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
+                        <h4 className="font-medium text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-2">
+                          <FileText className="w-5 h-5" />
+                          Required Buyer Information
+                        </h4>
+                        <p className="text-sm text-purple-600 dark:text-purple-500 mb-2">
+                          Buyers have 48 hours after purchase to provide:
+                        </p>
+                        <div className="space-y-2">
+                          {formData.requiredBuyerInfo.github?.required && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Github className="w-4 h-4 text-purple-600" />
+                              <span className="text-zinc-700 dark:text-zinc-300">GitHub Username</span>
+                              {formData.requiredBuyerInfo.github.description && (
+                                <span className="text-zinc-500">- {formData.requiredBuyerInfo.github.description}</span>
+                              )}
+                            </div>
+                          )}
+                          {formData.requiredBuyerInfo.domain?.required && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Globe className="w-4 h-4 text-purple-600" />
+                              <span className="text-zinc-700 dark:text-zinc-300">Domain Registrar Info</span>
+                              {formData.requiredBuyerInfo.domain.description && (
+                                <span className="text-zinc-500">- {formData.requiredBuyerInfo.domain.description}</span>
+                              )}
+                            </div>
+                          )}
+                          {formData.requiredBuyerInfo.email?.required && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <AtSign className="w-4 h-4 text-purple-600" />
+                              <span className="text-zinc-700 dark:text-zinc-300">Email Address</span>
+                              {formData.requiredBuyerInfo.email.description && (
+                                <span className="text-zinc-500">- {formData.requiredBuyerInfo.email.description}</span>
+                              )}
+                            </div>
+                          )}
+                          {formData.requiredBuyerInfo.walletAddress?.required && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Wallet className="w-4 h-4 text-purple-600" />
+                              <span className="text-zinc-700 dark:text-zinc-300">Wallet Address</span>
+                              {formData.requiredBuyerInfo.walletAddress.description && (
+                                <span className="text-zinc-500">- {formData.requiredBuyerInfo.walletAddress.description}</span>
+                              )}
+                            </div>
+                          )}
+                          {formData.requiredBuyerInfo.other?.required && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <FileText className="w-4 h-4 text-purple-600" />
+                              <span className="text-zinc-700 dark:text-zinc-300">Other</span>
+                              {formData.requiredBuyerInfo.other.description && (
+                                <span className="text-zinc-500">- {formData.requiredBuyerInfo.other.description}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Terms */}
                     <div className={`p-4 rounded-xl border ${errors.terms ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20" : "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800"}`}>

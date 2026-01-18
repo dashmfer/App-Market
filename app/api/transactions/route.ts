@@ -165,6 +165,12 @@ export async function POST(request: NextRequest) {
       documentation: listing.hasDocumentation ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
     };
 
+    // Calculate buyer info deadline (48 hours from now)
+    const hasRequiredBuyerInfo = listing.requiredBuyerInfo !== null;
+    const buyerInfoDeadline = hasRequiredBuyerInfo
+      ? new Date(Date.now() + 48 * 60 * 60 * 1000)
+      : null;
+
     // Create transaction
     const transaction = await prisma.transaction.create({
       data: {
@@ -177,12 +183,22 @@ export async function POST(request: NextRequest) {
         onChainTx,
         status: onChainTx ? "IN_ESCROW" : "PENDING",
         transferChecklist,
+        buyerInfoDeadline,
+        buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",
         listingId,
         buyerId: userId,
         sellerId: listing.sellerId,
         paidAt: new Date(),
       },
     });
+
+    // Lock the required buyer info on the listing
+    if (hasRequiredBuyerInfo) {
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: { buyerInfoLocked: true },
+      });
+    }
 
     // Update listing status
     await prisma.listing.update({
@@ -195,11 +211,26 @@ export async function POST(request: NextRequest) {
       data: {
         type: "AUCTION_WON",
         title: "Your project has been sold!",
-        message: `"${listing.title}" sold for ${salePrice} ${listing.currency}`,
+        message: hasRequiredBuyerInfo
+          ? `"${listing.title}" sold for ${salePrice} ${listing.currency}. The buyer has 48 hours to provide their transfer information.`
+          : `"${listing.title}" sold for ${salePrice} ${listing.currency}`,
         data: { transactionId: transaction.id, listingSlug: listing.slug },
         userId: listing.sellerId,
       },
     });
+
+    // Notify buyer about required info (if applicable)
+    if (hasRequiredBuyerInfo) {
+      await prisma.notification.create({
+        data: {
+          type: "BUYER_INFO_REQUIRED",
+          title: "Action Required: Provide Transfer Info",
+          message: `You have 48 hours to provide your information for "${listing.title}" so the seller can complete the transfer.`,
+          data: { link: `/dashboard/transfers/${transaction.id}/buyer-info` },
+          userId,
+        },
+      });
+    }
 
     // Update seller stats
     await prisma.user.update({

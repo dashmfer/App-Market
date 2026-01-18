@@ -155,6 +155,11 @@ model Listing {
   screenshotUrls    String[]
   demoUrl           String?
   videoUrl          String?
+
+  // Required Buyer Information (seller specifies what they need from buyers)
+  // JSON structure: { github?: { required: true, description: "..." }, domain?: {...}, ... }
+  requiredBuyerInfo Json?
+  buyerInfoLocked   Boolean   @default(false)  // Locked once first purchase is made
   
   // Metrics (if deployed)
   monthlyUsers      Int?
@@ -351,6 +356,17 @@ model Transaction {
 
   // Transfer Checklist
   transferChecklist   Json?
+
+  // Buyer Information Collection (48-hour deadline after purchase)
+  buyerProvidedInfo     Json?             // Info submitted by buyer
+  buyerInfoDeadline     DateTime?         // 48 hours from purchase
+  buyerInfoStatus       BuyerInfoStatus   @default(PENDING)
+  buyerInfoSubmittedAt  DateTime?
+
+  // Transfer Methods per asset (tracks native vs fallback)
+  // JSON structure: { github: { method: "native"|"fallback", ... }, domain: {...} }
+  transferMethods       Json?
+  fallbackTransferUsed  Boolean           @default(false)
 
   // Upload Verification
   sellerConfirmedTransfer Boolean        @default(false)
@@ -695,7 +711,18 @@ enum NotificationType {
   REVIEW_RECEIVED
   WATCHLIST_ENDING
   MESSAGE_RECEIVED
+  BUYER_INFO_REQUIRED      // Notify buyer to submit required info
+  BUYER_INFO_REMINDER      // Reminder at 24h and 6h remaining
+  BUYER_INFO_SUBMITTED     // Notify seller that buyer submitted info
+  BUYER_INFO_DEADLINE      // Notify both when deadline passes
+  FALLBACK_TRANSFER_ACTIVE // Notify when fallback process starts
   SYSTEM
+}
+
+enum BuyerInfoStatus {
+  PENDING          // Buyer hasn't submitted info yet
+  PROVIDED         // Buyer has submitted required info
+  DEADLINE_PASSED  // 48-hour deadline passed without info
 }
 
 enum TokenLaunchType {
