@@ -167,7 +167,7 @@ model Listing {
   reservePrice      Float?
   buyNowPrice       Float?
   buyNowEnabled     Boolean       @default(false)
-  currency          Currency      @default(SOL)
+  currency          Currency      @default(APP)
   
   // Timing
   startTime         DateTime      @default(now())

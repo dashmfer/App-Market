@@ -44,12 +44,12 @@ interface ListingCardProps {
 // Helper to get currency display label
 const getCurrencyLabel = (currency?: string): string => {
   switch (currency) {
-    case "APP":
-      return "$APP";
+    case "SOL":
+      return "SOL";
     case "USDC":
       return "USDC";
     default:
-      return "SOL";
+      return "$APP";
   }
 };
 
