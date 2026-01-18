@@ -39,6 +39,18 @@ import {
 import { startConversation } from "@/hooks/useMessages";
 import { formatDistanceToNow, format } from "date-fns";
 
+// Helper to format currency display
+const formatCurrency = (currency: string): string => {
+  switch (currency) {
+    case "APP":
+      return "$APP";
+    case "USDC":
+      return "USDC";
+    default:
+      return "SOL";
+  }
+};
+
 interface Listing {
   id: string;
   slug: string;
@@ -200,7 +212,7 @@ export default function ListingPage() {
     }
 
     if (bidAmount < minimumBid) {
-      setBidError(`Bid must be at least ${minimumBid} ${listing.currency}`);
+      setBidError(`Bid must be at least ${minimumBid} ${formatCurrency(listing.currency)}`);
       return;
     }
 
@@ -573,7 +585,7 @@ export default function ListingPage() {
                           </div>
                           <div className="text-right">
                             <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                              {bid.amount} {listing.currency}
+                              {bid.amount} {formatCurrency(listing.currency)}
                             </div>
                             {index === 0 && (
                               <div className="text-sm text-green-600 dark:text-green-400">
@@ -621,7 +633,7 @@ export default function ListingPage() {
                     <span className="text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
                       {isBuyNowOnly ? listing.buyNowPrice : (listing.currentBid || listing.startingPrice)}
                     </span>
-                    <span className="text-xl text-zinc-500">{listing.currency}</span>
+                    <span className="text-xl text-zinc-500">{formatCurrency(listing.currency)}</span>
                   </div>
                 </div>
 
@@ -644,11 +656,11 @@ export default function ListingPage() {
                             className="w-full px-4 py-3 pr-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-lg font-medium"
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                            {listing.currency}
+                            {formatCurrency(listing.currency)}
                           </span>
                         </div>
                         <p className="text-sm text-zinc-500 mt-2">
-                          Minimum bid: {minimumBid} {listing.currency}
+                          Minimum bid: {minimumBid} {formatCurrency(listing.currency)}
                         </p>
                       </div>
 
@@ -696,7 +708,7 @@ export default function ListingPage() {
 
                       <button className="w-full btn-success py-4 text-lg">
                         <ShoppingCart className="w-5 h-5" />
-                        Buy Now for {listing.buyNowPrice} {listing.currency}
+                        Buy Now for {listing.buyNowPrice} {formatCurrency(listing.currency)}
                       </button>
                     </>
                   )}

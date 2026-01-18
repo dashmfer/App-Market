@@ -21,6 +21,7 @@ interface ListingCardProps {
     startingPrice?: number;
     buyNowPrice?: number;
     buyNowEnabled?: boolean;
+    currency?: string;
     endTime: string | Date;
     bidCount?: number;
     _count?: { bids: number };
@@ -39,6 +40,18 @@ interface ListingCardProps {
   index?: number;
   initialWatchlisted?: boolean;
 }
+
+// Helper to get currency display label
+const getCurrencyLabel = (currency?: string): string => {
+  switch (currency) {
+    case "APP":
+      return "$APP";
+    case "USDC":
+      return "USDC";
+    default:
+      return "SOL";
+  }
+};
 
 export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingCardProps) {
   const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlisted || !!listing.watchlistId);
@@ -268,7 +281,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                       <span className="text-xl font-semibold text-green-600 dark:text-green-400">
                         {listing.buyNowPrice}
                       </span>
-                      <span className="text-sm text-zinc-500">SOL</span>
+                      <span className="text-sm text-zinc-500">{getCurrencyLabel(listing.currency)}</span>
                     </div>
                   </div>
                 ) : (
@@ -283,7 +296,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                         <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                           {displayPrice}
                         </span>
-                        <span className="text-sm text-zinc-500">SOL</span>
+                        <span className="text-sm text-zinc-500">{getCurrencyLabel(listing.currency)}</span>
                       </div>
                     </div>
 
@@ -297,7 +310,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                           <span className="text-lg font-semibold text-green-600 dark:text-green-400">
                             {listing.buyNowPrice}
                           </span>
-                          <span className="text-sm text-zinc-500">SOL</span>
+                          <span className="text-sm text-zinc-500">{getCurrencyLabel(listing.currency)}</span>
                         </div>
                       </div>
                     )}

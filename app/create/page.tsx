@@ -1257,14 +1257,43 @@ export default function CreateListingPage() {
               <div className="space-y-6">
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">Pricing Settings</h2>
-                  
+
                   {errors.pricing && (
                     <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
                       <p className="text-red-600 dark:text-red-400">{errors.pricing}</p>
                     </div>
                   )}
-                  
+
                   <div className="space-y-6">
+                    {/* Currency Selection */}
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">
+                        Payment Currency
+                      </label>
+                      <div className="flex gap-3">
+                        {[
+                          { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana" },
+                          { value: "APP", label: "$APP", icon: "🅰️", description: "Platform Token" },
+                          { value: "USDC", label: "USDC", icon: "💵", description: "Stablecoin" },
+                        ].map((currency) => (
+                          <button
+                            key={currency.value}
+                            type="button"
+                            onClick={() => updateFormData("currency", currency.value)}
+                            className={`flex-1 p-4 rounded-xl border-2 transition-all ${
+                              formData.currency === currency.value
+                                ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                                : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"
+                            }`}
+                          >
+                            <span className="text-2xl block mb-1">{currency.icon}</span>
+                            <span className="font-semibold text-zinc-900 dark:text-zinc-100 block">{currency.label}</span>
+                            <span className="text-xs text-zinc-500">{currency.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Auction */}
                     <div className={`p-6 rounded-xl border ${formData.enableAuction ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer mb-4">
@@ -1274,11 +1303,11 @@ export default function CreateListingPage() {
                           <p className="text-sm text-zinc-500">Let buyers bid on your project</p>
                         </div>
                       </label>
-                      
+
                       {formData.enableAuction && (
                         <div className="grid md:grid-cols-3 gap-4 ml-8">
                           <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Starting Price (SOL)</label>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Starting Price ({formData.currency})</label>
                             <input type="number" value={formData.startingPrice} onChange={(e) => updateFormData("startingPrice", e.target.value)} placeholder="0.00" step="0.01" className={`input-field ${errors.startingPrice ? "border-red-500" : ""}`} />
                             {errors.startingPrice && <p className="mt-1 text-sm text-red-500">{errors.startingPrice}</p>}
                           </div>
@@ -1309,10 +1338,10 @@ export default function CreateListingPage() {
                           <p className="text-sm text-zinc-500">Allow instant purchase at a fixed price</p>
                         </div>
                       </label>
-                      
+
                       {formData.enableBuyNow && (
                         <div className="ml-8 max-w-xs">
-                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Buy Now Price (SOL)</label>
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Buy Now Price ({formData.currency})</label>
                           <input type="number" value={formData.buyNowPrice} onChange={(e) => updateFormData("buyNowPrice", e.target.value)} placeholder="0.00" step="0.01" className={`input-field ${errors.buyNowPrice ? "border-red-500" : ""}`} />
                           {errors.buyNowPrice && <p className="mt-1 text-sm text-red-500">{errors.buyNowPrice}</p>}
                         </div>
@@ -1357,8 +1386,9 @@ export default function CreateListingPage() {
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
                       <h4 className="font-medium text-zinc-900 dark:text-zinc-100 mb-2">Pricing</h4>
                       <div className="space-y-1 text-sm">
-                        {formData.enableAuction && <p>Auction starting at <strong>{formData.startingPrice} SOL</strong></p>}
-                        {formData.enableBuyNow && <p>Buy Now for <strong>{formData.buyNowPrice} SOL</strong></p>}
+                        <p className="text-zinc-500">Currency: <strong className="text-zinc-900 dark:text-zinc-100">{formData.currency === "APP" ? "$APP" : formData.currency}</strong></p>
+                        {formData.enableAuction && <p>Auction starting at <strong>{formData.startingPrice} {formData.currency === "APP" ? "$APP" : formData.currency}</strong></p>}
+                        {formData.enableBuyNow && <p>Buy Now for <strong>{formData.buyNowPrice} {formData.currency === "APP" ? "$APP" : formData.currency}</strong></p>}
                       </div>
                     </div>
 

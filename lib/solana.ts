@@ -7,8 +7,24 @@ export const PROGRAM_ID = new PublicKey("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8
 // Platform treasury wallet - receives fees
 export const TREASURY_WALLET = new PublicKey("3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6");
 
-// Platform token mint (for future auto-buyback feature)
-export const PLATFORM_TOKEN_MINT = new PublicKey("APPMktTokenXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+// Platform token mint ($APP)
+export const PLATFORM_TOKEN_MINT = new PublicKey("Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS");
+
+// USDC mint (mainnet)
+export const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+
+// Token decimals
+export const TOKEN_DECIMALS = {
+  SOL: 9,
+  APP: 9,
+  USDC: 6,
+} as const;
+
+// Token mints mapping
+export const TOKEN_MINTS = {
+  APP: PLATFORM_TOKEN_MINT,
+  USDC: USDC_MINT,
+} as const;
 
 // Fee constants (basis points)
 export const PLATFORM_FEE_BPS = 500; // 5%
@@ -205,4 +221,34 @@ export const IDL: Idl = {
 // Create program instance
 export const getProgram = (provider: AnchorProvider): Program => {
   return new Program(IDL, PROGRAM_ID, provider);
+};
+
+// Convert token amount to raw units based on decimals
+export const toTokenUnits = (amount: number, currency: "SOL" | "APP" | "USDC"): BN => {
+  const decimals = TOKEN_DECIMALS[currency];
+  return new BN(Math.floor(amount * Math.pow(10, decimals)));
+};
+
+// Convert raw units to token amount
+export const fromTokenUnits = (units: number | BN, currency: "SOL" | "APP" | "USDC"): number => {
+  const decimals = TOKEN_DECIMALS[currency];
+  const value = typeof units === "number" ? units : units.toNumber();
+  return value / Math.pow(10, decimals);
+};
+
+// Get token mint for currency
+export const getTokenMint = (currency: "APP" | "USDC"): PublicKey => {
+  return TOKEN_MINTS[currency];
+};
+
+// Format currency amount for display
+export const formatTokenAmount = (amount: number, currency: string): string => {
+  if (currency === "SOL") {
+    return `${amount.toFixed(4)} SOL`;
+  } else if (currency === "APP") {
+    return `${amount.toFixed(2)} APP`;
+  } else if (currency === "USDC") {
+    return `${amount.toFixed(2)} USDC`;
+  }
+  return `${amount} ${currency}`;
 };
