@@ -29,6 +29,7 @@ interface UserProfile {
     startingPrice?: number;
     buyNowPrice?: number;
     buyNowEnabled?: boolean;
+    currency?: string;
     endTime: string;
     currentBid?: number;
     _count?: { bids: number };

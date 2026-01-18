@@ -135,6 +135,7 @@ export async function GET(request: NextRequest) {
         currentBid: isBuyNowOnly ? null : (listing.bids[0]?.amount || listing.startingPrice),
         buyNowPrice: listing.buyNowEnabled ? listing.buyNowPrice : null,
         buyNowEnabled: listing.buyNowEnabled,
+        currency: listing.currency,
         endTime: listing.endTime,
         bidCount: isBuyNowOnly ? 0 : listing._count.bids,
         seller: {
