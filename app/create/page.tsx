@@ -1273,7 +1273,7 @@ export default function CreateListingPage() {
                       <div className="flex gap-3">
                         {[
                           { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana" },
-                          { value: "APP", label: "$APP", icon: "🅰️", description: "Platform Token" },
+                          { value: "APP", label: "$APP", icon: "✅", description: "Platform Token" },
                           { value: "USDC", label: "USDC", icon: "💵", description: "Stablecoin" },
                         ].map((currency) => (
                           <button
