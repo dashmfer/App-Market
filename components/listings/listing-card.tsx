@@ -48,8 +48,10 @@ const getCurrencyLabel = (currency?: string): string => {
       return "SOL";
     case "USDC":
       return "USDC";
-    default:
+    case "APP":
       return "$APP";
+    default:
+      return currency || "SOL"; // Fallback to raw value or SOL for legacy listings
   }
 };
 
