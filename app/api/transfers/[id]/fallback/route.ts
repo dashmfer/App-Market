@@ -27,6 +27,7 @@ export async function POST(
             sellerId: true,
             githubRepo: true,
             hasDomain: true,
+            requiredBuyerInfo: true,
           },
         },
       },
