@@ -635,6 +635,7 @@ enum Currency {
   SOL
   USDC
   USD
+  APP
 }
 
 enum PaymentMethod {

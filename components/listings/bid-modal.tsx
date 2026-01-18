@@ -48,7 +48,7 @@ interface BidModalProps {
   onBidSuccess?: (amount: number, method: string, txSignature?: string) => void;
 }
 
-type PaymentMethod = "SOL" | "USDC" | "CARD";
+type PaymentMethod = "SOL" | "USDC" | "APP" | "CARD";
 
 export function BidModal({
   open,
@@ -82,7 +82,7 @@ export function BidModal({
       setError(null);
       setStep("payment");
     } else if (step === "payment") {
-      if (paymentMethod === "SOL" && !connected) {
+      if ((paymentMethod === "SOL" || paymentMethod === "APP" || paymentMethod === "USDC") && !connected) {
         setWalletModalVisible(true);
         return;
       }
@@ -178,9 +178,54 @@ export function BidModal({
 
         // Would redirect to Stripe checkout or use Elements
         await new Promise((resolve) => setTimeout(resolve, 2000));
+      } else if (paymentMethod === "APP") {
+        // Handle APP token payment (SPL token transfer)
+        if (!connected || !publicKey || !sendTransaction) {
+          setWalletModalVisible(true);
+          throw new Error("Please connect your wallet first");
+        }
+
+        // APP token transfer will be implemented with @solana/spl-token
+        // For now, record the bid and handle token transfer on backend
+        const response = await fetch("/api/bids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listingId: listing.id,
+            amount: bidAmount,
+            currency: "APP",
+            paymentMethod: "APP",
+            walletAddress: publicKey.toBase58(),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to record bid");
+        }
       } else if (paymentMethod === "USDC") {
         // Handle USDC payment (SPL token transfer)
-        throw new Error("USDC payments coming soon");
+        if (!connected || !publicKey || !sendTransaction) {
+          setWalletModalVisible(true);
+          throw new Error("Please connect your wallet first");
+        }
+
+        const response = await fetch("/api/bids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listingId: listing.id,
+            amount: bidAmount,
+            currency: "USDC",
+            paymentMethod: "USDC",
+            walletAddress: publicKey.toBase58(),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to record bid");
+        }
       }
 
       onBidSuccess?.(bidAmount, paymentMethod, txSignature);
@@ -204,6 +249,13 @@ export function BidModal({
       name: "Solana",
       description: connected ? `Connected: ${publicKey?.toBase58().slice(0, 8)}...` : "Connect wallet",
       icon: Wallet,
+      enabled: true,
+    },
+    {
+      id: "APP" as PaymentMethod,
+      name: "$APP",
+      description: connected ? "Pay with APP tokens" : "Connect wallet",
+      icon: Coins,
       enabled: true,
     },
     {

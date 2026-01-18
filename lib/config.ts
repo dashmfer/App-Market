@@ -127,18 +127,36 @@ export const PLATFORM_CONFIG = {
   },
 
   // ============================================
+  // TOKEN CONFIGURATIONS
+  // ============================================
+  tokens: {
+    APP: {
+      mint: "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+      decimals: 9,
+      symbol: "APP",
+      name: "App Market Token",
+    },
+    USDC: {
+      mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      decimals: 6,
+      symbol: "USDC",
+      name: "USD Coin",
+    },
+  },
+
+  // ============================================
   // WALLET ADDRESSES
   // ============================================
   wallets: {
     // Platform treasury (receives fees)
     treasury: process.env.PLATFORM_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
-    
-    // Platform token mint (when launched)
-    tokenMint: process.env.PLATFORM_TOKEN_MINT || null,
-    
+
+    // Platform token mint ($APP)
+    tokenMint: process.env.PLATFORM_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+
     // Buyback wallet (holds SOL for buybacks)
     buybackWallet: process.env.BUYBACK_WALLET || null,
-    
+
     // Burn address
     burnAddress: "11111111111111111111111111111111",
   },
