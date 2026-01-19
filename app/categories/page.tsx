@@ -14,7 +14,7 @@ const categoriesBase = [
     icon: "💼",
     description: "Software as a Service products with recurring revenue potential",
     featured: ["CRM tools", "Analytics platforms", "Marketing automation"],
-    color: "from-blue-500 to-cyan-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "ai-ml",
@@ -23,7 +23,7 @@ const categoriesBase = [
     icon: "🤖",
     description: "AI-powered applications, ML models, and intelligent tools",
     featured: ["ChatGPT wrappers", "Image generators", "AI assistants"],
-    color: "from-purple-500 to-pink-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "mobile-app",
@@ -41,7 +41,7 @@ const categoriesBase = [
     icon: "⛓️",
     description: "Blockchain projects, DeFi protocols, and NFT platforms",
     featured: ["DEX interfaces", "NFT marketplaces", "Wallet apps"],
-    color: "from-orange-500 to-yellow-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "ecommerce",
@@ -50,7 +50,7 @@ const categoriesBase = [
     icon: "🛒",
     description: "Online stores, marketplaces, and shopping platforms",
     featured: ["Shopify apps", "Dropshipping tools", "Inventory systems"],
-    color: "from-pink-500 to-rose-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "developer-tools",
@@ -59,7 +59,7 @@ const categoriesBase = [
     icon: "🛠️",
     description: "Tools and utilities that help developers build faster",
     featured: ["Code generators", "API tools", "Dev dashboards"],
-    color: "from-zinc-600 to-zinc-800",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "web-app",
@@ -68,7 +68,7 @@ const categoriesBase = [
     icon: "🌐",
     description: "Full-stack web applications for various use cases",
     featured: ["Dashboards", "Booking systems", "Community platforms"],
-    color: "from-teal-500 to-cyan-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "browser-extension",
@@ -77,7 +77,7 @@ const categoriesBase = [
     icon: "🧩",
     description: "Chrome, Firefox, and other browser extensions",
     featured: ["Productivity tools", "Ad blockers", "Social tools"],
-    color: "from-indigo-500 to-blue-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "api",
@@ -86,7 +86,7 @@ const categoriesBase = [
     icon: "🔌",
     description: "Backend services, APIs, and microservices",
     featured: ["Payment APIs", "Auth services", "Data APIs"],
-    color: "from-red-500 to-orange-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "productivity",
@@ -95,7 +95,7 @@ const categoriesBase = [
     icon: "✅",
     description: "Tools to help people work smarter and faster",
     featured: ["Note apps", "Task managers", "Time trackers"],
-    color: "from-emerald-500 to-teal-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "social",
@@ -104,7 +104,7 @@ const categoriesBase = [
     icon: "👥",
     description: "Social networks, community platforms, and engagement tools",
     featured: ["Forums", "Dating apps", "Networking tools"],
-    color: "from-violet-500 to-purple-500",
+    color: "from-green-500 to-emerald-500",
   },
   {
     slug: "gaming",
@@ -113,7 +113,7 @@ const categoriesBase = [
     icon: "🎮",
     description: "Games, gaming tools, and entertainment platforms",
     featured: ["Casual games", "Gaming utilities", "Esports tools"],
-    color: "from-fuchsia-500 to-pink-500",
+    color: "from-green-500 to-emerald-500",
   },
 ];
 
