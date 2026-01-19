@@ -15,13 +15,16 @@ export const PLATFORM_CONFIG = {
   fees: {
     // Platform fee on all sales (5%)
     platformFeeBps: 500,
-    
+
+    // APP token fee - discounted rate for $APP payments (3%)
+    appFeeBps: 300,
+
     // Dispute resolution fee charged to losing party (2%)
     disputeFeeBps: 200,
-    
+
     // Token launch fee - 1% of token supply goes to platform wallet
     tokenLaunchSupplyBps: 100,
-    
+
     // Flat fee for token launch (in SOL)
     tokenLaunchFlatFee: 1,
   },
@@ -246,12 +249,38 @@ export const PLATFORM_CONFIG = {
 };
 
 // Helper functions for config
-export function calculatePlatformFee(amount: number): number {
-  return (amount * PLATFORM_CONFIG.fees.platformFeeBps) / 10000;
+
+// Get fee rate based on currency (APP gets discounted 3%, others 5%)
+export function getFeeRateBps(currency?: string): number {
+  return currency === "APP"
+    ? PLATFORM_CONFIG.fees.appFeeBps
+    : PLATFORM_CONFIG.fees.platformFeeBps;
+}
+
+export function calculatePlatformFee(amount: number, currency?: string): number {
+  const feeBps = getFeeRateBps(currency);
+  return (amount * feeBps) / 10000;
 }
 
 export function calculateDisputeFee(amount: number): number {
   return (amount * PLATFORM_CONFIG.fees.disputeFeeBps) / 10000;
+}
+
+// Calculate seller proceeds with fee breakdown
+export function calculateSellerProceeds(salePrice: number, currency?: string): {
+  fee: number;
+  proceeds: number;
+  feeBps: number;
+  feePercent: string;
+} {
+  const feeBps = getFeeRateBps(currency);
+  const fee = calculatePlatformFee(salePrice, currency);
+  return {
+    fee,
+    proceeds: salePrice - fee,
+    feeBps,
+    feePercent: `${feeBps / 100}%`,
+  };
 }
 
 export function calculateTokenLaunchAllocation(totalSupply: bigint): bigint {

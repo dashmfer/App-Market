@@ -313,8 +313,13 @@ export default function HowItWorksPage() {
                     Deducted from the sale price
                   </p>
                 </div>
-                <div className="text-4xl font-display font-bold text-green-500">
-                  5%
+                <div className="text-right">
+                  <div className="text-4xl font-display font-bold text-green-500">
+                    3-5%
+                  </div>
+                  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                    3% for $APP, 5% for SOL/USDC
+                  </p>
                 </div>
               </div>
             </div>
@@ -352,18 +357,35 @@ export default function HowItWorksPage() {
             </div>
           </div>
 
-          <div className="mt-8 p-6 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-            <div className="flex items-start gap-4">
-              <AlertTriangle className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5" />
-              <div>
-                <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-                  Example: Selling a $100 SOL Project
-                </h4>
-                <p className="text-blue-700 dark:text-blue-300 mt-2">
-                  Sale price: 100 SOL<br />
-                  Platform fee (5%): 5 SOL<br />
-                  <strong>You receive: 95 SOL</strong>
-                </p>
+          <div className="mt-8 grid md:grid-cols-2 gap-4">
+            <div className="p-6 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100">
+                    Example: Selling for 100 SOL
+                  </h4>
+                  <p className="text-blue-700 dark:text-blue-300 mt-2">
+                    Sale price: 100 SOL<br />
+                    Platform fee (5%): 5 SOL<br />
+                    <strong>You receive: 95 SOL</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-green-600 dark:text-green-400 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-green-900 dark:text-green-100">
+                    Example: Selling for 100 $APP
+                  </h4>
+                  <p className="text-green-700 dark:text-green-300 mt-2">
+                    Sale price: 100 $APP<br />
+                    Platform fee (3%): 3 $APP<br />
+                    <strong>You receive: 97 $APP</strong>
+                  </p>
+                </div>
               </div>
             </div>
           </div>

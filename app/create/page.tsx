@@ -1477,9 +1477,9 @@ export default function CreateListingPage() {
                       </label>
                       <div className="flex gap-3">
                         {[
-                          { value: "APP", label: "$APP", icon: "✅", description: "Platform Token" },
-                          { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana" },
-                          { value: "USDC", label: "USDC", icon: "💵", description: "Stablecoin" },
+                          { value: "APP", label: "$APP", icon: "✅", description: "Platform Token", fee: "3%" },
+                          { value: "SOL", label: "SOL", icon: "◎", description: "Native Solana", fee: "5%" },
+                          { value: "USDC", label: "USDC", icon: "💵", description: "Stablecoin", fee: "5%" },
                         ].map((currency) => (
                           <button
                             key={currency.value}
@@ -1494,6 +1494,9 @@ export default function CreateListingPage() {
                             <span className="text-2xl block mb-1">{currency.icon}</span>
                             <span className="font-semibold text-zinc-900 dark:text-zinc-100 block">{currency.label}</span>
                             <span className="text-xs text-zinc-500">{currency.description}</span>
+                            <span className={`text-xs font-medium block mt-1 ${currency.value === "APP" ? "text-green-600 dark:text-green-400" : "text-zinc-500"}`}>
+                              {currency.fee} fee{currency.value === "APP" && " (save 2%)"}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -1554,10 +1557,20 @@ export default function CreateListingPage() {
                     </div>
 
                     {/* Fee Info */}
-                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+                    <div className={`p-4 rounded-xl ${formData.currency === "APP" ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-zinc-50 dark:bg-zinc-800/50"}`}>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        <strong>Platform Fee:</strong> 5% of final sale price
+                        <strong>Platform Fee:</strong>{" "}
+                        {formData.currency === "APP" ? (
+                          <span className="text-green-600 dark:text-green-400 font-medium">3% of final sale price (2% discount for $APP)</span>
+                        ) : (
+                          <span>5% of final sale price</span>
+                        )}
                       </p>
+                      {formData.currency !== "APP" && (
+                        <p className="text-xs text-zinc-500 mt-1">
+                          Tip: List in $APP to pay only 3% in fees
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee, calculateSellerProceeds, PLATFORM_FEE_BPS } from "@/lib/solana";
+import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 
 // GET /api/transactions - Get user's transactions
 export async function GET(request: NextRequest) {
@@ -150,8 +150,8 @@ export async function POST(request: NextRequest) {
       salePrice = winningBid.amount;
     }
 
-    // Calculate fees
-    const platformFee = calculatePlatformFee(salePrice);
+    // Calculate fees (3% for APP token, 5% for others)
+    const platformFee = calculatePlatformFee(salePrice, listing.currency);
     const sellerProceeds = salePrice - platformFee;
 
     // Create transfer checklist based on listing assets

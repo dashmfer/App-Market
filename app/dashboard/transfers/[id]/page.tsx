@@ -1049,7 +1049,9 @@ export default function TransferPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">Platform Fee (5%)</span>
+                  <span className="text-zinc-500">
+                    Platform Fee ({transfer.currency === "APP" ? "3%" : "5%"})
+                  </span>
                   <span className="text-zinc-900 dark:text-zinc-100">
                     -{transfer.platformFee} {transfer.currency}
                   </span>

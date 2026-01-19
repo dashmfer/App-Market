@@ -20,8 +20,8 @@ export default function SellersGuidePage() {
           <div className="grid md:grid-cols-3 gap-6 mb-12">
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
               <DollarSign className="w-8 h-8 text-green-500 mb-3" />
-              <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">5% Fee</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Lowest platform fee in the industry</p>
+              <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">3-5% Fee</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">3% for $APP, 5% for SOL/USDC</p>
             </div>
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6">
               <Shield className="w-8 h-8 text-blue-500 mb-3" />
@@ -134,7 +134,14 @@ export default function SellersGuidePage() {
               <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">Fee Structure</h2>
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-3 border-b border-zinc-200 dark:border-zinc-800">
-                  <span className="text-zinc-700 dark:text-zinc-300">Platform Fee</span>
+                  <div>
+                    <span className="text-zinc-700 dark:text-zinc-300">Platform Fee ($APP)</span>
+                    <p className="text-xs text-green-600 dark:text-green-400">Discounted rate</p>
+                  </div>
+                  <span className="font-semibold text-green-600 dark:text-green-400">3%</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-zinc-200 dark:border-zinc-800">
+                  <span className="text-zinc-700 dark:text-zinc-300">Platform Fee (SOL/USDC)</span>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">5%</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-zinc-200 dark:border-zinc-800">
@@ -147,7 +154,7 @@ export default function SellersGuidePage() {
                 </div>
               </div>
               <p className="text-sm text-zinc-500 mt-4">
-                Example: On a $10,000 sale, you'd receive approximately $9,200 after fees.
+                Example: On a 1000 $APP sale, you'd receive 970 $APP (3% fee). On a 100 SOL sale, you'd receive 95 SOL (5% fee).
               </p>
             </section>
 

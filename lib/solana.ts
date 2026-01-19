@@ -36,6 +36,7 @@ export const TOKEN_MINTS = {
 
 // Fee constants (basis points)
 export const PLATFORM_FEE_BPS = 500; // 5%
+export const APP_FEE_BPS = 300; // 3% - discounted rate for $APP token payments
 export const DISPUTE_FEE_BPS = 200; // 2%
 export const TOKEN_LAUNCH_FEE_BPS = 100; // 1% of token supply
 
@@ -113,9 +114,15 @@ export const lamportsToSol = (lamports: number | BN): number => {
   return value / LAMPORTS_PER_SOL;
 };
 
-// Calculate platform fee
-export const calculatePlatformFee = (amount: number): number => {
-  return (amount * PLATFORM_FEE_BPS) / 10000;
+// Get fee rate based on currency (APP gets discounted 3%, others 5%)
+export const getFeeRateBps = (currency?: string): number => {
+  return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;
+};
+
+// Calculate platform fee (with optional currency for APP discount)
+export const calculatePlatformFee = (amount: number, currency?: string): number => {
+  const feeBps = getFeeRateBps(currency);
+  return (amount * feeBps) / 10000;
 };
 
 // Calculate dispute fee
@@ -123,12 +130,14 @@ export const calculateDisputeFee = (amount: number): number => {
   return (amount * DISPUTE_FEE_BPS) / 10000;
 };
 
-// Calculate seller proceeds after fees
-export const calculateSellerProceeds = (salePrice: number): { fee: number; proceeds: number } => {
-  const fee = calculatePlatformFee(salePrice);
+// Calculate seller proceeds after fees (with optional currency for APP discount)
+export const calculateSellerProceeds = (salePrice: number, currency?: string): { fee: number; proceeds: number; feeBps: number } => {
+  const feeBps = getFeeRateBps(currency);
+  const fee = calculatePlatformFee(salePrice, currency);
   return {
     fee,
     proceeds: salePrice - fee,
+    feeBps,
   };
 };
 

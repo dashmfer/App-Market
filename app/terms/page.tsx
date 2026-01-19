@@ -62,7 +62,8 @@ export default function TermsPage() {
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>Platform fees:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>5% platform fee on all successful sales</li>
+                  <li>3% platform fee on sales priced in $APP (platform token)</li>
+                  <li>5% platform fee on sales priced in SOL or USDC</li>
                   <li>Additional payment processing fees may apply (Stripe, blockchain)</li>
                   <li>2% dispute resolution fee for losing party in disputes</li>
                 </ul>
