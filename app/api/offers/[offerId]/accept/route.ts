@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { calculatePlatformFee } from '@/lib/solana';
 
 /**
  * POST /api/offers/[offerId]/accept
@@ -33,6 +34,7 @@ export async function POST(
             title: true,
             sellerId: true,
             status: true,
+            currency: true,
           },
         },
         buyer: {
@@ -93,6 +95,10 @@ export async function POST(
       );
     }
 
+    // Calculate fees (3% for APP token, 5% for others)
+    const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
+    const sellerProceeds = offer.amount - platformFee;
+
     // Update offer and create transaction
     const [updatedOffer, transaction] = await prisma.$transaction([
       // Accept offer
@@ -110,8 +116,9 @@ export async function POST(
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
           salePrice: offer.amount,
-          platformFee: offer.amount * 0.05, // 5% platform fee
-          sellerProceeds: offer.amount * 0.95,
+          platformFee,
+          sellerProceeds,
+          currency: offer.listing.currency,
           paymentMethod: 'SOLANA',
           status: 'IN_ESCROW',
         },

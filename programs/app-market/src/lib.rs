@@ -27,8 +27,13 @@ pub mod app_market {
 
     /// Platform fee: 5% (500 basis points)
     pub const PLATFORM_FEE_BPS: u64 = 500;
+    /// APP token fee: 3% (300 basis points) - discounted rate for $APP payments
+    pub const APP_FEE_BPS: u64 = 300;
     /// Dispute fee: 2% (200 basis points)
     pub const DISPUTE_FEE_BPS: u64 = 200;
+
+    /// APP token mint address (mainnet)
+    pub const APP_TOKEN_MINT: Pubkey = solana_program::pubkey!("Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS");
 
     /// Maximum platform fee: 10% (prevents accidental/malicious fee rug)
     pub const MAX_PLATFORM_FEE_BPS: u64 = 1000;
@@ -271,6 +276,7 @@ pub mod app_market {
         duration_seconds: i64,
         requires_github: bool,
         required_github_username: String,
+        payment_mint: Option<Pubkey>,
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
         require!(starting_price > 0, AppMarketError::InvalidPrice);
@@ -354,8 +360,14 @@ pub mod app_market {
         listing.status = ListingStatus::Active;
 
         // SECURITY: Lock fees at listing creation time
-        listing.platform_fee_bps = ctx.accounts.config.platform_fee_bps;
+        // Use discounted 3% fee for APP token payments, standard 5% for others
+        listing.platform_fee_bps = if payment_mint == Some(APP_TOKEN_MINT) {
+            APP_FEE_BPS
+        } else {
+            ctx.accounts.config.platform_fee_bps
+        };
         listing.dispute_fee_bps = ctx.accounts.config.dispute_fee_bps;
+        listing.payment_mint = payment_mint;
 
         // GitHub requirements
         listing.requires_github = requires_github;
@@ -3073,6 +3085,8 @@ pub struct Listing {
     // Track consecutive bids from same bidder
     pub last_bidder: Option<Pubkey>,
     pub consecutive_bid_count: u64,
+    // Payment currency (None = SOL, Some = SPL token mint)
+    pub payment_mint: Option<Pubkey>,
     pub bump: u8,
 }
 

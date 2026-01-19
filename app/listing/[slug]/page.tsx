@@ -924,7 +924,11 @@ export default function ListingPage() {
                     <div className="flex items-center gap-3 text-sm">
                       <TrendingUp className="w-5 h-5 text-green-500" />
                       <span className="text-zinc-600 dark:text-zinc-400">
-                        5% platform fee on sale
+                        {listing.currency === "APP" ? (
+                          <span className="text-green-600 dark:text-green-400 font-medium">3% platform fee (discounted)</span>
+                        ) : (
+                          "5% platform fee on sale"
+                        )}
                       </span>
                     </div>
                   </div>
