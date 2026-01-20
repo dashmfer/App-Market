@@ -472,8 +472,8 @@ model Review {
   id            String      @id @default(cuid())
 
   // Review Type
-  type          ReviewType  @default(TRANSACTION)
-  role          ReviewerRole // Was the author a buyer or seller in the transaction
+  type          ReviewType   @default(TRANSACTION)
+  role          ReviewerRole @default(BUYER) // Was the author a buyer or seller in the transaction
 
   // Overall Rating (1-5)
   rating        Int         // Overall rating 1-5
