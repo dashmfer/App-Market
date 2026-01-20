@@ -85,11 +85,11 @@ export async function POST(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: "RESERVED",
+        status: "RESERVED" as any,
         reservedBuyerWallet: walletAddress,
         reservedBuyerId: existingUser?.id || null,
         reservedAt: new Date(),
-      },
+      } as any,
     });
 
     // If the buyer is a registered user, send them a notification
@@ -180,11 +180,11 @@ export async function DELETE(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: "ACTIVE",
+        status: "ACTIVE" as any,
         reservedBuyerWallet: null,
         reservedBuyerId: null,
         reservedAt: null,
-      },
+      } as any,
     });
 
     return NextResponse.json({

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const currentUserWallet = currentUser?.walletAddress || undefined;
 
     // Build the OR conditions for finding reserved listings
-    const orConditions = [
+    const orConditions: any[] = [
       { reservedBuyerId: currentUserId },
     ];
     if (currentUserWallet) {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Find all listings reserved for the current user
-    const reservedListings = await prisma.listing.findMany({
+    const reservedListings = await (prisma.listing.findMany as any)({
       where: {
         status: "RESERVED",
         OR: orConditions,

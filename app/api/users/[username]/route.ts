@@ -22,7 +22,7 @@ export async function GET(
     }
 
     // Try to find by username first, then by ID
-    let user = await prisma.user.findUnique({
+    let user = await (prisma.user.findUnique as any)({
       where: { username },
       select: {
         id: true,
@@ -69,7 +69,7 @@ export async function GET(
 
     // If not found by username, try finding by ID
     if (!user) {
-      user = await prisma.user.findUnique({
+      user = await (prisma.user.findUnique as any)({
         where: { id: username },
         select: {
           id: true,
@@ -122,7 +122,7 @@ export async function GET(
     // Also get RESERVED listings from this seller that are reserved for the current viewer
     let reservedForViewer: any[] = [];
     if (currentUserId || currentUserWallet) {
-      const reservedListings = await prisma.listing.findMany({
+      const reservedListings = await (prisma.listing.findMany as any)({
         where: {
           sellerId: user.id,
           status: "RESERVED",

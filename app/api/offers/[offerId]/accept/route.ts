@@ -133,11 +133,11 @@ export async function POST(
       prisma.listing.update({
         where: { id: offer.listingId },
         data: {
-          status: 'RESERVED',
+          status: 'RESERVED' as any,
           reservedBuyerId: offer.buyerId,
           reservedBuyerWallet: buyerWithWallet?.walletAddress || null,
           reservedAt: new Date(),
-        },
+        } as any,
       }),
       // Cancel all other active offers on this listing
       prisma.offer.updateMany({

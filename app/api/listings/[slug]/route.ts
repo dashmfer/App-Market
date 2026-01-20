@@ -74,17 +74,18 @@ export async function GET(
 
     // Build reservation info if listing is reserved
     let reservationInfo = null;
-    if (listing.reservedBuyerWallet || listing.reservedBuyerId) {
+    const listingAny = listing as any;
+    if (listingAny.reservedBuyerWallet || listingAny.reservedBuyerId) {
       // Check if current user is the reserved buyer (by ID or wallet)
       const isReservedForCurrentUser =
-        (currentUserId && listing.reservedBuyerId === currentUserId) ||
-        (currentUserWallet && listing.reservedBuyerWallet === currentUserWallet);
+        (currentUserId && listingAny.reservedBuyerId === currentUserId) ||
+        (currentUserWallet && listingAny.reservedBuyerWallet === currentUserWallet);
 
       // Get reserved buyer info if they're a registered user
       let reservedBuyerName: string | null = null;
-      if (listing.reservedBuyerId) {
+      if (listingAny.reservedBuyerId) {
         const reservedBuyer = await prisma.user.findUnique({
-          where: { id: listing.reservedBuyerId },
+          where: { id: listingAny.reservedBuyerId },
           select: { name: true, username: true },
         });
         // Show username if public (has a username set)
@@ -99,7 +100,7 @@ export async function GET(
         isReserved: true,
         isReservedForCurrentUser,
         reservedBuyerName, // null if no public username, buyer can see "Reserved for you" instead
-        reservedAt: listing.reservedAt,
+        reservedAt: listingAny.reservedAt,
       };
     }
 
