@@ -16,6 +16,7 @@ import { clusterApiUrl } from "@solana/web3.js";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { WalletAuthProvider } from "./providers/WalletAuthProvider";
+import { LocaleProvider } from "./providers/LocaleProvider";
 
 // Import wallet adapter styles
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -56,7 +57,9 @@ export function Providers({ children }: ProvidersProps) {
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
               <WalletAuthProvider>
-                {children}
+                <LocaleProvider>
+                  {children}
+                </LocaleProvider>
               </WalletAuthProvider>
             </WalletModalProvider>
           </WalletProvider>
