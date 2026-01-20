@@ -35,6 +35,7 @@ import {
   MessageCircle,
   Send,
   X,
+  Lock,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
 import { formatDistanceToNow, format } from "date-fns";
@@ -62,6 +63,13 @@ interface RequiredBuyerInfo {
   email?: RequiredBuyerInfoItem;
   walletAddress?: RequiredBuyerInfoItem;
   other?: RequiredBuyerInfoItem;
+}
+
+interface ReservationInfo {
+  isReserved: boolean;
+  isReservedForCurrentUser: boolean;
+  reservedBuyerName: string | null;
+  reservedAt: string | null;
 }
 
 interface Listing {
@@ -100,7 +108,9 @@ interface Listing {
   endTime: string;
   currentBid: number;
   bidCount: number;
+  status?: string;
   requiredBuyerInfo?: RequiredBuyerInfo;
+  reservationInfo?: ReservationInfo;
   seller: {
     id: string;
     name?: string;
@@ -459,12 +469,18 @@ export default function ListingPage() {
             <div>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
                     <span className="badge-green">{categoryLabels[listing.category] || listing.category}</span>
                     {isEndingSoon && (
                       <span className="badge-yellow flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         Ending Soon
+                      </span>
+                    )}
+                    {listing.reservationInfo?.isReservedForCurrentUser && (
+                      <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Reserved for you
                       </span>
                     )}
                   </div>
@@ -709,6 +725,42 @@ export default function ListingPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xl shadow-black/5">
+                {/* Reservation Notice - Show when reserved for someone else */}
+                {listing.reservationInfo?.isReserved && !listing.reservationInfo?.isReservedForCurrentUser && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-3">
+                      <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                          {listing.reservationInfo.reservedBuyerName
+                            ? `This listing is reserved for @${listing.reservationInfo.reservedBuyerName}`
+                            : "This listing is reserved for another buyer"}
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                          Bidding and purchasing are currently unavailable.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reserved For You Notice */}
+                {listing.reservationInfo?.isReservedForCurrentUser && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 border-b border-green-200 dark:border-green-800">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                          This listing is reserved for you
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Complete your purchase when you're ready.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Current Price */}
                 <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
                   <div className="flex items-center justify-between mb-4">
@@ -775,7 +827,7 @@ export default function ListingPage() {
 
                       <button
                         onClick={handlePlaceBid}
-                        disabled={bidding || bidAmount < minimumBid}
+                        disabled={bidding || bidAmount < minimumBid || (listing.reservationInfo?.isReserved && !listing.reservationInfo?.isReservedForCurrentUser)}
                         className="w-full btn-primary py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {bidding ? (
@@ -817,7 +869,7 @@ export default function ListingPage() {
 
                       <button
                         onClick={handleBuyNow}
-                        disabled={buying}
+                        disabled={buying || (listing.reservationInfo?.isReserved && !listing.reservationInfo?.isReservedForCurrentUser)}
                         className="w-full btn-success py-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {buying ? (

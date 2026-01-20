@@ -10,6 +10,20 @@ export async function GET(
   try {
     const { slug } = params;
 
+    // Get current user's wallet and ID if authenticated
+    const token = await getAuthToken(request);
+    const currentUserId = token?.id as string | undefined;
+
+    // Also get current user's wallet address
+    let currentUserWallet: string | undefined;
+    if (currentUserId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { walletAddress: true },
+      });
+      currentUserWallet = currentUser?.walletAddress || undefined;
+    }
+
     const listing = await prisma.listing.findUnique({
       where: { slug },
       include: {
@@ -58,11 +72,43 @@ export async function GET(
     // Get current highest bid
     const currentBid = listing.bids[0]?.amount || listing.startingPrice;
 
+    // Build reservation info if listing is reserved
+    let reservationInfo = null;
+    if (listing.reservedBuyerWallet || listing.reservedBuyerId) {
+      // Check if current user is the reserved buyer (by ID or wallet)
+      const isReservedForCurrentUser =
+        (currentUserId && listing.reservedBuyerId === currentUserId) ||
+        (currentUserWallet && listing.reservedBuyerWallet === currentUserWallet);
+
+      // Get reserved buyer info if they're a registered user
+      let reservedBuyerName: string | null = null;
+      if (listing.reservedBuyerId) {
+        const reservedBuyer = await prisma.user.findUnique({
+          where: { id: listing.reservedBuyerId },
+          select: { name: true, username: true },
+        });
+        // Show username if public (has a username set)
+        if (reservedBuyer?.username) {
+          reservedBuyerName = reservedBuyer.username;
+        } else if (reservedBuyer?.name) {
+          reservedBuyerName = reservedBuyer.name;
+        }
+      }
+
+      reservationInfo = {
+        isReserved: true,
+        isReservedForCurrentUser,
+        reservedBuyerName, // null if no public username, buyer can see "Reserved for you" instead
+        reservedAt: listing.reservedAt,
+      };
+    }
+
     return NextResponse.json({
       listing: {
         ...listing,
         currentBid,
         bidCount: listing._count.bids,
+        reservationInfo,
       },
     });
   } catch (error) {

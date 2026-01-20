@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2 } from "lucide-react";
+import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2, Lock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -26,6 +26,11 @@ interface ListingCardProps {
     bidCount?: number;
     _count?: { bids: number };
     watchlistId?: string;
+    reservationInfo?: {
+      isReserved: boolean;
+      isReservedForCurrentUser: boolean;
+      reservedBuyerName?: string | null;
+    };
     seller?: {
       id?: string;
       name?: string;
@@ -196,11 +201,31 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
             </button>
 
             {/* Ending Soon Badge */}
-            {isEndingSoon && (
+            {isEndingSoon && !listing.reservationInfo?.isReserved && (
               <div className="absolute bottom-3 left-3 right-3">
                 <div className="px-3 py-1.5 rounded-full bg-yellow-500/90 backdrop-blur-sm text-yellow-900 text-xs font-medium flex items-center gap-1.5 w-fit">
                   <Clock className="w-3.5 h-3.5" />
                   Ending soon
+                </div>
+              </div>
+            )}
+
+            {/* Reserved For You Badge */}
+            {listing.reservationInfo?.isReservedForCurrentUser && (
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="px-3 py-1.5 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1.5 w-fit">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Reserved for you
+                </div>
+              </div>
+            )}
+
+            {/* Reserved For Another Badge */}
+            {listing.reservationInfo?.isReserved && !listing.reservationInfo?.isReservedForCurrentUser && (
+              <div className="absolute bottom-3 left-3 right-3">
+                <div className="px-3 py-1.5 rounded-full bg-amber-500/90 backdrop-blur-sm text-amber-900 text-xs font-medium flex items-center gap-1.5 w-fit">
+                  <Lock className="w-3.5 h-3.5" />
+                  Reserved
                 </div>
               </div>
             )}

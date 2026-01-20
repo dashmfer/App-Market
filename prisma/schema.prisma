@@ -187,7 +187,12 @@ model Listing {
   onChainId         String?       @unique
   escrowAddress     String?
   nftMint           String?
-  
+
+  // Reservation (when seller accepts offer or reserves for a specific buyer)
+  reservedBuyerWallet String?     // Wallet address the listing is reserved for (may not be a user yet)
+  reservedBuyerId     String?     // User ID if the reserved wallet belongs to a registered user
+  reservedAt          DateTime?   // When the reservation was made
+
   // Relations
   sellerId          String
   seller            User          @relation("SellerListings", fields: [sellerId], references: [id])
@@ -207,6 +212,8 @@ model Listing {
   @@index([category])
   @@index([endTime])
   @@index([featured])
+  @@index([reservedBuyerWallet])
+  @@index([reservedBuyerId])
 }
 
 model Bid {
@@ -641,6 +648,7 @@ enum ListingStatus {
   DRAFT
   PENDING_REVIEW
   ACTIVE
+  RESERVED
   ENDED
   SOLD
   CANCELLED
@@ -716,6 +724,8 @@ enum NotificationType {
   BUYER_INFO_SUBMITTED     // Notify seller that buyer submitted info
   BUYER_INFO_DEADLINE      // Notify both when deadline passes
   FALLBACK_TRANSFER_ACTIVE // Notify when fallback process starts
+  LISTING_RESERVED         // Notify buyer when a listing is reserved for them
+  OFFER_ACCEPTED           // Notify buyer when their offer is accepted
   SYSTEM
 }
 
