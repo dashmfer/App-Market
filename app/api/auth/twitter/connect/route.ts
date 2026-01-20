@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import crypto from "crypto";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // Twitter OAuth 2.0 with PKCE
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/twitter/callback`;

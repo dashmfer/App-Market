@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 // GET /api/reviews/can-review?userId=xxx - Check if current user can review someone
 export async function GET(request: NextRequest) {
   try {

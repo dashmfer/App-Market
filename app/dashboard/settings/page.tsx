@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Twitter, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -8,7 +8,20 @@ import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
+// Wrapper component to handle Suspense for useSearchParams
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const { data: session, update: updateSession, status } = useSession();
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
