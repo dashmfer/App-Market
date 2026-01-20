@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check } from "lucide-react";
+import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Twitter, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -11,6 +12,7 @@ export default function SettingsPage() {
   const { data: session, update: updateSession, status } = useSession();
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState("profile");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -18,6 +20,39 @@ export default function SettingsPage() {
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Twitter connection state
+  const [twitterUsername, setTwitterUsername] = useState<string | null>(null);
+  const [twitterConnected, setTwitterConnected] = useState(false);
+  const [disconnectingTwitter, setDisconnectingTwitter] = useState(false);
+
+  // Handle Twitter OAuth callback
+  useEffect(() => {
+    const twitterConnectedParam = searchParams.get("twitter_connected");
+    const twitterUsernameParam = searchParams.get("twitter_username");
+    const twitterError = searchParams.get("twitter_error");
+
+    if (twitterConnectedParam === "true" && twitterUsernameParam) {
+      setTwitterConnected(true);
+      setTwitterUsername(twitterUsernameParam);
+      setActiveTab("accounts");
+      // Clear URL params
+      window.history.replaceState({}, "", "/dashboard/settings");
+    } else if (twitterError) {
+      const errorMessages: Record<string, string> = {
+        already_linked: "This Twitter account is already linked to another user.",
+        session_expired: "Session expired. Please try again.",
+        state_mismatch: "Security check failed. Please try again.",
+        token_exchange_failed: "Failed to connect to Twitter. Please try again.",
+        user_fetch_failed: "Failed to get Twitter profile. Please try again.",
+        not_configured: "Twitter connection is not configured.",
+        missing_params: "Invalid callback. Please try again.",
+      };
+      alert(errorMessages[twitterError] || "Failed to connect Twitter. Please try again.");
+      setActiveTab("accounts");
+      window.history.replaceState({}, "", "/dashboard/settings");
+    }
+  }, [searchParams]);
 
   // Debug session status
   useEffect(() => {
@@ -44,6 +79,9 @@ export default function SettingsPage() {
             setDisplayName(data.displayName || data.name || "");
             setUsername(data.username || "");
             setBio(data.bio || "");
+            // Twitter connection status
+            setTwitterConnected(data.twitterVerified || false);
+            setTwitterUsername(data.twitterUsername || null);
           }
         } catch (error) {
           console.error("Failed to load profile:", error);
@@ -55,6 +93,33 @@ export default function SettingsPage() {
     }
     loadProfile();
   }, [session, status]);
+
+  // Handle Twitter disconnect
+  const handleDisconnectTwitter = async () => {
+    if (!confirm("Disconnect your Twitter account? You'll no longer be able to leave reviews until you reconnect.")) {
+      return;
+    }
+
+    setDisconnectingTwitter(true);
+    try {
+      const res = await fetch("/api/auth/twitter/disconnect", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        setTwitterConnected(false);
+        setTwitterUsername(null);
+      } else {
+        throw new Error("Failed to disconnect");
+      }
+    } catch (error) {
+      console.error("Failed to disconnect Twitter:", error);
+      alert("Failed to disconnect Twitter. Please try again.");
+    } finally {
+      setDisconnectingTwitter(false);
+    }
+  };
 
   const handleConnectWallet = () => {
     setWalletModalVisible(true);
@@ -200,6 +265,7 @@ export default function SettingsPage() {
             <nav className="space-y-1">
               {[
                 { id: "profile", label: "Profile", icon: User },
+                { id: "accounts", label: "Connected Accounts", icon: Link2 },
                 { id: "wallet", label: "Wallet", icon: Wallet },
                 { id: "notifications", label: "Notifications", icon: Bell },
                 { id: "security", label: "Security", icon: Shield },
@@ -346,6 +412,87 @@ export default function SettingsPage() {
                     <button onClick={handleSaveProfile} className="btn-primary">
                       Save Changes
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "accounts" && (
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-6">Connected Accounts</h2>
+                  <p className="text-zinc-500 mb-6">
+                    Connect your social accounts to build trust and unlock features like leaving reviews.
+                  </p>
+
+                  <div className="space-y-4">
+                    {/* Twitter/X Connection */}
+                    <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            twitterConnected ? "bg-blue-100 dark:bg-blue-900/30" : "bg-zinc-100 dark:bg-zinc-800"
+                          }`}>
+                            <Twitter className={`w-6 h-6 ${
+                              twitterConnected ? "text-blue-500" : "text-zinc-400"
+                            }`} />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
+                              Twitter / X
+                            </h3>
+                            {twitterConnected && twitterUsername ? (
+                              <p className="text-sm text-blue-500">@{twitterUsername}</p>
+                            ) : (
+                              <p className="text-sm text-zinc-500">Not connected</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {twitterConnected ? (
+                          <button
+                            onClick={handleDisconnectTwitter}
+                            disabled={disconnectingTwitter}
+                            className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {disconnectingTwitter ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Disconnecting...
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-4 h-4" />
+                                Disconnect
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <a
+                            href="/api/auth/twitter/connect"
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                          >
+                            <Twitter className="w-4 h-4" />
+                            Connect
+                          </a>
+                        )}
+                      </div>
+
+                      {twitterConnected && (
+                        <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                          <p className="text-sm text-green-700 dark:text-green-300">
+                            <Check className="w-4 h-4 inline mr-1" />
+                            Your Twitter account is verified. You can now leave reviews for other users.
+                          </p>
+                        </div>
+                      )}
+
+                      {!twitterConnected && (
+                        <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                          <p className="text-sm text-amber-700 dark:text-amber-300">
+                            Connect your Twitter account to leave reviews and build your reputation.
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

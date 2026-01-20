@@ -4,9 +4,12 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift } from "lucide-react";
+import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift, Star, Twitter } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ListingCard } from "@/components/listings/listing-card";
+import { ReviewList } from "@/components/reviews/review-list";
+import { ReviewForm } from "@/components/reviews/review-form";
+import { useSession } from "next-auth/react";
 
 interface ListingWithReservation {
   id: string;
@@ -46,6 +49,10 @@ interface UserProfile {
   bio?: string;
   isVerified: boolean;
   totalSales: number;
+  rating: number;
+  ratingCount: number;
+  twitterUsername?: string;
+  twitterVerified?: boolean;
   createdAt: string;
   listings: ListingWithReservation[];
   reservedForViewer?: ListingWithReservation[];
@@ -54,10 +61,13 @@ interface UserProfile {
 export default function UserProfilePage() {
   const params = useParams();
   const username = params.username as string;
+  const { data: session } = useSession();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<"listings" | "reviews">("listings");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -144,9 +154,35 @@ export default function UserProfilePage() {
                 {profile.isVerified && (
                   <CheckCircle2 className="w-6 h-6 text-green-500" />
                 )}
+                {profile.twitterVerified && (
+                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                    <Twitter className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs text-blue-600 dark:text-blue-400">@{profile.twitterUsername}</span>
+                  </div>
+                )}
               </div>
               {profile.username && (
                 <p className="text-zinc-500 mt-1">@{profile.username}</p>
+              )}
+              {/* Rating */}
+              {profile.ratingCount > 0 && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-5 h-5 ${
+                          star <= Math.round(profile.rating)
+                            ? "text-yellow-400 fill-yellow-400"
+                            : "text-zinc-300 dark:text-zinc-600"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-zinc-500">
+                    {profile.rating.toFixed(1)} ({profile.ratingCount} {profile.ratingCount === 1 ? "review" : "reviews"})
+                  </span>
+                </div>
               )}
               {profile.bio && (
                 <p className="text-zinc-600 dark:text-zinc-400 mt-3 max-w-lg">
@@ -214,39 +250,96 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {/* Listings */}
+      {/* Tabs & Content */}
       <div className="container-wide py-8">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-6">
-          Listings ({profile.listings.length})
-        </h2>
+        {/* Tab Navigation */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex gap-4 border-b border-zinc-200 dark:border-zinc-700">
+            <button
+              onClick={() => setActiveTab("listings")}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "listings"
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Listings ({profile.listings.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("reviews")}
+              className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === "reviews"
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+              }`}
+            >
+              Reviews ({profile.ratingCount})
+            </button>
+          </div>
 
-        {profile.listings.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
-            <p className="text-zinc-500">No active listings</p>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {profile.listings.map((listing, index) => (
-              <ListingCard
-                key={listing.id}
-                listing={{
-                  ...listing,
-                  seller: {
-                    id: profile.id,
-                    name: profile.name,
-                    displayName: profile.displayName,
-                    username: profile.username,
-                    image: profile.image,
-                    isVerified: profile.isVerified,
-                  },
-                }}
-                index={index}
-              />
-            ))}
-          </div>
+          {/* Leave Review Button */}
+          {session?.user?.id && session.user.id !== profile.id && (
+            <button
+              onClick={() => setShowReviewForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-sm"
+            >
+              <Star className="w-4 h-4" />
+              Leave Review
+            </button>
+          )}
+        </div>
+
+        {/* Listings Tab */}
+        {activeTab === "listings" && (
+          <>
+            {profile.listings.length === 0 ? (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
+                <p className="text-zinc-500">No active listings</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {profile.listings.map((listing, index) => (
+                  <ListingCard
+                    key={listing.id}
+                    listing={{
+                      ...listing,
+                      seller: {
+                        id: profile.id,
+                        name: profile.name,
+                        displayName: profile.displayName,
+                        username: profile.username,
+                        image: profile.image,
+                        isVerified: profile.isVerified,
+                      },
+                    }}
+                    index={index}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Reviews Tab */}
+        {activeTab === "reviews" && (
+          <ReviewList userId={profile.id} />
         )}
       </div>
+
+      {/* Review Form Modal */}
+      {showReviewForm && (
+        <ReviewForm
+          subjectId={profile.id}
+          subjectName={displayName}
+          onClose={() => setShowReviewForm(false)}
+          onSuccess={() => {
+            setShowReviewForm(false);
+            // Refresh profile to get updated rating
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

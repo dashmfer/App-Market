@@ -33,6 +33,10 @@ export async function GET(
         bio: true,
         isVerified: true,
         totalSales: true,
+        rating: true,
+        ratingCount: true,
+        twitterUsername: true,
+        twitterVerified: true,
         createdAt: true,
         listings: {
           where: {
@@ -80,6 +84,10 @@ export async function GET(
           bio: true,
           isVerified: true,
           totalSales: true,
+          rating: true,
+          ratingCount: true,
+          twitterUsername: true,
+          twitterVerified: true,
           createdAt: true,
           listings: {
             where: {

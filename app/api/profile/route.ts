@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
         githubVerified: true,
         discordVerified: true,
         walletVerified: true,
+        twitterUsername: true,
+        twitterVerified: true,
         totalSales: true,
         totalPurchases: true,
         totalVolume: true,

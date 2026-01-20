@@ -50,6 +50,12 @@ model User {
   githubVerified  Boolean   @default(false)
   walletVerified  Boolean   @default(false)
 
+  // Twitter/X Integration
+  twitterId       String?   @unique
+  twitterUsername String?
+  twitterVerified Boolean   @default(false)
+  twitterLinkedAt DateTime?
+
   // Timestamps
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -84,6 +90,7 @@ model User {
   @@index([email])
   @@index([githubUsername])
   @@index([referralCode])
+  @@index([twitterUsername])
 }
 
 model Account {
@@ -463,22 +470,55 @@ model Dispute {
 
 model Review {
   id            String      @id @default(cuid())
-  rating        Int         // 1-5
+
+  // Review Type
+  type          ReviewType  @default(TRANSACTION)
+  role          ReviewerRole // Was the author a buyer or seller in the transaction
+
+  // Overall Rating (1-5)
+  rating        Int         // Overall rating 1-5
+
+  // Multi-Criteria Ratings (1-5, optional)
+  communicationRating Int?  // How responsive and clear
+  speedRating         Int?  // How fast the process was
+  accuracyRating      Int?  // Did listing match description / was info accurate
+
+  // Written Review
   comment       String?     @db.Text
-  
-  // Relations
-  transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  authorId      String
-  author        User        @relation("ReviewAuthor", fields: [authorId], references: [id])
-  subjectId     String
-  subject       User        @relation("ReviewSubject", fields: [subjectId], references: [id])
-  
+
+  // Relations - transactionId is optional for messaging-based reviews
+  transactionId   String?
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  conversationId  String?       // For messaging-based reviews
+  authorId        String
+  author          User        @relation("ReviewAuthor", fields: [authorId], references: [id])
+  subjectId       String
+  subject         User        @relation("ReviewSubject", fields: [subjectId], references: [id])
+
+  // Moderation
+  isVisible       Boolean     @default(true)
+  reportedAt      DateTime?
+  reportReason    String?
+
   // Timestamps
   createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([transactionId, authorId])
+  @@unique([conversationId, authorId])
   @@index([subjectId])
+  @@index([type])
+  @@index([rating])
+}
+
+enum ReviewType {
+  TRANSACTION   // Review after a completed sale
+  MESSAGING     // Review based on messaging interaction
+}
+
+enum ReviewerRole {
+  BUYER
+  SELLER
 }
 
 // ============================================
