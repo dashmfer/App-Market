@@ -16,6 +16,7 @@ import {
   Clock,
   ArrowRight,
   MessageCircle,
+  Gift,
 } from "lucide-react";
 import { useNotifications, Notification } from "@/hooks/useNotifications";
 
@@ -33,6 +34,8 @@ const notificationIcons: Record<string, React.ReactNode> = {
   REVIEW_RECEIVED: <Star className="w-4 h-4 text-amber-500" />,
   WATCHLIST_ENDING: <Clock className="w-4 h-4 text-amber-500" />,
   MESSAGE_RECEIVED: <MessageCircle className="w-4 h-4 text-blue-500" />,
+  LISTING_RESERVED: <Gift className="w-4 h-4 text-green-500" />,
+  OFFER_ACCEPTED: <Check className="w-4 h-4 text-green-500" />,
   SYSTEM: <Bell className="w-4 h-4 text-zinc-500" />,
 };
 
@@ -47,14 +50,18 @@ function NotificationItem({
     <Bell className="w-4 h-4 text-zinc-500" />
   );
 
-  const listingSlug = notification.data?.listingSlug;
+  const listingSlug = notification.data?.listingSlug || notification.data?.slug;
+  const listingId = notification.data?.listingId;
   const conversationId = notification.data?.conversationId;
 
   let href = "/dashboard/notifications";
   if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
+  } else if (notification.type === "LISTING_RESERVED" || notification.type === "OFFER_ACCEPTED") {
+    // Direct reserved/offer accepted notifications to the purchases page
+    href = "/dashboard/purchases";
   } else if (listingSlug) {
-    href = `/listings/${listingSlug}`;
+    href = `/listing/${listingSlug}`;
   }
 
   return (

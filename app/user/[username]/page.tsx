@@ -4,9 +4,38 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag } from "lucide-react";
+import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ListingCard } from "@/components/listings/listing-card";
+
+interface ListingWithReservation {
+  id: string;
+  slug: string;
+  title: string;
+  tagline?: string;
+  thumbnailUrl?: string;
+  category: string;
+  techStack?: string[];
+  startingPrice?: number;
+  buyNowPrice?: number;
+  buyNowEnabled?: boolean;
+  currency?: string;
+  endTime: string;
+  currentBid?: number;
+  _count?: { bids: number };
+  reservationInfo?: {
+    isReserved: boolean;
+    isReservedForCurrentUser: boolean;
+  };
+  seller?: {
+    id: string;
+    name?: string;
+    displayName?: string;
+    username?: string;
+    image?: string;
+    isVerified?: boolean;
+  };
+}
 
 interface UserProfile {
   id: string;
@@ -18,30 +47,8 @@ interface UserProfile {
   isVerified: boolean;
   totalSales: number;
   createdAt: string;
-  listings: Array<{
-    id: string;
-    slug: string;
-    title: string;
-    tagline?: string;
-    thumbnailUrl?: string;
-    category: string;
-    techStack?: string[];
-    startingPrice?: number;
-    buyNowPrice?: number;
-    buyNowEnabled?: boolean;
-    currency?: string;
-    endTime: string;
-    currentBid?: number;
-    _count?: { bids: number };
-    seller?: {
-      id: string;
-      name?: string;
-      displayName?: string;
-      username?: string;
-      image?: string;
-      isVerified?: boolean;
-    };
-  }>;
+  listings: ListingWithReservation[];
+  reservedForViewer?: ListingWithReservation[];
 }
 
 export default function UserProfilePage() {
@@ -167,6 +174,45 @@ export default function UserProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Reserved For You Section */}
+      {profile.reservedForViewer && profile.reservedForViewer.length > 0 && (
+        <div className="container-wide py-8 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+              <Gift className="w-5 h-5 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+                Reserved For You
+              </h2>
+              <p className="text-sm text-zinc-500">
+                {displayName} has reserved {profile.reservedForViewer.length === 1 ? 'this listing' : 'these listings'} for you
+              </p>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {profile.reservedForViewer.map((listing, index) => (
+              <ListingCard
+                key={listing.id}
+                listing={{
+                  ...listing,
+                  seller: {
+                    id: profile.id,
+                    name: profile.name,
+                    displayName: profile.displayName,
+                    username: profile.username,
+                    image: profile.image,
+                    isVerified: profile.isVerified,
+                  },
+                }}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Listings */}
       <div className="container-wide py-8">

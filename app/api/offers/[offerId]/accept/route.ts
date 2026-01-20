@@ -99,6 +99,12 @@ export async function POST(
     const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
     const sellerProceeds = offer.amount - platformFee;
 
+    // Get buyer's wallet address for reservation tracking
+    const buyerWithWallet = await prisma.user.findUnique({
+      where: { id: offer.buyerId },
+      select: { walletAddress: true },
+    });
+
     // Update offer and create transaction
     const [updatedOffer, transaction] = await prisma.$transaction([
       // Accept offer
@@ -123,11 +129,14 @@ export async function POST(
           status: 'IN_ESCROW',
         },
       }),
-      // Update listing status
+      // Update listing status to RESERVED and set reserved buyer info
       prisma.listing.update({
         where: { id: offer.listingId },
         data: {
-          status: 'SOLD',
+          status: 'RESERVED',
+          reservedBuyerId: offer.buyerId,
+          reservedBuyerWallet: buyerWithWallet?.walletAddress || null,
+          reservedAt: new Date(),
         },
       }),
       // Cancel all other active offers on this listing
@@ -144,13 +153,13 @@ export async function POST(
       }),
     ]);
 
-    // Notify buyer
+    // Notify buyer that their offer was accepted
     await prisma.notification.create({
       data: {
         userId: offer.buyerId,
-        type: 'SYSTEM',
+        type: 'OFFER_ACCEPTED',
         title: 'Offer Accepted!',
-        message: `Your offer on "${offer.listing.title}" was accepted!`,
+        message: `Your offer on "${offer.listing.title}" was accepted! The listing is now reserved for you.`,
         data: {
           offerId: offer.id,
           listingId: offer.listingId,

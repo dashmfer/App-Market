@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getAuthToken } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,18 @@ export async function GET(
 ) {
   try {
     const { username } = await params;
+
+    // Get current user info for checking reserved listings
+    const token = await getAuthToken(request);
+    const currentUserId = token?.id as string | undefined;
+    let currentUserWallet: string | undefined;
+    if (currentUserId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { walletAddress: true },
+      });
+      currentUserWallet = currentUser?.walletAddress || undefined;
+    }
 
     // Try to find by username first, then by ID
     let user = await prisma.user.findUnique({
@@ -38,6 +51,8 @@ export async function GET(
             buyNowEnabled: true,
             currency: true,
             endTime: true,
+            reservedBuyerWallet: true,
+            reservedBuyerId: true,
             bids: {
               orderBy: { amount: "desc" },
               take: 1,
@@ -83,6 +98,8 @@ export async function GET(
               buyNowEnabled: true,
               currency: true,
               endTime: true,
+              reservedBuyerWallet: true,
+              reservedBuyerId: true,
               bids: {
                 orderBy: { amount: "desc" },
                 take: 1,
@@ -102,14 +119,81 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Transform listings to include currentBid
-    const transformedUser = {
-      ...user,
-      listings: user.listings.map((listing: any) => ({
+    // Also get RESERVED listings from this seller that are reserved for the current viewer
+    let reservedForViewer: any[] = [];
+    if (currentUserId || currentUserWallet) {
+      const reservedListings = await prisma.listing.findMany({
+        where: {
+          sellerId: user.id,
+          status: "RESERVED",
+          OR: [
+            ...(currentUserId ? [{ reservedBuyerId: currentUserId }] : []),
+            ...(currentUserWallet ? [{ reservedBuyerWallet: currentUserWallet }] : []),
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          tagline: true,
+          thumbnailUrl: true,
+          category: true,
+          techStack: true,
+          startingPrice: true,
+          buyNowPrice: true,
+          buyNowEnabled: true,
+          currency: true,
+          endTime: true,
+          reservedBuyerWallet: true,
+          reservedBuyerId: true,
+          bids: {
+            orderBy: { amount: "desc" },
+            take: 1,
+            select: { amount: true },
+          },
+          _count: {
+            select: { bids: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      reservedForViewer = reservedListings.map((listing: any) => ({
         ...listing,
         currentBid: listing.bids[0]?.amount || listing.startingPrice,
-        bids: undefined, // Remove the bids array from response
-      })),
+        bids: undefined,
+        reservedBuyerWallet: undefined,
+        reservedBuyerId: undefined,
+        reservationInfo: {
+          isReserved: true,
+          isReservedForCurrentUser: true,
+        },
+      }));
+    }
+
+    // Transform listings to include currentBid and reservation info
+    const transformedUser = {
+      ...user,
+      listings: user.listings.map((listing: any) => {
+        const isReserved = !!(listing.reservedBuyerWallet || listing.reservedBuyerId);
+        const isReservedForCurrentUser = isReserved && (
+          (currentUserId && listing.reservedBuyerId === currentUserId) ||
+          (currentUserWallet && listing.reservedBuyerWallet === currentUserWallet)
+        );
+
+        return {
+          ...listing,
+          currentBid: listing.bids[0]?.amount || listing.startingPrice,
+          bids: undefined,
+          reservedBuyerWallet: undefined,
+          reservedBuyerId: undefined,
+          reservationInfo: isReserved ? {
+            isReserved: true,
+            isReservedForCurrentUser,
+          } : undefined,
+        };
+      }),
+      reservedForViewer, // Listings with status RESERVED that are reserved for the viewer
     };
 
     return NextResponse.json({ user: transformedUser });
