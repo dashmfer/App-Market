@@ -205,7 +205,11 @@ export default function CreateListingPage() {
     enableBuyNow: false,
     buyNowPrice: "",
     currency: "APP",
-    
+
+    // Reserve for specific buyer (optional)
+    reserveForBuyer: false,
+    reservedBuyerWallet: "",
+
     // Terms accepted
     termsAccepted: false,
   });
@@ -374,6 +378,13 @@ export default function CreateListingPage() {
           newErrors.buyNowPrice = "Must be higher than starting price";
         }
       }
+      if (formData.reserveForBuyer) {
+        if (!formData.reservedBuyerWallet.trim()) {
+          newErrors.reservedBuyerWallet = "Wallet address is required when reserving";
+        } else if (formData.reservedBuyerWallet.length < 32 || formData.reservedBuyerWallet.length > 44) {
+          newErrors.reservedBuyerWallet = "Invalid Solana wallet address";
+        }
+      }
     }
     
     if (step === 4) {
@@ -456,6 +467,7 @@ export default function CreateListingPage() {
           buyNowPrice: formData.buyNowPrice || null,
           currency: formData.currency,
           duration: formData.duration,
+          reservedBuyerWallet: formData.reserveForBuyer ? formData.reservedBuyerWallet : null,
           walletAddress: publicKey.toBase58(),
           walletSignature: signatureBase58,
           signedMessage: message,
@@ -1556,6 +1568,38 @@ export default function CreateListingPage() {
                       )}
                     </div>
 
+                    {/* Reserve for Buyer */}
+                    <div className={`p-6 rounded-xl border ${formData.reserveForBuyer ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer mb-4">
+                        <input type="checkbox" checked={formData.reserveForBuyer} onChange={(e) => updateFormData("reserveForBuyer", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div>
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <Lock className="w-4 h-4" />
+                            Reserve for Specific Buyer
+                          </span>
+                          <p className="text-sm text-zinc-500">Only this wallet can purchase your listing</p>
+                        </div>
+                      </label>
+
+                      {formData.reserveForBuyer && (
+                        <div className="ml-8">
+                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Buyer&apos;s Wallet Address</label>
+                          <input
+                            type="text"
+                            value={formData.reservedBuyerWallet}
+                            onChange={(e) => updateFormData("reservedBuyerWallet", e.target.value)}
+                            placeholder="Enter Solana wallet address..."
+                            className={`input-field font-mono text-sm ${errors.reservedBuyerWallet ? "border-red-500" : ""}`}
+                          />
+                          {errors.reservedBuyerWallet && <p className="mt-1 text-sm text-red-500">{errors.reservedBuyerWallet}</p>}
+                          <p className="mt-2 text-xs text-zinc-500">
+                            <Info className="w-3 h-3 inline mr-1" />
+                            The listing will be marked as reserved and only visible to this buyer. You can remove the reservation later from the listing edit page.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Fee Info */}
                     <div className={`p-4 rounded-xl ${formData.currency === "APP" ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-zinc-50 dark:bg-zinc-800/50"}`}>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -1609,6 +1653,19 @@ export default function CreateListingPage() {
                         {formData.enableBuyNow && <p>Buy Now for <strong>{formData.buyNowPrice} {formData.currency === "APP" ? "$APP" : formData.currency}</strong></p>}
                       </div>
                     </div>
+
+                    {/* Reserved for Buyer */}
+                    {formData.reserveForBuyer && formData.reservedBuyerWallet && (
+                      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                        <h4 className="font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-2">
+                          <Lock className="w-4 h-4" />
+                          Reserved for Specific Buyer
+                        </h4>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          Only wallet <code className="font-mono text-xs bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">{formData.reservedBuyerWallet.slice(0, 8)}...{formData.reservedBuyerWallet.slice(-6)}</code> can purchase this listing.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Transfer Checklist */}
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
