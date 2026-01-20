@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { ListingStatus } from "@prisma/client";
 import { getAuthToken } from "@/lib/auth";
 
 // GET /api/listings - Get all listings with filters
@@ -259,7 +260,7 @@ export async function POST(request: NextRequest) {
 
     // Handle reservation if a buyer wallet is provided
     let reservedBuyerId = null;
-    let listingStatus = "ACTIVE";
+    let listingStatus: ListingStatus = ListingStatus.ACTIVE;
 
     if (reservedBuyerWallet && reservedBuyerWallet.trim()) {
       // Validate wallet address format (Solana addresses are 32-44 characters)
@@ -280,7 +281,7 @@ export async function POST(request: NextRequest) {
         reservedBuyerId = reservedUser.id;
       }
 
-      listingStatus = "RESERVED";
+      listingStatus = ListingStatus.RESERVED;
     }
 
     // Create listing
