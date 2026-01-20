@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 
+// Force dynamic rendering for this route
+export const dynamic = "force-dynamic";
+
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const TWITTER_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/twitter/callback`;
