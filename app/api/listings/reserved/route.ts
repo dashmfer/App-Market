@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform listings
-    const listings = reservedListings.map((listing) => ({
+    const listings = reservedListings.map((listing: any) => ({
       id: listing.id,
       slug: listing.slug,
       title: listing.title,
