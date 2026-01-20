@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Trash2 } from "lucide-react";
+import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Trash2, Lock } from "lucide-react";
 
 interface Listing {
   id: string;
@@ -84,6 +84,13 @@ export default function ListingsPage() {
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
             <AlertCircle className="w-3 h-3" />
             Draft
+          </span>
+        );
+      case "RESERVED":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            <Lock className="w-3 h-3" />
+            Reserved
           </span>
         );
       default:
