@@ -11,6 +11,9 @@ import {
   AlertCircle,
   Trash2,
   CheckCircle2,
+  Lock,
+  Unlock,
+  UserCheck,
 } from "lucide-react";
 
 interface Listing {
@@ -28,6 +31,9 @@ interface Listing {
   currency: string;
   endTime: string;
   sellerId: string;
+  reservedBuyerWallet?: string | null;
+  reservedBuyerId?: string | null;
+  reservedAt?: string | null;
   _count?: {
     bids: number;
   };
@@ -43,6 +49,7 @@ export default function EditListingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [reserving, setReserving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -50,6 +57,11 @@ export default function EditListingPage() {
   const [title, setTitle] = useState("");
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
+
+  // Reservation state
+  const [reserveWallet, setReserveWallet] = useState("");
+  const [isReserved, setIsReserved] = useState(false);
+  const [currentReservedWallet, setCurrentReservedWallet] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchListing() {
@@ -61,6 +73,9 @@ export default function EditListingPage() {
           setTitle(data.listing.title);
           setTagline(data.listing.tagline || "");
           setDescription(data.listing.description);
+          // Set reservation state
+          setIsReserved(data.listing.status === "RESERVED");
+          setCurrentReservedWallet(data.listing.reservedBuyerWallet || null);
         } else if (response.status === 404) {
           setError("Listing not found");
         } else {
@@ -142,6 +157,74 @@ export default function EditListingPage() {
       setError("Failed to cancel listing");
     } finally {
       setCanceling(false);
+    }
+  };
+
+  const handleReserve = async () => {
+    if (!listing || !reserveWallet.trim()) return;
+
+    setReserving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/listings/${slug}/reserve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress: reserveWallet.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsReserved(true);
+        setCurrentReservedWallet(reserveWallet.trim());
+        setReserveWallet("");
+        setListing({ ...listing, status: "RESERVED" });
+        setSuccess(
+          data.buyerIsRegistered
+            ? "Listing reserved! The buyer has been notified."
+            : "Listing reserved! The buyer will see it when they connect their wallet."
+        );
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to reserve listing");
+      }
+    } catch (err) {
+      setError("Failed to reserve listing");
+    } finally {
+      setReserving(false);
+    }
+  };
+
+  const handleUnreserve = async () => {
+    if (!listing) return;
+
+    if (!confirm("Are you sure you want to remove this reservation? The listing will become public again.")) {
+      return;
+    }
+
+    setReserving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/listings/${slug}/reserve`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setIsReserved(false);
+        setCurrentReservedWallet(null);
+        setListing({ ...listing, status: "ACTIVE" });
+        setSuccess("Reservation removed. Listing is now public.");
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to remove reservation");
+      }
+    } catch (err) {
+      setError("Failed to remove reservation");
+    } finally {
+      setReserving(false);
     }
   };
 
@@ -262,6 +345,76 @@ export default function EditListingPage() {
                 className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               />
             </div>
+
+            {/* Reserve for Buyer Section */}
+            {(listing?.status === "ACTIVE" || listing?.status === "RESERVED") && (
+              <div className="p-5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                <div className="flex items-center gap-2 mb-4">
+                  <Lock className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                  <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
+                    Reserve for Buyer
+                  </h3>
+                </div>
+
+                {isReserved ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                      <UserCheck className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                          Reserved for:
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400 font-mono break-all">
+                          {currentReservedWallet}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleUnreserve}
+                      disabled={reserving}
+                      className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors border border-red-200 dark:border-red-800"
+                    >
+                      {reserving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Unlock className="w-4 h-4" />
+                      )}
+                      Remove Reservation
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      Reserve this listing for a specific buyer. Only they will be able to purchase it.
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        Buyer's Wallet Address
+                      </label>
+                      <input
+                        type="text"
+                        value={reserveWallet}
+                        onChange={(e) => setReserveWallet(e.target.value)}
+                        placeholder="Enter Solana wallet address..."
+                        className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={handleReserve}
+                      disabled={reserving || !reserveWallet.trim()}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white rounded-lg transition-colors disabled:cursor-not-allowed"
+                    >
+                      {reserving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Lock className="w-4 h-4" />
+                      )}
+                      Reserve Listing
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {hasBids && (
               <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
