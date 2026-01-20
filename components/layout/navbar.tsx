@@ -24,19 +24,22 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
-
-const navLinks = [
-  { href: "/explore", label: "Explore" },
-  { href: "/categories", label: "Categories" },
-  { href: "/how-it-works", label: "How It Works" },
-];
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const pathname = usePathname();
-  
+  const t = useTranslations("nav");
+
+  const navLinks = [
+    { href: "/explore", label: t("explore") },
+    { href: "/categories", label: t("categories") },
+    { href: "/how-it-works", label: t("howItWorks") },
+  ];
+
   const { data: session } = useSession();
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
@@ -115,8 +118,11 @@ export function Navbar() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 md:gap-3">
+              {/* Language Switcher */}
+              <LanguageSwitcher />
+
               {/* Search Button */}
-              <Link 
+              <Link
                 href="/explore"
                 className="p-2 rounded-full text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
@@ -131,7 +137,7 @@ export function Navbar() {
                   {/* Create Listing */}
                   <Link href="/create" className="hidden sm:flex btn-success text-sm py-2">
                     <Plus className="w-4 h-4" />
-                    <span>List Project</span>
+                    <span>{t("listProject")}</span>
                   </Link>
 
                   {/* User Menu */}
@@ -177,42 +183,42 @@ export function Navbar() {
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <LayoutDashboard className="w-4 h-4" />
-                                <span>Dashboard</span>
+                                <span>{t("dashboard")}</span>
                               </Link>
                               <Link
                                 href="/dashboard/listings"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <Package className="w-4 h-4" />
-                                <span>My Listings</span>
+                                <span>{t("myListings")}</span>
                               </Link>
                               <Link
                                 href="/dashboard/purchases"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <ShoppingBag className="w-4 h-4" />
-                                <span>Purchases</span>
+                                <span>{t("purchases")}</span>
                               </Link>
                               <Link
                                 href="/dashboard/watchlist"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <Heart className="w-4 h-4" />
-                                <span>Watchlist</span>
+                                <span>{t("watchlist")}</span>
                               </Link>
                               <Link
                                 href="/dashboard/messages"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <MessageCircle className="w-4 h-4" />
-                                <span>Messages</span>
+                                <span>{t("messages")}</span>
                               </Link>
                               <Link
                                 href="/dashboard/settings"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                               >
                                 <Settings className="w-4 h-4" />
-                                <span>Settings</span>
+                                <span>{t("settings")}</span>
                               </Link>
                             </div>
                             <div className="p-2 border-t border-zinc-200 dark:border-zinc-800">
@@ -221,7 +227,7 @@ export function Navbar() {
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors w-full"
                               >
                                 <LogOut className="w-4 h-4" />
-                                <span>Sign Out</span>
+                                <span>{t("signOut")}</span>
                               </button>
                             </div>
                           </motion.div>
@@ -236,14 +242,14 @@ export function Navbar() {
                     onClick={() => signIn()}
                     className="hidden sm:flex text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
                   >
-                    Sign In
+                    {t("signIn")}
                   </button>
                   <button
                     onClick={handleConnectWallet}
                     className="btn-primary text-sm py-2"
                   >
                     <Wallet className="w-4 h-4" />
-                    <span className="hidden sm:inline">Connect Wallet</span>
+                    <span className="hidden sm:inline">{t("connectWallet")}</span>
                   </button>
                 </>
               )}
@@ -305,7 +311,7 @@ export function Navbar() {
                   {isAuthenticated ? (
                     <Link href="/create" className="btn-success w-full justify-center">
                       <Plus className="w-5 h-5" />
-                      <span>List Project</span>
+                      <span>{t("listProject")}</span>
                     </Link>
                   ) : (
                     <div className="space-y-3">
@@ -314,13 +320,13 @@ export function Navbar() {
                         className="btn-primary w-full justify-center"
                       >
                         <Wallet className="w-5 h-5" />
-                        <span>Connect Wallet</span>
+                        <span>{t("connectWallet")}</span>
                       </button>
                       <button
                         onClick={() => signIn()}
                         className="btn-secondary w-full justify-center"
                       >
-                        Sign In with Email
+                        {t("signIn")}
                       </button>
                     </div>
                   )}
