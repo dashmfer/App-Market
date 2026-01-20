@@ -50,7 +50,7 @@ function NotificationItem({
     <Bell className="w-4 h-4 text-zinc-500" />
   );
 
-  const listingSlug = notification.data?.listingSlug || notification.data?.slug;
+  const listingSlug = notification.data?.listingSlug || (notification.data as any)?.slug;
   const listingId = notification.data?.listingId;
   const conversationId = notification.data?.conversationId;
 
