@@ -1,0 +1,61 @@
+{
+  "nav": {
+    "explore": "Explore",
+    "categories": "Categories",
+    "howItWorks": "How It Works",
+    "signIn": "Sign In",
+    "connectWallet": "Connect Wallet",
+    "listProject": "List Project",
+    "dashboard": "Dashboard",
+    "myListings": "My Listings",
+    "purchases": "Purchases",
+    "watchlist": "Watchlist",
+    "messages": "Messages",
+    "settings": "Settings",
+    "signOut": "Sign Out"
+  },
+  "home": {
+    "hero": {
+      "title": "Buy & Sell Digital Products",
+      "subtitle": "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
+      "cta": "Explore Marketplace",
+      "ctaSecondary": "List Your Project"
+    },
+    "features": {
+      "secure": "Secure Transactions",
+      "secureDesc": "On-chain escrow ensures safe transfers",
+      "verified": "Verified Sellers",
+      "verifiedDesc": "Reputation system with Twitter verification",
+      "global": "Global Marketplace",
+      "globalDesc": "Buy and sell from anywhere in the world"
+    }
+  },
+  "common": {
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "close": "Close"
+  },
+  "footer": {
+    "brand": "The marketplace for apps, prototypes, and MVPs.",
+    "marketplace": "Marketplace",
+    "sellers": "Sellers",
+    "buyers": "Buyers",
+    "company": "Company",
+    "legal": "Legal",
+    "allRightsReserved": "All rights reserved."
+  },
+  "language": {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "zh": "Chinese",
+    "select": "Language"
+  }
+}
