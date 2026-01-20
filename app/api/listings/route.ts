@@ -219,6 +219,7 @@ export async function POST(request: NextRequest) {
       buyNowPrice,
       currency,
       duration,
+      reservedBuyerWallet,
     } = body;
 
     // Validate required fields
@@ -255,6 +256,32 @@ export async function POST(request: NextRequest) {
     // Calculate end time
     const durationDays = parseInt(duration) || 7;
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+
+    // Handle reservation if a buyer wallet is provided
+    let reservedBuyerId = null;
+    let listingStatus = "ACTIVE";
+
+    if (reservedBuyerWallet && reservedBuyerWallet.trim()) {
+      // Validate wallet address format (Solana addresses are 32-44 characters)
+      if (reservedBuyerWallet.length < 32 || reservedBuyerWallet.length > 44) {
+        return NextResponse.json(
+          { error: "Invalid wallet address format for reservation" },
+          { status: 400 }
+        );
+      }
+
+      // Check if the wallet belongs to a registered user
+      const reservedUser = await prisma.user.findFirst({
+        where: { walletAddress: reservedBuyerWallet },
+        select: { id: true },
+      });
+
+      if (reservedUser) {
+        reservedBuyerId = reservedUser.id;
+      }
+
+      listingStatus = "RESERVED";
+    }
 
     // Create listing
     const listing = await prisma.listing.create({
@@ -295,9 +322,13 @@ export async function POST(request: NextRequest) {
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,
         currency,
         endTime,
-        status: "ACTIVE",
+        status: listingStatus,
         sellerId: userId,
         publishedAt: new Date(),
+        // Reservation fields
+        reservedBuyerWallet: reservedBuyerWallet?.trim() || null,
+        reservedBuyerId,
+        reservedAt: reservedBuyerWallet?.trim() ? new Date() : null,
       },
       include: {
         seller: {
