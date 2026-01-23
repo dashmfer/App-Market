@@ -10,6 +10,15 @@ interface ChecklistItem {
   buyerConfirmed: boolean;
 }
 
+interface CollaboratorPayment {
+  collaboratorId: string;
+  walletAddress: string;
+  userId: string | null;
+  role: string;
+  percentage: number;
+  amount: number;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -23,9 +32,20 @@ export async function POST(
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
       include: {
-        listing: true,
+        listing: {
+          include: {
+            collaborators: {
+              where: { status: "ACCEPTED" },
+              include: {
+                user: {
+                  select: { id: true, username: true, displayName: true },
+                },
+              },
+            },
+          },
+        },
         seller: {
-          select: { walletAddress: true },
+          select: { id: true, walletAddress: true, username: true, displayName: true },
         },
       },
     });
@@ -113,20 +133,101 @@ export async function POST(
       },
     });
 
-    // Notify seller
+    // Calculate payment distribution for collaborators
+    const collaborators = transaction.listing.collaborators || [];
+    const sellerProceeds = transaction.sellerProceeds;
+
+    // Calculate collaborator payments and seller's final share
+    const collaboratorPayments: CollaboratorPayment[] = [];
+    let collaboratorTotalPercentage = 0;
+
+    for (const collab of collaborators) {
+      const collaboratorAmount = (sellerProceeds * collab.percentage) / 100;
+      collaboratorTotalPercentage += collab.percentage;
+
+      collaboratorPayments.push({
+        collaboratorId: collab.id,
+        walletAddress: collab.walletAddress,
+        userId: collab.userId,
+        role: collab.role,
+        percentage: collab.percentage,
+        amount: collaboratorAmount,
+      });
+    }
+
+    // Seller gets the remainder
+    const sellerPercentage = 100 - collaboratorTotalPercentage;
+    const sellerFinalAmount = (sellerProceeds * sellerPercentage) / 100;
+
+    // Store the payment distribution in the transaction data
+    await prisma.transaction.update({
+      where: { id: params.id },
+      data: {
+        transferMethods: {
+          ...(transaction.transferMethods as object || {}),
+          paymentDistribution: {
+            totalProceeds: sellerProceeds,
+            seller: {
+              userId: transaction.sellerId,
+              walletAddress: transaction.seller.walletAddress,
+              percentage: sellerPercentage,
+              amount: sellerFinalAmount,
+            },
+            collaborators: collaboratorPayments,
+          },
+        },
+      },
+    });
+
+    // Notify seller with their share
+    const sellerName = transaction.seller.displayName || transaction.seller.username || "Seller";
     await prisma.notification.create({
       data: {
         userId: transaction.sellerId,
         type: "PAYMENT_RECEIVED",
         title: "Payment Released!",
-        message: `Congratulations! The buyer has completed the transfer. ${transaction.sellerProceeds} ${transaction.currency} has been released to your wallet.`,
+        message: collaborators.length > 0
+          ? `Congratulations! The transfer is complete. Your share (${sellerPercentage}%) of ${sellerFinalAmount.toFixed(2)} ${transaction.currency} has been released.`
+          : `Congratulations! The buyer has completed the transfer. ${transaction.sellerProceeds} ${transaction.currency} has been released to your wallet.`,
         data: {
           transactionId: transaction.id,
-          amount: transaction.sellerProceeds,
+          amount: collaborators.length > 0 ? sellerFinalAmount : transaction.sellerProceeds,
+          percentage: sellerPercentage,
           currency: transaction.currency,
+          hasCollaborators: collaborators.length > 0,
         },
       },
     });
+
+    // Notify each collaborator about their payment
+    for (const payment of collaboratorPayments) {
+      if (payment.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: payment.userId,
+            type: "PAYMENT_RECEIVED",
+            title: "Payment Released!",
+            message: `Your share (${payment.percentage}%) of the sale of "${transaction.listing.title}" has been released: ${payment.amount.toFixed(2)} ${transaction.currency}`,
+            data: {
+              transactionId: transaction.id,
+              listingId: transaction.listingId,
+              amount: payment.amount,
+              percentage: payment.percentage,
+              currency: transaction.currency,
+              role: payment.role,
+            },
+          },
+        });
+
+        // Update collaborator's stats (increment their volume)
+        await prisma.user.update({
+          where: { id: payment.userId },
+          data: {
+            totalVolume: { increment: payment.amount },
+          },
+        });
+      }
+    }
 
     // Notify buyer
     await prisma.notification.create({

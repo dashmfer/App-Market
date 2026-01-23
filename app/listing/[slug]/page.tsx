@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
 import { formatDistanceToNow, format } from "date-fns";
+import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 
 // Helper to format currency display
 const formatCurrency = (currency: string): string => {
@@ -70,6 +71,29 @@ interface ReservationInfo {
   isReservedForCurrentUser: boolean;
   reservedBuyerName: string | null;
   reservedAt: string | null;
+}
+
+interface CollaboratorUser {
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  name: string | null;
+  image: string | null;
+  walletAddress: string | null;
+  isVerified: boolean;
+  twitterUsername?: string | null;
+  twitterVerified?: boolean;
+}
+
+interface Collaborator {
+  id: string;
+  walletAddress: string;
+  role: "PARTNER" | "COLLABORATOR";
+  roleDescription: string;
+  customRoleDescription?: string | null;
+  percentage: number;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+  user: CollaboratorUser | null;
 }
 
 interface Listing {
@@ -155,6 +179,8 @@ export default function ListingPage() {
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageContent, setMessageContent] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [sellerPercentage, setSellerPercentage] = useState(100);
 
   useEffect(() => {
     async function fetchListing() {
@@ -163,6 +189,18 @@ export default function ListingPage() {
         if (response.ok) {
           const data = await response.json();
           setListing(data.listing);
+
+          // Fetch collaborators
+          try {
+            const collabResponse = await fetch(`/api/listings/${slug}/collaborators`);
+            if (collabResponse.ok) {
+              const collabData = await collabResponse.json();
+              setCollaborators(collabData.collaborators || []);
+              setSellerPercentage(collabData.seller?.percentage || 100);
+            }
+          } catch (collabErr) {
+            console.error("Failed to fetch collaborators:", collabErr);
+          }
           // Set initial bid amount: if no bids, use starting price; otherwise use current bid + 0.01
           const initialBid = data.listing.bidCount > 0
             ? Math.round((data.listing.currentBid + 0.01) * 100) / 100
@@ -558,6 +596,26 @@ export default function ListingPage() {
                   </button>
                 )}
               </div>
+
+              {/* Team / Collaborators */}
+              {collaborators.length > 0 && (
+                <div className="mt-6">
+                  <CollaboratorDisplay
+                    seller={{
+                      id: listing.seller.id,
+                      username: listing.seller.username || null,
+                      displayName: null,
+                      name: listing.seller.name || null,
+                      image: listing.seller.image || null,
+                      walletAddress: listing.seller.walletAddress || null,
+                      isVerified: listing.seller.isVerified,
+                      rating: null,
+                    }}
+                    collaborators={collaborators}
+                    sellerPercentage={sellerPercentage}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Demo/Preview */}
