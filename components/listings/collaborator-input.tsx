@@ -94,6 +94,7 @@ export function CollaboratorInput({
   }>({
     role: "PARTNER",
     roleDescription: "CO_FOUNDER",
+    customRoleDescription: "",
     percentage: 10,
   });
 
