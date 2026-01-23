@@ -160,22 +160,31 @@ export async function POST(
     const sellerFinalAmount = (sellerProceeds * sellerPercentage) / 100;
 
     // Store the payment distribution in the transaction data
+    const paymentDistribution = {
+      totalProceeds: sellerProceeds,
+      seller: {
+        userId: transaction.sellerId,
+        walletAddress: transaction.seller.walletAddress,
+        percentage: sellerPercentage,
+        amount: sellerFinalAmount,
+      },
+      collaborators: collaboratorPayments.map(p => ({
+        collaboratorId: p.collaboratorId,
+        walletAddress: p.walletAddress,
+        userId: p.userId,
+        role: p.role,
+        percentage: p.percentage,
+        amount: p.amount,
+      })),
+    };
+
     await prisma.transaction.update({
       where: { id: params.id },
       data: {
         transferMethods: {
-          ...(transaction.transferMethods as object || {}),
-          paymentDistribution: {
-            totalProceeds: sellerProceeds,
-            seller: {
-              userId: transaction.sellerId,
-              walletAddress: transaction.seller.walletAddress,
-              percentage: sellerPercentage,
-              amount: sellerFinalAmount,
-            },
-            collaborators: collaboratorPayments,
-          },
-        },
+          ...(transaction.transferMethods as Record<string, unknown> || {}),
+          paymentDistribution,
+        } as Record<string, unknown>,
       },
     });
 
