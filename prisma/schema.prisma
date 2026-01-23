@@ -86,6 +86,9 @@ model User {
   conversationsAsParticipant2 Conversation[] @relation("ConversationParticipant2")
   messagesSent    Message[]        @relation("MessageSender")
 
+  // Collaborator Relations (when user is a collaborator on other listings)
+  collaborations  ListingCollaborator[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -123,6 +126,45 @@ model Session {
 // ============================================
 // LISTINGS & AUCTIONS
 // ============================================
+
+model ListingCollaborator {
+  id                String              @id @default(cuid())
+
+  // Listing relation
+  listingId         String
+  listing           Listing             @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Collaborator identification (wallet is required for payment, userId is optional)
+  walletAddress     String              // Required for payment distribution
+  userId            String?             // Optional: linked if they're a registered user
+  user              User?               @relation(fields: [userId], references: [id])
+
+  // Role & Description
+  role              CollaboratorRole    // PARTNER or COLLABORATOR
+  roleDescription   CollaboratorRoleDescription @default(OTHER)
+  customRoleDescription String?         // Free-form text when roleDescription is OTHER
+
+  // Payment split
+  percentage        Float               // Their cut of the sale (e.g., 25.5 for 25.5%)
+
+  // Permissions
+  canEdit           Boolean             @default(false) // Partners can edit, collaborators cannot
+
+  // Invitation status
+  status            CollaboratorStatus  @default(PENDING)
+  invitedAt         DateTime            @default(now())
+  respondedAt       DateTime?
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([listingId, walletAddress]) // Can't add same wallet twice to a listing
+  @@index([listingId])
+  @@index([walletAddress])
+  @@index([userId])
+  @@index([status])
+}
 
 model Listing {
   id                String        @id @default(cuid())
@@ -203,6 +245,7 @@ model Listing {
   // Relations
   sellerId          String
   seller            User          @relation("SellerListings", fields: [sellerId], references: [id])
+  collaborators     ListingCollaborator[]
   bids              Bid[]
   offers            Offer[]
   pendingWithdrawals PendingWithdrawal[]
@@ -686,6 +729,7 @@ enum ListingType {
 
 enum ListingStatus {
   DRAFT
+  PENDING_COLLABORATORS  // Waiting for all collaborators to accept
   PENDING_REVIEW
   ACTIVE
   RESERVED
@@ -766,6 +810,11 @@ enum NotificationType {
   FALLBACK_TRANSFER_ACTIVE // Notify when fallback process starts
   LISTING_RESERVED         // Notify buyer when a listing is reserved for them
   OFFER_ACCEPTED           // Notify buyer when their offer is accepted
+  // Collaboration notifications
+  COLLABORATION_INVITE     // Notify user when invited to collaborate on a listing
+  COLLABORATION_ACCEPTED   // Notify listing owner when collaborator accepts
+  COLLABORATION_DECLINED   // Notify listing owner when collaborator declines
+  COLLABORATION_REMOVED    // Notify collaborator when removed from listing
   SYSTEM
 }
 
@@ -873,4 +922,38 @@ enum UploadType {
   SOCIAL_ACCOUNT
   API_KEYS
   DESIGN_FILES
+}
+
+// ============================================
+// COLLABORATOR ENUMS
+// ============================================
+
+enum CollaboratorRole {
+  PARTNER       // Co-founders, core developers - can edit listing
+  COLLABORATOR  // Supporting contributors - cannot edit listing
+}
+
+enum CollaboratorStatus {
+  PENDING   // Awaiting response to invitation
+  ACCEPTED  // Accepted the collaboration
+  DECLINED  // Declined the invitation
+}
+
+enum CollaboratorRoleDescription {
+  // Partner roles
+  CO_FOUNDER
+  DEVELOPER
+  TECHNICAL_LEAD
+  CTO
+  // Collaborator roles
+  DESIGNER
+  MARKETING
+  VIDEO_EDITOR
+  CONSULTANT
+  ADVISOR
+  BRANDING
+  COPYWRITER
+  COMMUNITY_MANAGER
+  // Generic
+  OTHER
 }

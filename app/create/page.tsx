@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { CollaboratorInput, type Collaborator } from "@/components/listings/collaborator-input";
 
 const steps = [
   { id: 1, name: "Basics", description: "Project info" },
@@ -115,7 +116,10 @@ export default function CreateListingPage() {
     customTech: "",
     demoUrl: "",
     videoUrl: "",
-    
+
+    // Team (Partners & Collaborators)
+    collaborators: [] as Collaborator[],
+
     // AI Image Generation (disabled for now)
     aiImagePrompt: "",
     generatedImageUrl: "",
@@ -468,6 +472,17 @@ export default function CreateListingPage() {
           currency: formData.currency,
           duration: formData.duration,
           reservedBuyerWallet: formData.reserveForBuyer ? formData.reservedBuyerWallet : null,
+          // Collaborators - transform for API
+          collaborators: formData.collaborators.length > 0
+            ? formData.collaborators.map(c => ({
+                walletAddress: c.walletAddress,
+                userId: c.user?.id || null,
+                role: c.role,
+                roleDescription: c.roleDescription,
+                customRoleDescription: c.customRoleDescription || null,
+                percentage: c.percentage,
+              }))
+            : null,
           walletAddress: publicKey.toBase58(),
           walletSignature: signatureBase58,
           signedMessage: message,
@@ -824,6 +839,28 @@ export default function CreateListingPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Team Section - Partners & Collaborators */}
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
+                  <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Team</h2>
+                  <p className="text-zinc-500 mb-6">Add partners or collaborators who will share in the sale revenue</p>
+
+                  <CollaboratorInput
+                    collaborators={formData.collaborators}
+                    onChange={(collaborators) => updateFormData("collaborators", collaborators)}
+                    ownerPercentage={100 - formData.collaborators.reduce((sum, c) => sum + c.percentage, 0)}
+                    disabled={false}
+                  />
+
+                  {formData.collaborators.length > 0 && (
+                    <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                      <p className="text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                        <Info className="w-4 h-4" />
+                        Collaborators must accept your invite before the listing can go live.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

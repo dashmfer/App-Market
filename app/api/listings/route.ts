@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@prisma/client";
 import { getAuthToken } from "@/lib/auth";
+import { createNotification } from "@/lib/notifications";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -221,6 +222,7 @@ export async function POST(request: NextRequest) {
       currency,
       duration,
       reservedBuyerWallet,
+      collaborators,
     } = body;
 
     // Validate required fields
@@ -261,6 +263,12 @@ export async function POST(request: NextRequest) {
     // Handle reservation if a buyer wallet is provided
     let reservedBuyerId = null;
     let listingStatus: ListingStatus = ListingStatus.ACTIVE;
+
+    // Check if there are collaborators - listing needs their approval first
+    const hasCollaborators = collaborators && Array.isArray(collaborators) && collaborators.length > 0;
+    if (hasCollaborators) {
+      listingStatus = ListingStatus.PENDING_COLLABORATORS;
+    }
 
     if (reservedBuyerWallet && reservedBuyerWallet.trim()) {
       // Validate wallet address format (Solana addresses are 32-44 characters)
@@ -341,6 +349,46 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Create collaborators if provided
+    if (hasCollaborators) {
+      const collaboratorPromises = collaborators.map(async (collab: any) => {
+        // Create the collaborator record
+        const collaboratorRecord = await prisma.listingCollaborator.create({
+          data: {
+            listingId: listing.id,
+            walletAddress: collab.walletAddress,
+            userId: collab.userId || null,
+            role: collab.role as CollaboratorRole,
+            roleDescription: (collab.roleDescription || "OTHER") as CollaboratorRoleDescription,
+            customRoleDescription: collab.customRoleDescription || null,
+            percentage: collab.percentage,
+            canEdit: collab.role === "PARTNER",
+            status: CollaboratorStatus.PENDING,
+          },
+        });
+
+        // Send notification if they're a registered user
+        if (collab.userId) {
+          await createNotification({
+            userId: collab.userId,
+            type: "COLLABORATION_INVITE",
+            data: {
+              listingId: listing.id,
+              listingSlug: listing.slug,
+              listingTitle: listing.title,
+              collaboratorId: collaboratorRecord.id,
+              role: collab.role,
+              percentage: collab.percentage,
+            },
+          });
+        }
+
+        return collaboratorRecord;
+      });
+
+      await Promise.all(collaboratorPromises);
+    }
 
     return NextResponse.json({ listing }, { status: 201 });
   } catch (error: any) {
