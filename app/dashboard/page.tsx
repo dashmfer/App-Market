@@ -19,12 +19,14 @@ import {
   Plus,
   ExternalLink,
   Gift,
+  Users,
 } from "lucide-react";
 
 const sidebarLinks = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/listings", label: "My Listings", icon: Package },
   { href: "/dashboard/purchases", label: "Purchases", icon: ShoppingBag },
+  { href: "/dashboard/collaborations", label: "Collaborations", icon: Users },
   { href: "/dashboard/watchlist", label: "Watchlist", icon: Heart },
   { href: "/dashboard/referrals", label: "Referrals", icon: Gift },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
