@@ -4,6 +4,8 @@ import { NotificationType } from '@prisma/client';
 interface CreateNotificationParams {
   userId: string;
   type: NotificationType;
+  title?: string;  // Custom title (overrides generated title)
+  message?: string; // Custom message (overrides generated message)
   listingId?: string;
   listingTitle?: string;
   amount?: number;
@@ -16,6 +18,8 @@ interface CreateNotificationParams {
 export async function createNotification({
   userId,
   type,
+  title: customTitle,
+  message: customMessage,
   listingId,
   listingTitle,
   amount,
@@ -31,19 +35,20 @@ export async function createNotification({
     title = listing?.title;
   }
 
-  // Generate notification message based on type
-  const { title: notificationTitle, message } = generateNotificationContent(
+  // Generate notification message based on type (if custom not provided)
+  const { title: generatedTitle, message: generatedMessage } = generateNotificationContent(
     type,
     title,
-    amount
+    amount,
+    data
   );
 
   return prisma.notification.create({
     data: {
       userId,
       type,
-      title: notificationTitle,
-      message,
+      title: customTitle || generatedTitle,
+      message: customMessage || generatedMessage,
       data: {
         listingId,
         listingTitle: title,
@@ -60,9 +65,10 @@ export async function createNotification({
 function generateNotificationContent(
   type: NotificationType,
   listingTitle?: string,
-  amount?: number
+  amount?: number,
+  data?: any
 ): { title: string; message: string } {
-  const displayTitle = listingTitle || 'Unknown Listing';
+  const displayTitle = listingTitle || data?.listingTitle || 'Unknown Listing';
   const displayAmount = amount ? `${amount} SOL` : '';
 
   switch (type) {
@@ -136,6 +142,31 @@ function generateNotificationContent(
       return {
         title: 'Watchlist Alert',
         message: `"${displayTitle}" from your watchlist is ending soon!`,
+      };
+
+    // Collaboration notifications
+    case 'COLLABORATION_INVITE':
+      return {
+        title: 'Collaboration Invite',
+        message: `You've been invited as a ${data?.role?.toLowerCase() || 'collaborator'} on "${displayTitle}" with ${data?.percentage || 0}% revenue share`,
+      };
+
+    case 'COLLABORATION_ACCEPTED':
+      return {
+        title: 'Collaboration Accepted',
+        message: `A collaborator has accepted your invite for "${displayTitle}"`,
+      };
+
+    case 'COLLABORATION_DECLINED':
+      return {
+        title: 'Collaboration Declined',
+        message: `A collaborator has declined your invite for "${displayTitle}"`,
+      };
+
+    case 'COLLABORATION_REMOVED':
+      return {
+        title: 'Removed from Listing',
+        message: `You've been removed from "${displayTitle}"`,
       };
 
     case 'SYSTEM':

@@ -1,0 +1,491 @@
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/db";
+import { getAuthToken } from "@/lib/auth";
+import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@prisma/client";
+import { createNotification } from "@/lib/notifications";
+
+// GET /api/listings/[slug]/collaborators - Get all collaborators for a listing
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const { slug } = await params;
+
+    const listing = await prisma.listing.findUnique({
+      where: { slug },
+      include: {
+        collaborators: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                name: true,
+                image: true,
+                walletAddress: true,
+                isVerified: true,
+                twitterUsername: true,
+                twitterVerified: true,
+                rating: true,
+              },
+            },
+          },
+          orderBy: [
+            { role: "asc" }, // Partners first
+            { percentage: "desc" },
+          ],
+        },
+        seller: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            name: true,
+            image: true,
+            walletAddress: true,
+            isVerified: true,
+            rating: true,
+          },
+        },
+      },
+    });
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
+
+    // Calculate seller's percentage (100% minus all collaborators)
+    const collaboratorTotalPercentage = listing.collaborators.reduce(
+      (sum, c) => sum + c.percentage,
+      0
+    );
+    const sellerPercentage = 100 - collaboratorTotalPercentage;
+
+    return NextResponse.json({
+      collaborators: listing.collaborators,
+      seller: {
+        ...listing.seller,
+        percentage: sellerPercentage,
+        role: "OWNER",
+      },
+      totalPercentage: 100,
+      collaboratorCount: listing.collaborators.length,
+      pendingCount: listing.collaborators.filter(c => c.status === "PENDING").length,
+    });
+  } catch (error) {
+    console.error("Error fetching collaborators:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch collaborators" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST /api/listings/[slug]/collaborators - Add a collaborator to a listing
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = token.id as string;
+    const { slug } = await params;
+    const body = await request.json();
+
+    const {
+      walletAddress,
+      role,
+      roleDescription,
+      customRoleDescription,
+      percentage,
+    } = body;
+
+    // Validate required fields
+    if (!walletAddress || !role || percentage === undefined) {
+      return NextResponse.json(
+        { error: "walletAddress, role, and percentage are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate role
+    if (!["PARTNER", "COLLABORATOR"].includes(role)) {
+      return NextResponse.json(
+        { error: "Invalid role. Must be PARTNER or COLLABORATOR" },
+        { status: 400 }
+      );
+    }
+
+    // Validate percentage
+    if (percentage <= 0 || percentage > 99) {
+      return NextResponse.json(
+        { error: "Percentage must be between 0.01 and 99" },
+        { status: 400 }
+      );
+    }
+
+    // Get the listing and verify ownership
+    const listing = await prisma.listing.findUnique({
+      where: { slug },
+      include: {
+        collaborators: true,
+        seller: {
+          select: { id: true, walletAddress: true },
+        },
+      },
+    });
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
+
+    // Check if user is the owner or a partner with edit rights
+    const isOwner = listing.sellerId === userId;
+    const isPartnerWithEditRights = listing.collaborators.some(
+      c => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
+    );
+
+    if (!isOwner && !isPartnerWithEditRights) {
+      return NextResponse.json(
+        { error: "Only the listing owner or partners can add collaborators" },
+        { status: 403 }
+      );
+    }
+
+    // Check if listing is in a state that allows adding collaborators
+    if (!["DRAFT", "PENDING_COLLABORATORS"].includes(listing.status)) {
+      return NextResponse.json(
+        { error: "Cannot add collaborators to an active or completed listing" },
+        { status: 400 }
+      );
+    }
+
+    // Check if wallet is already a collaborator
+    const existingCollaborator = listing.collaborators.find(
+      c => c.walletAddress.toLowerCase() === walletAddress.toLowerCase()
+    );
+    if (existingCollaborator) {
+      return NextResponse.json(
+        { error: "This wallet is already a collaborator on this listing" },
+        { status: 400 }
+      );
+    }
+
+    // Can't add the listing owner as a collaborator
+    if (listing.seller.walletAddress?.toLowerCase() === walletAddress.toLowerCase()) {
+      return NextResponse.json(
+        { error: "Cannot add the listing owner as a collaborator" },
+        { status: 400 }
+      );
+    }
+
+    // Calculate current total percentage
+    const currentTotalPercentage = listing.collaborators.reduce(
+      (sum, c) => sum + c.percentage,
+      0
+    );
+
+    // Check if adding this collaborator would exceed 99% (leaving at least 1% for owner)
+    if (currentTotalPercentage + percentage > 99) {
+      return NextResponse.json(
+        { error: `Cannot add ${percentage}%. Current collaborator total is ${currentTotalPercentage}%. Maximum allowed is ${99 - currentTotalPercentage}%` },
+        { status: 400 }
+      );
+    }
+
+    // Check if the wallet belongs to a registered user
+    const collaboratorUser = await prisma.user.findUnique({
+      where: { walletAddress },
+      select: { id: true, username: true, displayName: true, name: true },
+    });
+
+    // Create the collaborator
+    const collaborator = await prisma.listingCollaborator.create({
+      data: {
+        listingId: listing.id,
+        walletAddress,
+        userId: collaboratorUser?.id || null,
+        role: role as CollaboratorRole,
+        roleDescription: (roleDescription || "OTHER") as CollaboratorRoleDescription,
+        customRoleDescription: roleDescription === "OTHER" ? customRoleDescription : null,
+        percentage,
+        canEdit: role === "PARTNER",
+        status: "PENDING",
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            name: true,
+            image: true,
+            walletAddress: true,
+            isVerified: true,
+          },
+        },
+      },
+    });
+
+    // Send notification to the collaborator if they're a registered user
+    if (collaboratorUser) {
+      await createNotification({
+        userId: collaboratorUser.id,
+        type: "COLLABORATION_INVITE",
+        title: "Collaboration Invite",
+        message: `You've been invited as a ${role.toLowerCase()} on "${listing.title}" with ${percentage}% revenue share`,
+        data: {
+          listingId: listing.id,
+          listingSlug: listing.slug,
+          listingTitle: listing.title,
+          collaboratorId: collaborator.id,
+          role,
+          percentage,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      collaborator,
+      message: collaboratorUser
+        ? "Collaborator added and notification sent"
+        : "Collaborator added. They will need to connect their wallet to accept.",
+    });
+  } catch (error) {
+    console.error("Error adding collaborator:", error);
+    return NextResponse.json(
+      { error: "Failed to add collaborator" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/listings/[slug]/collaborators - Remove a collaborator
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = token.id as string;
+    const { slug } = await params;
+    const { searchParams } = new URL(request.url);
+    const collaboratorId = searchParams.get("collaboratorId");
+
+    if (!collaboratorId) {
+      return NextResponse.json(
+        { error: "collaboratorId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get the listing
+    const listing = await prisma.listing.findUnique({
+      where: { slug },
+      include: {
+        collaborators: true,
+      },
+    });
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
+
+    // Check if listing is in a state that allows removing collaborators
+    if (!["DRAFT", "PENDING_COLLABORATORS"].includes(listing.status)) {
+      return NextResponse.json(
+        { error: "Cannot remove collaborators from an active or completed listing" },
+        { status: 400 }
+      );
+    }
+
+    // Find the collaborator
+    const collaborator = listing.collaborators.find(c => c.id === collaboratorId);
+    if (!collaborator) {
+      return NextResponse.json(
+        { error: "Collaborator not found on this listing" },
+        { status: 404 }
+      );
+    }
+
+    // Check permissions - owner can remove anyone, collaborator can remove themselves
+    const isOwner = listing.sellerId === userId;
+    const isSelf = collaborator.userId === userId;
+
+    if (!isOwner && !isSelf) {
+      return NextResponse.json(
+        { error: "Only the listing owner can remove collaborators" },
+        { status: 403 }
+      );
+    }
+
+    // Delete the collaborator
+    await prisma.listingCollaborator.delete({
+      where: { id: collaboratorId },
+    });
+
+    // Send notification if removed by owner and collaborator is a registered user
+    if (!isSelf && collaborator.userId) {
+      await createNotification({
+        userId: collaborator.userId,
+        type: "COLLABORATION_REMOVED",
+        title: "Removed from Listing",
+        message: `You've been removed from "${listing.title}"`,
+        data: {
+          listingId: listing.id,
+          listingSlug: listing.slug,
+          listingTitle: listing.title,
+        },
+      });
+    }
+
+    return NextResponse.json({
+      message: "Collaborator removed successfully",
+    });
+  } catch (error) {
+    console.error("Error removing collaborator:", error);
+    return NextResponse.json(
+      { error: "Failed to remove collaborator" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/listings/[slug]/collaborators - Update a collaborator's percentage
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  try {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = token.id as string;
+    const { slug } = await params;
+    const body = await request.json();
+
+    const { collaboratorId, percentage, roleDescription, customRoleDescription } = body;
+
+    if (!collaboratorId) {
+      return NextResponse.json(
+        { error: "collaboratorId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get the listing
+    const listing = await prisma.listing.findUnique({
+      where: { slug },
+      include: {
+        collaborators: true,
+      },
+    });
+
+    if (!listing) {
+      return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+    }
+
+    // Check if listing is in a state that allows updating collaborators
+    if (!["DRAFT", "PENDING_COLLABORATORS"].includes(listing.status)) {
+      return NextResponse.json(
+        { error: "Cannot update collaborators on an active or completed listing" },
+        { status: 400 }
+      );
+    }
+
+    // Check permissions
+    const isOwner = listing.sellerId === userId;
+    const isPartnerWithEditRights = listing.collaborators.some(
+      c => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
+    );
+
+    if (!isOwner && !isPartnerWithEditRights) {
+      return NextResponse.json(
+        { error: "Only the listing owner or partners can update collaborators" },
+        { status: 403 }
+      );
+    }
+
+    // Find the collaborator
+    const collaborator = listing.collaborators.find(c => c.id === collaboratorId);
+    if (!collaborator) {
+      return NextResponse.json(
+        { error: "Collaborator not found on this listing" },
+        { status: 404 }
+      );
+    }
+
+    // Build update data
+    const updateData: any = {};
+
+    if (percentage !== undefined) {
+      if (percentage <= 0 || percentage > 99) {
+        return NextResponse.json(
+          { error: "Percentage must be between 0.01 and 99" },
+          { status: 400 }
+        );
+      }
+
+      // Calculate other collaborators' total
+      const otherCollaboratorsTotal = listing.collaborators
+        .filter(c => c.id !== collaboratorId)
+        .reduce((sum, c) => sum + c.percentage, 0);
+
+      if (otherCollaboratorsTotal + percentage > 99) {
+        return NextResponse.json(
+          { error: `Cannot set ${percentage}%. Other collaborators total is ${otherCollaboratorsTotal}%. Maximum allowed is ${99 - otherCollaboratorsTotal}%` },
+          { status: 400 }
+        );
+      }
+
+      updateData.percentage = percentage;
+    }
+
+    if (roleDescription !== undefined) {
+      updateData.roleDescription = roleDescription;
+      updateData.customRoleDescription = roleDescription === "OTHER" ? customRoleDescription : null;
+    }
+
+    // Update the collaborator
+    const updatedCollaborator = await prisma.listingCollaborator.update({
+      where: { id: collaboratorId },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            name: true,
+            image: true,
+            walletAddress: true,
+            isVerified: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      collaborator: updatedCollaborator,
+      message: "Collaborator updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating collaborator:", error);
+    return NextResponse.json(
+      { error: "Failed to update collaborator" },
+      { status: 500 }
+    );
+  }
+}
