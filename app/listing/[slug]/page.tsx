@@ -38,7 +38,8 @@ import {
   Lock,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
-import { formatDistanceToNow, format } from "date-fns";
+import { format } from "date-fns";
+import { useCountdown } from "@/hooks/useCountdown";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
 
@@ -198,6 +199,9 @@ export default function ListingPage() {
   const [sellerPercentage, setSellerPercentage] = useState(100);
   const [purchasePartners, setPurchasePartners] = useState<PurchasePartner[]>([]);
 
+  // Real-time countdown hook - must be called before any conditional returns
+  const { timeLeft, isExpired, isEndingSoon } = useCountdown(listing?.endTime);
+
   useEffect(() => {
     async function fetchListing() {
       try {
@@ -279,10 +283,6 @@ export default function ListingPage() {
       </div>
     );
   }
-
-  const endDate = new Date(listing.endTime);
-  const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
-  const isEndingSoon = endDate.getTime() - Date.now() < 86400000;
 
   // Check if this is a Buy Now only listing (no auction)
   const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
@@ -539,7 +539,24 @@ export default function ListingPage() {
                 <div>
                   <div className="flex items-center gap-3 mb-3 flex-wrap">
                     <span className="badge-green">{categoryLabels[listing.category] || listing.category}</span>
-                    {isEndingSoon && (
+                    {/* Listing Type Badge */}
+                    {isBuyNowOnly ? (
+                      <span className="badge bg-green-500 text-white flex items-center gap-1.5">
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        Buy Now
+                      </span>
+                    ) : (
+                      <span className="badge bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 flex items-center gap-1.5">
+                        <Gavel className="w-3.5 h-3.5" />
+                        Auction
+                      </span>
+                    )}
+                    {isExpired ? (
+                      <span className="badge-red flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        Ended
+                      </span>
+                    ) : isEndingSoon && (
                       <span className="badge-yellow flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         Ending Soon
@@ -875,9 +892,15 @@ export default function ListingPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                      <Clock className="w-4 h-4 text-zinc-400" />
-                      <span suppressHydrationWarning className={isEndingSoon ? "text-yellow-600 font-medium" : "text-zinc-500"}>
-                        {timeLeft} left
+                      <Clock className={`w-4 h-4 ${isExpired ? "text-red-500" : "text-zinc-400"}`} />
+                      <span className={
+                        isExpired
+                          ? "text-red-500 font-medium"
+                          : isEndingSoon
+                            ? "text-yellow-600 font-medium"
+                            : "text-zinc-500"
+                      }>
+                        {isExpired ? "Ended" : `${timeLeft} left`}
                       </span>
                     </div>
                   </div>

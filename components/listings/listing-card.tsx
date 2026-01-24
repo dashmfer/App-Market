@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2, Lock } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2, Lock, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { useCountdown } from "@/hooks/useCountdown";
 
 interface ListingCardProps {
   listing: {
@@ -118,10 +118,8 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
     }
   };
 
-  // Convert endTime to Date if it's a string
-  const endDate = typeof listing.endTime === 'string' ? new Date(listing.endTime) : listing.endTime;
-  const timeLeft = formatDistanceToNow(endDate, { addSuffix: false });
-  const isEndingSoon = endDate.getTime() - Date.now() < 86400000; // 24 hours
+  // Use real-time countdown hook
+  const { timeLeft, isExpired, isEndingSoon } = useCountdown(listing.endTime);
 
   // Check if this is a Buy Now only listing
   const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
@@ -176,11 +174,22 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
             {/* Overlay on hover */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Category Badge */}
-            <div className="absolute top-3 left-3">
+            {/* Category & Listing Type Badges */}
+            <div className="absolute top-3 left-3 flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {categoryLabels[listing.category] || listing.category}
               </span>
+              {isBuyNowOnly ? (
+                <span className="px-2.5 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-xs font-medium text-white flex items-center gap-1">
+                  <Tag className="w-3 h-3" />
+                  Buy Now
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full bg-zinc-900/70 dark:bg-zinc-100/90 backdrop-blur-sm text-xs font-medium text-white dark:text-zinc-900 flex items-center gap-1">
+                  <Gavel className="w-3 h-3" />
+                  Auction
+                </span>
+              )}
             </div>
 
             {/* Watchlist Button */}
@@ -346,9 +355,15 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
               </div>
 
               {/* Time Left */}
-              <div className="mt-3 flex items-center gap-1.5 text-sm text-zinc-500">
+              <div className={`mt-3 flex items-center gap-1.5 text-sm ${
+                isExpired
+                  ? "text-red-500"
+                  : isEndingSoon
+                    ? "text-yellow-600 dark:text-yellow-500"
+                    : "text-zinc-500"
+              }`}>
                 <Clock className="w-4 h-4" />
-                <span suppressHydrationWarning>{timeLeft} left</span>
+                <span>{isExpired ? "Ended" : `${timeLeft} left`}</span>
               </div>
             </div>
           </div>
