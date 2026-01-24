@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Get wallet address from embedded wallet
     const embeddedWallet = privyUser.linkedAccounts?.find(
       (account: any) => account.type === "wallet" && account.walletClientType === "privy"
-    );
+    ) as { address?: string } | undefined;
     const walletAddress = embeddedWallet?.address;
 
     // Determine wallet type based on how they signed up
