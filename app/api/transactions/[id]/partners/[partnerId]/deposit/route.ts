@@ -73,16 +73,16 @@ export async function POST(
     // Notify lead buyer
     const leadPartner = transaction.partners.find(p => p.isLead);
     if (leadPartner?.userId && leadPartner.userId !== session.user.id) {
-      await createNotification(
-        leadPartner.userId,
-        "PURCHASE_PARTNER_DEPOSITED",
-        {
+      await createNotification({
+        userId: leadPartner.userId,
+        type: "PURCHASE_PARTNER_DEPOSITED",
+        listingTitle: transaction.listing.title,
+        data: {
           partnerName: partner.user?.displayName || partner.user?.username || partner.walletAddress.slice(0, 8),
           percentage: partner.percentage,
-          listingTitle: transaction.listing.title,
           transactionId: params.id,
-        }
-      );
+        },
+      });
     }
 
     // Check if all partners have deposited
@@ -106,15 +106,15 @@ export async function POST(
       // Notify all partners
       for (const p of transaction.partners) {
         if (p.userId) {
-          await createNotification(
-            p.userId,
-            "PURCHASE_PARTNER_ALL_READY",
-            {
-              listingTitle: transaction.listing.title,
+          await createNotification({
+            userId: p.userId,
+            type: "PURCHASE_PARTNER_ALL_READY",
+            listingTitle: transaction.listing.title,
+            data: {
               listingSlug: transaction.listing.slug,
               transactionId: params.id,
-            }
-          );
+            },
+          });
         }
       }
 
