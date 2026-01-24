@@ -903,6 +903,8 @@ enum NotificationType {
   PURCHASE_PARTNER_ALL_READY   // Notify all partners when 100% deposited
   PURCHASE_PARTNER_TIMEOUT     // Notify all partners when deposit window expires
   PURCHASE_PARTNER_LEAD_TRANSFERRED // Notify when lead status transferred
+  // Referral notifications
+  REFERRAL_EARNED          // Notify referrer when they earn commission
   SYSTEM
 }
 
