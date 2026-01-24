@@ -67,8 +67,9 @@ export async function POST(request: NextRequest) {
       // Create new user
       const baseUsername = email
         ? email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "")
-        : twitterUsername?.toLowerCase()
-        : walletAddress?.slice(0, 8).toLowerCase();
+        : twitterUsername
+          ? twitterUsername.toLowerCase()
+          : walletAddress?.slice(0, 8).toLowerCase();
 
       // Generate unique username
       let username = baseUsername || `user_${Date.now().toString(36)}`;
