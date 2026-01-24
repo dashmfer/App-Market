@@ -15,19 +15,135 @@
     "signOut": "Sign Out"
   },
   "home": {
+    "badge": "Built on Solana • Trustless Escrow",
     "hero": {
-      "title": "Buy & Sell Digital Products",
+      "title": "Buy & Sell",
+      "titleHighlight": "Digital Products",
       "subtitle": "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
-      "cta": "Explore Marketplace",
-      "ctaSecondary": "List Your Project"
+      "cta": "Explore Projects",
+      "ctaSecondary": "Start Selling"
+    },
+    "payment": {
+      "sol": "SOL",
+      "card": "Credit Card",
+      "usdc": "USDC"
+    },
+    "stats": {
+      "projectsSold": "Projects Sold",
+      "totalVolume": "Total Volume",
+      "activeSellers": "Active Sellers",
+      "avgSaleTime": "Avg. Sale Time",
+      "days": "days"
+    },
+    "featured": {
+      "title": "Featured Projects",
+      "subtitle": "Hand-picked projects with high potential",
+      "viewAll": "View All",
+      "empty": "No projects listed yet. Be the first to list!",
+      "listProject": "List Your Project"
+    },
+    "categories": {
+      "title": "Browse by Category",
+      "subtitle": "Find projects in your area of interest"
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "subtitle": "Simple, secure, and transparent",
+      "step1": {
+        "title": "List Your Project",
+        "description": "Connect your GitHub, describe your project, and set your auction parameters. We verify ownership automatically."
+      },
+      "step2": {
+        "title": "Receive Bids",
+        "description": "Buyers discover and bid on your project. Watch the auction unfold in real-time with on-chain transparency."
+      },
+      "step3": {
+        "title": "Secure Escrow",
+        "description": "When the auction ends, funds are held in trustless escrow on Solana. No middleman, no risk."
+      },
+      "step4": {
+        "title": "Transfer & Release",
+        "description": "Transfer assets to the buyer, confirm receipt, and funds are released automatically. Simple."
+      }
     },
     "features": {
-      "secure": "Secure Transactions",
-      "secureDesc": "On-chain escrow ensures safe transfers",
-      "verified": "Verified Sellers",
-      "verifiedDesc": "Reputation system with Twitter verification",
-      "global": "Global Marketplace",
-      "globalDesc": "Buy and sell from anywhere in the world"
+      "title": "Why App Market?",
+      "subtitle": "Built for builders, by builders",
+      "escrow": {
+        "title": "Trustless Escrow",
+        "description": "Funds are held in Solana smart contracts, not our wallets. Release happens automatically when both parties confirm."
+      },
+      "settlement": {
+        "title": "Instant Settlement",
+        "description": "No waiting for banks. Solana transactions settle in seconds."
+      },
+      "ownership": {
+        "title": "Verified Ownership",
+        "description": "We verify GitHub ownership before listing. Automated checks ensure legitimate transfers."
+      },
+      "global": {
+        "title": "Global Access",
+        "description": "No country restrictions. Anyone with a wallet can buy or sell. Crypto-native with fiat rails for everyone."
+      },
+      "disputes": {
+        "title": "Fair Disputes",
+        "description": "If something goes wrong, our dispute system ensures fair resolution with evidence review."
+      }
+    },
+    "cta": {
+      "title": "Ready to Get Started?",
+      "subtitle": "Join thousands of builders buying and selling digital products on the most trusted marketplace.",
+      "listProject": "List Your Project",
+      "browseMarketplace": "Browse Marketplace"
+    }
+  },
+  "explore": {
+    "title": "Explore Projects",
+    "subtitle": "Discover and acquire amazing digital products",
+    "searchPlaceholder": "Search projects...",
+    "filters": "Filters",
+    "priceRange": "Price Range",
+    "blockchain": "Blockchain",
+    "clearFilters": "Clear all filters",
+    "applyFilters": "Apply Filters",
+    "showing": "Showing",
+    "projects": "projects",
+    "loading": "Loading...",
+    "noResults": "No projects found. Try adjusting your filters.",
+    "loadMore": "Load More Projects",
+    "categories": {
+      "all": "All Categories",
+      "saas": "SaaS",
+      "aiMl": "AI & ML",
+      "mobileApps": "Mobile Apps",
+      "webApps": "Web Apps",
+      "extensions": "Extensions",
+      "cryptoWeb3": "Crypto & Web3",
+      "ecommerce": "E-commerce",
+      "devTools": "Developer Tools",
+      "gaming": "Gaming"
+    },
+    "sort": {
+      "endingSoon": "Ending Soon",
+      "newest": "Newest First",
+      "priceLow": "Price: Low to High",
+      "priceHigh": "Price: High to Low",
+      "mostBids": "Most Bids"
+    },
+    "price": {
+      "any": "Any Price",
+      "under25": "Under 25 SOL",
+      "25to50": "25 - 50 SOL",
+      "50to100": "50 - 100 SOL",
+      "over100": "100+ SOL"
+    },
+    "chains": {
+      "all": "All Chains",
+      "solana": "Solana",
+      "base": "Base",
+      "hyperliquid": "Hyperliquid",
+      "ethereum": "Ethereum",
+      "bitcoin": "Bitcoin"
     }
   },
   "common": {
@@ -40,16 +156,35 @@
     "delete": "Delete",
     "edit": "Edit",
     "view": "View",
-    "close": "Close"
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "sol": "SOL"
   },
   "footer": {
-    "brand": "The marketplace for apps, prototypes, and MVPs.",
+    "brand": "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
     "marketplace": "Marketplace",
     "sellers": "Sellers",
     "buyers": "Buyers",
     "company": "Company",
     "legal": "Legal",
-    "allRightsReserved": "All rights reserved."
+    "allRightsReserved": "All rights reserved.",
+    "links": {
+      "explore": "Explore",
+      "categories": "Categories",
+      "featured": "Featured",
+      "recentSales": "Recent Sales",
+      "listProject": "List Your Project",
+      "sellerGuide": "Seller Guide",
+      "howToBuy": "How to Buy",
+      "escrowProtection": "Escrow Protection",
+      "about": "About",
+      "contact": "Contact",
+      "terms": "Terms of Service",
+      "privacy": "Privacy Policy"
+    }
   },
   "language": {
     "en": "English",

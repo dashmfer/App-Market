@@ -1,32 +1,37 @@
+"use client";
+
 import Link from "next/link";
 import { Twitter } from "lucide-react";
-
-const footerLinks = {
-  marketplace: [
-    { label: "Explore", href: "/explore" },
-    { label: "Categories", href: "/categories" },
-    { label: "Featured", href: "/featured" },
-    { label: "Recent Sales", href: "/recent-sales" },
-  ],
-  sellers: [
-    { label: "List Your Project", href: "/create" },
-    { label: "Seller Guide", href: "/guides/sellers" },
-  ],
-  buyers: [
-    { label: "How to Buy", href: "/guides/buyers" },
-    { label: "Escrow Protection", href: "/escrow" },
-  ],
-  company: [
-    { label: "About", href: "/about" },
-    { label: "Contact", href: "/contact" },
-  ],
-  legal: [
-    { label: "Terms of Service", href: "/terms" },
-    { label: "Privacy Policy", href: "/privacy" },
-  ],
-};
+import { useTranslations } from "next-intl";
 
 export function Footer() {
+  const t = useTranslations("footer");
+
+  const footerLinks = {
+    marketplace: [
+      { label: t("links.explore"), href: "/explore" },
+      { label: t("links.categories"), href: "/categories" },
+      { label: t("links.featured"), href: "/featured" },
+      { label: t("links.recentSales"), href: "/recent-sales" },
+    ],
+    sellers: [
+      { label: t("links.listProject"), href: "/create" },
+      { label: t("links.sellerGuide"), href: "/guides/sellers" },
+    ],
+    buyers: [
+      { label: t("links.howToBuy"), href: "/guides/buyers" },
+      { label: t("links.escrowProtection"), href: "/escrow" },
+    ],
+    company: [
+      { label: t("links.about"), href: "/about" },
+      { label: t("links.contact"), href: "/contact" },
+    ],
+    legal: [
+      { label: t("links.terms"), href: "/terms" },
+      { label: t("links.privacy"), href: "/privacy" },
+    ],
+  };
+
   return (
     <footer className="bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
       <div className="container-wide py-16 md:py-20">
@@ -43,7 +48,7 @@ export function Footer() {
               <span>App Market</span>
             </Link>
             <p className="mt-4 text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed max-w-xs">
-              The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.
+              {t("brand")}
             </p>
             <div className="flex items-center gap-4 mt-6">
               <a
@@ -61,7 +66,7 @@ export function Footer() {
           {/* Marketplace */}
           <div>
             <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              Marketplace
+              {t("marketplace")}
             </h4>
             <ul className="space-y-3">
               {footerLinks.marketplace.map((link) => (
@@ -80,7 +85,7 @@ export function Footer() {
           {/* Sellers */}
           <div>
             <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              Sellers
+              {t("sellers")}
             </h4>
             <ul className="space-y-3">
               {footerLinks.sellers.map((link) => (
@@ -99,7 +104,7 @@ export function Footer() {
           {/* Buyers */}
           <div>
             <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              Buyers
+              {t("buyers")}
             </h4>
             <ul className="space-y-3">
               {footerLinks.buyers.map((link) => (
@@ -118,7 +123,7 @@ export function Footer() {
           {/* Company */}
           <div>
             <h4 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-              Company
+              {t("company")}
             </h4>
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
@@ -138,7 +143,7 @@ export function Footer() {
         {/* Bottom */}
         <div className="mt-16 pt-8 border-t border-zinc-200 dark:border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-zinc-500">
-            © {new Date().getFullYear()} App Market. All rights reserved.
+            © {new Date().getFullYear()} App Market. {t("allRightsReserved")}
           </p>
           <div className="flex items-center gap-6">
             {footerLinks.legal.map((link) => (
