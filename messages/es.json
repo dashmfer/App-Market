@@ -15,19 +15,135 @@
     "signOut": "Cerrar Sesion"
   },
   "home": {
+    "badge": "En Solana • Deposito Seguro",
     "hero": {
-      "title": "Compra y Vende Productos Digitales",
+      "title": "Compra y Vende",
+      "titleHighlight": "Productos Digitales",
       "subtitle": "El mercado para apps, prototipos y MVPs. Subastas y transferencias seguras on-chain.",
-      "cta": "Explorar Mercado",
-      "ctaSecondary": "Publica Tu Proyecto"
+      "cta": "Explorar Proyectos",
+      "ctaSecondary": "Empezar a Vender"
+    },
+    "payment": {
+      "sol": "SOL",
+      "card": "Tarjeta de Credito",
+      "usdc": "USDC"
+    },
+    "stats": {
+      "projectsSold": "Proyectos Vendidos",
+      "totalVolume": "Volumen Total",
+      "activeSellers": "Vendedores Activos",
+      "avgSaleTime": "Tiempo Promedio",
+      "days": "dias"
+    },
+    "featured": {
+      "title": "Proyectos Destacados",
+      "subtitle": "Proyectos seleccionados con alto potencial",
+      "viewAll": "Ver Todos",
+      "empty": "Aun no hay proyectos. Se el primero en publicar!",
+      "listProject": "Publicar Proyecto"
+    },
+    "categories": {
+      "title": "Explorar por Categoria",
+      "subtitle": "Encuentra proyectos en tu area de interes"
+    },
+    "howItWorks": {
+      "title": "Como Funciona",
+      "subtitle": "Simple, seguro y transparente",
+      "step1": {
+        "title": "Publica tu Proyecto",
+        "description": "Conecta tu GitHub, describe tu proyecto y configura los parametros de subasta. Verificamos la propiedad automaticamente."
+      },
+      "step2": {
+        "title": "Recibe Ofertas",
+        "description": "Los compradores descubren y ofertan por tu proyecto. Observa la subasta en tiempo real con transparencia on-chain."
+      },
+      "step3": {
+        "title": "Deposito Seguro",
+        "description": "Cuando termina la subasta, los fondos se mantienen en deposito seguro en Solana. Sin intermediarios, sin riesgo."
+      },
+      "step4": {
+        "title": "Transferir y Liberar",
+        "description": "Transfiere los activos al comprador, confirma la recepcion y los fondos se liberan automaticamente. Simple."
+      }
     },
     "features": {
-      "secure": "Transacciones Seguras",
-      "secureDesc": "El deposito en cadena garantiza transferencias seguras",
-      "verified": "Vendedores Verificados",
-      "verifiedDesc": "Sistema de reputacion con verificacion de Twitter",
-      "global": "Mercado Global",
-      "globalDesc": "Compra y vende desde cualquier lugar del mundo"
+      "title": "Por que App Market?",
+      "subtitle": "Creado por desarrolladores, para desarrolladores",
+      "escrow": {
+        "title": "Deposito sin Confianza",
+        "description": "Los fondos se mantienen en contratos inteligentes de Solana, no en nuestras billeteras. La liberacion ocurre automaticamente cuando ambas partes confirman."
+      },
+      "settlement": {
+        "title": "Liquidacion Instantanea",
+        "description": "Sin esperar a los bancos. Las transacciones de Solana se liquidan en segundos."
+      },
+      "ownership": {
+        "title": "Propiedad Verificada",
+        "description": "Verificamos la propiedad de GitHub antes de publicar. Verificaciones automatizadas aseguran transferencias legitimas."
+      },
+      "global": {
+        "title": "Acceso Global",
+        "description": "Sin restricciones de pais. Cualquiera con una billetera puede comprar o vender. Cripto-nativo con opciones fiat para todos."
+      },
+      "disputes": {
+        "title": "Disputas Justas",
+        "description": "Si algo sale mal, nuestro sistema de disputas asegura una resolucion justa con revision de evidencia."
+      }
+    },
+    "cta": {
+      "title": "Listo para Empezar?",
+      "subtitle": "Unete a miles de desarrolladores comprando y vendiendo productos digitales en el mercado mas confiable.",
+      "listProject": "Publicar Proyecto",
+      "browseMarketplace": "Explorar Mercado"
+    }
+  },
+  "explore": {
+    "title": "Explorar Proyectos",
+    "subtitle": "Descubre y adquiere increibles productos digitales",
+    "searchPlaceholder": "Buscar proyectos...",
+    "filters": "Filtros",
+    "priceRange": "Rango de Precio",
+    "blockchain": "Blockchain",
+    "clearFilters": "Limpiar todos los filtros",
+    "applyFilters": "Aplicar Filtros",
+    "showing": "Mostrando",
+    "projects": "proyectos",
+    "loading": "Cargando...",
+    "noResults": "No se encontraron proyectos. Intenta ajustar tus filtros.",
+    "loadMore": "Cargar Mas Proyectos",
+    "categories": {
+      "all": "Todas las Categorias",
+      "saas": "SaaS",
+      "aiMl": "IA y ML",
+      "mobileApps": "Apps Moviles",
+      "webApps": "Apps Web",
+      "extensions": "Extensiones",
+      "cryptoWeb3": "Crypto y Web3",
+      "ecommerce": "E-commerce",
+      "devTools": "Herramientas Dev",
+      "gaming": "Juegos"
+    },
+    "sort": {
+      "endingSoon": "Terminando Pronto",
+      "newest": "Mas Recientes",
+      "priceLow": "Precio: Menor a Mayor",
+      "priceHigh": "Precio: Mayor a Menor",
+      "mostBids": "Mas Ofertas"
+    },
+    "price": {
+      "any": "Cualquier Precio",
+      "under25": "Menos de 25 SOL",
+      "25to50": "25 - 50 SOL",
+      "50to100": "50 - 100 SOL",
+      "over100": "100+ SOL"
+    },
+    "chains": {
+      "all": "Todas las Cadenas",
+      "solana": "Solana",
+      "base": "Base",
+      "hyperliquid": "Hyperliquid",
+      "ethereum": "Ethereum",
+      "bitcoin": "Bitcoin"
     }
   },
   "common": {
@@ -40,16 +156,35 @@
     "delete": "Eliminar",
     "edit": "Editar",
     "view": "Ver",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "back": "Atras",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "sol": "SOL"
   },
   "footer": {
-    "brand": "El mercado para apps, prototipos y MVPs.",
+    "brand": "El mercado para apps, prototipos y MVPs. Subastas y transferencias seguras on-chain.",
     "marketplace": "Mercado",
     "sellers": "Vendedores",
     "buyers": "Compradores",
     "company": "Empresa",
     "legal": "Legal",
-    "allRightsReserved": "Todos los derechos reservados."
+    "allRightsReserved": "Todos los derechos reservados.",
+    "links": {
+      "explore": "Explorar",
+      "categories": "Categorias",
+      "featured": "Destacados",
+      "recentSales": "Ventas Recientes",
+      "listProject": "Publicar Proyecto",
+      "sellerGuide": "Guia del Vendedor",
+      "howToBuy": "Como Comprar",
+      "escrowProtection": "Proteccion de Deposito",
+      "about": "Nosotros",
+      "contact": "Contacto",
+      "terms": "Terminos de Servicio",
+      "privacy": "Politica de Privacidad"
+    }
   },
   "language": {
     "en": "Ingles",
