@@ -15,19 +15,135 @@
     "signOut": "退出登录"
   },
   "home": {
+    "badge": "基于Solana • 安全托管",
     "hero": {
-      "title": "买卖数字产品",
+      "title": "买卖",
+      "titleHighlight": "数字产品",
       "subtitle": "应用、原型和MVP的交易市场。安全的链上拍卖和转让。",
-      "cta": "探索市场",
-      "ctaSecondary": "发布您的项目"
+      "cta": "探索项目",
+      "ctaSecondary": "开始销售"
+    },
+    "payment": {
+      "sol": "SOL",
+      "card": "信用卡",
+      "usdc": "USDC"
+    },
+    "stats": {
+      "projectsSold": "已售项目",
+      "totalVolume": "总交易量",
+      "activeSellers": "活跃卖家",
+      "avgSaleTime": "平均销售时间",
+      "days": "天"
+    },
+    "featured": {
+      "title": "精选项目",
+      "subtitle": "精心挑选的高潜力项目",
+      "viewAll": "查看全部",
+      "empty": "暂无项目。成为第一个发布者！",
+      "listProject": "发布项目"
+    },
+    "categories": {
+      "title": "按类别浏览",
+      "subtitle": "在您感兴趣的领域找到项目"
+    },
+    "howItWorks": {
+      "title": "如何运作",
+      "subtitle": "简单、安全、透明",
+      "step1": {
+        "title": "发布您的项目",
+        "description": "连接您的GitHub，描述您的项目，并设置拍卖参数。我们会自动验证所有权。"
+      },
+      "step2": {
+        "title": "接收出价",
+        "description": "买家发现并对您的项目出价。通过链上透明度实时观看拍卖进展。"
+      },
+      "step3": {
+        "title": "安全托管",
+        "description": "拍卖结束时，资金将在Solana上进行无信任托管。没有中间人，没有风险。"
+      },
+      "step4": {
+        "title": "转让并释放",
+        "description": "将资产转让给买家，确认收到后资金自动释放。就是这么简单。"
+      }
     },
     "features": {
-      "secure": "安全交易",
-      "secureDesc": "链上托管确保安全转账",
-      "verified": "认证卖家",
-      "verifiedDesc": "带有Twitter验证的信誉系统",
-      "global": "全球市场",
-      "globalDesc": "随时随地买卖"
+      "title": "为什么选择App Market？",
+      "subtitle": "由开发者创建，为开发者服务",
+      "escrow": {
+        "title": "无信任托管",
+        "description": "资金保存在Solana智能合约中，而非我们的钱包。双方确认后自动释放。"
+      },
+      "settlement": {
+        "title": "即时结算",
+        "description": "无需等待银行。Solana交易在几秒钟内完成结算。"
+      },
+      "ownership": {
+        "title": "验证所有权",
+        "description": "我们在发布前验证GitHub所有权。自动化检查确保合法转让。"
+      },
+      "global": {
+        "title": "全球访问",
+        "description": "没有国家限制。任何拥有钱包的人都可以买卖。加密原生，同时为所有人提供法币通道。"
+      },
+      "disputes": {
+        "title": "公平争议",
+        "description": "如果出现问题，我们的争议系统通过证据审查确保公平解决。"
+      }
+    },
+    "cta": {
+      "title": "准备好开始了吗？",
+      "subtitle": "加入数千名开发者，在最值得信赖的市场买卖数字产品。",
+      "listProject": "发布项目",
+      "browseMarketplace": "浏览市场"
+    }
+  },
+  "explore": {
+    "title": "探索项目",
+    "subtitle": "发现并获取精彩的数字产品",
+    "searchPlaceholder": "搜索项目...",
+    "filters": "筛选",
+    "priceRange": "价格范围",
+    "blockchain": "区块链",
+    "clearFilters": "清除所有筛选",
+    "applyFilters": "应用筛选",
+    "showing": "显示",
+    "projects": "个项目",
+    "loading": "加载中...",
+    "noResults": "未找到项目。请尝试调整筛选条件。",
+    "loadMore": "加载更多项目",
+    "categories": {
+      "all": "所有类别",
+      "saas": "SaaS",
+      "aiMl": "AI和ML",
+      "mobileApps": "移动应用",
+      "webApps": "Web应用",
+      "extensions": "浏览器扩展",
+      "cryptoWeb3": "加密和Web3",
+      "ecommerce": "电子商务",
+      "devTools": "开发工具",
+      "gaming": "游戏"
+    },
+    "sort": {
+      "endingSoon": "即将结束",
+      "newest": "最新发布",
+      "priceLow": "价格：从低到高",
+      "priceHigh": "价格：从高到低",
+      "mostBids": "最多出价"
+    },
+    "price": {
+      "any": "任意价格",
+      "under25": "低于25 SOL",
+      "25to50": "25 - 50 SOL",
+      "50to100": "50 - 100 SOL",
+      "over100": "100+ SOL"
+    },
+    "chains": {
+      "all": "所有链",
+      "solana": "Solana",
+      "base": "Base",
+      "hyperliquid": "Hyperliquid",
+      "ethereum": "以太坊",
+      "bitcoin": "比特币"
     }
   },
   "common": {
@@ -40,16 +156,35 @@
     "delete": "删除",
     "edit": "编辑",
     "view": "查看",
-    "close": "关闭"
+    "close": "关闭",
+    "confirm": "确认",
+    "back": "返回",
+    "next": "下一步",
+    "submit": "提交",
+    "sol": "SOL"
   },
   "footer": {
-    "brand": "应用、原型和MVP的交易市场。",
+    "brand": "应用、原型和MVP的交易市场。安全的链上拍卖和转让。",
     "marketplace": "市场",
     "sellers": "卖家",
     "buyers": "买家",
     "company": "公司",
     "legal": "法律条款",
-    "allRightsReserved": "版权所有。"
+    "allRightsReserved": "版权所有。",
+    "links": {
+      "explore": "探索",
+      "categories": "分类",
+      "featured": "精选",
+      "recentSales": "最近销售",
+      "listProject": "发布项目",
+      "sellerGuide": "卖家指南",
+      "howToBuy": "如何购买",
+      "escrowProtection": "托管保护",
+      "about": "关于我们",
+      "contact": "联系我们",
+      "terms": "服务条款",
+      "privacy": "隐私政策"
+    }
   },
   "language": {
     "en": "英语",

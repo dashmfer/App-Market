@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowRight,
   Shield,
@@ -32,44 +33,47 @@ const categoriesBase = [
   { name: "Developer Tools", slug: "developer-tools", dbKey: "DEVELOPER_TOOLS", icon: "🛠️" },
 ];
 
-const stats = [
-  { label: "Projects Sold", value: 0, suffix: "" },
-  { label: "Total Volume", value: 0, prefix: "", suffix: " SOL" },
-  { label: "Active Sellers", value: 0, suffix: "" },
-  { label: "Avg. Sale Time", value: 0, suffix: " days" },
-];
-
-const howItWorks = [
-  {
-    step: 1,
-    title: "List Your Project",
-    description: "Connect your GitHub, describe your project, and set your auction parameters. We verify ownership automatically.",
-    icon: Github,
-  },
-  {
-    step: 2,
-    title: "Receive Bids",
-    description: "Buyers discover and bid on your project. Watch the auction unfold in real-time with on-chain transparency.",
-    icon: TrendingUp,
-  },
-  {
-    step: 3,
-    title: "Secure Escrow",
-    description: "When the auction ends, funds are held in trustless escrow on Solana. No middleman, no risk.",
-    icon: Lock,
-  },
-  {
-    step: 4,
-    title: "Transfer & Release",
-    description: "Transfer assets to the buyer, confirm receipt, and funds are released automatically. Simple.",
-    icon: CheckCircle2,
-  },
-];
-
 export default function HomePage() {
+  const t = useTranslations("home");
+  const tCommon = useTranslations("common");
+
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+
+  const stats = [
+    { label: t("stats.projectsSold"), value: 0, suffix: "" },
+    { label: t("stats.totalVolume"), value: 0, prefix: "", suffix: " SOL" },
+    { label: t("stats.activeSellers"), value: 0, suffix: "" },
+    { label: t("stats.avgSaleTime"), value: 0, suffix: ` ${t("stats.days")}` },
+  ];
+
+  const howItWorks = [
+    {
+      step: 1,
+      title: t("howItWorks.step1.title"),
+      description: t("howItWorks.step1.description"),
+      icon: Github,
+    },
+    {
+      step: 2,
+      title: t("howItWorks.step2.title"),
+      description: t("howItWorks.step2.description"),
+      icon: TrendingUp,
+    },
+    {
+      step: 3,
+      title: t("howItWorks.step3.title"),
+      description: t("howItWorks.step3.description"),
+      icon: Lock,
+    },
+    {
+      step: 4,
+      title: t("howItWorks.step4.title"),
+      description: t("howItWorks.step4.description"),
+      icon: CheckCircle2,
+    },
+  ];
 
   useEffect(() => {
     async function fetchListings() {
@@ -117,36 +121,35 @@ export default function HomePage() {
         <div className="absolute inset-0 grid-pattern" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/20 rounded-full blur-[128px] animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[128px] animate-pulse animate-delay-500" />
-        
+
         <div className="container-wide relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-medium mb-8 animate-fade-in">
               <Sparkles className="w-4 h-4" />
-              <span>Built on Solana • Trustless Escrow</span>
+              <span>{t("badge")}</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 animate-fade-in-up">
-              Buy & Sell
+              {t("hero.title")}
               <br />
-              <span className="gradient-text">Digital Products</span>
+              <span className="gradient-text">{t("hero.titleHighlight")}</span>
             </h1>
 
             {/* Subheadline */}
             <p className="mt-6 text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animate-delay-100">
-              The marketplace for apps, prototypes, and MVPs.
-              Secure on-chain auctions and transfers.
+              {t("hero.subtitle")}
             </p>
 
             {/* CTA Buttons */}
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up animate-delay-200">
               <Link href="/explore" className="btn-primary text-lg px-8 py-4">
-                <span>Explore Projects</span>
+                <span>{t("hero.cta")}</span>
                 <ArrowRight className="w-5 h-5" />
               </Link>
               <Link href="/create" className="btn-secondary text-lg px-8 py-4">
-                <span>Start Selling</span>
+                <span>{t("hero.ctaSecondary")}</span>
               </Link>
             </div>
 
@@ -154,17 +157,17 @@ export default function HomePage() {
             <div className="mt-12 flex items-center justify-center gap-6 text-zinc-400 animate-fade-in-up animate-delay-300">
               <div className="flex items-center gap-2">
                 <Wallet className="w-5 h-5" />
-                <span className="text-sm">SOL</span>
+                <span className="text-sm">{t("payment.sol")}</span>
               </div>
               <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-700" />
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5" />
-                <span className="text-sm">Credit Card</span>
+                <span className="text-sm">{t("payment.card")}</span>
               </div>
               <div className="w-px h-4 bg-zinc-300 dark:bg-zinc-700" />
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5" />
-                <span className="text-sm">USDC</span>
+                <span className="text-sm">{t("payment.usdc")}</span>
               </div>
             </div>
           </div>
@@ -195,17 +198,17 @@ export default function HomePage() {
           <div className="flex items-end justify-between mb-12">
             <div>
               <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-                Featured Projects
+                {t("featured.title")}
               </h2>
               <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-                Hand-picked projects with high potential
+                {t("featured.subtitle")}
               </p>
             </div>
             <Link
               href="/explore?featured=true"
               className="hidden sm:flex items-center gap-2 text-green-600 dark:text-green-400 font-medium hover:gap-3 transition-all"
             >
-              View All
+              {t("featured.viewAll")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -217,10 +220,10 @@ export default function HomePage() {
           ) : featuredListings.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-                No projects listed yet. Be the first to list!
+                {t("featured.empty")}
               </p>
               <Link href="/create" className="btn-primary">
-                List Your Project
+                {t("featured.listProject")}
               </Link>
             </div>
           ) : (
@@ -233,7 +236,7 @@ export default function HomePage() {
 
           <div className="mt-8 text-center sm:hidden">
             <Link href="/explore?featured=true" className="btn-secondary">
-              View All Featured
+              {t("featured.viewAll")}
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -245,10 +248,10 @@ export default function HomePage() {
         <div className="container-wide">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-              Browse by Category
+              {t("categories.title")}
             </h2>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Find projects in your area of interest
+              {t("categories.subtitle")}
             </p>
           </div>
 
@@ -265,10 +268,10 @@ export default function HomePage() {
         <div className="container-wide">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-              How It Works
+              {t("howItWorks.title")}
             </h2>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Simple, secure, and transparent
+              {t("howItWorks.subtitle")}
             </p>
           </div>
 
@@ -285,10 +288,10 @@ export default function HomePage() {
         <div className="container-wide">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-display font-semibold">
-              Why App Market?
+              {t("features.title")}
             </h2>
             <p className="mt-2 text-zinc-400">
-              Built for builders, by builders
+              {t("features.subtitle")}
             </p>
           </div>
 
@@ -298,10 +301,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Shield className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">Trustless Escrow</h3>
+              <h3 className="text-xl font-semibold mb-3">{t("features.escrow.title")}</h3>
               <p className="text-zinc-400 leading-relaxed">
-                Funds are held in Solana smart contracts, not our wallets. 
-                Release happens automatically when both parties confirm.
+                {t("features.escrow.description")}
               </p>
             </div>
 
@@ -310,9 +312,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Zap className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">Instant Settlement</h3>
+              <h3 className="text-xl font-semibold mb-3">{t("features.settlement.title")}</h3>
               <p className="text-zinc-400 leading-relaxed">
-                No waiting for banks. Solana transactions settle in seconds.
+                {t("features.settlement.description")}
               </p>
             </div>
 
@@ -321,10 +323,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Github className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">Verified Ownership</h3>
+              <h3 className="text-xl font-semibold mb-3">{t("features.ownership.title")}</h3>
               <p className="text-zinc-400 leading-relaxed">
-                We verify GitHub ownership before listing. 
-                Automated checks ensure legitimate transfers.
+                {t("features.ownership.description")}
               </p>
             </div>
 
@@ -333,10 +334,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Globe className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">Global Access</h3>
+              <h3 className="text-xl font-semibold mb-3">{t("features.global.title")}</h3>
               <p className="text-zinc-400 leading-relaxed">
-                No country restrictions. Anyone with a wallet can buy or sell.
-                Crypto-native with fiat rails for everyone.
+                {t("features.global.description")}
               </p>
             </div>
 
@@ -345,10 +345,9 @@ export default function HomePage() {
               <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center mb-6">
                 <Users className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold mb-3">Fair Disputes</h3>
+              <h3 className="text-xl font-semibold mb-3">{t("features.disputes.title")}</h3>
               <p className="text-zinc-400 leading-relaxed">
-                If something goes wrong, our dispute system ensures 
-                fair resolution with evidence review.
+                {t("features.disputes.description")}
               </p>
             </div>
           </div>
@@ -363,28 +362,27 @@ export default function HomePage() {
             <div className="absolute inset-0 bg-[url('/grid-white.svg')] opacity-10" />
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-            
+
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-display font-semibold text-white mb-4">
-                Ready to Get Started?
+                {t("cta.title")}
               </h2>
               <p className="text-lg text-white/80 max-w-xl mx-auto mb-8">
-                Join thousands of builders buying and selling digital products 
-                on the most trusted marketplace.
+                {t("cta.subtitle")}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href="/create"
                   className="inline-flex items-center gap-2 px-8 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-zinc-100 transition-colors"
                 >
-                  List Your Project
+                  {t("cta.listProject")}
                   <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link
                   href="/explore"
                   className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white font-semibold rounded-full hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/20"
                 >
-                  Browse Marketplace
+                  {t("cta.browseMarketplace")}
                 </Link>
               </div>
             </div>
