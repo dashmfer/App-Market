@@ -1,7 +1,5 @@
 "use client";
 
-import { PrivyProvider } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 
 interface PrivyAuthProviderProps {
@@ -9,8 +7,6 @@ interface PrivyAuthProviderProps {
 }
 
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
-  const router = useRouter();
-
   // Check if Privy is configured
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
@@ -19,29 +15,24 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     return <>{children}</>;
   }
 
+  // Dynamically import PrivyProvider only when configured
+  const { PrivyProvider } = require("@privy-io/react-auth");
+
   return (
     <PrivyProvider
       appId={privyAppId}
-      onSuccess={() => {
-        // Redirect to dashboard after successful login
-        router.push("/dashboard");
-      }}
       config={{
-        // Appearance
         appearance: {
           theme: "dark",
-          accentColor: "#22c55e", // Green to match the app theme
+          accentColor: "#22c55e",
           logo: "/logo.png",
           showWalletLoginFirst: false,
         },
-        // Login methods - email, twitter, and external wallets
         loginMethods: ["email", "twitter", "wallet"],
-        // Embedded wallet config for Solana
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
           noPromptOnSignature: false,
         },
-        // Solana config
         solanaClusters: [
           {
             name: "mainnet-beta",
@@ -52,7 +43,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
             rpcUrl: "https://api.devnet.solana.com",
           },
         ],
-        // Legal
         legal: {
           termsAndConditionsUrl: "/terms",
           privacyPolicyUrl: "/privacy",
