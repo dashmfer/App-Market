@@ -4,6 +4,29 @@ import { useSession, signIn } from 'next-auth/react';
 import bs58 from 'bs58';
 
 /**
+ * Get referral code from cookie or URL params
+ */
+function getReferralCode(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  // Try URL params first (/?ref=code)
+  const urlParams = new URLSearchParams(window.location.search);
+  const refFromUrl = urlParams.get('ref');
+  if (refFromUrl) return refFromUrl;
+
+  // Try cookie (set by /r/[code] route)
+  const cookies = document.cookie.split(';');
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'referral_code') {
+      return decodeURIComponent(value);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Automatically authenticate wallet connection with NextAuth
  * This creates a proper session when a wallet connects
  */
@@ -38,6 +61,12 @@ export function useAutoWalletAuth() {
       try {
         console.log('[Auto Wallet Auth] Starting automatic authentication for wallet:', publicKey.toBase58());
 
+        // Get referral code if present
+        const referralCode = getReferralCode();
+        if (referralCode) {
+          console.log('[Auto Wallet Auth] Found referral code:', referralCode);
+        }
+
         // Create message to sign
         const message = `Sign this message to authenticate with App Market.\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${new Date().toISOString()}`;
         const encodedMessage = new TextEncoder().encode(message);
@@ -50,11 +79,12 @@ export function useAutoWalletAuth() {
 
         console.log('[Auto Wallet Auth] Signature received, authenticating with NextAuth...');
 
-        // Authenticate with NextAuth
+        // Authenticate with NextAuth (include referral code if present)
         const result = await signIn('wallet', {
           publicKey: publicKey.toBase58(),
           signature: signatureBase58,
           message,
+          referralCode: referralCode || '',
           redirect: false,
         });
 

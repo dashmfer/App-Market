@@ -39,17 +39,19 @@ export const authOptions: NextAuthOptions = {
         publicKey: { label: "Public Key", type: "text" },
         signature: { label: "Signature", type: "text" },
         message: { label: "Message", type: "text" },
+        referralCode: { label: "Referral Code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.publicKey || !credentials?.signature || !credentials?.message) {
           throw new Error("Missing wallet credentials");
         }
 
-        // Verify wallet signature directly
+        // Verify wallet signature directly (pass referral code for new users)
         const result = await verifyWalletSignature(
           credentials.publicKey,
           credentials.signature,
-          credentials.message
+          credentials.message,
+          credentials.referralCode || undefined
         );
 
         if (!result.success || !result.user) {
