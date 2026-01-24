@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { processReferralEarnings } from "@/lib/referral-earnings";
 
 interface ChecklistItem {
   id: string;
@@ -133,6 +134,20 @@ export async function POST(
         totalPurchases: { increment: 1 },
       },
     });
+
+    // Process referral earnings (2% to referrers on first transaction, from platform fee)
+    try {
+      const referralResult = await processReferralEarnings(
+        transaction.id,
+        transaction.salePrice,
+        transaction.buyerId,
+        transaction.sellerId
+      );
+      console.log("[Transfer Complete] Referral earnings processed:", referralResult);
+    } catch (referralError) {
+      // Don't fail the transaction if referral processing fails
+      console.error("[Transfer Complete] Failed to process referral earnings:", referralError);
+    }
 
     // Calculate payment distribution for collaborators
     const collaborators = transaction.listing.collaborators || [];
