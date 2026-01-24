@@ -1,17 +1,22 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import {
   Wallet,
   Loader2,
   AlertCircle,
   Lock,
+  Mail,
+  Twitter,
+  ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +29,13 @@ function SignInContent() {
   const { status } = useSession();
   const { connected, publicKey, signMessage, connecting, wallet } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
+
+  // Privy hooks - only use if configured
+  const privyConfigured = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const { ready: privyReady, authenticated: privyAuthenticated } = usePrivy() || { ready: true, authenticated: false };
+  const { login: privyLogin } = useLogin() || { login: () => {} };
+
+  const [authMethod, setAuthMethod] = useState<"wallet" | "email" | "twitter" | null>(null);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -38,7 +50,26 @@ function SignInContent() {
   const isAuthenticating = status === "loading" || (isWalletReady && status === "unauthenticated");
 
   const handleConnectWallet = () => {
+    setAuthMethod("wallet");
     setWalletModalVisible(true);
+  };
+
+  const handleEmailLogin = () => {
+    if (!privyConfigured) {
+      alert("Email login is not configured yet. Please use wallet login.");
+      return;
+    }
+    setAuthMethod("email");
+    privyLogin();
+  };
+
+  const handleTwitterLogin = () => {
+    if (!privyConfigured) {
+      alert("Twitter login is not configured yet. Please use wallet login.");
+      return;
+    }
+    setAuthMethod("twitter");
+    privyLogin();
   };
 
   const errorMessages: Record<string, string> = {
@@ -81,10 +112,10 @@ function SignInContent() {
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-black/5 p-8">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-              Welcome back
+              Welcome to App Market
             </h1>
             <p className="mt-2 text-zinc-500">
-              Connect your wallet to sign in
+              Sign in or create an account to get started
             </p>
           </div>
 
@@ -117,17 +148,21 @@ function SignInContent() {
             </div>
           )}
 
-          {/* Wallet Connect */}
-          <div className="space-y-4">
+          {/* Auth Options */}
+          <div className="space-y-3">
+            {/* Wallet Option */}
             {!connected && !connecting && (
               <Button
                 onClick={handleConnectWallet}
                 variant="primary"
                 size="lg"
-                className="w-full"
+                className="w-full justify-between"
               >
-                <Wallet className="w-5 h-5" />
-                Connect Wallet
+                <div className="flex items-center gap-3">
+                  <Wallet className="w-5 h-5" />
+                  <span>Continue with Wallet</span>
+                </div>
+                <ArrowRight className="w-4 h-4" />
               </Button>
             )}
 
@@ -145,54 +180,80 @@ function SignInContent() {
               </Button>
             )}
 
-            {isWalletLocked && (
-              <Button
-                onClick={handleConnectWallet}
-                variant="secondary"
-                size="lg"
-                className="w-full"
-              >
-                <Wallet className="w-5 h-5" />
-                Change Wallet
-              </Button>
+            {/* Divider */}
+            {!connecting && !isWalletReady && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-3 bg-white dark:bg-zinc-900 text-zinc-500">
+                      or
+                    </span>
+                  </div>
+                </div>
+
+                {/* Email Option */}
+                <Button
+                  onClick={handleEmailLogin}
+                  variant="secondary"
+                  size="lg"
+                  className="w-full justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5" />
+                    <span>Continue with Email</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+
+                {/* Twitter Option */}
+                <Button
+                  onClick={handleTwitterLogin}
+                  variant="secondary"
+                  size="lg"
+                  className="w-full justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <Twitter className="w-5 h-5" />
+                    <span>Continue with X</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </>
             )}
 
-            {/* Connected wallet info */}
-            {connected && publicKey && (
+            {/* Change wallet option when connected */}
+            {connected && publicKey && !isWalletReady && (
               <div className="text-center">
                 <p className="text-sm text-zinc-500">
                   Connected: {publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}
                 </p>
-                {!isWalletLocked && (
-                  <button
-                    onClick={handleConnectWallet}
-                    className="text-sm text-green-600 dark:text-green-400 hover:underline mt-1"
-                  >
-                    Change wallet
-                  </button>
-                )}
+                <button
+                  onClick={handleConnectWallet}
+                  className="text-sm text-green-600 dark:text-green-400 hover:underline mt-1"
+                >
+                  Change wallet
+                </button>
               </div>
             )}
           </div>
 
-          {/* Info about wallet auth */}
-          <div className="mt-8 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              <strong>Why wallet?</strong> Your Solana wallet is your identity.
-              Sign a message to prove ownership - no password needed!
-            </p>
+          {/* New to crypto info */}
+          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800 dark:text-green-300 text-sm">
+                  New to crypto?
+                </p>
+                <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                  No wallet? No problem. Sign up with email or X and we'll create one for you automatically.
+                </p>
+              </div>
+            </div>
           </div>
-
-          {/* Sign Up Link */}
-          <p className="mt-8 text-center text-sm text-zinc-500">
-            Don't have an account?{" "}
-            <Link
-              href="/auth/signup"
-              className="font-medium text-green-600 dark:text-green-400 hover:underline"
-            >
-              Sign up
-            </Link>
-          </p>
         </div>
 
         {/* Footer */}

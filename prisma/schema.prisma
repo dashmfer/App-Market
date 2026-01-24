@@ -92,6 +92,9 @@ model User {
   // Purchase Partner Relations (when user is a co-buyer on transactions)
   transactionPartners TransactionPartner[]
 
+  // Multi-wallet support
+  wallets           UserWallet[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -124,6 +127,27 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// User's linked wallets (supports multiple wallets per account)
+model UserWallet {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAddress String     @unique
+  isPrimary     Boolean    @default(false)
+  walletType    WalletType @default(EXTERNAL)
+  label         String?    // Optional label like "Main", "Trading", etc.
+  createdAt     DateTime   @default(now())
+
+  @@index([userId])
+  @@index([walletAddress])
+}
+
+enum WalletType {
+  PRIVY_EMAIL    // Created via email signup
+  PRIVY_TWITTER  // Created via Twitter signup
+  EXTERNAL       // Connected from Phantom, Solflare, etc.
 }
 
 // ============================================

@@ -17,6 +17,7 @@ import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { WalletAuthProvider } from "./providers/WalletAuthProvider";
 import { LocaleProvider } from "./providers/LocaleProvider";
+import { PrivyAuthProvider } from "./providers/PrivyAuthProvider";
 
 // Import wallet adapter styles
 import "@solana/wallet-adapter-react-ui/styles.css";
@@ -53,17 +54,19 @@ export function Providers({ children }: ProvidersProps) {
         refetchOnWindowFocus={true}
         basePath="/api/auth"
       >
-        <ConnectionProvider endpoint={endpoint}>
-          <WalletProvider wallets={wallets} autoConnect>
-            <WalletModalProvider>
-              <WalletAuthProvider>
-                <LocaleProvider>
-                  {children}
-                </LocaleProvider>
-              </WalletAuthProvider>
-            </WalletModalProvider>
-          </WalletProvider>
-        </ConnectionProvider>
+        <PrivyAuthProvider>
+          <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect>
+              <WalletModalProvider>
+                <WalletAuthProvider>
+                  <LocaleProvider>
+                    {children}
+                  </LocaleProvider>
+                </WalletAuthProvider>
+              </WalletModalProvider>
+            </WalletProvider>
+          </ConnectionProvider>
+        </PrivyAuthProvider>
       </SessionProvider>
     </ThemeProvider>
   );

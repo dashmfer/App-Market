@@ -237,21 +237,13 @@ export function Navbar() {
                   </div>
                 </>
               ) : (
-                <>
-                  <button
-                    onClick={() => signIn()}
-                    className="hidden sm:flex text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                  >
-                    {t("signIn")}
-                  </button>
-                  <button
-                    onClick={handleConnectWallet}
-                    className="btn-primary text-sm py-2"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    <span className="hidden sm:inline">{t("connectWallet")}</span>
-                  </button>
-                </>
+                <Link
+                  href="/auth/signin"
+                  className="btn-primary text-sm py-2"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </Link>
               )}
 
               {/* Mobile Menu Button */}
@@ -314,21 +306,13 @@ export function Navbar() {
                       <span>{t("listProject")}</span>
                     </Link>
                   ) : (
-                    <div className="space-y-3">
-                      <button
-                        onClick={handleConnectWallet}
-                        className="btn-primary w-full justify-center"
-                      >
-                        <Wallet className="w-5 h-5" />
-                        <span>{t("connectWallet")}</span>
-                      </button>
-                      <button
-                        onClick={() => signIn()}
-                        className="btn-secondary w-full justify-center"
-                      >
-                        {t("signIn")}
-                      </button>
-                    </div>
+                    <Link
+                      href="/auth/signin"
+                      className="btn-primary w-full justify-center"
+                    >
+                      <User className="w-5 h-5" />
+                      <span>Sign In</span>
+                    </Link>
                   )}
                 </div>
               </div>
