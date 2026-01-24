@@ -931,27 +931,30 @@ enum TokenLaunchStatus {
 
 model Referral {
   id              String    @id @default(cuid())
-  
+
   // Who referred whom
   referrerId      String
   referrer        User      @relation("Referrer", fields: [referrerId], references: [id])
-  
+
   referredUserId  String    @unique
   referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
-  
+
   // Tracking
   status          ReferralStatus @default(PENDING)
-  
+
+  // First transaction bonus tracking (only paid once)
+  firstTransactionPaid Boolean @default(false)
+
   // Earnings from this referral
   totalEarnings   Float     @default(0)
-  
+
   // Timestamps
   createdAt       DateTime  @default(now())
   convertedAt     DateTime? // When referredUser made first sale/purchase
-  
+
   // Individual earnings records
   earnings        ReferralEarning[]
-  
+
   @@index([referrerId])
   @@index([referredUserId])
 }

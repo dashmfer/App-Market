@@ -2,6 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
+import crypto from "crypto";
 
 export interface WalletVerificationResult {
   success: boolean;
@@ -15,13 +16,22 @@ export interface WalletVerificationResult {
 }
 
 /**
+ * Generate a unique referral code for new users
+ */
+function generateReferralCode(): string {
+  // Generate a short, URL-friendly code (8 characters)
+  return crypto.randomBytes(4).toString("hex").toLowerCase();
+}
+
+/**
  * Verify wallet signature and get/create user
  * Shared logic used by both the API route and NextAuth provider
  */
 export async function verifyWalletSignature(
   publicKey: string,
   signature: string,
-  message: string
+  message: string,
+  referralCode?: string
 ): Promise<WalletVerificationResult> {
   try {
     console.log("[Wallet Verification] Verifying signature for wallet:", publicKey);
@@ -73,19 +83,92 @@ export async function verifyWalletSignature(
         ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
         : baseUsername;
 
+      // Generate a unique referral code for the new user
+      let newUserReferralCode = generateReferralCode();
+
+      // Make sure the referral code is unique
+      let attempts = 0;
+      while (attempts < 5) {
+        const existingCode = await prisma.user.findUnique({
+          where: { referralCode: newUserReferralCode },
+        });
+        if (!existingCode) break;
+        newUserReferralCode = generateReferralCode();
+        attempts++;
+      }
+
+      // Find referrer if referral code was provided
+      let referrerId: string | null = null;
+      if (referralCode) {
+        const referrer = await prisma.user.findUnique({
+          where: { referralCode: referralCode.toLowerCase() },
+          select: { id: true },
+        });
+        if (referrer) {
+          referrerId = referrer.id;
+          console.log("[Wallet Verification] Found referrer:", referrerId);
+        } else {
+          console.log("[Wallet Verification] Referral code not found:", referralCode);
+        }
+      }
+
+      // Create the user with referral code
       user = await prisma.user.create({
         data: {
           walletAddress: publicKey,
           username,
-          // Create a placeholder email since it's required by schema
           email: `${publicKey.toLowerCase()}@wallet.placeholder`,
-          isVerified: true, // Wallet ownership is verified
+          isVerified: true,
+          referralCode: newUserReferralCode,
+          referredBy: referrerId,
         },
       });
 
-      console.log("[Wallet Verification] New user created:", { id: user.id, username: user.username });
+      console.log("[Wallet Verification] New user created:", {
+        id: user.id,
+        username: user.username,
+        referralCode: newUserReferralCode,
+        referredBy: referrerId,
+      });
+
+      // If user was referred, create the Referral record
+      if (referrerId) {
+        try {
+          await prisma.referral.create({
+            data: {
+              referrerId: referrerId,
+              referredUserId: user.id,
+              status: "REGISTERED",
+            },
+          });
+          console.log("[Wallet Verification] Referral record created");
+        } catch (error) {
+          console.error("[Wallet Verification] Failed to create referral record:", error);
+          // Don't fail the signup if referral creation fails
+        }
+      }
     } else {
       console.log("[Wallet Verification] Existing user found:", { id: user.id, username: user.username });
+
+      // If existing user doesn't have a referral code, generate one
+      if (!user.referralCode) {
+        let newReferralCode = generateReferralCode();
+        let attempts = 0;
+        while (attempts < 5) {
+          const existingCode = await prisma.user.findUnique({
+            where: { referralCode: newReferralCode },
+          });
+          if (!existingCode) break;
+          newReferralCode = generateReferralCode();
+          attempts++;
+        }
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { referralCode: newReferralCode },
+        });
+        console.log("[Wallet Verification] Generated referral code for existing user:", newReferralCode);
+      }
     }
 
     console.log("[Wallet Verification] Verification successful");
