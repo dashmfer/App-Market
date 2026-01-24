@@ -40,6 +40,7 @@ import {
 import { startConversation } from "@/hooks/useMessages";
 import { formatDistanceToNow, format } from "date-fns";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
+import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
 
 // Helper to format currency display
 const formatCurrency = (currency: string): string => {
@@ -94,6 +95,20 @@ interface Collaborator {
   percentage: number;
   status: "PENDING" | "ACCEPTED" | "DECLINED";
   user: CollaboratorUser | null;
+}
+
+interface PurchasePartner {
+  id: string;
+  walletAddress: string;
+  percentage: number;
+  isLead: boolean;
+  user: {
+    id: string;
+    username: string | null;
+    displayName: string | null;
+    name: string | null;
+    image: string | null;
+  } | null;
 }
 
 interface Listing {
@@ -181,6 +196,7 @@ export default function ListingPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [sellerPercentage, setSellerPercentage] = useState(100);
+  const [purchasePartners, setPurchasePartners] = useState<PurchasePartner[]>([]);
 
   useEffect(() => {
     async function fetchListing() {
@@ -201,6 +217,20 @@ export default function ListingPage() {
           } catch (collabErr) {
             console.error("Failed to fetch collaborators:", collabErr);
           }
+
+          // Fetch purchase partners if listing is sold
+          if (data.listing.status === "SOLD") {
+            try {
+              const partnersResponse = await fetch(`/api/listings/${slug}/purchase-partners`);
+              if (partnersResponse.ok) {
+                const partnersData = await partnersResponse.json();
+                setPurchasePartners(partnersData.partners || []);
+              }
+            } catch (partnersErr) {
+              console.error("Failed to fetch purchase partners:", partnersErr);
+            }
+          }
+
           // Set initial bid amount: if no bids, use starting price; otherwise use current bid + 0.01
           const initialBid = data.listing.bidCount > 0
             ? Math.round((data.listing.currentBid + 0.01) * 100) / 100
@@ -613,6 +643,15 @@ export default function ListingPage() {
                     }}
                     collaborators={collaborators}
                     sellerPercentage={sellerPercentage}
+                  />
+                </div>
+              )}
+
+              {/* Purchase Partners (for sold listings) */}
+              {listing.status === "SOLD" && purchasePartners.length > 0 && (
+                <div className="mt-6">
+                  <PurchasePartnersDisplay
+                    partners={purchasePartners}
                   />
                 </div>
               )}

@@ -169,6 +169,37 @@ function generateNotificationContent(
         message: `You've been removed from "${displayTitle}"`,
       };
 
+    // Purchase partner notifications
+    case 'PURCHASE_PARTNER_INVITE':
+      return {
+        title: 'Purchase Partner Invite',
+        message: `You've been invited to co-purchase "${displayTitle}" with ${data?.percentage || 0}% share (${data?.depositAmount || 0} SOL)`,
+      };
+
+    case 'PURCHASE_PARTNER_DEPOSITED':
+      return {
+        title: 'Partner Deposited',
+        message: `${data?.partnerName || 'A partner'} has deposited their ${data?.percentage || 0}% share for "${displayTitle}"`,
+      };
+
+    case 'PURCHASE_PARTNER_ALL_READY':
+      return {
+        title: 'All Deposits Complete!',
+        message: `All purchase partners have deposited for "${displayTitle}". The purchase is now locked in!`,
+      };
+
+    case 'PURCHASE_PARTNER_TIMEOUT':
+      return {
+        title: 'Purchase Partner Timeout',
+        message: `The deposit window for "${displayTitle}" has expired. All deposits will be refunded.`,
+      };
+
+    case 'PURCHASE_PARTNER_LEAD_TRANSFERRED':
+      return {
+        title: 'Lead Buyer Status Transferred',
+        message: `You are now the lead buyer for "${displayTitle}"`,
+      };
+
     case 'SYSTEM':
       return {
         title: 'System Notification',
