@@ -15,19 +15,135 @@
     "signOut": "Deconnexion"
   },
   "home": {
+    "badge": "Sur Solana • Sequestre Securise",
     "hero": {
-      "title": "Achetez et Vendez des Produits Numeriques",
+      "title": "Achetez et Vendez",
+      "titleHighlight": "Produits Numeriques",
       "subtitle": "La marketplace pour apps, prototypes et MVPs. Encheres et transferts securises on-chain.",
-      "cta": "Explorer le Marche",
-      "ctaSecondary": "Publiez Votre Projet"
+      "cta": "Explorer les Projets",
+      "ctaSecondary": "Commencer a Vendre"
+    },
+    "payment": {
+      "sol": "SOL",
+      "card": "Carte de Credit",
+      "usdc": "USDC"
+    },
+    "stats": {
+      "projectsSold": "Projets Vendus",
+      "totalVolume": "Volume Total",
+      "activeSellers": "Vendeurs Actifs",
+      "avgSaleTime": "Temps Moyen",
+      "days": "jours"
+    },
+    "featured": {
+      "title": "Projets en Vedette",
+      "subtitle": "Projets selectionnes a fort potentiel",
+      "viewAll": "Voir Tout",
+      "empty": "Aucun projet pour l'instant. Soyez le premier a publier!",
+      "listProject": "Publier Projet"
+    },
+    "categories": {
+      "title": "Parcourir par Categorie",
+      "subtitle": "Trouvez des projets dans votre domaine d'interet"
+    },
+    "howItWorks": {
+      "title": "Comment ca Marche",
+      "subtitle": "Simple, securise et transparent",
+      "step1": {
+        "title": "Publiez Votre Projet",
+        "description": "Connectez votre GitHub, decrivez votre projet et definissez les parametres d'enchere. Nous verifions automatiquement la propriete."
+      },
+      "step2": {
+        "title": "Recevez des Offres",
+        "description": "Les acheteurs decouvrent et encherissent sur votre projet. Suivez l'enchere en temps reel avec transparence on-chain."
+      },
+      "step3": {
+        "title": "Sequestre Securise",
+        "description": "Lorsque l'enchere se termine, les fonds sont conserves en sequestre sur Solana. Pas d'intermediaire, pas de risque."
+      },
+      "step4": {
+        "title": "Transferer et Liberer",
+        "description": "Transferez les actifs a l'acheteur, confirmez la reception et les fonds sont liberes automatiquement. Simple."
+      }
     },
     "features": {
-      "secure": "Transactions Securisees",
-      "secureDesc": "Le sequestre on-chain garantit des transferts surs",
-      "verified": "Vendeurs Verifies",
-      "verifiedDesc": "Systeme de reputation avec verification Twitter",
-      "global": "Marche Mondial",
-      "globalDesc": "Achetez et vendez de partout dans le monde"
+      "title": "Pourquoi App Market?",
+      "subtitle": "Cree par des developpeurs, pour des developpeurs",
+      "escrow": {
+        "title": "Sequestre Sans Confiance",
+        "description": "Les fonds sont conserves dans des contrats intelligents Solana, pas dans nos portefeuilles. La liberation se fait automatiquement lorsque les deux parties confirment."
+      },
+      "settlement": {
+        "title": "Reglement Instantane",
+        "description": "Pas d'attente pour les banques. Les transactions Solana sont reglees en secondes."
+      },
+      "ownership": {
+        "title": "Propriete Verifiee",
+        "description": "Nous verifions la propriete GitHub avant publication. Des verifications automatisees assurent des transferts legitimes."
+      },
+      "global": {
+        "title": "Acces Mondial",
+        "description": "Pas de restrictions de pays. Toute personne avec un portefeuille peut acheter ou vendre. Natif crypto avec options fiat pour tous."
+      },
+      "disputes": {
+        "title": "Litiges Equitables",
+        "description": "Si quelque chose ne va pas, notre systeme de litiges assure une resolution equitable avec examen des preuves."
+      }
+    },
+    "cta": {
+      "title": "Pret a Commencer?",
+      "subtitle": "Rejoignez des milliers de developpeurs qui achetent et vendent des produits numeriques sur la marketplace la plus fiable.",
+      "listProject": "Publier Projet",
+      "browseMarketplace": "Parcourir le Marche"
+    }
+  },
+  "explore": {
+    "title": "Explorer les Projets",
+    "subtitle": "Decouvrez et acquerez d'incroyables produits numeriques",
+    "searchPlaceholder": "Rechercher des projets...",
+    "filters": "Filtres",
+    "priceRange": "Fourchette de Prix",
+    "blockchain": "Blockchain",
+    "clearFilters": "Effacer tous les filtres",
+    "applyFilters": "Appliquer les Filtres",
+    "showing": "Affichage de",
+    "projects": "projets",
+    "loading": "Chargement...",
+    "noResults": "Aucun projet trouve. Essayez d'ajuster vos filtres.",
+    "loadMore": "Charger Plus de Projets",
+    "categories": {
+      "all": "Toutes les Categories",
+      "saas": "SaaS",
+      "aiMl": "IA et ML",
+      "mobileApps": "Apps Mobiles",
+      "webApps": "Apps Web",
+      "extensions": "Extensions",
+      "cryptoWeb3": "Crypto et Web3",
+      "ecommerce": "E-commerce",
+      "devTools": "Outils Dev",
+      "gaming": "Jeux"
+    },
+    "sort": {
+      "endingSoon": "Fin Imminente",
+      "newest": "Plus Recents",
+      "priceLow": "Prix: Croissant",
+      "priceHigh": "Prix: Decroissant",
+      "mostBids": "Plus d'Encheres"
+    },
+    "price": {
+      "any": "Tout Prix",
+      "under25": "Moins de 25 SOL",
+      "25to50": "25 - 50 SOL",
+      "50to100": "50 - 100 SOL",
+      "over100": "100+ SOL"
+    },
+    "chains": {
+      "all": "Toutes les Chaines",
+      "solana": "Solana",
+      "base": "Base",
+      "hyperliquid": "Hyperliquid",
+      "ethereum": "Ethereum",
+      "bitcoin": "Bitcoin"
     }
   },
   "common": {
@@ -40,16 +156,35 @@
     "delete": "Supprimer",
     "edit": "Modifier",
     "view": "Voir",
-    "close": "Fermer"
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "sol": "SOL"
   },
   "footer": {
-    "brand": "La marketplace pour apps, prototypes et MVPs.",
+    "brand": "La marketplace pour apps, prototypes et MVPs. Encheres et transferts securises on-chain.",
     "marketplace": "Marche",
     "sellers": "Vendeurs",
     "buyers": "Acheteurs",
     "company": "Entreprise",
     "legal": "Mentions legales",
-    "allRightsReserved": "Tous droits reserves."
+    "allRightsReserved": "Tous droits reserves.",
+    "links": {
+      "explore": "Explorer",
+      "categories": "Categories",
+      "featured": "En Vedette",
+      "recentSales": "Ventes Recentes",
+      "listProject": "Publier Projet",
+      "sellerGuide": "Guide Vendeur",
+      "howToBuy": "Comment Acheter",
+      "escrowProtection": "Protection Sequestre",
+      "about": "A Propos",
+      "contact": "Contact",
+      "terms": "Conditions d'Utilisation",
+      "privacy": "Politique de Confidentialite"
+    }
   },
   "language": {
     "en": "Anglais",
