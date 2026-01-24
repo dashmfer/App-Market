@@ -38,7 +38,7 @@ import {
   Lock,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useCountdown } from "@/hooks/useCountdown";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
