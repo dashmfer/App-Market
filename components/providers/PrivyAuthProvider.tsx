@@ -52,11 +52,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
             rpcUrl: "https://api.devnet.solana.com",
           },
         ],
-        // Default to devnet for development
-        defaultChain: {
-          type: "solana",
-          cluster: process.env.NEXT_PUBLIC_SOLANA_NETWORK === "mainnet-beta" ? "mainnet-beta" : "devnet",
-        },
         // Legal
         legal: {
           termsAndConditionsUrl: "/terms",
