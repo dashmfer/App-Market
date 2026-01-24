@@ -89,6 +89,9 @@ model User {
   // Collaborator Relations (when user is a collaborator on other listings)
   collaborations  ListingCollaborator[]
 
+  // Purchase Partner Relations (when user is a co-buyer on transactions)
+  transactionPartners TransactionPartner[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -434,6 +437,11 @@ model Transaction {
   // NFT
   ownershipNftMint    String?
   
+  // Purchase Partners (co-buyers)
+  partners              TransactionPartner[]
+  partnerDepositDeadline DateTime?       // 30 min from initiation for all partners to deposit
+  hasPartners           Boolean          @default(false)
+
   // Relations
   listingId           String            @unique
   listing             Listing           @relation(fields: [listingId], references: [id])
@@ -456,6 +464,55 @@ model Transaction {
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
+}
+
+// ============================================
+// PURCHASE PARTNERS (Co-buyers)
+// ============================================
+
+model TransactionPartner {
+  id                String                @id @default(cuid())
+
+  // Transaction relation
+  transactionId     String
+  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  // Partner identification (wallet required for payment, userId optional)
+  walletAddress     String                // Required for deposits/refunds
+  userId            String?               // Optional: linked if registered user
+  user              User?                 @relation(fields: [userId], references: [id])
+
+  // Percentage & Amount
+  percentage        Float                 // Their share (e.g., 40 for 40%)
+  depositAmount     Float                 // Amount they need to deposit (calculated)
+
+  // Lead buyer status
+  isLead            Boolean               @default(false)
+
+  // Deposit status
+  depositStatus     PartnerDepositStatus  @default(PENDING)
+  depositedAt       DateTime?
+  depositTxHash     String?               // On-chain transaction hash
+
+  // Transfer confirmation (for majority vote)
+  hasConfirmedTransfer Boolean            @default(false)
+  confirmedAt       DateTime?
+
+  // Timestamps
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([transactionId, walletAddress]) // Can't add same wallet twice
+  @@index([transactionId])
+  @@index([walletAddress])
+  @@index([userId])
+  @@index([depositStatus])
+}
+
+enum PartnerDepositStatus {
+  PENDING     // Hasn't deposited yet
+  DEPOSITED   // Successfully deposited their share
+  REFUNDED    // Refunded due to timeout or cancellation
 }
 
 // ============================================
@@ -754,6 +811,7 @@ enum PaymentMethod {
 
 enum TransactionStatus {
   PENDING
+  AWAITING_PARTNER_DEPOSITS  // Waiting for all purchase partners to deposit
   PAID
   IN_ESCROW
   TRANSFER_PENDING
@@ -815,6 +873,12 @@ enum NotificationType {
   COLLABORATION_ACCEPTED   // Notify listing owner when collaborator accepts
   COLLABORATION_DECLINED   // Notify listing owner when collaborator declines
   COLLABORATION_REMOVED    // Notify collaborator when removed from listing
+  // Purchase partner notifications
+  PURCHASE_PARTNER_INVITE      // Notify user when invited to be a purchase partner
+  PURCHASE_PARTNER_DEPOSITED   // Notify lead buyer when a partner deposits
+  PURCHASE_PARTNER_ALL_READY   // Notify all partners when 100% deposited
+  PURCHASE_PARTNER_TIMEOUT     // Notify all partners when deposit window expires
+  PURCHASE_PARTNER_LEAD_TRANSFERRED // Notify when lead status transferred
   SYSTEM
 }
 

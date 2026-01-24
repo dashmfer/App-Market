@@ -19,7 +19,19 @@ export async function POST(request: NextRequest) {
     const userId = token.id as string;
 
     const body = await request.json();
-    const { listingId, amount, currency, onChainTx, walletAddress, purchaseType } = body;
+    const {
+      listingId,
+      amount,
+      currency,
+      onChainTx,
+      walletAddress,
+      purchaseType,
+      // Partner purchase fields
+      withPartners,
+      leadBuyerPercentage,
+      leadBuyerDepositAmount,
+      partners,
+    } = body;
 
     // Validate required fields
     if (!listingId || !amount) {
@@ -105,6 +117,12 @@ export async function POST(request: NextRequest) {
       ? new Date(Date.now() + 48 * 60 * 60 * 1000)
       : null;
 
+    // Determine initial status based on whether it's a partner purchase
+    const initialStatus = withPartners ? "AWAITING_PARTNER_DEPOSITS" : "IN_ESCROW";
+    const partnerDepositDeadline = withPartners
+      ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+      : null;
+
     // Create transaction
     const transaction = await prisma.transaction.create({
       data: {
@@ -114,73 +132,140 @@ export async function POST(request: NextRequest) {
         currency: currency || listing.currency,
         paymentMethod: "SOLANA",
         onChainTx,
-        status: "IN_ESCROW",
+        status: initialStatus,
         listingId,
         buyerId: userId,
         sellerId: listing.sellerId,
-        paidAt: new Date(),
-        buyerInfoDeadline,
+        paidAt: withPartners ? null : new Date(), // Only set paidAt when fully paid
+        buyerInfoDeadline: withPartners ? null : buyerInfoDeadline, // Set after all deposits
         buyerInfoStatus: listing.requiredBuyerInfo ? "PENDING" : "PROVIDED",
+        hasPartners: withPartners || false,
+        partnerDepositDeadline,
       },
     });
 
-    // Update listing status to SOLD
-    await prisma.listing.update({
-      where: { id: listingId },
-      data: { status: "SOLD" },
-    });
-
-    // Update buyer stats
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        totalPurchases: { increment: 1 },
-        totalVolume: { increment: amount },
-      },
-    });
-
-    // Notify seller about the purchase
-    await prisma.notification.create({
-      data: {
-        type: "PAYMENT_RECEIVED",
-        title: "Your listing has been purchased!",
-        message: `"${listing.title}" was purchased for ${amount} ${listing.currency}`,
+    // If partner purchase, create lead buyer as a partner and other partners
+    if (withPartners && partners && partners.length > 0) {
+      // Create lead buyer partner record
+      await prisma.transactionPartner.create({
         data: {
-          listingId,
-          listingSlug: listing.slug,
           transactionId: transaction.id,
-          amount
+          walletAddress: walletAddress,
+          userId: userId,
+          percentage: leadBuyerPercentage,
+          depositAmount: leadBuyerDepositAmount,
+          isLead: true,
+          depositStatus: "DEPOSITED",
+          depositedAt: new Date(),
+          depositTxHash: onChainTx,
         },
-        userId: listing.sellerId,
-      },
-    });
+      });
 
-    // If buyer info is required, notify the buyer
-    if (listing.requiredBuyerInfo && buyerInfoDeadline) {
-      await prisma.notification.create({
-        data: {
-          type: "BUYER_INFO_REQUIRED",
-          title: "Action Required: Provide your information",
-          message: `Please provide the required information for "${listing.title}" within 48 hours.`,
+      // Create other partner records
+      for (const partner of partners) {
+        await prisma.transactionPartner.create({
           data: {
-            listingId,
-            listingSlug: listing.slug,
             transactionId: transaction.id,
-            deadline: buyerInfoDeadline.toISOString(),
+            walletAddress: partner.walletAddress,
+            userId: partner.userId || null,
+            percentage: partner.percentage,
+            depositAmount: partner.depositAmount,
+            isLead: false,
+            depositStatus: "PENDING",
           },
-          userId,
+        });
+
+        // Notify each partner
+        if (partner.userId) {
+          await prisma.notification.create({
+            data: {
+              type: "PURCHASE_PARTNER_INVITE",
+              title: "Purchase Partner Invite",
+              message: `You've been invited to co-purchase "${listing.title}" with ${partner.percentage}% share (${partner.depositAmount} SOL)`,
+              data: {
+                listingId,
+                listingSlug: listing.slug,
+                transactionId: transaction.id,
+                percentage: partner.percentage,
+                depositAmount: partner.depositAmount,
+                deadline: partnerDepositDeadline?.toISOString(),
+              },
+              userId: partner.userId,
+            },
+          });
+        }
+      }
+    }
+
+    // Update listing status - SOLD only if not a partner purchase
+    // For partner purchases, it stays ACTIVE until all deposits are in
+    if (!withPartners) {
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: { status: "SOLD" },
+      });
+    }
+
+    // Update buyer stats (only for solo purchases; partner purchases update after all deposits)
+    if (!withPartners) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          totalPurchases: { increment: 1 },
+          totalVolume: { increment: amount },
         },
       });
     }
 
+    // Notify seller about the purchase (only if not partner purchase, or when partners complete)
+    if (!withPartners) {
+      await prisma.notification.create({
+        data: {
+          type: "PAYMENT_RECEIVED",
+          title: "Your listing has been purchased!",
+          message: `"${listing.title}" was purchased for ${amount} ${listing.currency}`,
+          data: {
+            listingId,
+            listingSlug: listing.slug,
+            transactionId: transaction.id,
+            amount
+          },
+          userId: listing.sellerId,
+        },
+      });
+
+      // If buyer info is required, notify the buyer
+      if (listing.requiredBuyerInfo && buyerInfoDeadline) {
+        await prisma.notification.create({
+          data: {
+            type: "BUYER_INFO_REQUIRED",
+            title: "Action Required: Provide your information",
+            message: `Please provide the required information for "${listing.title}" within 48 hours.`,
+            data: {
+              listingId,
+              listingSlug: listing.slug,
+              transactionId: transaction.id,
+              deadline: buyerInfoDeadline.toISOString(),
+            },
+            userId,
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
+      transactionId: transaction.id,
       transaction: {
         id: transaction.id,
         status: transaction.status,
         salePrice: transaction.salePrice,
         currency: transaction.currency,
+        hasPartners: withPartners || false,
+        partnerDepositDeadline: partnerDepositDeadline?.toISOString() || null,
       },
-      message: "Purchase successful"
+      message: withPartners
+        ? "Purchase initiated. Waiting for partner deposits."
+        : "Purchase successful"
     }, { status: 201 });
   } catch (error) {
     console.error("Error creating purchase:", error);
