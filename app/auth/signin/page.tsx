@@ -3,10 +3,9 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { usePrivy, useLogin } from "@privy-io/react-auth";
 import { motion } from "framer-motion";
 import {
   Wallet,
@@ -20,6 +19,106 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// Separate component for Privy login buttons to avoid hook issues
+function PrivyLoginButtons({
+  onEmailClick,
+  onTwitterClick
+}: {
+  onEmailClick: () => void;
+  onTwitterClick: () => void;
+}) {
+  // Only import and use Privy hooks if configured
+  const privyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  if (!privyConfigured) {
+    return (
+      <>
+        <Button
+          onClick={() => alert("Email login is not configured yet. Please use wallet login.")}
+          variant="secondary"
+          size="lg"
+          className="w-full justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Mail className="w-5 h-5" />
+            <span>Continue with Email</span>
+          </div>
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+
+        <Button
+          onClick={() => alert("Twitter login is not configured yet. Please use wallet login.")}
+          variant="secondary"
+          size="lg"
+          className="w-full justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Twitter className="w-5 h-5" />
+            <span>Continue with X</span>
+          </div>
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </>
+    );
+  }
+
+  // When Privy is configured, render the real buttons
+  return <PrivyEnabledButtons onEmailClick={onEmailClick} onTwitterClick={onTwitterClick} />;
+}
+
+// This component only renders when Privy is configured
+function PrivyEnabledButtons({
+  onEmailClick,
+  onTwitterClick
+}: {
+  onEmailClick: () => void;
+  onTwitterClick: () => void;
+}) {
+  // Dynamic import to avoid issues when Privy is not configured
+  const { useLogin } = require("@privy-io/react-auth");
+  const { login } = useLogin();
+
+  const handleEmailLogin = () => {
+    onEmailClick();
+    login();
+  };
+
+  const handleTwitterLogin = () => {
+    onTwitterClick();
+    login();
+  };
+
+  return (
+    <>
+      <Button
+        onClick={handleEmailLogin}
+        variant="secondary"
+        size="lg"
+        className="w-full justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <Mail className="w-5 h-5" />
+          <span>Continue with Email</span>
+        </div>
+        <ArrowRight className="w-4 h-4" />
+      </Button>
+
+      <Button
+        onClick={handleTwitterLogin}
+        variant="secondary"
+        size="lg"
+        className="w-full justify-between"
+      >
+        <div className="flex items-center gap-3">
+          <Twitter className="w-5 h-5" />
+          <span>Continue with X</span>
+        </div>
+        <ArrowRight className="w-4 h-4" />
+      </Button>
+    </>
+  );
+}
+
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,11 +128,6 @@ function SignInContent() {
   const { status } = useSession();
   const { connected, publicKey, signMessage, connecting, wallet } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
-
-  // Privy hooks - only use if configured
-  const privyConfigured = !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  const { ready: privyReady, authenticated: privyAuthenticated } = usePrivy() || { ready: true, authenticated: false };
-  const { login: privyLogin } = useLogin() || { login: () => {} };
 
   const [authMethod, setAuthMethod] = useState<"wallet" | "email" | "twitter" | null>(null);
 
@@ -47,29 +141,10 @@ function SignInContent() {
   // Detect wallet states
   const isWalletLocked = connected && publicKey && !signMessage;
   const isWalletReady = connected && publicKey && signMessage;
-  const isAuthenticating = status === "loading" || (isWalletReady && status === "unauthenticated");
 
   const handleConnectWallet = () => {
     setAuthMethod("wallet");
     setWalletModalVisible(true);
-  };
-
-  const handleEmailLogin = () => {
-    if (!privyConfigured) {
-      alert("Email login is not configured yet. Please use wallet login.");
-      return;
-    }
-    setAuthMethod("email");
-    privyLogin();
-  };
-
-  const handleTwitterLogin = () => {
-    if (!privyConfigured) {
-      alert("Twitter login is not configured yet. Please use wallet login.");
-      return;
-    }
-    setAuthMethod("twitter");
-    privyLogin();
   };
 
   const errorMessages: Record<string, string> = {
@@ -194,33 +269,11 @@ function SignInContent() {
                   </div>
                 </div>
 
-                {/* Email Option */}
-                <Button
-                  onClick={handleEmailLogin}
-                  variant="secondary"
-                  size="lg"
-                  className="w-full justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5" />
-                    <span>Continue with Email</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-
-                {/* Twitter Option */}
-                <Button
-                  onClick={handleTwitterLogin}
-                  variant="secondary"
-                  size="lg"
-                  className="w-full justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <Twitter className="w-5 h-5" />
-                    <span>Continue with X</span>
-                  </div>
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+                {/* Email & Twitter Options */}
+                <PrivyLoginButtons
+                  onEmailClick={() => setAuthMethod("email")}
+                  onTwitterClick={() => setAuthMethod("twitter")}
+                />
               </>
             )}
 
