@@ -122,6 +122,20 @@ export async function GET(
           },
         },
         uploads: true,
+        partners: {
+          where: { depositStatus: "DEPOSITED" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                name: true,
+                image: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -129,8 +143,12 @@ export async function GET(
       return NextResponse.json({ error: "Transfer not found" }, { status: 404 });
     }
 
-    // Only buyer or seller can view
-    if (transaction.buyerId !== session.user.id && transaction.sellerId !== session.user.id) {
+    // Check if user is a purchase partner
+    const userPartner = transaction.partners.find(p => p.userId === session.user.id);
+    const isPartner = !!userPartner;
+
+    // Only buyer, seller, or partners can view
+    if (transaction.buyerId !== session.user.id && transaction.sellerId !== session.user.id && !isPartner) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -197,7 +215,26 @@ export async function GET(
       transferDeadline,
       checklist,
       isSeller: transaction.sellerId === session.user.id,
-      isBuyer: transaction.buyerId === session.user.id,
+      isBuyer: transaction.buyerId === session.user.id || isPartner,
+      isPartner,
+      // Partner information for majority vote UI
+      hasPartners: transaction.hasPartners,
+      partners: transaction.hasPartners ? transaction.partners.map(p => ({
+        id: p.id,
+        userId: p.userId,
+        walletAddress: `${p.walletAddress.slice(0, 4)}...${p.walletAddress.slice(-4)}`,
+        percentage: p.percentage,
+        isLead: p.isLead,
+        hasConfirmedTransfer: p.hasConfirmedTransfer,
+        user: p.user ? {
+          id: p.user.id,
+          name: p.user.displayName || p.user.username || p.user.name,
+          image: p.user.image,
+        } : null,
+      })) : [],
+      confirmationsNeeded: transaction.hasPartners
+        ? Math.floor(transaction.partners.length / 2) + 1
+        : 1,
     };
 
     return NextResponse.json(response);
