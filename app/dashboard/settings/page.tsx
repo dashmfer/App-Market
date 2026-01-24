@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Twitter, Loader2 } from "lucide-react";
+import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Twitter, Loader2, Plus, Key, CreditCard, Copy } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { AddFundsModal } from "@/components/wallet/AddFundsModal";
+import { ExportKeyModal } from "@/components/wallet/ExportKeyModal";
 
 // Wrapper component to handle Suspense for useSearchParams
 export default function SettingsPage() {
@@ -38,6 +40,11 @@ function SettingsContent() {
   const [twitterUsername, setTwitterUsername] = useState<string | null>(null);
   const [twitterConnected, setTwitterConnected] = useState(false);
   const [disconnectingTwitter, setDisconnectingTwitter] = useState(false);
+
+  // Wallet modals
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showExportKeyModal, setShowExportKeyModal] = useState(false);
+  const [addressCopied, setAddressCopied] = useState(false);
 
   // Handle Twitter OAuth callback
   useEffect(() => {
@@ -513,34 +520,82 @@ function SettingsContent() {
               {activeTab === "wallet" && (
                 <div>
                   <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-6">Wallet Settings</h2>
-                  <p className="text-zinc-500 mb-6">Connect your Solana wallet to buy and sell projects.</p>
+                  <p className="text-zinc-500 mb-6">Manage your wallet, add funds, and export your private key.</p>
 
                   <div className="space-y-4">
                     {connected && publicKey ? (
-                      <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Check className="w-5 h-5 text-green-500" />
-                              <span className="font-medium text-zinc-900 dark:text-zinc-100">Wallet Connected</span>
-                            </div>
-                            <p className="text-sm text-zinc-500 mb-4">Your Solana wallet is connected and ready to use.</p>
-                            <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3">
-                              <p className="text-xs text-zinc-500 mb-1">Wallet Address</p>
-                              <p className="text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all">
-                                {publicKey.toBase58()}
-                              </p>
+                      <>
+                        {/* Connected Wallet Card */}
+                        <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Check className="w-5 h-5 text-green-500" />
+                                <span className="font-medium text-zinc-900 dark:text-zinc-100">Wallet Connected</span>
+                              </div>
+                              <p className="text-sm text-zinc-500 mb-4">Your Solana wallet is connected and ready to use.</p>
+                              <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3">
+                                <p className="text-xs text-zinc-500 mb-1">Wallet Address</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all flex-1">
+                                    {publicKey.toBase58()}
+                                  </p>
+                                  <button
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(publicKey.toBase58());
+                                      setAddressCopied(true);
+                                      setTimeout(() => setAddressCopied(false), 2000);
+                                    }}
+                                    className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors flex-shrink-0"
+                                  >
+                                    {addressCopied ? (
+                                      <Check className="w-4 h-4 text-green-500" />
+                                    ) : (
+                                      <Copy className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Wallet Actions */}
+                          <div className="mt-6 flex flex-wrap gap-3">
+                            <button
+                              onClick={() => setShowAddFundsModal(true)}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors"
+                            >
+                              <Plus className="w-4 h-4" />
+                              Add Funds
+                            </button>
+                            <button
+                              onClick={() => setShowExportKeyModal(true)}
+                              className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                              <Key className="w-4 h-4" />
+                              Export Private Key
+                            </button>
+                            <button
+                              onClick={handleDisconnectWallet}
+                              className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                              Disconnect
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={handleDisconnectWallet}
-                          className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                          Disconnect Wallet
-                        </button>
-                      </div>
+
+                        {/* Link Another Wallet */}
+                        <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-6">
+                          <button
+                            onClick={handleConnectWallet}
+                            className="w-full flex items-center justify-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                          >
+                            <Plus className="w-5 h-5" />
+                            <span>Link Another Wallet</span>
+                          </button>
+                        </div>
+                      </>
                     ) : (
                       <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
                         <Wallet className="w-12 h-12 text-zinc-400 mx-auto mb-4" />
@@ -566,9 +621,33 @@ function SettingsContent() {
                       </p>
                       <p className="text-sm text-blue-700 dark:text-blue-300">
                         Phantom, Solflare, Coinbase Wallet, and Ledger are supported.
+                        You can also sign in with email or X to get a wallet automatically.
                       </p>
                     </div>
                   </div>
+
+                  {/* Modals */}
+                  {publicKey && (
+                    <>
+                      <AddFundsModal
+                        isOpen={showAddFundsModal}
+                        onClose={() => setShowAddFundsModal(false)}
+                        walletAddress={publicKey.toBase58()}
+                      />
+                      <ExportKeyModal
+                        isOpen={showExportKeyModal}
+                        onClose={() => setShowExportKeyModal(false)}
+                        privateKey={null}
+                        walletAddress={publicKey.toBase58()}
+                        onRequestKey={async () => {
+                          // For external wallets, we can't export the private key
+                          // This would only work for Privy-managed wallets
+                          alert("Private key export is only available for wallets created through email or X sign-in.");
+                          return null;
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
               )}
 
