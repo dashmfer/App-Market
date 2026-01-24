@@ -165,17 +165,17 @@ export async function POST(
 
     // Send notification to the invited partner
     if (userId) {
-      await createNotification(
+      await createNotification({
         userId,
-        "PURCHASE_PARTNER_INVITE",
-        {
-          listingTitle: transaction.listing.title,
+        type: "PURCHASE_PARTNER_INVITE",
+        listingTitle: transaction.listing.title,
+        data: {
           listingSlug: transaction.listing.slug,
           percentage,
           depositAmount,
           transactionId: params.id,
-        }
-      );
+        },
+      });
     }
 
     return NextResponse.json({ partner }, { status: 201 });

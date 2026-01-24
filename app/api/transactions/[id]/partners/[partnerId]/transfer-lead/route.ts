@@ -73,16 +73,16 @@ export async function POST(
 
     // Notify new lead
     if (newLead.userId) {
-      await createNotification(
-        newLead.userId,
-        "PURCHASE_PARTNER_LEAD_TRANSFERRED",
-        {
-          listingTitle: transaction.listing.title,
+      await createNotification({
+        userId: newLead.userId,
+        type: "PURCHASE_PARTNER_LEAD_TRANSFERRED",
+        listingTitle: transaction.listing.title,
+        data: {
           listingSlug: transaction.listing.slug,
           transactionId: params.id,
           previousLeadName: currentLead.user?.displayName || currentLead.user?.username || "Previous lead",
-        }
-      );
+        },
+      });
     }
 
     return NextResponse.json({
