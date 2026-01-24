@@ -32,6 +32,11 @@ export async function GET(request: NextRequest) {
       where.status = "ACTIVE";
     }
 
+    // Filter out expired listings for public views (but allow sellers to see their own expired listings)
+    if (!sellerId) {
+      where.endTime = { gt: new Date() };
+    }
+
     // Filter by seller
     if (sellerId) {
       where.sellerId = sellerId;
