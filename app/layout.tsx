@@ -18,11 +18,6 @@ export const metadata: Metadata = {
   keywords: ["marketplace", "apps", "MVP", "prototype", "Solana", "crypto", "SaaS"],
   authors: [{ name: "App Market" }],
   metadataBase: new URL("https://appmrkt.xyz"),
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
-  },
   openGraph: {
     title: "App Market",
     description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
