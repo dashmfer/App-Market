@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
+import { SecurityNotice } from "@/components/transfers/SecurityNotice";
 
 interface ChecklistItem {
   id: string;
@@ -541,6 +542,11 @@ export default function TransferPage() {
                 </div>
               </div>
             </div>
+
+            {/* Security Notice for Buyers */}
+            {isBuyer && !isCompleted && (
+              <SecurityNotice variant="warning" />
+            )}
 
             {/* Checklist */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">

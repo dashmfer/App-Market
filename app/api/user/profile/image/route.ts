@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
+import { validateFile, isImageFile } from "@/lib/file-security";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,11 +19,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
+    // Validate file type by MIME type
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
         { error: "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed." },
+        { status: 400 }
+      );
+    }
+
+    // Additional security: validate by filename extension
+    const fileValidation = validateFile(file.name);
+    if (!fileValidation.allowed || !isImageFile(file.name)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Only image files are allowed." },
         { status: 400 }
       );
     }
