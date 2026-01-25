@@ -121,18 +121,21 @@ export function AddFundsModal({ isOpen, onClose, walletAddress }: AddFundsModalP
                   </p>
 
                   <Button
-                    onClick={handleMoonPayDeposit}
+                    onClick={moonpayConfigured ? handleMoonPayDeposit : undefined}
                     variant="primary"
                     size="lg"
-                    className="w-full"
+                    className={`w-full ${!moonpayConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={!moonpayConfigured}
                   >
                     <CreditCard className="w-5 h-5" />
-                    Buy SOL with Card
-                    <ExternalLink className="w-4 h-4 ml-auto" />
+                    {moonpayConfigured ? "Buy SOL with Card" : "Coming Soon"}
+                    {moonpayConfigured && <ExternalLink className="w-4 h-4 ml-auto" />}
                   </Button>
 
                   <p className="text-xs text-zinc-500 text-center">
-                    Powered by MoonPay. Standard fees apply.
+                    {moonpayConfigured
+                      ? "Powered by MoonPay. Standard fees apply."
+                      : "Card payments coming soon. Use direct transfer for now."}
                   </p>
                 </div>
               ) : (
