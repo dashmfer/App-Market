@@ -40,12 +40,18 @@ export default function HomePage() {
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [platformStats, setPlatformStats] = useState({
+    projectsSold: 0,
+    totalVolume: 0,
+    activeSellers: 0,
+    avgSaleTime: 7,
+  });
 
   const stats = [
-    { label: t("stats.projectsSold"), value: 0, suffix: "" },
-    { label: t("stats.totalVolume"), value: 0, prefix: "", suffix: " SOL" },
-    { label: t("stats.activeSellers"), value: 0, suffix: "" },
-    { label: t("stats.avgSaleTime"), value: 0, suffix: ` ${t("stats.days")}` },
+    { label: t("stats.projectsSold"), value: platformStats.projectsSold, suffix: "" },
+    { label: t("stats.totalVolume"), value: Math.round(platformStats.totalVolume * 100) / 100, prefix: "", suffix: " SOL" },
+    { label: t("stats.activeSellers"), value: platformStats.activeSellers, suffix: "" },
+    { label: t("stats.avgSaleTime"), value: platformStats.avgSaleTime, suffix: ` ${t("stats.days")}` },
   ];
 
   const howItWorks = [
@@ -103,8 +109,26 @@ export default function HomePage() {
       }
     }
 
+    async function fetchPlatformStats() {
+      try {
+        const response = await fetch("/api/stats");
+        if (response.ok) {
+          const data = await response.json();
+          setPlatformStats({
+            projectsSold: data.projectsSold || 0,
+            totalVolume: data.totalVolume || 0,
+            activeSellers: data.activeSellers || 0,
+            avgSaleTime: data.avgSaleTime || 7,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch platform stats:", error);
+      }
+    }
+
     fetchListings();
     fetchCategoryCounts();
+    fetchPlatformStats();
   }, []);
 
   // Map categories with dynamic counts
