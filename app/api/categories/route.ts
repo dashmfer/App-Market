@@ -4,11 +4,12 @@ import prisma from "@/lib/db";
 // GET /api/categories - Get category counts
 export async function GET(request: NextRequest) {
   try {
-    // Get counts for each category
+    // Get counts for each category (only active and non-expired listings)
     const categoryCounts = await prisma.listing.groupBy({
       by: ["category"],
       where: {
         status: "ACTIVE",
+        endTime: { gt: new Date() },
       },
       _count: {
         category: true,
