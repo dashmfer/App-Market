@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,6 +21,7 @@ import {
   Gift,
   Users,
   UserPlus,
+  Loader2,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -35,20 +36,42 @@ const sidebarLinks = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-// User stats - loaded from database
-const stats = {
-  totalSales: 0,
-  totalVolume: 0,
-  activeListings: 0,
-  pendingTransfers: 0,
-};
-
-const recentActivity: any[] = [];
-
-const activeListings: any[] = [];
-
 export default function DashboardPage() {
   const pathname = usePathname();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalSales: 0,
+    totalVolume: 0,
+    activeListings: 0,
+    pendingTransfers: 0,
+  });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [activeListings, setActiveListings] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function fetchUserStats() {
+      try {
+        const response = await fetch("/api/user/stats");
+        if (response.ok) {
+          const data = await response.json();
+          setStats({
+            totalSales: data.stats.totalSales || 0,
+            totalVolume: data.stats.totalVolume || 0,
+            activeListings: data.stats.activeListings || 0,
+            pendingTransfers: data.stats.pendingTransfers || 0,
+          });
+          setRecentActivity(data.recentActivity || []);
+          setActiveListings(data.activeListings || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUserStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -172,30 +195,44 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {activeListings.map((listing) => (
-                  <div key={listing.id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {listing.title}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
-                          <span>{listing.bidCount} bids</span>
-                          <span>•</span>
-                          <span className={listing.status === "ending_soon" ? "text-yellow-600" : ""}>
-                            {listing.status === "ending_soon" ? "Ending soon" : "Active"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                          {listing.currentBid} SOL
-                        </div>
-                        <div className="text-sm text-zinc-500">Current bid</div>
-                      </div>
-                    </div>
+                {loading ? (
+                  <div className="p-8 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
                   </div>
-                ))}
+                ) : activeListings.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500">
+                    <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No active listings</p>
+                    <Link href="/create" className="text-green-600 hover:underline text-sm mt-1 inline-block">
+                      Create your first listing
+                    </Link>
+                  </div>
+                ) : (
+                  activeListings.map((listing) => (
+                    <Link key={listing.id} href={`/listing/${listing.slug}`} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors block">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {listing.title}
+                          </h3>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-zinc-500">
+                            <span>{listing.bidCount} bids</span>
+                            <span>•</span>
+                            <span className={listing.status === "ending_soon" ? "text-yellow-600" : ""}>
+                              {listing.status === "ending_soon" ? "Ending soon" : "Active"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                            {listing.currentBid} SOL
+                          </div>
+                          <div className="text-sm text-zinc-500">Current bid</div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                )}
               </div>
             </div>
 
@@ -213,38 +250,51 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        activity.type === "sale"
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-600"
-                          : activity.type === "bid"
-                          ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
-                          : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
-                      }`}>
-                        {activity.type === "sale" ? (
-                          <CheckCircle2 className="w-4 h-4" />
-                        ) : activity.type === "bid" ? (
-                          <TrendingUp className="w-4 h-4" />
-                        ) : (
-                          <Clock className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {activity.title}
-                        </p>
-                        <p className="text-sm text-zinc-500">
-                          {activity.amount} SOL
-                        </p>
-                      </div>
-                      <span className="text-sm text-zinc-400">
-                        {Math.round((Date.now() - activity.time.getTime()) / 3600000)}h ago
-                      </span>
-                    </div>
+                {loading ? (
+                  <div className="p-8 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
                   </div>
-                ))}
+                ) : recentActivity.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500">
+                    <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No recent activity</p>
+                  </div>
+                ) : (
+                  recentActivity.map((activity) => (
+                    <div key={activity.id} className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          activity.type === "sale"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-600"
+                            : activity.type === "bid"
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600"
+                            : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600"
+                        }`}>
+                          {activity.type === "sale" ? (
+                            <CheckCircle2 className="w-4 h-4" />
+                          ) : activity.type === "bid" ? (
+                            <TrendingUp className="w-4 h-4" />
+                          ) : (
+                            <Clock className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {activity.title}
+                          </p>
+                          {activity.amount && (
+                            <p className="text-sm text-zinc-500">
+                              {activity.amount} SOL
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-sm text-zinc-400">
+                          {Math.round((Date.now() - new Date(activity.time).getTime()) / 3600000)}h ago
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
