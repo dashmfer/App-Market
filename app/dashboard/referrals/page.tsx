@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
   Users,
   DollarSign,
   Copy,
   Check,
-  ExternalLink,
   Gift,
   TrendingUp,
   Edit3,
@@ -15,26 +13,73 @@ import {
   Loader2,
 } from "lucide-react";
 
-// Data loaded from database - starts empty
-const referralData = {
-  code: "", // Generated on user registration
-  isCustomized: false,
-  totalReferrals: 0,
-  activeReferrals: 0,
-  totalEarnings: 0,
-  pendingEarnings: 0,
-  availableEarnings: 0,
-  referrals: [] as any[],
-};
+interface ReferralData {
+  code: string;
+  isCustomized: boolean;
+  totalReferrals: number;
+  activeReferrals: number;
+  totalEarnings: number;
+  pendingEarnings: number;
+  availableEarnings: number;
+  commissionRate: number;
+  referrals: {
+    id: string;
+    user: string;
+    status: string;
+    earnings: number;
+    joinedAt: string;
+  }[];
+}
 
 export default function ReferralsPage() {
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [newCode, setNewCode] = useState(referralData.code || "yourcode");
+  const [newCode, setNewCode] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [referralData, setReferralData] = useState<ReferralData>({
+    code: "",
+    isCustomized: false,
+    totalReferrals: 0,
+    activeReferrals: 0,
+    totalEarnings: 0,
+    pendingEarnings: 0,
+    availableEarnings: 0,
+    commissionRate: 2,
+    referrals: [],
+  });
 
-  const referralLink = `https://appmarket.xyz/r/${newCode}`;
+  useEffect(() => {
+    async function fetchReferralData() {
+      try {
+        const response = await fetch("/api/referrals");
+        if (response.ok) {
+          const data = await response.json();
+          setReferralData({
+            code: data.code || "",
+            isCustomized: data.isCustomized || false,
+            totalReferrals: data.totalReferrals || 0,
+            activeReferrals: data.activeReferrals || 0,
+            totalEarnings: data.totalEarnings || 0,
+            pendingEarnings: data.pendingEarnings || 0,
+            availableEarnings: data.availableEarnings || 0,
+            commissionRate: data.commissionRate || 2,
+            referrals: data.referrals || [],
+          });
+          setNewCode(data.code || "");
+        }
+      } catch (error) {
+        console.error("Failed to fetch referral data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchReferralData();
+  }, []);
+
+  const referralLink = `https://appmrkt.xyz/r/${referralData.code || newCode}`;
 
   const copyToClipboard = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -59,15 +104,38 @@ export default function ReferralsPage() {
     setIsSaving(true);
     setError("");
     try {
-      // API call to save custom code
-      await new Promise((r) => setTimeout(r, 1500));
-      setIsEditing(false);
+      const response = await fetch("/api/referrals", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: newCode }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReferralData((prev) => ({
+          ...prev,
+          code: data.code,
+          isCustomized: true,
+        }));
+        setIsEditing(false);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Failed to save code");
+      }
     } catch (e) {
-      setError("Code already taken");
+      setError("Failed to save code. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -83,7 +151,7 @@ export default function ReferralsPage() {
                 Referral Program
               </h1>
               <p className="text-zinc-500">
-                Earn 2% commission when people you refer make sales
+                Earn {referralData.commissionRate}% commission on your referrals' first transaction
               </p>
             </div>
           </div>
@@ -107,6 +175,7 @@ export default function ReferralsPage() {
                 <button
                   onClick={copyToClipboard}
                   className="btn-secondary py-2"
+                  disabled={!referralData.code}
                 >
                   {copied ? (
                     <>
@@ -149,7 +218,7 @@ export default function ReferralsPage() {
                 {isEditing ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-zinc-400">app.market/r/</span>
+                      <span className="text-zinc-400">appmrkt.xyz/r/</span>
                       <input
                         type="text"
                         value={newCode}
@@ -195,13 +264,13 @@ export default function ReferralsPage() {
                       </button>
                     </div>
                     <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      ⚠️ You can only customize your code once!
+                      Warning: You can only customize your code once!
                     </p>
                   </div>
                 ) : (
                   <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <span className="font-mono font-medium text-green-700 dark:text-green-400">
-                      {referralData.code}
+                      {referralData.code || "Loading..."}
                     </span>
                   </div>
                 )}
@@ -216,8 +285,8 @@ export default function ReferralsPage() {
               <div className="space-y-4">
                 {[
                   { step: 1, title: "Share Your Link", desc: "Send your unique referral link to friends, on social media, or anywhere builders hang out" },
-                  { step: 2, title: "They Sign Up", desc: "When someone clicks your link and creates an account, they're linked to you" },
-                  { step: 3, title: "They Sell", desc: "When your referral sells a project on App Market, you earn 2% of the sale" },
+                  { step: 2, title: "They Sign Up", desc: "When someone clicks your link and creates an account, they're linked to you for 30 days" },
+                  { step: 3, title: "First Transaction", desc: "When your referral completes their first sale OR purchase, you earn 2%" },
                   { step: 4, title: "Get Paid", desc: "Earnings are added to your balance and can be withdrawn anytime" },
                 ].map((item) => (
                   <div key={item.step} className="flex items-start gap-4">
@@ -240,7 +309,7 @@ export default function ReferralsPage() {
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
                 Your Referrals
               </h2>
-              
+
               {referralData.referrals.length > 0 ? (
                 <div className="space-y-3">
                   {referralData.referrals.map((ref) => (
@@ -251,7 +320,7 @@ export default function ReferralsPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
                           <span className="text-white font-medium text-sm">
-                            {ref.user[0].toUpperCase()}
+                            {ref.user[0]?.toUpperCase() || "?"}
                           </span>
                         </div>
                         <div>
@@ -259,20 +328,20 @@ export default function ReferralsPage() {
                             {ref.user}
                           </div>
                           <div className="text-sm text-zinc-500">
-                            Joined {Math.floor((Date.now() - ref.joinedAt.getTime()) / 86400000)}d ago
+                            Joined {Math.floor((Date.now() - new Date(ref.joinedAt).getTime()) / 86400000)}d ago
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className={`text-sm font-medium ${
-                          ref.status === "ACTIVE" 
-                            ? "text-green-600 dark:text-green-400" 
+                          ref.status === "ACTIVE"
+                            ? "text-green-600 dark:text-green-400"
                             : "text-yellow-600 dark:text-yellow-400"
                         }`}>
-                          {ref.status === "ACTIVE" ? "Active" : "Pending"}
+                          {ref.status === "ACTIVE" ? "Active" : ref.status === "REGISTERED" ? "Registered" : "Pending"}
                         </div>
                         <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                          {ref.earnings > 0 ? `${ref.earnings} SOL` : "-"}
+                          {ref.earnings > 0 ? `${ref.earnings.toFixed(4)} SOL` : "-"}
                         </div>
                       </div>
                     </div>
@@ -296,25 +365,27 @@ export default function ReferralsPage() {
                 <span className="text-sm font-medium">Total Earnings</span>
               </div>
               <div className="text-4xl font-display font-bold">
-                {referralData.totalEarnings} SOL
+                {referralData.totalEarnings.toFixed(4)} SOL
               </div>
               <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-green-100">Available</div>
                   <div className="text-xl font-semibold">
-                    {referralData.availableEarnings} SOL
+                    {referralData.availableEarnings.toFixed(4)} SOL
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-green-100">Pending</div>
                   <div className="text-xl font-semibold">
-                    {referralData.pendingEarnings} SOL
+                    {referralData.pendingEarnings.toFixed(4)} SOL
                   </div>
                 </div>
               </div>
-              <button className="w-full mt-4 py-3 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors">
-                Withdraw Earnings
-              </button>
+              {referralData.availableEarnings > 0 && (
+                <button className="w-full mt-4 py-3 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors">
+                  Withdraw Earnings
+                </button>
+              )}
             </div>
 
             {/* Stats */}
@@ -335,7 +406,7 @@ export default function ReferralsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-zinc-500">
                     <TrendingUp className="w-4 h-4" />
-                    <span>Active Sellers</span>
+                    <span>Active (Transacted)</span>
                   </div>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                     {referralData.activeReferrals}
@@ -347,7 +418,7 @@ export default function ReferralsPage() {
                     <span>Commission Rate</span>
                   </div>
                   <span className="font-semibold text-green-600 dark:text-green-400">
-                    2%
+                    {referralData.commissionRate}%
                   </span>
                 </div>
               </div>
@@ -356,13 +427,13 @@ export default function ReferralsPage() {
             {/* Share Tips */}
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-6">
               <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">
-                💡 Pro Tips
+                Pro Tips
               </h3>
               <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
                 <li>• Share in developer communities</li>
                 <li>• Post on Twitter/X when you see builders</li>
                 <li>• Help friends list their projects</li>
-                <li>• Quality referrals earn more over time</li>
+                <li>• Commission is paid on first transaction only</li>
               </ul>
             </div>
           </div>
