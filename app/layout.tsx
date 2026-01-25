@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Toaster } from "@/components/ui/toaster";
+import { ScrollToTop } from "@/components/scroll-to-top";
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
+          <ScrollToTop />
           {/* Devnet Banner */}
           <div className="bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 text-white text-center py-2 px-4 text-sm font-medium">
             <span className="inline-flex items-center gap-2">
