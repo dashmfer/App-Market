@@ -17,17 +17,32 @@ export const metadata: Metadata = {
   description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
   keywords: ["marketplace", "apps", "MVP", "prototype", "Solana", "crypto", "SaaS"],
   authors: [{ name: "App Market" }],
+  metadataBase: new URL("https://appmrkt.xyz"),
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "App Market",
-    description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
-    url: "https://app.market",
+    description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
+    url: "https://appmrkt.xyz",
     siteName: "App Market",
     type: "website",
+    images: [
+      {
+        url: "/api/og",
+        width: 1200,
+        height: 630,
+        alt: "App Market - Buy & Sell Apps",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "App Market",
-    description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
+    description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
+    images: ["/api/og"],
   },
 };
 
