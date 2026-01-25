@@ -17,16 +17,16 @@ export const metadata: Metadata = {
   description: "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
   keywords: ["marketplace", "apps", "MVP", "prototype", "Solana", "crypto", "SaaS"],
   authors: [{ name: "App Market" }],
-  metadataBase: new URL("https://appmrkt.xyz"),
+  metadataBase: new URL("https://www.appmrkt.xyz"),
   openGraph: {
     title: "App Market",
     description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
-    url: "https://appmrkt.xyz",
+    url: "https://www.appmrkt.xyz",
     siteName: "App Market",
     type: "website",
     images: [
       {
-        url: "https://appmrkt.xyz/og-image.png",
+        url: "https://www.appmrkt.xyz/og-image.png",
         width: 1200,
         height: 630,
         alt: "App Market - Buy & Sell Apps",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "App Market",
     description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
-    images: ["https://appmrkt.xyz/og-image.png"],
+    images: ["https://www.appmrkt.xyz/og-image.png"],
   },
 };
 
