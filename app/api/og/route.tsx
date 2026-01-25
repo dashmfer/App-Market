@@ -17,45 +17,13 @@ export async function GET() {
           fontFamily: 'system-ui, sans-serif',
         }}
       >
-        {/* Logo */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 40,
-          }}
-        >
-          <div
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: 24,
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <span
-              style={{
-                fontSize: 80,
-                fontWeight: 700,
-                color: 'white',
-              }}
-            >
-              A
-            </span>
-          </div>
-        </div>
-
         {/* Title */}
         <div
           style={{
-            fontSize: 64,
+            fontSize: 72,
             fontWeight: 700,
             color: 'white',
-            marginBottom: 16,
+            marginBottom: 20,
           }}
         >
           App Market
@@ -64,7 +32,7 @@ export async function GET() {
         {/* Tagline */}
         <div
           style={{
-            fontSize: 28,
+            fontSize: 32,
             color: 'rgba(255, 255, 255, 0.9)',
           }}
         >
