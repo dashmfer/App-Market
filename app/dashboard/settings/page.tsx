@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Twitter, Loader2, Plus, Key, CreditCard, Copy } from "lucide-react";
+import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Loader2, Plus, Key, CreditCard, Copy } from "lucide-react";
+import { XIcon } from "@/components/icons/XIcon";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
@@ -60,15 +61,15 @@ function SettingsContent() {
       window.history.replaceState({}, "", "/dashboard/settings");
     } else if (twitterError) {
       const errorMessages: Record<string, string> = {
-        already_linked: "This Twitter account is already linked to another user.",
+        already_linked: "This X account is already linked to another user.",
         session_expired: "Session expired. Please try again.",
         state_mismatch: "Security check failed. Please try again.",
-        token_exchange_failed: "Failed to connect to Twitter. Please try again.",
-        user_fetch_failed: "Failed to get Twitter profile. Please try again.",
-        not_configured: "Twitter connection is not configured.",
+        token_exchange_failed: "Failed to connect to X. Please try again.",
+        user_fetch_failed: "Failed to get X profile. Please try again.",
+        not_configured: "X connection is not configured.",
         missing_params: "Invalid callback. Please try again.",
       };
-      alert(errorMessages[twitterError] || "Failed to connect Twitter. Please try again.");
+      alert(errorMessages[twitterError] || "Failed to connect X. Please try again.");
       setActiveTab("accounts");
       window.history.replaceState({}, "", "/dashboard/settings");
     }
@@ -114,9 +115,9 @@ function SettingsContent() {
     loadProfile();
   }, [session, status]);
 
-  // Handle Twitter disconnect
+  // Handle X disconnect
   const handleDisconnectTwitter = async () => {
-    if (!confirm("Disconnect your Twitter account? You'll no longer be able to leave reviews until you reconnect.")) {
+    if (!confirm("Disconnect your X account? You'll no longer be able to leave reviews until you reconnect.")) {
       return;
     }
 
@@ -134,8 +135,8 @@ function SettingsContent() {
         throw new Error("Failed to disconnect");
       }
     } catch (error) {
-      console.error("Failed to disconnect Twitter:", error);
-      alert("Failed to disconnect Twitter. Please try again.");
+      console.error("Failed to disconnect X:", error);
+      alert("Failed to disconnect X. Please try again.");
     } finally {
       setDisconnectingTwitter(false);
     }
@@ -444,20 +445,20 @@ function SettingsContent() {
                   </p>
 
                   <div className="space-y-4">
-                    {/* Twitter/X Connection */}
+                    {/* X Connection */}
                     <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                            twitterConnected ? "bg-blue-100 dark:bg-blue-900/30" : "bg-zinc-100 dark:bg-zinc-800"
+                            twitterConnected ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-100 dark:bg-zinc-800"
                           }`}>
-                            <Twitter className={`w-6 h-6 ${
-                              twitterConnected ? "text-blue-500" : "text-zinc-400"
+                            <XIcon className={`w-6 h-6 ${
+                              twitterConnected ? "text-white dark:text-zinc-900" : "text-zinc-400"
                             }`} />
                           </div>
                           <div>
                             <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-                              Twitter / X
+                              X
                             </h3>
                             {twitterConnected && twitterUsername ? (
                               <p className="text-sm text-blue-500">@{twitterUsername}</p>
@@ -488,9 +489,9 @@ function SettingsContent() {
                         ) : (
                           <a
                             href="/api/auth/twitter/connect"
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                            className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 flex items-center gap-2"
                           >
-                            <Twitter className="w-4 h-4" />
+                            <XIcon className="w-4 h-4" />
                             Connect
                           </a>
                         )}
@@ -500,7 +501,7 @@ function SettingsContent() {
                         <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
                           <p className="text-sm text-green-700 dark:text-green-300">
                             <Check className="w-4 h-4 inline mr-1" />
-                            Your Twitter account is verified. You can now leave reviews for other users.
+                            Your X account is verified. You can now leave reviews for other users.
                           </p>
                         </div>
                       )}
@@ -508,7 +509,7 @@ function SettingsContent() {
                       {!twitterConnected && (
                         <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                           <p className="text-sm text-amber-700 dark:text-amber-300">
-                            Connect your Twitter account to leave reviews and build your reputation.
+                            Connect your X account to leave reviews and build your reputation.
                           </p>
                         </div>
                       )}
