@@ -32,6 +32,13 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
           noPromptOnSignature: false,
+          // Create Solana embedded wallets, not Ethereum
+          ethereum: {
+            createOnLogin: "off",
+          },
+          solana: {
+            createOnLogin: "users-without-wallets",
+          },
         },
         solanaClusters: [
           {

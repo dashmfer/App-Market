@@ -142,9 +142,12 @@ export async function POST(request: NextRequest) {
     const twitterUsername = privyUser.twitter?.username;
     const twitterId = privyUser.twitter?.subject;
 
-    // Get wallet address from embedded wallet
+    // Get wallet address from Solana embedded wallet (not Ethereum)
     const embeddedWallet = privyUser.linkedAccounts?.find(
-      (account: any) => account.type === "wallet" && account.walletClientType === "privy"
+      (account: any) =>
+        account.type === "wallet" &&
+        account.walletClientType === "privy" &&
+        account.chainType === "solana"
     ) as { address?: string } | undefined;
     const walletAddress = embeddedWallet?.address;
 
