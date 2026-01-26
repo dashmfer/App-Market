@@ -42,7 +42,9 @@ export default function ListingsPage() {
         const response = await fetch(`/api/listings?sellerId=${session.user.id}`);
         if (response.ok) {
           const data = await response.json();
-          setListings(data.listings || []);
+          // Sort listings: Active/Draft/Reserved/Sold at top, Expired/Ended at bottom
+          const sortedListings = sortListings(data.listings || []);
+          setListings(sortedListings);
         } else {
           setError("Failed to load listings");
         }
@@ -55,6 +57,36 @@ export default function ListingsPage() {
 
     fetchListings();
   }, [session, status]);
+
+  // Sort listings: Active at top (newest first), Expired at bottom (newest expired first, oldest last)
+  const sortListings = (listings: Listing[]) => {
+    const now = new Date();
+
+    // Separate active and expired listings
+    const active: Listing[] = [];
+    const expired: Listing[] = [];
+
+    listings.forEach(listing => {
+      const endTime = new Date(listing.endTime);
+      const isExpired = listing.status === "ENDED" ||
+                        listing.status === "EXPIRED" ||
+                        (listing.status === "ACTIVE" && endTime < now);
+
+      if (isExpired) {
+        expired.push(listing);
+      } else {
+        active.push(listing);
+      }
+    });
+
+    // Sort active listings by createdAt (newest first)
+    active.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Sort expired listings by endTime (newest expired first, oldest expired last)
+    expired.sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime());
+
+    return [...active, ...expired];
+  };
 
   const getStatusBadge = (listingStatus: string) => {
     switch (listingStatus) {
