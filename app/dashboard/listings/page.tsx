@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Trash2, Lock } from "lucide-react";
+import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Trash2, Lock, XCircle, CalendarClock } from "lucide-react";
 
 interface Listing {
   id: string;
@@ -93,6 +93,13 @@ export default function ListingsPage() {
             Reserved
           </span>
         );
+      case "EXPIRED":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+            <XCircle className="w-3 h-3" />
+            Expired
+          </span>
+        );
       default:
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
@@ -114,6 +121,24 @@ export default function ListingsPage() {
 
     if (days > 0) return `${days}d ${hours}h remaining`;
     return `${hours}h remaining`;
+  };
+
+  const formatExpirationDate = (endTime: string) => {
+    const end = new Date(endTime);
+    return end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  };
+
+  const isListingExpired = (listing: Listing) => {
+    if (listing.status === "ENDED" || listing.status === "EXPIRED") return true;
+    const end = new Date(listing.endTime);
+    const now = new Date();
+    return end.getTime() < now.getTime();
   };
 
   if (loading) {
@@ -209,9 +234,16 @@ export default function ListingsPage() {
                           {listing._count.bids} bids
                         </span>
                       )}
-                      {listing.status === "ACTIVE" && (
-                        <span className="text-zinc-500">
+                      {listing.status === "ACTIVE" && !isListingExpired(listing) && (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                          <Clock className="w-3.5 h-3.5" />
                           {formatTimeRemaining(listing.endTime)}
+                        </span>
+                      )}
+                      {(listing.status === "ENDED" || listing.status === "EXPIRED" || (listing.status === "ACTIVE" && isListingExpired(listing))) && (
+                        <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+                          <CalendarClock className="w-3.5 h-3.5" />
+                          Expired {formatExpirationDate(listing.endTime)}
                         </span>
                       )}
                     </div>
