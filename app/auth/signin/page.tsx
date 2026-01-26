@@ -91,60 +91,69 @@ function PrivyEnabledButtons({
 }) {
   // Dynamic import to avoid issues when Privy is not configured
   const { useLogin, usePrivy } = require("@privy-io/react-auth");
-  const { getAccessToken } = usePrivy();
+  const { authenticated, ready, getAccessToken, logout } = usePrivy();
   const { signIn } = require("next-auth/react");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // If already authenticated with Privy, complete the auth flow
+  useEffect(() => {
+    if (ready && authenticated && !isProcessing) {
+      completePrivyAuth();
+    }
+  }, [ready, authenticated]);
+
+  const completePrivyAuth = async () => {
+    setIsProcessing(true);
+    try {
+      // Get the Privy access token
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        // If we can't get an access token, log out and let user re-auth
+        await logout();
+        setIsProcessing(false);
+        return;
+      }
+
+      // Call our backend to sync the user
+      const response = await fetch("/api/auth/privy/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to sync user");
+      }
+
+      const data = await response.json();
+
+      // Sign in with NextAuth using the privy credential
+      const result = await signIn("privy", {
+        userId: data.user.id,
+        walletAddress: data.user.walletAddress || "",
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+
+      onAuthComplete();
+    } catch (error: any) {
+      console.error("Privy auth completion error:", error);
+      // Log out of Privy so user can try again
+      await logout();
+      onAuthError(error.message || "Authentication failed. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const { login } = useLogin({
     onComplete: async (user: any, isNewUser: boolean, wasAlreadyAuthenticated: boolean) => {
       // After Privy authentication completes, sync with our backend
-      if (wasAlreadyAuthenticated) {
-        // User was already logged in with Privy, just redirect
-        onAuthComplete();
-        return;
-      }
-
-      setIsProcessing(true);
-      try {
-        // Get the Privy access token
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-          throw new Error("Failed to get access token");
-        }
-
-        // Call our backend to sync the user
-        const response = await fetch("/api/auth/privy/callback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to sync user");
-        }
-
-        const data = await response.json();
-
-        // Sign in with NextAuth using the privy credential
-        // This creates a proper NextAuth session
-        const result = await signIn("privy", {
-          userId: data.user.id,
-          walletAddress: data.user.walletAddress || "",
-          redirect: false,
-        });
-
-        if (result?.error) {
-          throw new Error(result.error);
-        }
-
-        onAuthComplete();
-      } catch (error: any) {
-        console.error("Privy auth completion error:", error);
-        onAuthError(error.message || "Authentication failed");
-      } finally {
-        setIsProcessing(false);
-      }
+      await completePrivyAuth();
     },
     onError: (error: any) => {
       console.error("Privy login error:", error);
