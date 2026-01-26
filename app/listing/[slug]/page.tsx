@@ -257,6 +257,33 @@ export default function ListingPage() {
     }
   }, [slug]);
 
+  // Handler for responding to collaboration invites
+  const handleInviteRespond = async (collaboratorId: string, action: "accept" | "decline") => {
+    try {
+      const response = await fetch(`/api/collaborators/${collaboratorId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `Failed to ${action} invite`);
+      }
+
+      // Refresh collaborators after response
+      const collabResponse = await fetch(`/api/listings/${slug}/collaborators`);
+      if (collabResponse.ok) {
+        const collabData = await collabResponse.json();
+        setCollaborators(collabData.collaborators || []);
+        setSellerPercentage(collabData.seller?.percentage || 100);
+      }
+    } catch (err) {
+      console.error(`Error ${action}ing invite:`, err);
+      throw err;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -660,6 +687,9 @@ export default function ListingPage() {
                     }}
                     collaborators={collaborators}
                     sellerPercentage={sellerPercentage}
+                    currentUserId={session?.user?.id}
+                    currentUserWallet={session?.user?.walletAddress}
+                    onInviteRespond={handleInviteRespond}
                   />
                 </div>
               )}
