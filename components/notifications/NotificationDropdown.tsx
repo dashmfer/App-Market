@@ -53,6 +53,8 @@ function NotificationItem({
   const listingSlug = notification.data?.listingSlug || (notification.data as any)?.slug;
   const listingId = notification.data?.listingId;
   const conversationId = notification.data?.conversationId;
+  const collaboratorId = notification.data?.collaboratorId;
+  const partnerId = notification.data?.partnerId;
 
   let href = "/dashboard/notifications";
   if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
@@ -60,6 +62,12 @@ function NotificationItem({
   } else if (notification.type === "LISTING_RESERVED" || notification.type === "OFFER_ACCEPTED") {
     // Direct reserved/offer accepted notifications to the purchases page
     href = "/dashboard/purchases";
+  } else if (notification.type === "COLLABORATION_INVITE" && collaboratorId) {
+    // Direct collaboration invites to the invite page
+    href = `/invite/collaborator/${collaboratorId}`;
+  } else if (notification.type === "PURCHASE_PARTNER_INVITE" && partnerId) {
+    // Direct purchase partner invites to the partner invite page
+    href = `/invite/partner/${partnerId}`;
   } else if (listingSlug) {
     href = `/listing/${listingSlug}`;
   }
