@@ -119,23 +119,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the Privy token
-    const claims = await verifyPrivyToken(accessToken);
-    if (!claims) {
+    // Check if Privy is configured
+    if (!process.env.PRIVY_APP_SECRET) {
+      console.error("[Privy Callback] PRIVY_APP_SECRET not configured");
       return NextResponse.json(
-        { error: "Invalid access token" },
-        { status: 401 }
-      );
-    }
-
-    // Get full user data from Privy
-    const privyUser = await getPrivyUser(claims.userId);
-    if (!privyUser) {
-      return NextResponse.json(
-        { error: "Failed to get user data" },
+        { error: "Privy server not configured. Please contact support." },
         { status: 500 }
       );
     }
+
+    // Verify the Privy token
+    console.log("[Privy Callback] Verifying token...");
+    const claims = await verifyPrivyToken(accessToken);
+    if (!claims) {
+      console.error("[Privy Callback] Token verification failed");
+      return NextResponse.json(
+        { error: "Invalid or expired access token. Please try signing in again." },
+        { status: 401 }
+      );
+    }
+    console.log("[Privy Callback] Token verified, userId:", claims.userId);
+
+    // Get full user data from Privy
+    console.log("[Privy Callback] Fetching user data...");
+    const privyUser = await getPrivyUser(claims.userId);
+    if (!privyUser) {
+      console.error("[Privy Callback] Failed to fetch user from Privy");
+      return NextResponse.json(
+        { error: "Failed to get user data from Privy. Please try again." },
+        { status: 500 }
+      );
+    }
+    console.log("[Privy Callback] User data fetched, email:", privyUser.email?.address);
 
     // Extract relevant data
     const email = privyUser.email?.address;
