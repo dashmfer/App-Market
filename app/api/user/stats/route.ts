@@ -36,17 +36,21 @@ export async function GET() {
       // Count active listings (owned or as accepted collaborator, not expired)
       prisma.listing.count({
         where: {
-          status: "ACTIVE",
-          endTime: { gt: new Date() }, // Only listings that haven't expired
-          OR: [
-            { sellerId: userId },
+          AND: [
+            { status: "ACTIVE" },
+            { endTime: { gt: new Date() } },
             {
-              collaborators: {
-                some: {
-                  userId: userId,
-                  status: "ACCEPTED",
+              OR: [
+                { sellerId: userId },
+                {
+                  collaborators: {
+                    some: {
+                      userId: userId,
+                      status: "ACCEPTED",
+                    },
+                  },
                 },
-              },
+              ],
             },
           ],
         },
@@ -81,17 +85,21 @@ export async function GET() {
       // Active listings with bid info (owned or as accepted collaborator, not expired)
       prisma.listing.findMany({
         where: {
-          status: "ACTIVE",
-          endTime: { gt: new Date() }, // Only listings that haven't expired
-          OR: [
-            { sellerId: userId },
+          AND: [
+            { status: "ACTIVE" },
+            { endTime: { gt: new Date() } },
             {
-              collaborators: {
-                some: {
-                  userId: userId,
-                  status: "ACCEPTED",
+              OR: [
+                { sellerId: userId },
+                {
+                  collaborators: {
+                    some: {
+                      userId: userId,
+                      status: "ACCEPTED",
+                    },
+                  },
                 },
-              },
+              ],
             },
           ],
         },
