@@ -1,6 +1,110 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { verifyPrivyToken, getPrivyUser } from "@/lib/privy";
+import { createNotification } from "@/lib/notifications";
+
+/**
+ * Link pending invites to a user when they connect a wallet
+ * This handles both collaborator invites and purchase partner invites
+ */
+async function linkPendingInvitesToUser(userId: string, walletAddress: string) {
+  const normalizedWallet = walletAddress.toLowerCase();
+
+  // Find and link pending collaborator invites
+  const pendingCollaboratorInvites = await prisma.listingCollaborator.findMany({
+    where: {
+      walletAddress: { equals: normalizedWallet, mode: "insensitive" },
+      status: "PENDING",
+      userId: null, // Not yet linked to a user
+    },
+    include: {
+      listing: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+        },
+      },
+    },
+  });
+
+  // Link collaborator invites and send notifications
+  for (const invite of pendingCollaboratorInvites) {
+    await prisma.listingCollaborator.update({
+      where: { id: invite.id },
+      data: { userId },
+    });
+
+    // Send notification about the pending invite
+    await createNotification({
+      userId,
+      type: "COLLABORATION_INVITE",
+      title: "Collaboration Invite",
+      message: `You have a pending invite as a ${invite.role.toLowerCase()} on "${invite.listing.title}" with ${invite.percentage}% revenue share`,
+      data: {
+        listingId: invite.listing.id,
+        listingSlug: invite.listing.slug,
+        listingTitle: invite.listing.title,
+        collaboratorId: invite.id,
+        role: invite.role,
+        percentage: invite.percentage,
+      },
+    });
+  }
+
+  // Find and link pending purchase partner invites
+  const pendingPartnerInvites = await prisma.transactionPartner.findMany({
+    where: {
+      walletAddress: { equals: normalizedWallet, mode: "insensitive" },
+      depositStatus: "PENDING",
+      userId: null, // Not yet linked to a user
+    },
+    include: {
+      transaction: {
+        select: {
+          id: true,
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // Link partner invites and send notifications
+  for (const invite of pendingPartnerInvites) {
+    await prisma.transactionPartner.update({
+      where: { id: invite.id },
+      data: { userId },
+    });
+
+    // Send notification about the pending partner invite
+    await createNotification({
+      userId,
+      type: "PURCHASE_PARTNER_INVITE",
+      title: "Purchase Partner Invite",
+      message: `You have a pending invite to co-purchase "${invite.transaction.listing.title}" with ${invite.percentage}% share (${invite.depositAmount} SOL)`,
+      data: {
+        listingId: invite.transaction.listing.id,
+        listingSlug: invite.transaction.listing.slug,
+        listingTitle: invite.transaction.listing.title,
+        partnerId: invite.id,
+        transactionId: invite.transactionId,
+        percentage: invite.percentage,
+        depositAmount: invite.depositAmount,
+      },
+    });
+  }
+
+  return {
+    collaboratorInvitesLinked: pendingCollaboratorInvites.length,
+    partnerInvitesLinked: pendingPartnerInvites.length,
+  };
+}
 
 // POST /api/auth/privy/callback
 // Called after Privy authentication to sync user with our database
@@ -146,6 +250,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check for and link any pending invites to this wallet
+    // This handles the case where someone was invited before creating an account
+    let invitesLinked = { collaboratorInvitesLinked: 0, partnerInvitesLinked: 0 };
+    if (walletAddress) {
+      invitesLinked = await linkPendingInvitesToUser(user.id, walletAddress);
+    }
+
     return NextResponse.json({
       success: true,
       user: {
@@ -154,6 +265,7 @@ export async function POST(request: NextRequest) {
         username: user.username,
         walletAddress: user.walletAddress,
       },
+      invitesLinked,
     });
   } catch (error) {
     console.error("Privy callback error:", error);
