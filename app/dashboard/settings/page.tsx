@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Loader2, Plus, Key, CreditCard, Copy } from "lucide-react";
+import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Loader2, Plus, Key, CreditCard, Copy, Mail } from "lucide-react";
 import { XIcon } from "@/components/icons/XIcon";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -35,6 +35,8 @@ function SettingsContent() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [email, setEmail] = useState<string | null>(null);
+  const [userWalletAddress, setUserWalletAddress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Twitter connection state
@@ -108,6 +110,8 @@ function SettingsContent() {
             setDisplayName(data.displayName || data.name || "");
             setUsername(data.username || "");
             setBio(data.bio || "");
+            setEmail(data.email || null);
+            setUserWalletAddress(data.walletAddress || null);
             // Twitter connection status
             setTwitterConnected(data.twitterVerified || false);
             setTwitterUsername(data.twitterUsername || null);
@@ -392,6 +396,55 @@ function SettingsContent() {
                             </p>
                           )}
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Account Info Card */}
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
+                      <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Account Information</h3>
+                      <div className="space-y-3">
+                        {/* Email */}
+                        {email && (
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                              <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-zinc-500">Email</p>
+                              <p className="text-sm text-zinc-900 dark:text-zinc-100">{email}</p>
+                            </div>
+                          </div>
+                        )}
+                        {/* Signup Method */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            {email ? (
+                              <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            ) : twitterUsername ? (
+                              <XIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            ) : (
+                              <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs text-zinc-500">Signed up with</p>
+                            <p className="text-sm text-zinc-900 dark:text-zinc-100">
+                              {email ? "Email" : twitterUsername ? "X (Twitter)" : "Wallet"}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Connected Twitter (if signed up with email but has Twitter connected) */}
+                        {email && twitterUsername && (
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center">
+                              <XIcon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-zinc-500">Connected X</p>
+                              <p className="text-sm text-zinc-900 dark:text-zinc-100">@{twitterUsername}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
