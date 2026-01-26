@@ -13,6 +13,9 @@ import {
   ChevronUp,
   Clock,
   Percent,
+  Loader2,
+  Check,
+  X,
 } from "lucide-react";
 
 interface CollaboratorUser {
@@ -54,6 +57,9 @@ interface CollaboratorDisplayProps {
   collaborators: Collaborator[];
   sellerPercentage: number;
   compact?: boolean;
+  currentUserId?: string | null;
+  currentUserWallet?: string | null;
+  onInviteRespond?: (collaboratorId: string, action: "accept" | "decline") => Promise<void>;
 }
 
 // Role description labels
@@ -78,8 +84,30 @@ export function CollaboratorDisplay({
   collaborators,
   sellerPercentage,
   compact = false,
+  currentUserId,
+  currentUserWallet,
+  onInviteRespond,
 }: CollaboratorDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(!compact);
+  const [respondingTo, setRespondingTo] = useState<string | null>(null);
+
+  // Check if a collaborator is the current user
+  const isCurrentUserCollaborator = (collab: Collaborator) => {
+    if (currentUserId && collab.user?.id === currentUserId) return true;
+    if (currentUserWallet && collab.walletAddress.toLowerCase() === currentUserWallet.toLowerCase()) return true;
+    return false;
+  };
+
+  // Handle respond to invite
+  const handleRespond = async (collaboratorId: string, action: "accept" | "decline") => {
+    if (!onInviteRespond) return;
+    setRespondingTo(collaboratorId);
+    try {
+      await onInviteRespond(collaboratorId, action);
+    } finally {
+      setRespondingTo(null);
+    }
+  };
 
   // Get display name for a user
   const getDisplayName = (user: CollaboratorUser | Seller | null, walletAddress?: string) => {
@@ -265,18 +293,25 @@ export function CollaboratorDisplay({
               />
 
               {/* Pending Collaborators - shown right after owner in yellow */}
-              {pendingCollaborators.map((collab) => (
-                <TeamMemberRow
-                  key={collab.id}
-                  user={collab.user}
-                  walletAddress={collab.walletAddress}
-                  role={collab.role}
-                  roleLabel={getRoleLabel(collab.roleDescription, collab.customRoleDescription)}
-                  percentage={collab.percentage}
-                  isPending
-                  profileLink={collab.user ? getProfileLink(collab.user) : null}
-                />
-              ))}
+              {pendingCollaborators.map((collab) => {
+                const isCurrentUser = isCurrentUserCollaborator(collab);
+                return (
+                  <TeamMemberRow
+                    key={collab.id}
+                    collaboratorId={collab.id}
+                    user={collab.user}
+                    walletAddress={collab.walletAddress}
+                    role={collab.role}
+                    roleLabel={getRoleLabel(collab.roleDescription, collab.customRoleDescription)}
+                    percentage={collab.percentage}
+                    isPending
+                    isCurrentUser={isCurrentUser}
+                    isResponding={respondingTo === collab.id}
+                    onRespond={isCurrentUser && onInviteRespond ? handleRespond : undefined}
+                    profileLink={collab.user ? getProfileLink(collab.user) : null}
+                  />
+                );
+              })}
 
               {/* Accepted Collaborators */}
               {acceptedCollaborators.map((collab) => (
@@ -300,6 +335,7 @@ export function CollaboratorDisplay({
 
 // Team member row component
 function TeamMemberRow({
+  collaboratorId,
   user,
   walletAddress,
   role,
@@ -307,8 +343,12 @@ function TeamMemberRow({
   percentage,
   isOwner = false,
   isPending = false,
+  isCurrentUser = false,
+  isResponding = false,
+  onRespond,
   profileLink,
 }: {
+  collaboratorId?: string;
   user: CollaboratorUser | Seller | null;
   walletAddress?: string;
   role: "OWNER" | "PARTNER" | "COLLABORATOR";
@@ -316,6 +356,9 @@ function TeamMemberRow({
   percentage: number;
   isOwner?: boolean;
   isPending?: boolean;
+  isCurrentUser?: boolean;
+  isResponding?: boolean;
+  onRespond?: (collaboratorId: string, action: "accept" | "decline") => void;
   profileLink: string | null;
 }) {
   const displayName = user?.displayName || user?.username || user?.name ||
@@ -379,7 +422,7 @@ function TeamMemberRow({
 
   const content = (
     <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
-      profileLink ? "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer" : ""
+      profileLink && !isCurrentUser ? "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer" : ""
     } ${getBackgroundClass()}`}>
       {/* Avatar */}
       {user?.image ? (
@@ -407,10 +450,15 @@ function TeamMemberRow({
           {user?.isVerified && (
             <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
           )}
-          {isPending && (
+          {isPending && !isCurrentUser && (
             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
               <Clock className="w-3 h-3" />
               Pending
+            </span>
+          )}
+          {isPending && isCurrentUser && (
+            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+              (You)
             </span>
           )}
         </div>
@@ -428,15 +476,52 @@ function TeamMemberRow({
         </div>
       </div>
 
-      {/* Percentage */}
-      <div className={`flex items-center gap-1 text-sm font-semibold ${getPercentageClass()}`}>
-        {percentage}
-        <Percent className="w-3.5 h-3.5" />
-      </div>
+      {/* Accept/Decline buttons for current user's pending invite */}
+      {isPending && isCurrentUser && onRespond && collaboratorId && (
+        <div className="flex items-center gap-2">
+          {isResponding ? (
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+          ) : (
+            <>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRespond(collaboratorId, "decline");
+                }}
+                className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                title="Decline invite"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onRespond(collaboratorId, "accept");
+                }}
+                className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                title="Accept invite"
+              >
+                <Check className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Percentage - hide when showing action buttons */}
+      {!(isPending && isCurrentUser && onRespond) && (
+        <div className={`flex items-center gap-1 text-sm font-semibold ${getPercentageClass()}`}>
+          {percentage}
+          <Percent className="w-3.5 h-3.5" />
+        </div>
+      )}
     </div>
   );
 
-  if (profileLink) {
+  // Don't wrap in Link if this is the current user's pending invite with action buttons
+  if (profileLink && !(isPending && isCurrentUser && onRespond)) {
     return <Link href={profileLink}>{content}</Link>;
   }
 
