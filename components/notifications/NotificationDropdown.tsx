@@ -62,9 +62,9 @@ function NotificationItem({
   } else if (notification.type === "LISTING_RESERVED" || notification.type === "OFFER_ACCEPTED") {
     // Direct reserved/offer accepted notifications to the purchases page
     href = "/dashboard/purchases";
-  } else if (notification.type === "COLLABORATION_INVITE" && collaboratorId) {
-    // Direct collaboration invites to the invite page
-    href = `/invite/collaborator/${collaboratorId}`;
+  } else if (notification.type === "COLLABORATION_INVITE" && listingSlug) {
+    // Direct collaboration invites to the listing page (which has accept/decline buttons)
+    href = `/listing/${listingSlug}`;
   } else if (notification.type === "PURCHASE_PARTNER_INVITE" && partnerId) {
     // Direct purchase partner invites to the partner invite page
     href = `/invite/partner/${partnerId}`;

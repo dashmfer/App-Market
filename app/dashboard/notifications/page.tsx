@@ -72,9 +72,9 @@ function NotificationCard({
   let href = "#";
   if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
-  } else if (notification.type === "COLLABORATION_INVITE" && collaboratorId) {
-    // Direct collaboration invites to the invite page
-    href = `/invite/collaborator/${collaboratorId}`;
+  } else if (notification.type === "COLLABORATION_INVITE" && listingSlug) {
+    // Direct collaboration invites to the listing page (which has accept/decline buttons)
+    href = `/listing/${listingSlug}`;
   } else if (notification.type === "PURCHASE_PARTNER_INVITE" && partnerId) {
     // Direct purchase partner invites to the partner invite page
     href = `/invite/partner/${partnerId}`;
