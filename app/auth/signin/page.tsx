@@ -91,9 +91,19 @@ function PrivyEnabledButtons({
 }) {
   // Dynamic import to avoid issues when Privy is not configured
   const { useLogin, usePrivy } = require("@privy-io/react-auth");
-  const { authenticated, ready, getAccessToken, logout } = usePrivy();
+  const { authenticated, ready, getAccessToken, logout, user: privyUser } = usePrivy();
   const { signIn } = require("next-auth/react");
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Try to get Solana wallet creation hook
+  let createSolanaWallet: (() => Promise<any>) | null = null;
+  try {
+    const { useSolanaWallets } = require("@privy-io/react-auth/solana");
+    const solanaWallets = useSolanaWallets();
+    createSolanaWallet = solanaWallets?.createWallet;
+  } catch (e) {
+    console.log("Solana wallet hook not available");
+  }
 
   // If already authenticated with Privy, complete the auth flow
   useEffect(() => {
@@ -114,11 +124,35 @@ function PrivyEnabledButtons({
         return;
       }
 
+      // Check if user has a Solana wallet, if not create one
+      const hasSolanaWallet = privyUser?.linkedAccounts?.some(
+        (account: any) =>
+          account.type === "wallet" &&
+          account.walletClientType === "privy" &&
+          (account.chainType === "solana" || !account.address?.startsWith("0x"))
+      );
+
+      if (!hasSolanaWallet && createSolanaWallet) {
+        console.log("[Signin] No Solana wallet found, creating one...");
+        try {
+          const newWallet = await createSolanaWallet();
+          console.log("[Signin] Created Solana wallet:", newWallet?.address);
+          // Wait a moment for wallet to be reflected in user data
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        } catch (walletError: any) {
+          console.error("[Signin] Failed to create Solana wallet:", walletError);
+          // Continue anyway - backend will handle missing wallet
+        }
+      }
+
+      // Get fresh access token after wallet creation
+      const freshAccessToken = await getAccessToken();
+
       // Call our backend to sync the user
       const response = await fetch("/api/auth/privy/callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken }),
+        body: JSON.stringify({ accessToken: freshAccessToken || accessToken }),
       });
 
       if (!response.ok) {
