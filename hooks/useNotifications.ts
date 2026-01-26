@@ -18,6 +18,14 @@ export interface Notification {
     conversationId?: string;
     senderId?: string;
     messagePreview?: string;
+    // Collaboration invite data
+    collaboratorId?: string;
+    role?: string;
+    percentage?: number;
+    // Purchase partner invite data
+    partnerId?: string;
+    transactionId?: string;
+    depositAmount?: number;
   };
 }
 
