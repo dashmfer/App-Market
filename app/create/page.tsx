@@ -1601,10 +1601,25 @@ export default function CreateListingPage() {
                       </label>
 
                       {formData.enableBuyNow && (
-                        <div className="ml-8 max-w-xs">
-                          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Buy Now Price ({formData.currency})</label>
-                          <input type="number" value={formData.buyNowPrice} onChange={(e) => updateFormData("buyNowPrice", e.target.value)} placeholder="0.00" step="0.01" className={`input-field ${errors.buyNowPrice ? "border-red-500" : ""}`} />
-                          {errors.buyNowPrice && <p className="mt-1 text-sm text-red-500">{errors.buyNowPrice}</p>}
+                        <div className="ml-8 grid md:grid-cols-2 gap-4 max-w-lg">
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Buy Now Price ({formData.currency})</label>
+                            <input type="number" value={formData.buyNowPrice} onChange={(e) => updateFormData("buyNowPrice", e.target.value)} placeholder="0.00" step="0.01" className={`input-field ${errors.buyNowPrice ? "border-red-500" : ""}`} />
+                            {errors.buyNowPrice && <p className="mt-1 text-sm text-red-500">{errors.buyNowPrice}</p>}
+                          </div>
+                          {!formData.enableAuction && (
+                            <div>
+                              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Listing Duration</label>
+                              <select value={formData.duration} onChange={(e) => updateFormData("duration", e.target.value)} className="input-field">
+                                <option value="1">1 day</option>
+                                <option value="3">3 days</option>
+                                <option value="5">5 days</option>
+                                <option value="7">7 days</option>
+                                <option value="14">14 days</option>
+                                <option value="30">30 days</option>
+                              </select>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
