@@ -199,11 +199,31 @@ export async function POST(
       );
     }
 
-    // Check if the wallet belongs to a registered user
-    const collaboratorUser = await prisma.user.findUnique({
-      where: { walletAddress },
+    // Check if the wallet belongs to a registered user (check both primary wallet and UserWallet table)
+    const normalizedWallet = walletAddress.toLowerCase();
+
+    // First check primary wallet on User model
+    let collaboratorUser = await prisma.user.findFirst({
+      where: {
+        walletAddress: { equals: normalizedWallet, mode: "insensitive" },
+      },
       select: { id: true, username: true, displayName: true, name: true },
     });
+
+    // If not found, check UserWallet table for linked wallets
+    if (!collaboratorUser) {
+      const linkedWallet = await prisma.userWallet.findFirst({
+        where: {
+          walletAddress: { equals: normalizedWallet, mode: "insensitive" },
+        },
+        select: {
+          user: {
+            select: { id: true, username: true, displayName: true, name: true },
+          },
+        },
+      });
+      collaboratorUser = linkedWallet?.user || null;
+    }
 
     // Create the collaborator
     const collaborator = await prisma.listingCollaborator.create({

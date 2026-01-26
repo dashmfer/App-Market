@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET - Get purchase partners for a sold listing
+// GET - Get purchase partners for a listing with partners
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includePending = searchParams.get("includePending") === "true";
+
     // Find the listing by slug
     const listing = await prisma.listing.findUnique({
       where: { slug: params.slug },
@@ -16,9 +19,12 @@ export async function GET(
         transaction: {
           select: {
             id: true,
+            status: true,
             hasPartners: true,
+            partnerDepositDeadline: true,
             partners: {
-              where: { depositStatus: "DEPOSITED" },
+              // Include all partners if includePending, otherwise only deposited
+              where: includePending ? {} : { depositStatus: "DEPOSITED" },
               include: {
                 user: {
                   select: {
@@ -27,11 +33,13 @@ export async function GET(
                     displayName: true,
                     name: true,
                     image: true,
+                    isVerified: true,
                   },
                 },
               },
               orderBy: [
                 { isLead: "desc" },
+                { depositStatus: "asc" }, // DEPOSITED before PENDING
                 { percentage: "desc" },
               ],
             },
@@ -44,8 +52,9 @@ export async function GET(
       return NextResponse.json({ error: "Listing not found" }, { status: 404 });
     }
 
-    // Only return partners for sold listings
-    if (listing.status !== "SOLD") {
+    // For sold listings or active transactions with partners
+    const validStatuses = ["SOLD", "ACTIVE", "PENDING"];
+    if (!validStatuses.includes(listing.status) && !listing.transaction?.hasPartners) {
       return NextResponse.json({ partners: [] });
     }
 
@@ -54,22 +63,42 @@ export async function GET(
       return NextResponse.json({ partners: [] });
     }
 
-    // Format partners for response
+    // Format partners for response with deposit status
     const partners = listing.transaction.partners.map(p => ({
       id: p.id,
       walletAddress: `${p.walletAddress.slice(0, 4)}...${p.walletAddress.slice(-4)}`,
       percentage: p.percentage,
       isLead: p.isLead,
+      depositStatus: p.depositStatus,
+      depositAmount: p.depositAmount,
       user: p.user ? {
         id: p.user.id,
         username: p.user.username,
         displayName: p.user.displayName,
         name: p.user.name,
         image: p.user.image,
+        isVerified: p.user.isVerified,
       } : null,
     }));
 
-    return NextResponse.json({ partners });
+    // Calculate stats
+    const depositedCount = partners.filter(p => p.depositStatus === "DEPOSITED").length;
+    const pendingCount = partners.filter(p => p.depositStatus === "PENDING").length;
+    const totalPercentageDeposited = partners
+      .filter(p => p.depositStatus === "DEPOSITED")
+      .reduce((sum, p) => sum + p.percentage, 0);
+
+    return NextResponse.json({
+      partners,
+      stats: {
+        totalPartners: partners.length,
+        depositedCount,
+        pendingCount,
+        totalPercentageDeposited,
+        depositDeadline: listing.transaction.partnerDepositDeadline,
+        transactionStatus: listing.transaction.status,
+      },
+    });
   } catch (error) {
     console.error("Error fetching purchase partners:", error);
     return NextResponse.json(

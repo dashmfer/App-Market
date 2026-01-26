@@ -12,23 +12,43 @@ export async function GET(request: NextRequest) {
 
     const userId = token.id as string;
 
-    // Get the user's wallet address
+    // Get the user's primary wallet and all linked wallets (multi-wallet support)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { walletAddress: true },
+      select: {
+        walletAddress: true,
+        wallets: {
+          select: { walletAddress: true },
+        },
+      },
     });
 
-    if (!user?.walletAddress) {
-      return NextResponse.json({ invites: [], count: 0 });
+    // Collect all wallet addresses (primary + linked wallets)
+    const allWallets: string[] = [];
+    if (user?.walletAddress) {
+      allWallets.push(user.walletAddress.toLowerCase());
+    }
+    if (user?.wallets) {
+      user.wallets.forEach(w => {
+        const normalized = w.walletAddress.toLowerCase();
+        if (!allWallets.includes(normalized)) {
+          allWallets.push(normalized);
+        }
+      });
     }
 
-    // Find all pending invites for this user (by userId or wallet address)
+    // Build OR conditions for wallet matching (case-insensitive)
+    const walletConditions = allWallets.map(wallet => ({
+      walletAddress: { equals: wallet, mode: "insensitive" as const },
+    }));
+
+    // Find all pending invites for this user (by userId or any of their wallet addresses)
     const invites = await prisma.listingCollaborator.findMany({
       where: {
         status: "PENDING",
         OR: [
           { userId },
-          { walletAddress: user.walletAddress },
+          ...walletConditions,
         ],
       },
       include: {
