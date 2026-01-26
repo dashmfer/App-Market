@@ -50,9 +50,12 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
             },
           },
         }),
-        // Embedded wallet creation - will create Solana wallets due to walletChainType
+        // Embedded wallet creation - use nested solana config for v3.0+
+        // This explicitly creates Solana wallets instead of Ethereum
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
+          solana: {
+            createOnLogin: "users-without-wallets",
+          },
           noPromptOnSignature: false,
         },
         solanaClusters: [
