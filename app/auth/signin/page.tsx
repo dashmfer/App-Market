@@ -143,8 +143,14 @@ function PrivyEnabledButtons({
     } catch (error: any) {
       console.error("Privy auth completion error:", error);
       // Log out of Privy so user can try again
-      await logout();
-      onAuthError(error.message || "Authentication failed. Please try again.");
+      try {
+        await logout();
+      } catch (logoutError) {
+        console.error("Failed to logout from Privy:", logoutError);
+      }
+      // Show the specific error message
+      const errorMessage = error.message || "Authentication failed";
+      onAuthError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
