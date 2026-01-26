@@ -107,7 +107,8 @@ export function CollaboratorDisplay({
 
   // Filter to only show accepted collaborators on listing page
   const acceptedCollaborators = collaborators.filter(c => c.status === "ACCEPTED");
-  const pendingCount = collaborators.filter(c => c.status === "PENDING").length;
+  const pendingCollaborators = collaborators.filter(c => c.status === "PENDING");
+  const pendingCount = pendingCollaborators.length;
 
   // If no collaborators, don't show anything
   if (acceptedCollaborators.length === 0 && pendingCount === 0) {
@@ -233,6 +234,14 @@ export function CollaboratorDisplay({
                   style={{ width: `${sellerPercentage}%` }}
                   title={`Owner: ${sellerPercentage}%`}
                 />
+                {pendingCollaborators.map((collab) => (
+                  <div
+                    key={collab.id}
+                    className="bg-amber-400 transition-all duration-300"
+                    style={{ width: `${collab.percentage}%` }}
+                    title={`${getDisplayName(collab.user, collab.walletAddress)} (Pending): ${collab.percentage}%`}
+                  />
+                ))}
                 {acceptedCollaborators.map((collab) => (
                   <div
                     key={collab.id}
@@ -255,6 +264,20 @@ export function CollaboratorDisplay({
                 profileLink={getProfileLink(seller)}
               />
 
+              {/* Pending Collaborators - shown right after owner in yellow */}
+              {pendingCollaborators.map((collab) => (
+                <TeamMemberRow
+                  key={collab.id}
+                  user={collab.user}
+                  walletAddress={collab.walletAddress}
+                  role={collab.role}
+                  roleLabel={getRoleLabel(collab.roleDescription, collab.customRoleDescription)}
+                  percentage={collab.percentage}
+                  isPending
+                  profileLink={collab.user ? getProfileLink(collab.user) : null}
+                />
+              ))}
+
               {/* Accepted Collaborators */}
               {acceptedCollaborators.map((collab) => (
                 <TeamMemberRow
@@ -267,16 +290,6 @@ export function CollaboratorDisplay({
                   profileLink={collab.user ? getProfileLink(collab.user) : null}
                 />
               ))}
-
-              {/* Pending indicator */}
-              {pendingCount > 0 && (
-                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                  <p className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    {pendingCount} team member{pendingCount !== 1 ? "s" : ""} pending approval
-                  </p>
-                </div>
-              )}
             </div>
           </motion.div>
         )}
@@ -293,6 +306,7 @@ function TeamMemberRow({
   roleLabel,
   percentage,
   isOwner = false,
+  isPending = false,
   profileLink,
 }: {
   user: CollaboratorUser | Seller | null;
@@ -301,21 +315,72 @@ function TeamMemberRow({
   roleLabel: string;
   percentage: number;
   isOwner?: boolean;
+  isPending?: boolean;
   profileLink: string | null;
 }) {
   const displayName = user?.displayName || user?.username || user?.name ||
     (walletAddress ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : "Unknown");
 
+  // Get background color class based on status
+  const getBackgroundClass = () => {
+    if (isPending) {
+      return "bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30";
+    }
+    if (isOwner) {
+      return "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30";
+    }
+    if (role === "PARTNER") {
+      return "bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30";
+    }
+    return "bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/30";
+  };
+
+  // Get avatar gradient class based on status
+  const getAvatarGradientClass = () => {
+    if (isPending) {
+      return "bg-gradient-to-br from-amber-400 to-yellow-500";
+    }
+    if (isOwner) {
+      return "bg-gradient-to-br from-green-400 to-emerald-500";
+    }
+    if (role === "PARTNER") {
+      return "bg-gradient-to-br from-blue-400 to-blue-500";
+    }
+    return "bg-gradient-to-br from-purple-400 to-purple-500";
+  };
+
+  // Get badge color class based on status
+  const getBadgeClass = () => {
+    if (isPending) {
+      return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+    }
+    if (isOwner) {
+      return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400";
+    }
+    if (role === "PARTNER") {
+      return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400";
+    }
+    return "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400";
+  };
+
+  // Get percentage color class based on status
+  const getPercentageClass = () => {
+    if (isPending) {
+      return "text-amber-600 dark:text-amber-400";
+    }
+    if (isOwner) {
+      return "text-green-600 dark:text-green-400";
+    }
+    if (role === "PARTNER") {
+      return "text-blue-600 dark:text-blue-400";
+    }
+    return "text-purple-600 dark:text-purple-400";
+  };
+
   const content = (
     <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
       profileLink ? "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer" : ""
-    } ${
-      isOwner
-        ? "bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30"
-        : role === "PARTNER"
-        ? "bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/30"
-        : "bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/30"
-    }`}>
+    } ${getBackgroundClass()}`}>
       {/* Avatar */}
       {user?.image ? (
         <Image
@@ -326,13 +391,7 @@ function TeamMemberRow({
           className="w-10 h-10 rounded-full object-cover"
         />
       ) : (
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          isOwner
-            ? "bg-gradient-to-br from-green-400 to-emerald-500"
-            : role === "PARTNER"
-            ? "bg-gradient-to-br from-blue-400 to-blue-500"
-            : "bg-gradient-to-br from-purple-400 to-purple-500"
-        }`}>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getAvatarGradientClass()}`}>
           <span className="text-sm font-medium text-white">
             {displayName[0].toUpperCase()}
           </span>
@@ -348,15 +407,15 @@ function TeamMemberRow({
           {user?.isVerified && (
             <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
           )}
+          {isPending && (
+            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <Clock className="w-3 h-3" />
+              Pending
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            isOwner
-              ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-              : role === "PARTNER"
-              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-              : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
-          }`}>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${getBadgeClass()}`}>
             {isOwner ? (
               <Crown className="w-3 h-3 inline mr-1" />
             ) : role === "PARTNER" ? (
@@ -370,13 +429,7 @@ function TeamMemberRow({
       </div>
 
       {/* Percentage */}
-      <div className={`flex items-center gap-1 text-sm font-semibold ${
-        isOwner
-          ? "text-green-600 dark:text-green-400"
-          : role === "PARTNER"
-          ? "text-blue-600 dark:text-blue-400"
-          : "text-purple-600 dark:text-purple-400"
-      }`}>
+      <div className={`flex items-center gap-1 text-sm font-semibold ${getPercentageClass()}`}>
         {percentage}
         <Percent className="w-3.5 h-3.5" />
       </div>
