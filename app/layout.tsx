@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://www.appmrkt.xyz/og-image.png?v=1",
+        url: "https://i.imgur.com/wF56zDW.png",
         width: 1200,
         height: 630,
         alt: "App Market - Buy & Sell Apps",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "App Market",
     description: "Buy & Sell Apps, MVPs, and Prototypes. Secure on-chain escrow and transfers.",
     images: {
-      url: "https://www.appmrkt.xyz/og-image.png?v=2",
+      url: "https://i.imgur.com/wF56zDW.png",
       type: "image/png",
       width: 1200,
       height: 630,
