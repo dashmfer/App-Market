@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { useSession, signIn } from "next-auth/react";
 import {
   Users,
   Crown,
@@ -64,7 +64,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function CollaboratorInvitePage() {
   const params = useParams();
   const router = useRouter();
-  const { ready, authenticated, login, user } = usePrivy();
+  const { data: session, status: authStatus } = useSession();
 
   const [invite, setInvite] = useState<CollaboratorInvite | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,9 +74,16 @@ export default function CollaboratorInvitePage() {
 
   const collaboratorId = params.id as string;
 
-  // Fetch invite details
+  // Fetch invite details (only when authenticated)
   useEffect(() => {
     async function fetchInvite() {
+      if (authStatus === "loading") return;
+
+      if (!session) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch(`/api/collaborators/${collaboratorId}/respond`);
         if (!response.ok) {
@@ -95,11 +102,11 @@ export default function CollaboratorInvitePage() {
     if (collaboratorId) {
       fetchInvite();
     }
-  }, [collaboratorId]);
+  }, [collaboratorId, session, authStatus]);
 
   const handleRespond = async (action: "accept" | "decline") => {
-    if (!authenticated) {
-      login();
+    if (!session) {
+      signIn();
       return;
     }
 
@@ -146,6 +153,44 @@ export default function CollaboratorInvitePage() {
     }
     return ROLE_LABELS[invite.roleDescription] || invite.roleDescription;
   };
+
+  // Show loading while checking auth
+  if (authStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show sign in prompt
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-2xl p-8 text-center border border-zinc-200 dark:border-zinc-800">
+          <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-4">
+            <Wallet className="w-8 h-8 text-blue-500" />
+          </div>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+            Sign In Required
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+            Connect your wallet to view and respond to this collaboration invite
+          </p>
+          <button
+            onClick={() => signIn()}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+          >
+            <Wallet className="w-5 h-5" />
+            Connect Wallet
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -338,48 +383,29 @@ export default function CollaboratorInvitePage() {
           )}
 
           {/* Actions */}
-          {!ready ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-            </div>
-          ) : !authenticated ? (
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center">
-                Connect your wallet to respond to this invite
-              </p>
-              <button
-                onClick={() => login()}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
-              >
-                <Wallet className="w-5 h-5" />
-                Connect Wallet
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleRespond("decline")}
-                disabled={responding}
-                className="flex-1 px-6 py-3 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
-              >
-                Decline
-              </button>
-              <button
-                onClick={() => handleRespond("accept")}
-                disabled={responding}
-                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {responding ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    Accept
-                    <CheckCircle2 className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleRespond("decline")}
+              disabled={responding}
+              className="flex-1 px-6 py-3 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+            >
+              Decline
+            </button>
+            <button
+              onClick={() => handleRespond("accept")}
+              disabled={responding}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
+              {responding ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Accept
+                  <CheckCircle2 className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

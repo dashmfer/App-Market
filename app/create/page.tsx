@@ -403,11 +403,15 @@ export default function CreateListingPage() {
     if (validateStep(currentStep)) {
       setSubmitError(null); // Clear any previous submit errors
       setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      // Scroll to top when moving to next step
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
   const prevStep = () => {
     setSubmitError(null); // Clear any previous submit errors
     setCurrentStep(prev => Math.max(prev - 1, 1));
+    // Scroll to top when moving to previous step
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSubmit = async () => {
