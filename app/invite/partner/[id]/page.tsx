@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { useSession, signIn } from "next-auth/react";
 import {
   Users,
   Crown,
@@ -82,7 +82,7 @@ interface PartnerInviteData {
 export default function PartnerInvitePage() {
   const params = useParams();
   const router = useRouter();
-  const { ready, authenticated, login, user } = usePrivy();
+  const { data: session, status: authStatus } = useSession();
 
   const [data, setData] = useState<PartnerInviteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,8 +136,8 @@ export default function PartnerInvitePage() {
   };
 
   const handleDeposit = async () => {
-    if (!authenticated) {
-      login();
+    if (!session) {
+      signIn();
       return;
     }
 
@@ -186,6 +186,18 @@ export default function PartnerInvitePage() {
       image: lead.user?.image,
     };
   };
+
+  // Show loading while checking auth
+  if (authStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <p className="text-zinc-600 dark:text-zinc-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -407,17 +419,13 @@ export default function PartnerInvitePage() {
           )}
 
           {/* Actions */}
-          {!ready ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-            </div>
-          ) : !authenticated ? (
+          {!session ? (
             <div className="space-y-4">
               <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center">
                 Connect your wallet to deposit your share
               </p>
               <button
-                onClick={() => login()}
+                onClick={() => signIn()}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
               >
                 <Wallet className="w-5 h-5" />
