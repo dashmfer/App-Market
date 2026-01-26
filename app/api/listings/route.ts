@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
         category: listing.category,
         blockchain: listing.blockchain,
         techStack: listing.techStack,
+        status: listing.status,
         startingPrice: listing.startingPrice,
         currentBid: isBuyNowOnly ? null : (listing.bids[0]?.amount || listing.startingPrice),
         buyNowPrice: listing.buyNowEnabled ? listing.buyNowPrice : null,
@@ -145,6 +146,7 @@ export async function GET(request: NextRequest) {
         currency: listing.currency,
         endTime: listing.endTime,
         bidCount: isBuyNowOnly ? 0 : listing._count.bids,
+        _count: listing._count,
         seller: {
           id: listing.seller.id,
           name: listing.seller.name,
