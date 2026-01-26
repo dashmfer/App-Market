@@ -17,10 +17,17 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
 
   // Dynamically import PrivyProvider only when configured
   const { PrivyProvider } = require("@privy-io/react-auth");
-  const { toSolanaWalletConnectors } = require("@privy-io/react-auth/solana");
 
-  // Initialize Solana wallet connectors
-  const solanaConnectors = toSolanaWalletConnectors();
+  // Try to import Solana wallet connectors (may not be available in all versions)
+  let solanaConnectors: any = undefined;
+  try {
+    const solanaModule = require("@privy-io/react-auth/solana");
+    if (solanaModule?.toSolanaWalletConnectors) {
+      solanaConnectors = solanaModule.toSolanaWalletConnectors();
+    }
+  } catch (e) {
+    console.warn("Solana wallet connectors not available:", e);
+  }
 
   return (
     <PrivyProvider
@@ -35,12 +42,14 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           walletChainType: "solana-only",
         },
         loginMethods: ["email", "twitter", "wallet"],
-        // Configure external Solana wallets
-        externalWallets: {
-          solana: {
-            connectors: solanaConnectors,
+        // Configure external Solana wallets (if connectors are available)
+        ...(solanaConnectors && {
+          externalWallets: {
+            solana: {
+              connectors: solanaConnectors,
+            },
           },
-        },
+        }),
         // Embedded wallet creation - will create Solana wallets due to walletChainType
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
