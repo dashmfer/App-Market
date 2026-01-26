@@ -33,11 +33,21 @@ export async function GET() {
         },
       }),
 
-      // Count active listings
+      // Count active listings (owned or as accepted collaborator)
       prisma.listing.count({
         where: {
-          sellerId: userId,
           status: "ACTIVE",
+          OR: [
+            { sellerId: userId },
+            {
+              collaborators: {
+                some: {
+                  userId: userId,
+                  status: "ACCEPTED",
+                },
+              },
+            },
+          ],
         },
       }),
 
@@ -67,11 +77,21 @@ export async function GET() {
         },
       }),
 
-      // Active listings with bid info
+      // Active listings with bid info (owned or as accepted collaborator)
       prisma.listing.findMany({
         where: {
-          sellerId: userId,
           status: "ACTIVE",
+          OR: [
+            { sellerId: userId },
+            {
+              collaborators: {
+                some: {
+                  userId: userId,
+                  status: "ACCEPTED",
+                },
+              },
+            },
+          ],
         },
         orderBy: { endTime: "asc" },
         take: 5,
@@ -81,6 +101,7 @@ export async function GET() {
           title: true,
           endTime: true,
           startingPrice: true,
+          sellerId: true,
           bids: {
             orderBy: { amount: "desc" },
             take: 1,
