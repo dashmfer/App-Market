@@ -47,11 +47,19 @@ function SettingsContent() {
   const [showExportKeyModal, setShowExportKeyModal] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
 
-  // Handle Twitter OAuth callback
+  // Handle URL params for tab switching and Twitter OAuth callback
   useEffect(() => {
+    const tabParam = searchParams.get("tab");
     const twitterConnectedParam = searchParams.get("twitter_connected");
     const twitterUsernameParam = searchParams.get("twitter_username");
     const twitterError = searchParams.get("twitter_error");
+
+    // Handle direct tab navigation (e.g., /dashboard/settings?tab=wallet)
+    if (tabParam && ["profile", "accounts", "wallet", "notifications", "security"].includes(tabParam)) {
+      setActiveTab(tabParam);
+      // Clear URL params but keep the page
+      window.history.replaceState({}, "", "/dashboard/settings");
+    }
 
     if (twitterConnectedParam === "true" && twitterUsernameParam) {
       setTwitterConnected(true);
@@ -524,7 +532,8 @@ function SettingsContent() {
                   <p className="text-zinc-500 mb-6">Manage your wallet, add funds, and export your private key.</p>
 
                   <div className="space-y-4">
-                    {connected && publicKey ? (
+                    {/* Show wallet if external wallet connected OR session has wallet address */}
+                    {(connected && publicKey) || (session?.user as any)?.walletAddress ? (
                       <>
                         {/* Connected Wallet Card */}
                         <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
@@ -532,18 +541,31 @@ function SettingsContent() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <Check className="w-5 h-5 text-green-500" />
-                                <span className="font-medium text-zinc-900 dark:text-zinc-100">Wallet Connected</span>
+                                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                                  {connected && publicKey ? "External Wallet Connected" : "Embedded Wallet"}
+                                </span>
                               </div>
-                              <p className="text-sm text-zinc-500 mb-4">Your Solana wallet is connected and ready to use.</p>
+                              <p className="text-sm text-zinc-500 mb-4">
+                                {connected && publicKey
+                                  ? "Your Solana wallet is connected and ready to use."
+                                  : "Your wallet was created when you signed up with email or X. Send SOL to this address to add funds."
+                                }
+                              </p>
                               <div className="bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3">
                                 <p className="text-xs text-zinc-500 mb-1">Wallet Address</p>
                                 <div className="flex items-center gap-2">
                                   <p className="text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all flex-1">
-                                    {publicKey.toBase58()}
+                                    {connected && publicKey
+                                      ? publicKey.toBase58()
+                                      : (session?.user as any)?.walletAddress
+                                    }
                                   </p>
                                   <button
                                     onClick={async () => {
-                                      await navigator.clipboard.writeText(publicKey.toBase58());
+                                      const address = connected && publicKey
+                                        ? publicKey.toBase58()
+                                        : (session?.user as any)?.walletAddress;
+                                      await navigator.clipboard.writeText(address);
                                       setAddressCopied(true);
                                       setTimeout(() => setAddressCopied(false), 2000);
                                     }}
@@ -569,33 +591,47 @@ function SettingsContent() {
                               <Plus className="w-4 h-4" />
                               Add Funds
                             </button>
-                            <button
-                              onClick={() => setShowExportKeyModal(true)}
-                              className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                            >
-                              <Key className="w-4 h-4" />
-                              Export Private Key
-                            </button>
-                            <button
-                              onClick={handleDisconnectWallet}
-                              className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                              Disconnect
-                            </button>
+                            {connected && publicKey ? (
+                              <>
+                                <button
+                                  onClick={() => setShowExportKeyModal(true)}
+                                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                  <Key className="w-4 h-4" />
+                                  Export Private Key
+                                </button>
+                                <button
+                                  onClick={handleDisconnectWallet}
+                                  className="px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Disconnect
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setShowExportKeyModal(true)}
+                                className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                              >
+                                <Key className="w-4 h-4" />
+                                Export Private Key
+                              </button>
+                            )}
                           </div>
                         </div>
 
-                        {/* Link Another Wallet */}
-                        <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-6">
-                          <button
-                            onClick={handleConnectWallet}
-                            className="w-full flex items-center justify-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                          >
-                            <Plus className="w-5 h-5" />
-                            <span>Link Another Wallet</span>
-                          </button>
-                        </div>
+                        {/* Link Another Wallet (only show if external wallet connected) */}
+                        {connected && publicKey && (
+                          <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-6">
+                            <button
+                              onClick={handleConnectWallet}
+                              className="w-full flex items-center justify-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                            >
+                              <Plus className="w-5 h-5" />
+                              <span>Link Another Wallet</span>
+                            </button>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
@@ -627,23 +663,29 @@ function SettingsContent() {
                     </div>
                   </div>
 
-                  {/* Modals */}
-                  {publicKey && (
+                  {/* Modals - show for both external and embedded wallets */}
+                  {((connected && publicKey) || (session?.user as any)?.walletAddress) && (
                     <>
                       <AddFundsModal
                         isOpen={showAddFundsModal}
                         onClose={() => setShowAddFundsModal(false)}
-                        walletAddress={publicKey.toBase58()}
+                        walletAddress={connected && publicKey ? publicKey.toBase58() : (session?.user as any)?.walletAddress}
                       />
                       <ExportKeyModal
                         isOpen={showExportKeyModal}
                         onClose={() => setShowExportKeyModal(false)}
                         privateKey={null}
-                        walletAddress={publicKey.toBase58()}
+                        walletAddress={connected && publicKey ? publicKey.toBase58() : (session?.user as any)?.walletAddress}
                         onRequestKey={async () => {
                           // For external wallets, we can't export the private key
                           // This would only work for Privy-managed wallets
-                          alert("Private key export is only available for wallets created through email or X sign-in.");
+                          if (connected && publicKey) {
+                            alert("Private key export is only available for wallets created through email or X sign-in.");
+                            return null;
+                          }
+                          // For embedded wallets, we would need to use Privy's exportWallet function
+                          // This requires integration with Privy's SDK
+                          alert("To export your private key, please contact support or use the Privy dashboard.");
                           return null;
                         }}
                       />
