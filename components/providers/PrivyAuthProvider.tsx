@@ -17,6 +17,10 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
 
   // Dynamically import PrivyProvider only when configured
   const { PrivyProvider } = require("@privy-io/react-auth");
+  const { toSolanaWalletConnectors } = require("@privy-io/react-auth/solana");
+
+  // Initialize Solana wallet connectors
+  const solanaConnectors = toSolanaWalletConnectors();
 
   return (
     <PrivyProvider
@@ -27,18 +31,20 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           accentColor: "#22c55e",
           logo: "/logo.png",
           showWalletLoginFirst: false,
+          // This is the key setting - restricts to Solana only
+          walletChainType: "solana-only",
         },
         loginMethods: ["email", "twitter", "wallet"],
+        // Configure external Solana wallets
+        externalWallets: {
+          solana: {
+            connectors: solanaConnectors,
+          },
+        },
+        // Embedded wallet creation - will create Solana wallets due to walletChainType
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
           noPromptOnSignature: false,
-          // Create Solana embedded wallets, not Ethereum
-          ethereum: {
-            createOnLogin: "off",
-          },
-          solana: {
-            createOnLogin: "users-without-wallets",
-          },
         },
         solanaClusters: [
           {
