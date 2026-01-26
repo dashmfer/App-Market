@@ -280,22 +280,21 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Add wallet if it doesn't exist
+      // Add wallet if it doesn't exist (use upsert to avoid unique constraint errors)
       if (walletAddress) {
-        const existingWallet = await prisma.userWallet.findUnique({
+        await prisma.userWallet.upsert({
           where: { walletAddress },
+          update: {
+            // Update userId if wallet exists but belongs to this user
+            userId: user.id,
+          },
+          create: {
+            userId: user.id,
+            walletAddress,
+            isPrimary: !user.walletAddress,
+            walletType,
+          },
         });
-
-        if (!existingWallet) {
-          await prisma.userWallet.create({
-            data: {
-              userId: user.id,
-              walletAddress,
-              isPrimary: !user.walletAddress, // Primary if user didn't have a wallet before
-              walletType,
-            },
-          });
-        }
       }
     }
 
