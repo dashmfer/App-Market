@@ -66,12 +66,20 @@ function NotificationCard({
   const bgColor = notificationColors[notification.type] || "bg-zinc-100 dark:bg-zinc-800";
   const listingSlug = notification.data?.listingSlug;
   const conversationId = notification.data?.conversationId;
+  const collaboratorId = notification.data?.collaboratorId;
+  const partnerId = notification.data?.partnerId;
 
   let href = "#";
   if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
+  } else if (notification.type === "COLLABORATION_INVITE" && collaboratorId) {
+    // Direct collaboration invites to the invite page
+    href = `/invite/collaborator/${collaboratorId}`;
+  } else if (notification.type === "PURCHASE_PARTNER_INVITE" && partnerId) {
+    // Direct purchase partner invites to the partner invite page
+    href = `/invite/partner/${partnerId}`;
   } else if (listingSlug) {
-    href = `/listings/${listingSlug}`;
+    href = `/listing/${listingSlug}`;
   }
 
   return (
