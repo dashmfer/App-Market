@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Package,
@@ -22,6 +23,9 @@ import {
   Users,
   UserPlus,
   Loader2,
+  Wallet,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -33,11 +37,13 @@ const sidebarLinks = [
   { href: "/dashboard/watchlist", label: "Watchlist", icon: Heart },
   { href: "/dashboard/referrals", label: "Referrals", icon: Gift },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
+  { href: "/dashboard/settings?tab=wallet", label: "Wallet", icon: Wallet },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalSales: 0,
@@ -47,6 +53,37 @@ export default function DashboardPage() {
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [activeListings, setActiveListings] = useState<any[]>([]);
+  const [walletCopied, setWalletCopied] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  // Fetch wallet balance
+  useEffect(() => {
+    async function fetchWalletBalance() {
+      const walletAddress = (session?.user as any)?.walletAddress;
+      if (walletAddress) {
+        try {
+          const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+          const response = await fetch(rpcUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "getBalance",
+              params: [walletAddress],
+            }),
+          });
+          const data = await response.json();
+          if (data.result?.value !== undefined) {
+            setWalletBalance(data.result.value / 1e9); // Convert lamports to SOL
+          }
+        } catch (error) {
+          console.error("Failed to fetch wallet balance:", error);
+        }
+      }
+    }
+    fetchWalletBalance();
+  }, [session]);
 
   useEffect(() => {
     async function fetchUserStats() {
@@ -179,6 +216,71 @@ export default function DashboardPage() {
               <div className="text-sm text-zinc-500">Pending Transfers</div>
             </div>
           </div>
+
+          {/* Wallet Card */}
+          {(session?.user as any)?.walletAddress && (
+            <div className="mb-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 text-white relative overflow-hidden">
+              {/* Background pattern */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full border-8 border-white" />
+                <div className="absolute -right-5 -bottom-5 w-24 h-24 rounded-full border-4 border-white" />
+              </div>
+
+              <div className="relative">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-green-100 text-sm font-medium mb-1">Your Wallet</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-3xl font-bold">
+                        {walletBalance !== null ? `${walletBalance.toFixed(4)} SOL` : "Loading..."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Wallet className="w-6 h-6" />
+                  </div>
+                </div>
+
+                <div className="bg-black/20 rounded-xl p-3 mb-4">
+                  <p className="text-green-100 text-xs mb-1">Wallet Address</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-mono truncate flex-1">
+                      {(session?.user as any)?.walletAddress}
+                    </p>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText((session?.user as any)?.walletAddress);
+                        setWalletCopied(true);
+                        setTimeout(() => setWalletCopied(false), 2000);
+                      }}
+                      className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0"
+                    >
+                      {walletCopied ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Link
+                    href="/dashboard/settings?tab=wallet"
+                    className="px-4 py-2 bg-white text-green-600 font-medium rounded-lg hover:bg-green-50 transition-colors text-sm"
+                  >
+                    Add Funds
+                  </Link>
+                  <Link
+                    href="/dashboard/settings?tab=wallet"
+                    className="px-4 py-2 bg-white/20 text-white font-medium rounded-lg hover:bg-white/30 transition-colors text-sm"
+                  >
+                    Manage Wallet
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Active Listings */}
