@@ -22,10 +22,14 @@ import { Button } from "@/components/ui/button";
 // Separate component for Privy login buttons to avoid hook issues
 function PrivyLoginButtons({
   onEmailClick,
-  onTwitterClick
+  onTwitterClick,
+  onAuthComplete,
+  onAuthError,
 }: {
   onEmailClick: () => void;
   onTwitterClick: () => void;
+  onAuthComplete: () => void;
+  onAuthError: (error: string) => void;
 }) {
   // Only import and use Privy hooks if configured
   const privyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
@@ -63,20 +67,90 @@ function PrivyLoginButtons({
   }
 
   // When Privy is configured, render the real buttons
-  return <PrivyEnabledButtons onEmailClick={onEmailClick} onTwitterClick={onTwitterClick} />;
+  return (
+    <PrivyEnabledButtons
+      onEmailClick={onEmailClick}
+      onTwitterClick={onTwitterClick}
+      onAuthComplete={onAuthComplete}
+      onAuthError={onAuthError}
+    />
+  );
 }
 
 // This component only renders when Privy is configured
 function PrivyEnabledButtons({
   onEmailClick,
-  onTwitterClick
+  onTwitterClick,
+  onAuthComplete,
+  onAuthError,
 }: {
   onEmailClick: () => void;
   onTwitterClick: () => void;
+  onAuthComplete: () => void;
+  onAuthError: (error: string) => void;
 }) {
   // Dynamic import to avoid issues when Privy is not configured
-  const { useLogin } = require("@privy-io/react-auth");
-  const { login } = useLogin();
+  const { useLogin, usePrivy } = require("@privy-io/react-auth");
+  const { getAccessToken } = usePrivy();
+  const { signIn } = require("next-auth/react");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { login } = useLogin({
+    onComplete: async (user: any, isNewUser: boolean, wasAlreadyAuthenticated: boolean) => {
+      // After Privy authentication completes, sync with our backend
+      if (wasAlreadyAuthenticated) {
+        // User was already logged in with Privy, just redirect
+        onAuthComplete();
+        return;
+      }
+
+      setIsProcessing(true);
+      try {
+        // Get the Privy access token
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Failed to get access token");
+        }
+
+        // Call our backend to sync the user
+        const response = await fetch("/api/auth/privy/callback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to sync user");
+        }
+
+        const data = await response.json();
+
+        // Sign in with NextAuth using the privy credential
+        // This creates a proper NextAuth session
+        const result = await signIn("privy", {
+          userId: data.user.id,
+          walletAddress: data.user.walletAddress || "",
+          redirect: false,
+        });
+
+        if (result?.error) {
+          throw new Error(result.error);
+        }
+
+        onAuthComplete();
+      } catch (error: any) {
+        console.error("Privy auth completion error:", error);
+        onAuthError(error.message || "Authentication failed");
+      } finally {
+        setIsProcessing(false);
+      }
+    },
+    onError: (error: any) => {
+      console.error("Privy login error:", error);
+      onAuthError(error?.message || "Login failed");
+    },
+  });
 
   const handleEmailLogin = () => {
     onEmailClick();
@@ -87,6 +161,15 @@ function PrivyEnabledButtons({
     onTwitterClick();
     login();
   };
+
+  if (isProcessing) {
+    return (
+      <Button variant="secondary" size="lg" className="w-full" disabled>
+        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+        Setting up your account...
+      </Button>
+    );
+  }
 
   return (
     <>
@@ -130,6 +213,7 @@ function SignInContent() {
   const { setVisible: setWalletModalVisible } = useWalletModal();
 
   const [authMethod, setAuthMethod] = useState<"wallet" | "email" | "twitter" | null>(null);
+  const [privyError, setPrivyError] = useState<string | null>(null);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -137,6 +221,16 @@ function SignInContent() {
       router.push(callbackUrl);
     }
   }, [status, router, callbackUrl]);
+
+  // Handlers for Privy authentication
+  const handlePrivyAuthComplete = () => {
+    // Redirect to dashboard after successful auth
+    router.push(callbackUrl);
+  };
+
+  const handlePrivyAuthError = (errorMessage: string) => {
+    setPrivyError(errorMessage);
+  };
 
   // Detect wallet states
   const isWalletLocked = connected && publicKey && !signMessage;
@@ -195,12 +289,12 @@ function SignInContent() {
           </div>
 
           {/* Error Message */}
-          {error && (
+          {(error || privyError) && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-4 h-4" />
                 <span className="text-sm">
-                  {errorMessages[error] || errorMessages.default}
+                  {privyError || errorMessages[error!] || errorMessages.default}
                 </span>
               </div>
             </div>
@@ -271,8 +365,16 @@ function SignInContent() {
 
                 {/* Email & Twitter Options */}
                 <PrivyLoginButtons
-                  onEmailClick={() => setAuthMethod("email")}
-                  onTwitterClick={() => setAuthMethod("twitter")}
+                  onEmailClick={() => {
+                    setPrivyError(null);
+                    setAuthMethod("email");
+                  }}
+                  onTwitterClick={() => {
+                    setPrivyError(null);
+                    setAuthMethod("twitter");
+                  }}
+                  onAuthComplete={handlePrivyAuthComplete}
+                  onAuthError={handlePrivyAuthError}
                 />
               </>
             )}
