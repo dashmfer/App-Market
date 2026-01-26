@@ -269,7 +269,18 @@ export async function POST(request: NextRequest) {
         updates.twitterUsername = twitterUsername;
         updates.twitterVerified = true;
       }
-      if (walletAddress && !user.walletAddress) {
+
+      // ALWAYS update to Solana wallet if we have one and user has ETH wallet
+      // This handles the case where user had ETH wallet but we created Solana one
+      const isSolanaWallet = walletAddress && !walletAddress.startsWith("0x");
+      const userHasEthWallet = user.walletAddress?.startsWith("0x");
+
+      if (isSolanaWallet && userHasEthWallet) {
+        // Replace ETH wallet with Solana wallet
+        console.log("[Privy Callback] Replacing ETH wallet with Solana wallet:", walletAddress);
+        updates.walletAddress = walletAddress;
+      } else if (walletAddress && !user.walletAddress) {
+        // User has no wallet, use whatever we found
         updates.walletAddress = walletAddress;
       }
 
@@ -291,7 +302,7 @@ export async function POST(request: NextRequest) {
           create: {
             userId: user.id,
             walletAddress,
-            isPrimary: !user.walletAddress,
+            isPrimary: isSolanaWallet || !user.walletAddress,
             walletType,
           },
         });
@@ -305,13 +316,18 @@ export async function POST(request: NextRequest) {
       invitesLinked = await linkPendingInvitesToUser(user.id, walletAddress);
     }
 
+    // Return the Solana wallet if we have one, otherwise the user's wallet
+    const finalWalletAddress = (walletAddress && !walletAddress.startsWith("0x"))
+      ? walletAddress
+      : user.walletAddress;
+
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
-        walletAddress: user.walletAddress,
+        walletAddress: finalWalletAddress,
       },
       invitesLinked,
     });
