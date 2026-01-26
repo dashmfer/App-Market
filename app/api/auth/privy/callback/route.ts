@@ -142,14 +142,45 @@ export async function POST(request: NextRequest) {
     const twitterUsername = privyUser.twitter?.username;
     const twitterId = privyUser.twitter?.subject;
 
-    // Get wallet address from Solana embedded wallet (not Ethereum)
-    const embeddedWallet = privyUser.linkedAccounts?.find(
+    // Log linked accounts for debugging
+    console.log("[Privy Callback] Linked accounts:", JSON.stringify(privyUser.linkedAccounts, null, 2));
+
+    // Get wallet address from Solana embedded wallet
+    // Try to find Solana wallet first, then fall back to any Privy embedded wallet
+    let embeddedWallet = privyUser.linkedAccounts?.find(
       (account: any) =>
         account.type === "wallet" &&
         account.walletClientType === "privy" &&
-        account.chainType === "solana"
+        (account.chainType === "solana" || account.chainId === "solana")
     ) as { address?: string } | undefined;
+
+    // Fallback: if no Solana wallet found, try to get any Privy wallet that's NOT Ethereum
+    if (!embeddedWallet?.address) {
+      embeddedWallet = privyUser.linkedAccounts?.find(
+        (account: any) =>
+          account.type === "wallet" &&
+          account.walletClientType === "privy" &&
+          account.chainType !== "ethereum" &&
+          !account.address?.startsWith("0x") // Exclude ETH addresses
+      ) as { address?: string } | undefined;
+    }
+
+    // Last fallback: get any Privy wallet
+    if (!embeddedWallet?.address) {
+      embeddedWallet = privyUser.linkedAccounts?.find(
+        (account: any) =>
+          account.type === "wallet" &&
+          account.walletClientType === "privy"
+      ) as { address?: string } | undefined;
+
+      // Log warning if we had to use fallback
+      if (embeddedWallet?.address) {
+        console.log("[Privy Callback] Using fallback wallet:", embeddedWallet);
+      }
+    }
+
     const walletAddress = embeddedWallet?.address;
+    console.log("[Privy Callback] Final wallet address:", walletAddress);
 
     // Determine wallet type based on how they signed up
     let walletType: "PRIVY_EMAIL" | "PRIVY_TWITTER" | "EXTERNAL" = "EXTERNAL";
