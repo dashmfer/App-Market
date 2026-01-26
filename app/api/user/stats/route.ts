@@ -33,10 +33,11 @@ export async function GET() {
         },
       }),
 
-      // Count active listings (owned or as accepted collaborator)
+      // Count active listings (owned or as accepted collaborator, not expired)
       prisma.listing.count({
         where: {
           status: "ACTIVE",
+          endTime: { gt: new Date() }, // Only listings that haven't expired
           OR: [
             { sellerId: userId },
             {
@@ -77,10 +78,11 @@ export async function GET() {
         },
       }),
 
-      // Active listings with bid info (owned or as accepted collaborator)
+      // Active listings with bid info (owned or as accepted collaborator, not expired)
       prisma.listing.findMany({
         where: {
           status: "ACTIVE",
+          endTime: { gt: new Date() }, // Only listings that haven't expired
           OR: [
             { sellerId: userId },
             {
@@ -119,17 +121,29 @@ export async function GET() {
     }
 
     // Transform active listings
-    const listings = activeListingsData.map((listing) => ({
-      id: listing.id,
-      slug: listing.slug,
-      title: listing.title,
-      endTime: listing.endTime,
-      currentBid: listing.bids[0]?.amount || listing.startingPrice,
-      bidCount: listing._count.bids,
-      status: new Date(listing.endTime) < new Date(Date.now() + 24 * 60 * 60 * 1000)
-        ? "ending_soon"
-        : "active",
-    }));
+    const now = new Date();
+    const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const listings = activeListingsData.map((listing) => {
+      const endTime = new Date(listing.endTime);
+      let status = "active";
+
+      if (endTime <= now) {
+        status = "expired";
+      } else if (endTime <= in24Hours) {
+        status = "ending_soon";
+      }
+
+      return {
+        id: listing.id,
+        slug: listing.slug,
+        title: listing.title,
+        endTime: listing.endTime,
+        currentBid: listing.bids[0]?.amount || listing.startingPrice,
+        bidCount: listing._count.bids,
+        status,
+      };
+    });
 
     // Transform activity
     const activity = recentActivity.map((notif) => {
