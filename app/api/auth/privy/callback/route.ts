@@ -316,10 +316,15 @@ export async function POST(request: NextRequest) {
       },
       invitesLinked,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Privy callback error:", error);
+    console.error("Error stack:", error?.stack);
+    console.error("Error message:", error?.message);
+
+    // Return more specific error message for debugging
+    const errorMessage = error?.message || "Authentication failed";
     return NextResponse.json(
-      { error: "Authentication failed" },
+      { error: errorMessage, details: error?.stack?.split('\n')[0] },
       { status: 500 }
     );
   }
