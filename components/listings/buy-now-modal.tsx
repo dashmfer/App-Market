@@ -247,7 +247,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden"
+          className="w-full max-w-lg max-h-[90vh] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
