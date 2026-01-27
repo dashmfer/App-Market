@@ -109,6 +109,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
+            username: true,
             displayName: true,
             walletAddress: true,
           },
@@ -117,6 +118,7 @@ export async function GET(
           select: {
             id: true,
             name: true,
+            username: true,
             displayName: true,
             walletAddress: true,
           },
@@ -198,14 +200,16 @@ export async function GET(
       status: transaction.status,
       buyer: {
         id: transaction.buyer.id,
-        name: transaction.buyer.displayName || transaction.buyer.name || "Anonymous",
+        name: transaction.buyer.displayName || transaction.buyer.name || (transaction.buyer.username ? `@${transaction.buyer.username}` : null) || (transaction.buyer.walletAddress ? `${transaction.buyer.walletAddress.slice(0, 4)}...${transaction.buyer.walletAddress.slice(-4)}` : "Anonymous"),
+        username: transaction.buyer.username || null,
         walletAddress: transaction.buyer.walletAddress
           ? `${transaction.buyer.walletAddress.slice(0, 4)}...${transaction.buyer.walletAddress.slice(-4)}`
           : null,
       },
       seller: {
         id: transaction.seller.id,
-        name: transaction.seller.displayName || transaction.seller.name || "Anonymous",
+        name: transaction.seller.displayName || transaction.seller.name || (transaction.seller.username ? `@${transaction.seller.username}` : null) || (transaction.seller.walletAddress ? `${transaction.seller.walletAddress.slice(0, 4)}...${transaction.seller.walletAddress.slice(-4)}` : "Anonymous"),
+        username: transaction.seller.username || null,
         walletAddress: transaction.seller.walletAddress
           ? `${transaction.seller.walletAddress.slice(0, 4)}...${transaction.seller.walletAddress.slice(-4)}`
           : null,

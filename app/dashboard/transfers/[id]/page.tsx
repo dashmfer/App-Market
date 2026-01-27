@@ -273,25 +273,11 @@ export default function TransferPage() {
     }
   };
 
-  // Handle messaging the other party
-  const handleMessageParty = async () => {
+  // Handle messaging the other party - navigate to messages with recipient context
+  const handleMessageParty = () => {
     if (!transfer) return;
-
-    setStartingConversation(true);
-    try {
-      const recipientId = transfer.isSeller ? transfer.buyer.id : transfer.seller.id;
-      const message = `Hi! I'm reaching out regarding the transfer for "${transfer.listing.title}".`;
-
-      const result = await startConversation(recipientId, message, transfer.listing.id);
-      if (result?.conversationId) {
-        router.push(`/dashboard/messages?conversation=${result.conversationId}`);
-      }
-    } catch (err) {
-      console.error("Error starting conversation:", err);
-      alert("Failed to start conversation");
-    } finally {
-      setStartingConversation(false);
-    }
+    const recipientId = transfer.isSeller ? transfer.buyer.id : transfer.seller.id;
+    router.push(`/dashboard/messages?new=${recipientId}&listing=${transfer.listing.id}`);
   };
 
   const handleSellerConfirm = async (itemId: string) => {
@@ -1180,14 +1166,14 @@ export default function TransferPage() {
                 Having issues with the transfer? Contact support or open a dispute.
               </p>
               <div className="space-y-2">
-                <Link
-                  href="/support"
+                <a
+                  href={`mailto:support@appmarket.com?subject=${encodeURIComponent(`Transfer Issue - ${transfer.listing.title}`)}&body=${encodeURIComponent(`Transaction ID: ${transfer.id}`)}`}
                   className="w-full btn-secondary text-sm py-2 justify-center flex items-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Contact Support
-                </Link>
-                {!isCompleted && (
+                </a>
+                {!isCompleted && isBuyer && transfer.checklist.some(item => item.sellerConfirmed) && (
                   <button
                     onClick={() => router.push(`/dashboard/disputes/new?transaction=${transfer.id}`)}
                     className="w-full btn-outline text-sm py-2 justify-center text-red-600 border-red-300 hover:bg-red-50 dark:border-red-700 dark:hover:bg-red-900/20"
@@ -1195,6 +1181,12 @@ export default function TransferPage() {
                     <Flag className="w-4 h-4" />
                     Open Dispute
                   </button>
+                )}
+                {!isCompleted && isBuyer && !transfer.checklist.some(item => item.sellerConfirmed) && (
+                  <p className="text-xs text-zinc-400 text-center">
+                    Dispute option becomes available once the seller begins transferring assets.
+                    If the seller doesn&apos;t transfer before the deadline, you&apos;ll receive an automatic refund.
+                  </p>
                 )}
               </div>
             </div>
