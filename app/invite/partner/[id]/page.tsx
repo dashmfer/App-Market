@@ -50,6 +50,7 @@ interface PartnerInviteData {
     tagline?: string;
     thumbnailUrl?: string;
     category: string;
+    categories?: string[];
   };
   seller: {
     id: string;
@@ -302,7 +303,7 @@ export default function PartnerInvitePage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
               <span className="px-2 py-1 text-xs font-medium bg-white/20 backdrop-blur-sm text-white rounded-full">
-                {data.listing.category}
+                {data.listing.categories?.[0] || data.listing.category}
               </span>
               {timeRemaining > 0 && (
                 <span className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-amber-500/90 text-white rounded-full">
