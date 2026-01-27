@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           matchedCategories.push(...cats);
         }
       }
-      const uniqueCategories = [...new Set(matchedCategories)];
+      const uniqueCategories = Array.from(new Set(matchedCategories));
 
       // Build OR conditions for text search and category matching
       const searchConditions: any[] = [
