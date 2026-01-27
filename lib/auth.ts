@@ -116,15 +116,45 @@ export const authOptions: NextAuthOptions = {
                 isVerified: true,
                 githubUsername: true,
                 image: true,
+                wallets: {
+                  select: {
+                    walletAddress: true,
+                    isPrimary: true,
+                  },
+                },
               },
             });
 
             if (user) {
+              // Determine which wallet to use - prefer Solana over ETH
+              let walletAddress = user.walletAddress;
+
+              // If primary wallet is ETH (0x...), try to find a Solana wallet
+              if (walletAddress?.startsWith("0x")) {
+                // First, look for a Solana wallet in UserWallet that's marked as primary
+                const primarySolanaWallet = user.wallets.find(
+                  (w) => w.isPrimary && !w.walletAddress.startsWith("0x")
+                );
+
+                // Otherwise, look for any Solana wallet in UserWallet
+                const anySolanaWallet = user.wallets.find(
+                  (w) => !w.walletAddress.startsWith("0x")
+                );
+
+                if (primarySolanaWallet) {
+                  walletAddress = primarySolanaWallet.walletAddress;
+                  console.log("[Auth Session] Using primary Solana wallet instead of ETH:", walletAddress);
+                } else if (anySolanaWallet) {
+                  walletAddress = anySolanaWallet.walletAddress;
+                  console.log("[Auth Session] Using Solana wallet instead of ETH:", walletAddress);
+                }
+              }
+
               // Update session with latest user data
               session.user.name = user.displayName || user.name;
               (session.user as any).displayName = user.displayName;
               (session.user as any).username = user.username;
-              (session.user as any).walletAddress = user.walletAddress;
+              (session.user as any).walletAddress = walletAddress;
               (session.user as any).isVerified = user.isVerified;
               (session.user as any).githubUsername = user.githubUsername;
               session.user.image = user.image;
