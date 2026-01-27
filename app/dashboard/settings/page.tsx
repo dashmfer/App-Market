@@ -403,38 +403,32 @@ function SettingsContent() {
                     <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
                       <h3 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Account Information</h3>
                       <div className="space-y-3">
-                        {/* Email */}
-                        {email && (
+                        {/* Wallet Address */}
+                        {userWalletAddress && (
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                              <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              <Wallet className="w-4 h-4 text-green-600 dark:text-green-400" />
                             </div>
                             <div>
-                              <p className="text-xs text-zinc-500">Email</p>
-                              <p className="text-sm text-zinc-900 dark:text-zinc-100">{email}</p>
+                              <p className="text-xs text-zinc-500">Wallet</p>
+                              <p className="text-sm text-zinc-900 dark:text-zinc-100 font-mono">
+                                {userWalletAddress.slice(0, 6)}...{userWalletAddress.slice(-6)}
+                              </p>
                             </div>
                           </div>
                         )}
                         {/* Signup Method */}
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                            {email ? (
-                              <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            ) : twitterUsername ? (
-                              <XIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            ) : (
-                              <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            )}
+                            <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div>
                             <p className="text-xs text-zinc-500">Signed up with</p>
-                            <p className="text-sm text-zinc-900 dark:text-zinc-100">
-                              {email ? "Email" : twitterUsername ? "X (Twitter)" : "Wallet"}
-                            </p>
+                            <p className="text-sm text-zinc-900 dark:text-zinc-100">Wallet</p>
                           </div>
                         </div>
-                        {/* Connected Twitter (if signed up with email but has Twitter connected) */}
-                        {email && twitterUsername && (
+                        {/* Connected Twitter */}
+                        {twitterUsername && (
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center">
                               <XIcon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
@@ -711,7 +705,7 @@ function SettingsContent() {
                       </p>
                       <p className="text-sm text-blue-700 dark:text-blue-300">
                         Phantom, Solflare, Coinbase Wallet, and Ledger are supported.
-                        You can also sign in with email or X to get a wallet automatically.
+                        Connect your Solana wallet to buy and sell on the marketplace.
                       </p>
                     </div>
                   </div>
