@@ -104,12 +104,28 @@ export async function GET(
       };
     }
 
+    // Check if listing has been purchased and if current user is the buyer
+    let purchaseInfo = null;
+    const transaction = await prisma.transaction.findUnique({
+      where: { listingId: listing.id },
+      select: { id: true, buyerId: true, status: true },
+    });
+    if (transaction) {
+      purchaseInfo = {
+        isPurchased: true,
+        isCurrentUserBuyer: currentUserId ? transaction.buyerId === currentUserId : false,
+        transactionId: transaction.id,
+        status: transaction.status,
+      };
+    }
+
     return NextResponse.json({
       listing: {
         ...listing,
         currentBid,
         bidCount: listing._count.bids,
         reservationInfo,
+        purchaseInfo,
       },
     });
   } catch (error) {

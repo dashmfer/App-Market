@@ -152,6 +152,12 @@ interface Listing {
   status?: string;
   requiredBuyerInfo?: RequiredBuyerInfo;
   reservationInfo?: ReservationInfo;
+  purchaseInfo?: {
+    isPurchased: boolean;
+    isCurrentUserBuyer: boolean;
+    transactionId: string;
+    status: string;
+  };
   seller: {
     id: string;
     name?: string;
@@ -474,8 +480,13 @@ export default function ListingPage() {
       });
 
       if (response.ok) {
-        // Redirect to success page or dashboard
-        router.push(`/dashboard/purchases?success=${listing.id}`);
+        const purchaseData = await response.json();
+        // If listing requires buyer info, redirect to the buyer info form
+        if (listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo as Record<string, any>).some((v: any) => v?.required)) {
+          router.push(`/dashboard/transfers/${purchaseData.transactionId}/buyer-info`);
+        } else {
+          router.push(`/dashboard/purchases?success=${listing.id}`);
+        }
       } else {
         const data = await response.json();
         setBuyError(data.error || "Failed to record purchase");
@@ -996,8 +1007,30 @@ export default function ListingPage() {
                     </>
                   )}
 
-                  {/* Show Buy Now button */}
-                  {listing.buyNowEnabled && listing.buyNowPrice && (
+                  {/* Show Buy Now button or Purchased state */}
+                  {listing.purchaseInfo?.isPurchased ? (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                            {listing.purchaseInfo.isCurrentUserBuyer
+                              ? "You purchased this listing"
+                              : "This listing has been sold"}
+                          </p>
+                        </div>
+                      </div>
+                      {listing.purchaseInfo.isCurrentUserBuyer && listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (
+                        <Link
+                          href={`/dashboard/transfers/${listing.purchaseInfo.transactionId}/buyer-info`}
+                          className="w-full btn-primary py-3 text-center flex items-center justify-center gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Provide Required Information
+                        </Link>
+                      )}
+                    </div>
+                  ) : listing.buyNowEnabled && listing.buyNowPrice ? (
                     <>
                       {!isBuyNowOnly && (
                         <div className="relative">
@@ -1036,7 +1069,7 @@ export default function ListingPage() {
                         )}
                       </button>
                     </>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Required Buyer Information */}

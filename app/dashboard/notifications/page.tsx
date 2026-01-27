@@ -68,9 +68,12 @@ function NotificationCard({
   const conversationId = notification.data?.conversationId;
   const collaboratorId = notification.data?.collaboratorId;
   const partnerId = notification.data?.partnerId;
+  const transactionId = notification.data?.transactionId;
 
   let href = "#";
-  if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
+  if (notification.type === "BUYER_INFO_REQUIRED" && transactionId) {
+    href = `/dashboard/transfers/${transactionId}/buyer-info`;
+  } else if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
   } else if (notification.type === "COLLABORATION_INVITE" && listingSlug) {
     // Direct collaboration invites to the listing page (which has accept/decline buttons)
