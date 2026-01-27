@@ -110,13 +110,18 @@ async function linkPendingInvitesToUser(userId: string, walletAddress: string) {
 // Called after Privy authentication to sync user with our database
 export async function POST(request: NextRequest) {
   try {
-    const { accessToken } = await request.json();
+    const { accessToken, createdWalletAddress } = await request.json();
 
     if (!accessToken) {
       return NextResponse.json(
         { error: "Missing access token" },
         { status: 400 }
       );
+    }
+
+    // Log if we received a directly created wallet address
+    if (createdWalletAddress) {
+      console.log("[Privy Callback] Received directly created wallet address:", createdWalletAddress);
     }
 
     // Check if Privy is configured
@@ -194,8 +199,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const walletAddress = embeddedWallet?.address;
+    // Prefer the directly passed wallet address (from just-created wallet)
+    // Fall back to finding it in linkedAccounts
+    const walletAddress = createdWalletAddress || embeddedWallet?.address;
     console.log("[Privy Callback] Final wallet address:", walletAddress);
+    console.log("[Privy Callback] Source:", createdWalletAddress ? "directly passed" : "from linkedAccounts");
 
     // Determine wallet type based on how they signed up
     let walletType: "PRIVY_EMAIL" | "PRIVY_TWITTER" | "EXTERNAL" = "EXTERNAL";
@@ -270,8 +278,7 @@ export async function POST(request: NextRequest) {
         updates.twitterVerified = true;
       }
 
-      // ALWAYS update to Solana wallet if we have one and user has ETH wallet
-      // This handles the case where user had ETH wallet but we created Solana one
+      // Check if we should replace ETH wallet with Solana wallet
       const isSolanaWallet = walletAddress && !walletAddress.startsWith("0x");
       const userHasEthWallet = user.walletAddress?.startsWith("0x");
 
@@ -280,7 +287,6 @@ export async function POST(request: NextRequest) {
         console.log("[Privy Callback] Replacing ETH wallet with Solana wallet:", walletAddress);
         updates.walletAddress = walletAddress;
       } else if (walletAddress && !user.walletAddress) {
-        // User has no wallet, use whatever we found
         updates.walletAddress = walletAddress;
       }
 
@@ -296,7 +302,6 @@ export async function POST(request: NextRequest) {
         await prisma.userWallet.upsert({
           where: { walletAddress },
           update: {
-            // Update userId if wallet exists but belongs to this user
             userId: user.id,
           },
           create: {
@@ -316,7 +321,7 @@ export async function POST(request: NextRequest) {
       invitesLinked = await linkPendingInvitesToUser(user.id, walletAddress);
     }
 
-    // Return the Solana wallet if we have one, otherwise the user's wallet
+    // Return Solana wallet if we have one, otherwise user's wallet
     const finalWalletAddress = (walletAddress && !walletAddress.startsWith("0x"))
       ? walletAddress
       : user.walletAddress;
