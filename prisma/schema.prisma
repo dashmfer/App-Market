@@ -199,7 +199,7 @@ model Listing {
   title             String
   tagline           String?
   description       String        @db.Text
-  category          Category
+  categories        Category[]
   blockchain        Blockchain?   // Optional: for on-chain/crypto projects
   tags              String[]
   
@@ -284,7 +284,7 @@ model Listing {
 
   @@index([sellerId])
   @@index([status])
-  @@index([category])
+  @@index([categories])
   @@index([endTime])
   @@index([featured])
   @@index([reservedBuyerWallet])

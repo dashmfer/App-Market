@@ -121,7 +121,8 @@
       "cryptoWeb3": "Crypto & Web3",
       "ecommerce": "E-commerce",
       "devTools": "Developer Tools",
-      "gaming": "Gaming"
+      "gaming": "Gaming",
+      "other": "Other"
     },
     "sort": {
       "endingSoon": "Ending Soon",
