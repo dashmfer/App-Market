@@ -20,6 +20,7 @@ export async function GET() {
       user,
       activeListings,
       pendingTransfers,
+      pendingTransferDetails,
       recentActivity,
       activeListingsData,
     ] = await Promise.all([
@@ -66,6 +67,23 @@ export async function GET() {
             in: ["TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "IN_ESCROW"],
           },
         },
+      }),
+
+      // Pending transfer details (IDs for linking)
+      prisma.transaction.findMany({
+        where: {
+          OR: [{ sellerId: userId }, { buyerId: userId }],
+          status: {
+            in: ["TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "IN_ESCROW"],
+          },
+        },
+        select: {
+          id: true,
+          listing: { select: { title: true } },
+          status: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
       }),
 
       // Recent activity (notifications)
@@ -184,6 +202,7 @@ export async function GET() {
       },
       recentActivity: activity,
       activeListings: listings,
+      pendingTransferDetails,
     });
   } catch (error) {
     console.error("Error fetching user stats:", error);

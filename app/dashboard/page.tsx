@@ -53,6 +53,7 @@ export default function DashboardPage() {
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [activeListings, setActiveListings] = useState<any[]>([]);
+  const [pendingTransferDetails, setPendingTransferDetails] = useState<any[]>([]);
   const [walletCopied, setWalletCopied] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
@@ -99,6 +100,7 @@ export default function DashboardPage() {
           });
           setRecentActivity(data.recentActivity || []);
           setActiveListings(data.activeListings || []);
+          setPendingTransferDetails(data.pendingTransferDetails || []);
         }
       } catch (error) {
         console.error("Failed to fetch user stats:", error);
@@ -161,6 +163,39 @@ export default function DashboardPage() {
               Here's what's happening with your projects
             </p>
           </div>
+
+          {/* Pending Transfers Banner */}
+          {stats.pendingTransfers > 0 && (
+            <div className="mb-8 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
+                    You have {stats.pendingTransfers} pending transfer{stats.pendingTransfers > 1 ? "s" : ""}
+                  </h3>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                    Complete the asset transfer to release funds from escrow.
+                  </p>
+                  {pendingTransferDetails.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {pendingTransferDetails.map((t: any) => (
+                        <Link
+                          key={t.id}
+                          href={`/dashboard/transfers/${t.id}`}
+                          className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-200 hover:underline"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          {t.listing?.title || "Transfer"} — {t.status.replace(/_/g, " ").toLowerCase()}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats Grid */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -401,31 +436,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Pending Transfers Banner */}
-          {stats.pendingTransfers > 0 && (
-            <div className="mt-8 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
-                    You have {stats.pendingTransfers} pending transfer{stats.pendingTransfers > 1 ? "s" : ""}
-                  </h3>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                    Complete the asset transfer to release funds from escrow.
-                  </p>
-                </div>
-                <Link
-                  href="/dashboard/transfers"
-                  className="btn-primary bg-yellow-600 hover:bg-yellow-700 text-sm py-2"
-                >
-                  View Transfers
-                  <ExternalLink className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </div>
