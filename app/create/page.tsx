@@ -57,7 +57,7 @@ const categories = [
   { value: "BROWSER_EXTENSION", label: "Browser Extension", icon: "🧩" },
   { value: "API", label: "API / Backend", icon: "⚡" },
   { value: "ECOMMERCE", label: "E-commerce", icon: "🛒" },
-  { value: "CRYPTO_WEB3", label: "Crypto & Web3", icon: "⛓️" },
+  { value: "CRYPTO_WEB3", label: "Crypto", icon: "⛓️" },
   { value: "DEVELOPER_TOOLS", label: "Developer Tools", icon: "🛠️" },
   { value: "GAMING", label: "Gaming", icon: "🎮" },
   { value: "OTHER", label: "Other", icon: "📦" },
@@ -110,7 +110,7 @@ export default function CreateListingPage() {
     title: "",
     tagline: "",
     description: "",
-    category: "",
+    categories: [] as string[],
     blockchain: "",
     techStack: [] as string[],
     customTech: "",
@@ -350,7 +350,7 @@ export default function CreateListingPage() {
     if (step === 1) {
       if (!formData.title.trim()) newErrors.title = "Title is required";
       if (!formData.description.trim()) newErrors.description = "Description is required";
-      if (!formData.category) newErrors.category = "Category is required";
+      if (formData.categories.length === 0) newErrors.categories = "At least one category is required";
       if (formData.techStack.length === 0) newErrors.techStack = "Add at least one technology";
     }
     
@@ -447,7 +447,7 @@ export default function CreateListingPage() {
           title: formData.title,
           tagline: formData.tagline,
           description: formData.description,
-          category: formData.category,
+          categories: formData.categories,
           blockchain: formData.blockchain || null,
           techStack: formData.techStack,
           thumbnailUrl: formData.profileImagePreview || null, // Map profileImagePreview to thumbnailUrl
@@ -742,26 +742,35 @@ export default function CreateListingPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                        Category <span className="text-red-500">*</span>
+                        Categories <span className="text-red-500">*</span>
+                        <span className="text-zinc-400 font-normal ml-2">(select all that apply)</span>
                       </label>
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        {categories.map((cat) => (
-                          <button
-                            key={cat.value}
-                            type="button"
-                            onClick={() => updateFormData("category", cat.value)}
-                            className={`p-3 rounded-xl border text-left transition-all ${
-                              formData.category === cat.value
-                                ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                                : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                            }`}
-                          >
-                            <span className="text-xl mb-1 block">{cat.icon}</span>
-                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{cat.label}</span>
-                          </button>
-                        ))}
+                        {categories.map((cat) => {
+                          const isSelected = formData.categories.includes(cat.value);
+                          return (
+                            <button
+                              key={cat.value}
+                              type="button"
+                              onClick={() => {
+                                const newCategories = isSelected
+                                  ? formData.categories.filter((c) => c !== cat.value)
+                                  : [...formData.categories, cat.value];
+                                updateFormData("categories", newCategories);
+                              }}
+                              className={`p-3 rounded-xl border text-left transition-all ${
+                                isSelected
+                                  ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                                  : "border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                              }`}
+                            >
+                              <span className="text-xl mb-1 block">{cat.icon}</span>
+                              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{cat.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                      {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
+                      {errors.categories && <p className="mt-1 text-sm text-red-500">{errors.categories}</p>}
                     </div>
 
                     {/* Blockchain - Optional */}
@@ -1439,7 +1448,7 @@ export default function CreateListingPage() {
                     </div>
 
                     {/* Wallet Address - shown if crypto/web3 related */}
-                    {(formData.blockchain || formData.category === "CRYPTO_WEB3") && (
+                    {(formData.blockchain || formData.categories.includes("CRYPTO_WEB3")) && (
                       <div className={`p-4 rounded-xl border ${formData.requiredBuyerInfo.walletAddress?.required ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                         <label className="flex items-start gap-3 cursor-pointer">
                           <input
@@ -1696,7 +1705,7 @@ export default function CreateListingPage() {
                       <div>
                         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{formData.title || "Untitled"}</h3>
                         {formData.tagline && <p className="text-zinc-500">{formData.tagline}</p>}
-                        <p className="text-sm text-zinc-500 mt-1">{categories.find(c => c.value === formData.category)?.label || "No category"}</p>
+                        <p className="text-sm text-zinc-500 mt-1">{formData.categories.length > 0 ? formData.categories.map(c => categories.find(cat => cat.value === c)?.label).filter(Boolean).join(", ") : "No categories"}</p>
                       </div>
                     </div>
 

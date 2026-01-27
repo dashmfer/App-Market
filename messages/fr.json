@@ -119,9 +119,11 @@
       "webApps": "Apps Web",
       "extensions": "Extensions",
       "cryptoWeb3": "Crypto et Web3",
+      "crypto": "Crypto",
       "ecommerce": "E-commerce",
       "devTools": "Outils Dev",
-      "gaming": "Jeux"
+      "gaming": "Jeux",
+      "other": "Autre"
     },
     "sort": {
       "endingSoon": "Fin Imminente",
