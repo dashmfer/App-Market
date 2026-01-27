@@ -49,7 +49,7 @@ export async function GET(
             title: true,
             slug: true,
             thumbnailUrl: true,
-            category: true,
+            categories: true,
             status: true,
             startingPrice: true,
             buyNowPrice: true,

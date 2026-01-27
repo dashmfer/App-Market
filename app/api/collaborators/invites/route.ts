@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
             slug: true,
             tagline: true,
             thumbnailUrl: true,
-            category: true,
+            categories: true,
             status: true,
             startingPrice: true,
             buyNowPrice: true,
