@@ -110,13 +110,18 @@ async function linkPendingInvitesToUser(userId: string, walletAddress: string) {
 // Called after Privy authentication to sync user with our database
 export async function POST(request: NextRequest) {
   try {
-    const { accessToken } = await request.json();
+    const { accessToken, createdWalletAddress } = await request.json();
 
     if (!accessToken) {
       return NextResponse.json(
         { error: "Missing access token" },
         { status: 400 }
       );
+    }
+
+    // Log if we received a directly created wallet address
+    if (createdWalletAddress) {
+      console.log("[Privy Callback] Received directly created wallet address:", createdWalletAddress);
     }
 
     // Check if Privy is configured
@@ -194,8 +199,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const walletAddress = embeddedWallet?.address;
+    // Prefer the directly passed wallet address (from just-created wallet)
+    // Fall back to finding it in linkedAccounts
+    const walletAddress = createdWalletAddress || embeddedWallet?.address;
     console.log("[Privy Callback] Final wallet address:", walletAddress);
+    console.log("[Privy Callback] Source:", createdWalletAddress ? "directly passed" : "from linkedAccounts");
 
     // Determine wallet type based on how they signed up
     let walletType: "PRIVY_EMAIL" | "PRIVY_TWITTER" | "EXTERNAL" = "EXTERNAL";
