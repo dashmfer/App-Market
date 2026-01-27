@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -51,10 +51,11 @@ function ExploreContent() {
     { value: "mobile-app", label: t("categories.mobileApps") },
     { value: "web-app", label: t("categories.webApps") },
     { value: "browser-extension", label: t("categories.extensions") },
-    { value: "crypto-web3", label: t("categories.cryptoWeb3") },
+    { value: "crypto-web3", label: t("categories.crypto") },
     { value: "ecommerce", label: t("categories.ecommerce") },
     { value: "developer-tools", label: t("categories.devTools") },
     { value: "gaming", label: t("categories.gaming") },
+    { value: "other", label: t("categories.other") },
   ];
 
   const blockchains = [
@@ -86,12 +87,14 @@ function ExploreContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedBlockchain, setSelectedBlockchain] = useState("all");
   const [selectedSort, setSelectedSort] = useState("ending-soon");
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+  const isInitialMount = useRef(true);
 
   // Read URL params on mount
   useEffect(() => {
@@ -104,6 +107,15 @@ function ExploreContent() {
       setSelectedBlockchain(blockchainParam);
     }
   }, [searchParams]);
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchListings = useCallback(async () => {
     setLoading(true);
@@ -122,8 +134,8 @@ function ExploreContent() {
         params.set("blockchain", selectedBlockchain);
       }
 
-      if (searchQuery) {
-        params.set("search", searchQuery);
+      if (debouncedSearch) {
+        params.set("search", debouncedSearch);
       }
 
       if (selectedPrice !== "all") {
@@ -145,22 +157,12 @@ function ExploreContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedBlockchain, selectedSort, selectedPrice, searchQuery, tCommon]);
+  }, [selectedCategory, selectedBlockchain, selectedSort, selectedPrice, debouncedSearch, tCommon]);
 
+  // Fetch listings when filters change (using debounced search)
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery !== "") {
-        fetchListings();
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   const activeFiltersCount = [
     selectedCategory !== "all",

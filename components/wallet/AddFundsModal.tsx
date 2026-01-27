@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Copy, Check, Wallet, ExternalLink } from "lucide-react";
+import { X, Copy, Check, Wallet, ExternalLink, ArrowDownToLine } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface AddFundsModalProps {
@@ -51,7 +51,7 @@ export function AddFundsModal({
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-green-500" />
+                  <ArrowDownToLine className="w-5 h-5 text-green-500" />
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                     Add Funds
                   </h2>
@@ -67,8 +67,7 @@ export function AddFundsModal({
               {/* Content */}
               <div className="p-6 space-y-6">
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 text-center">
-                  Send SOL from any exchange or wallet to fund your account.
-                  Scan the QR code or copy the address below.
+                  Send tokens from an exchange or another wallet to this address.
                 </p>
 
                 {/* QR Code */}
@@ -88,7 +87,7 @@ export function AddFundsModal({
                 {/* Wallet Address */}
                 <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-4">
                   <label className="block text-xs text-zinc-500 mb-2 font-medium">
-                    Your Solana Wallet Address
+                    Your Wallet Address
                   </label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-sm font-mono text-zinc-900 dark:text-zinc-100 break-all select-all">
@@ -113,15 +112,33 @@ export function AddFundsModal({
                   )}
                 </div>
 
+                {/* Supported Tokens */}
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
+                    Supported tokens:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      SOL
+                    </span>
+                    <span className="px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      USDC
+                    </span>
+                    <span className="px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      $APP
+                    </span>
+                  </div>
+                </div>
+
                 {/* Instructions */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                     How to add funds:
                   </h3>
                   <ol className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2 list-decimal list-inside">
-                    <li>Open your Solana wallet (Phantom, Solflare, etc.)</li>
-                    <li>Scan the QR code or paste the address above</li>
-                    <li>Send the desired amount of SOL</li>
+                    <li>Copy your wallet address above</li>
+                    <li>Go to your exchange (Coinbase, Binance, etc.) or another wallet</li>
+                    <li>Withdraw SOL, USDC, or $APP to this address</li>
                     <li>Wait for confirmation (usually under 1 minute)</li>
                   </ol>
                 </div>
@@ -129,16 +146,15 @@ export function AddFundsModal({
                 {/* Warning */}
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    <strong>Important:</strong> Only send SOL to this address.
-                    This is a Solana wallet - sending other cryptocurrencies may
-                    result in permanent loss.
+                    <strong>Important:</strong> Only send tokens on the Solana blockchain.
+                    Sending tokens from other networks (Ethereum, BSC, etc.) will result in permanent loss.
                   </p>
                 </div>
 
                 {/* Buy SOL Link */}
                 <div className="text-center pt-2">
                   <p className="text-xs text-zinc-500 mb-2">
-                    Don&apos;t have SOL?
+                    Need to buy SOL?
                   </p>
                   <a
                     href="https://www.coinbase.com/how-to-buy/solana"
@@ -146,7 +162,7 @@ export function AddFundsModal({
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400 hover:underline"
                   >
-                    Learn how to buy SOL
+                    Buy on Coinbase
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (category && category !== "all") {
-      where.category = category.toUpperCase().replace("-", "_");
+      where.categories = { has: category.toUpperCase().replace("-", "_") };
     }
 
     if (blockchain && blockchain !== "all") {
@@ -51,11 +51,68 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
+      // Map common search terms to categories for comprehensive search
+      const categoryMappings: Record<string, string[]> = {
+        "saas": ["SAAS"],
+        "software": ["SAAS", "WEB_APP", "MOBILE_APP"],
+        "ai": ["AI_ML"],
+        "artificial intelligence": ["AI_ML"],
+        "machine learning": ["AI_ML"],
+        "ml": ["AI_ML"],
+        "mobile": ["MOBILE_APP"],
+        "app": ["MOBILE_APP", "WEB_APP"],
+        "ios": ["MOBILE_APP"],
+        "android": ["MOBILE_APP"],
+        "web": ["WEB_APP"],
+        "website": ["WEB_APP"],
+        "extension": ["BROWSER_EXTENSION"],
+        "chrome": ["BROWSER_EXTENSION"],
+        "browser": ["BROWSER_EXTENSION"],
+        "plugin": ["BROWSER_EXTENSION"],
+        "crypto": ["CRYPTO_WEB3"],
+        "web3": ["CRYPTO_WEB3"],
+        "blockchain": ["CRYPTO_WEB3"],
+        "nft": ["CRYPTO_WEB3"],
+        "defi": ["CRYPTO_WEB3"],
+        "solana": ["CRYPTO_WEB3"],
+        "ethereum": ["CRYPTO_WEB3"],
+        "ecommerce": ["ECOMMERCE"],
+        "e-commerce": ["ECOMMERCE"],
+        "shop": ["ECOMMERCE"],
+        "store": ["ECOMMERCE"],
+        "developer": ["DEVELOPER_TOOLS"],
+        "dev tools": ["DEVELOPER_TOOLS"],
+        "devtools": ["DEVELOPER_TOOLS"],
+        "api": ["API", "DEVELOPER_TOOLS"],
+        "game": ["GAMING"],
+        "gaming": ["GAMING"],
+        "games": ["GAMING"],
+      };
+
+      // Find matching categories for the search term
+      const searchLower = search.toLowerCase();
+      const matchedCategories: string[] = [];
+      for (const [term, cats] of Object.entries(categoryMappings)) {
+        if (searchLower.includes(term) || term.includes(searchLower)) {
+          matchedCategories.push(...cats);
+        }
+      }
+      const uniqueCategories = [...new Set(matchedCategories)];
+
+      // Build OR conditions for text search and category matching
+      const searchConditions: any[] = [
         { title: { contains: search, mode: "insensitive" } },
         { tagline: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
+        { techStack: { has: search } },
       ];
+
+      // Add category matching if we found related categories
+      if (uniqueCategories.length > 0) {
+        searchConditions.push({ categories: { hasSome: uniqueCategories } });
+      }
+
+      where.OR = searchConditions;
     }
 
     if (minPrice) {
@@ -135,7 +192,8 @@ export async function GET(request: NextRequest) {
         title: listing.title,
         tagline: listing.tagline,
         thumbnailUrl: listing.thumbnailUrl,
-        category: listing.category,
+        categories: listing.categories,
+        category: listing.categories[0], // Backwards compatibility
         blockchain: listing.blockchain,
         techStack: listing.techStack,
         status: listing.status,
@@ -199,6 +257,7 @@ export async function POST(request: NextRequest) {
       tagline,
       description,
       category,
+      categories,
       blockchain,
       techStack,
       githubRepo,
@@ -237,7 +296,11 @@ export async function POST(request: NextRequest) {
     const missingFields: string[] = [];
     if (!title) missingFields.push("title");
     if (!description) missingFields.push("description");
-    if (!category) missingFields.push("category");
+    // Support both categories array and legacy category field
+    const finalCategories = categories && categories.length > 0
+      ? categories
+      : (category ? [category] : []);
+    if (finalCategories.length === 0) missingFields.push("category");
     if (!startingPrice && !buyNowEnabled) missingFields.push("starting price or enable Buy Now");
     if (buyNowEnabled && !buyNowPrice) missingFields.push("buy now price");
 
@@ -306,7 +369,7 @@ export async function POST(request: NextRequest) {
         title,
         tagline,
         description,
-        category,
+        categories: finalCategories,
         blockchain: blockchain || null,
         techStack,
         githubRepo,
