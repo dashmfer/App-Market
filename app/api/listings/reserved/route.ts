@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/listings/reserved
  * Get all listings reserved for the current user (for buyer dashboard)

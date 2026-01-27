@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 // GET - Get all pending purchase partner invites for the current user
 export async function GET(request: NextRequest) {
   try {
