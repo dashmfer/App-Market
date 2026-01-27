@@ -36,7 +36,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         appearance: {
           theme: "dark",
           accentColor: "#22c55e",
-          logo: "/logo.png",
           showWalletLoginFirst: false,
           // This is the key setting - restricts to Solana only
           walletChainType: "solana-only",
@@ -58,29 +57,17 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
           noPromptOnSignature: false,
         },
-        // Dynamically order clusters based on NEXT_PUBLIC_SOLANA_NETWORK
-        // This ensures the correct network is used as primary
-        solanaClusters: process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet"
-          ? [
-              {
-                name: "devnet",
-                rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com",
-              },
-              {
-                name: "mainnet-beta",
-                rpcUrl: "https://api.mainnet-beta.solana.com",
-              },
-            ]
-          : [
-              {
-                name: "mainnet-beta",
-                rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
-              },
-              {
-                name: "devnet",
-                rpcUrl: "https://api.devnet.solana.com",
-              },
-            ],
+        // Configure Solana cluster based on NEXT_PUBLIC_SOLANA_NETWORK
+        // Only include the active network to avoid cross-network issues
+        solanaClusters: [
+          {
+            name: process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet" ? "devnet" : "mainnet-beta",
+            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+              (process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet"
+                ? "https://api.devnet.solana.com"
+                : "https://api.mainnet-beta.solana.com"),
+          },
+        ],
         legal: {
           termsAndConditionsUrl: "/terms",
           privacyPolicyUrl: "/privacy",
