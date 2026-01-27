@@ -51,7 +51,7 @@ function ExploreContent() {
     { value: "mobile-app", label: t("categories.mobileApps") },
     { value: "web-app", label: t("categories.webApps") },
     { value: "browser-extension", label: t("categories.extensions") },
-    { value: "crypto-web3", label: t("categories.cryptoWeb3") },
+    { value: "crypto-web3", label: t("categories.crypto") },
     { value: "ecommerce", label: t("categories.ecommerce") },
     { value: "developer-tools", label: t("categories.devTools") },
     { value: "gaming", label: t("categories.gaming") },
