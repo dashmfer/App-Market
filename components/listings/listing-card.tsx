@@ -15,7 +15,8 @@ interface ListingCardProps {
     title: string;
     tagline?: string;
     thumbnailUrl?: string;
-    category: string;
+    category?: string;
+    categories?: string[];
     techStack?: string[];
     currentBid?: number;
     startingPrice?: number;
@@ -166,7 +167,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-4xl">
-                  {categoryLabels[listing.category]?.[0] || "📦"}
+                  {categoryLabels[listing.categories?.[0] || listing.category || ""]?.[0] || "📦"}
                 </div>
               </div>
             )}
@@ -177,7 +178,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
             {/* Category & Listing Type Badges */}
             <div className="absolute top-3 left-3 flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                {categoryLabels[listing.category] || listing.category}
+                {categoryLabels[listing.categories?.[0] || listing.category || ""] || listing.categories?.[0] || listing.category}
               </span>
               {isBuyNowOnly ? (
                 <span className="px-2.5 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-xs font-medium text-white flex items-center gap-1">

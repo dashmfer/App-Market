@@ -33,6 +33,7 @@ interface CollaboratorInvite {
     tagline?: string;
     thumbnailUrl?: string;
     category: string;
+    categories?: string[];
     status: string;
     seller: {
       id: string;
@@ -278,7 +279,7 @@ export default function CollaboratorInvitePage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-4 left-4 right-4">
               <span className="px-2 py-1 text-xs font-medium bg-white/20 backdrop-blur-sm text-white rounded-full">
-                {invite.listing.category}
+                {invite.listing.categories?.[0] || invite.listing.category}
               </span>
             </div>
           </div>

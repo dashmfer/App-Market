@@ -118,7 +118,8 @@ interface Listing {
   title: string;
   tagline?: string;
   description: string;
-  category: string;
+  category?: string;
+  categories?: string[];
   techStack: string[];
   githubRepo?: string;
   hasDomain: boolean;
@@ -547,8 +548,8 @@ export default function ListingPage() {
               Explore
             </Link>
             <ChevronRight className="w-4 h-4" />
-            <Link href={`/explore?category=${listing.category.toLowerCase()}`} className="hover:text-zinc-700 dark:hover:text-zinc-300">
-              {categoryLabels[listing.category] || listing.category}
+            <Link href={`/explore?category=${(listing.categories?.[0] || listing.category || "").toLowerCase()}`} className="hover:text-zinc-700 dark:hover:text-zinc-300">
+              {categoryLabels[listing.categories?.[0] || listing.category || ""] || listing.categories?.[0] || listing.category}
             </Link>
             <ChevronRight className="w-4 h-4" />
             <span className="text-zinc-900 dark:text-zinc-100">{listing.title}</span>
@@ -565,7 +566,7 @@ export default function ListingPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3 mb-3 flex-wrap">
-                    <span className="badge-green">{categoryLabels[listing.category] || listing.category}</span>
+                    <span className="badge-green">{categoryLabels[listing.categories?.[0] || listing.category || ""] || listing.categories?.[0] || listing.category}</span>
                     {/* Listing Type Badge */}
                     {isBuyNowOnly ? (
                       <span className="badge bg-green-500 text-white flex items-center gap-1.5">
