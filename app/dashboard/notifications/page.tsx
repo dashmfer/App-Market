@@ -79,6 +79,8 @@ function NotificationCard({
     href = (notification.data as any).link;
   } else if (notification.type === "PAYMENT_RECEIVED" && transactionId) {
     href = `/dashboard/transfers/${transactionId}`;
+  } else if (notification.type === "TRANSFER_STARTED" && transactionId) {
+    href = `/dashboard/transfers/${transactionId}`;
   } else if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
   } else if (notification.type === "COLLABORATION_INVITE" && listingSlug) {
