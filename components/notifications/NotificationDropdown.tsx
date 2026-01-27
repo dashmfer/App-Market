@@ -55,9 +55,12 @@ function NotificationItem({
   const conversationId = notification.data?.conversationId;
   const collaboratorId = notification.data?.collaboratorId;
   const partnerId = notification.data?.partnerId;
+  const transactionId = notification.data?.transactionId;
 
   let href = "/dashboard/notifications";
-  if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
+  if (notification.type === "BUYER_INFO_REQUIRED" && transactionId) {
+    href = `/dashboard/transfers/${transactionId}/buyer-info`;
+  } else if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
   } else if (notification.type === "LISTING_RESERVED" || notification.type === "OFFER_ACCEPTED") {
     // Direct reserved/offer accepted notifications to the purchases page
