@@ -241,29 +241,53 @@ export async function POST(request: NextRequest) {
         username = `${username}_${Date.now().toString(36).slice(-4)}`;
       }
 
-      user = await prisma.user.create({
-        data: {
-          email: email || null,
-          username,
-          walletAddress: walletAddress || null,
-          twitterId: twitterId || null,
-          twitterUsername: twitterUsername || null,
-          twitterVerified: !!twitterUsername,
-          isVerified: true,
-          verifiedAt: new Date(),
-        },
-      });
-
-      // Create wallet entry if we have a wallet address
-      if (walletAddress) {
-        await prisma.userWallet.create({
+      try {
+        user = await prisma.user.create({
           data: {
-            userId: user.id,
-            walletAddress,
-            isPrimary: true,
-            walletType,
+            email: email || null,
+            username,
+            walletAddress: walletAddress || null,
+            twitterId: twitterId || null,
+            twitterUsername: twitterUsername || null,
+            twitterVerified: !!twitterUsername,
+            isVerified: true,
+            verifiedAt: new Date(),
           },
         });
+
+        // Create wallet entry if we have a wallet address
+        if (walletAddress) {
+          await prisma.userWallet.create({
+            data: {
+              userId: user.id,
+              walletAddress,
+              isPrimary: true,
+              walletType,
+            },
+          });
+        }
+      } catch (createError: any) {
+        // Handle unique constraint error - user might already exist
+        if (createError.code === 'P2002') {
+          console.log("[Privy Callback] User already exists, fetching by unique field...");
+          // Try to find by email first (most common case)
+          if (email) {
+            user = await prisma.user.findUnique({ where: { email } });
+          }
+          // Fall back to wallet address
+          if (!user && walletAddress) {
+            user = await prisma.user.findUnique({ where: { walletAddress } });
+          }
+          // Fall back to twitterId
+          if (!user && twitterId) {
+            user = await prisma.user.findUnique({ where: { twitterId } });
+          }
+          if (!user) {
+            throw createError; // Re-throw if we still can't find the user
+          }
+        } else {
+          throw createError;
+        }
       }
     } else {
       // Update existing user with any new info
