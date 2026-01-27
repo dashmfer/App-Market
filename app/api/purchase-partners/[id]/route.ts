@@ -35,7 +35,7 @@ export async function GET(
                 slug: true,
                 tagline: true,
                 thumbnailUrl: true,
-                category: true,
+                categories: true,
               },
             },
             seller: {
