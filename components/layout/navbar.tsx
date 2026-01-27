@@ -87,7 +87,7 @@ export function Navbar() {
         }`}
       >
         <nav className="container-wide">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between h-16 md:h-20 relative">
             {/* Logo */}
             <Link
               href="/"
@@ -99,8 +99,8 @@ export function Navbar() {
               <span className="hidden sm:inline">App Market</span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-1">
+            {/* Desktop Navigation - Centered */}
+            <div className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
