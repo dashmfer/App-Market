@@ -121,7 +121,8 @@
       "cryptoWeb3": "加密和Web3",
       "ecommerce": "电子商务",
       "devTools": "开发工具",
-      "gaming": "游戏"
+      "gaming": "游戏",
+      "other": "其他"
     },
     "sort": {
       "endingSoon": "即将结束",
