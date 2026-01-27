@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -12,224 +12,10 @@ import {
   Loader2,
   AlertCircle,
   Lock,
-  Mail,
-  Twitter,
   ArrowRight,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Separate component for Privy login buttons to avoid hook issues
-function PrivyLoginButtons({
-  onEmailClick,
-  onTwitterClick,
-  onAuthComplete,
-  onAuthError,
-}: {
-  onEmailClick: () => void;
-  onTwitterClick: () => void;
-  onAuthComplete: () => void;
-  onAuthError: (error: string) => void;
-}) {
-  // Only import and use Privy hooks if configured
-  const privyConfigured = typeof window !== 'undefined' && !!process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-
-  if (!privyConfigured) {
-    return (
-      <>
-        <Button
-          onClick={() => alert("Email login is not configured yet. Please use wallet login.")}
-          variant="secondary"
-          size="lg"
-          className="w-full justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <Mail className="w-5 h-5" />
-            <span>Continue with Email</span>
-          </div>
-          <ArrowRight className="w-4 h-4" />
-        </Button>
-
-        <Button
-          onClick={() => alert("Twitter login is not configured yet. Please use wallet login.")}
-          variant="secondary"
-          size="lg"
-          className="w-full justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <Twitter className="w-5 h-5" />
-            <span>Continue with X</span>
-          </div>
-          <ArrowRight className="w-4 h-4" />
-        </Button>
-      </>
-    );
-  }
-
-  // When Privy is configured, render the real buttons
-  return (
-    <PrivyEnabledButtons
-      onEmailClick={onEmailClick}
-      onTwitterClick={onTwitterClick}
-      onAuthComplete={onAuthComplete}
-      onAuthError={onAuthError}
-    />
-  );
-}
-
-// This component only renders when Privy is configured
-function PrivyEnabledButtons({
-  onEmailClick,
-  onTwitterClick,
-  onAuthComplete,
-  onAuthError,
-}: {
-  onEmailClick: () => void;
-  onTwitterClick: () => void;
-  onAuthComplete: () => void;
-  onAuthError: (error: string) => void;
-}) {
-  // Dynamic import to avoid issues when Privy is not configured
-  const { useLogin, usePrivy } = require("@privy-io/react-auth");
-  const { authenticated, ready, getAccessToken, logout, user: privyUser } = usePrivy();
-  const { signIn } = require("next-auth/react");
-  const [isProcessing, setIsProcessing] = useState(false);
-
-
-  // If already authenticated with Privy, complete the auth flow
-  useEffect(() => {
-    if (ready && authenticated && !isProcessing) {
-      completePrivyAuth();
-    }
-  }, [ready, authenticated]);
-
-  const completePrivyAuth = async () => {
-    setIsProcessing(true);
-    try {
-      // Get the Privy access token
-      const accessToken = await getAccessToken();
-      if (!accessToken) {
-        // If we can't get an access token, log out and let user re-auth
-        await logout();
-        setIsProcessing(false);
-        return;
-      }
-
-      // Get Solana wallet address from Privy user data
-      // Privy automatically creates wallets via createOnLogin: "users-without-wallets"
-      const existingSolanaWallet = privyUser?.linkedAccounts?.find(
-        (account: any) =>
-          account.type === "wallet" &&
-          account.walletClientType === "privy" &&
-          (account.chainType === "solana" || !account.address?.startsWith("0x"))
-      );
-
-      // Call our backend to sync the user
-      const response = await fetch("/api/auth/privy/callback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          accessToken,
-          // Pass wallet address if available - Privy handles wallet creation automatically
-          createdWalletAddress: existingSolanaWallet?.address,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to sync user");
-      }
-
-      const data = await response.json();
-
-      // Sign in with NextAuth using the privy credential
-      const result = await signIn("privy", {
-        userId: data.user.id,
-        walletAddress: data.user.walletAddress || "",
-        redirect: false,
-      });
-
-      if (result?.error) {
-        throw new Error(result.error);
-      }
-
-      onAuthComplete();
-    } catch (error: any) {
-      console.error("Privy auth completion error:", error);
-      // Log out of Privy so user can try again
-      try {
-        await logout();
-      } catch (logoutError) {
-        console.error("Failed to logout from Privy:", logoutError);
-      }
-      // Show the specific error message
-      const errorMessage = error.message || "Authentication failed";
-      onAuthError(errorMessage);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const { login } = useLogin({
-    onComplete: async (user: any, isNewUser: boolean, wasAlreadyAuthenticated: boolean) => {
-      // After Privy authentication completes, sync with our backend
-      await completePrivyAuth();
-    },
-    onError: (error: any) => {
-      console.error("Privy login error:", error);
-      onAuthError(error?.message || "Login failed");
-    },
-  });
-
-  const handleEmailLogin = () => {
-    onEmailClick();
-    login();
-  };
-
-  const handleTwitterLogin = () => {
-    onTwitterClick();
-    login();
-  };
-
-  if (isProcessing) {
-    return (
-      <Button variant="secondary" size="lg" className="w-full" disabled>
-        <Loader2 className="w-5 h-5 animate-spin mr-2" />
-        Setting up your account...
-      </Button>
-    );
-  }
-
-  return (
-    <>
-      <Button
-        onClick={handleEmailLogin}
-        variant="secondary"
-        size="lg"
-        className="w-full justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <Mail className="w-5 h-5" />
-          <span>Continue with Email</span>
-        </div>
-        <ArrowRight className="w-4 h-4" />
-      </Button>
-
-      <Button
-        onClick={handleTwitterLogin}
-        variant="secondary"
-        size="lg"
-        className="w-full justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <Twitter className="w-5 h-5" />
-          <span>Continue with X</span>
-        </div>
-        <ArrowRight className="w-4 h-4" />
-      </Button>
-    </>
-  );
-}
 
 function SignInContent() {
   const router = useRouter();
@@ -241,9 +27,6 @@ function SignInContent() {
   const { connected, publicKey, signMessage, connecting, wallet } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
 
-  const [authMethod, setAuthMethod] = useState<"wallet" | "email" | "twitter" | null>(null);
-  const [privyError, setPrivyError] = useState<string | null>(null);
-
   // Redirect if already authenticated
   useEffect(() => {
     if (status === "authenticated") {
@@ -251,22 +34,11 @@ function SignInContent() {
     }
   }, [status, router, callbackUrl]);
 
-  // Handlers for Privy authentication
-  const handlePrivyAuthComplete = () => {
-    // Redirect to dashboard after successful auth
-    router.push(callbackUrl);
-  };
-
-  const handlePrivyAuthError = (errorMessage: string) => {
-    setPrivyError(errorMessage);
-  };
-
   // Detect wallet states
   const isWalletLocked = connected && publicKey && !signMessage;
   const isWalletReady = connected && publicKey && signMessage;
 
   const handleConnectWallet = () => {
-    setAuthMethod("wallet");
     setWalletModalVisible(true);
   };
 
@@ -313,17 +85,17 @@ function SignInContent() {
               Welcome to App Market
             </h1>
             <p className="mt-2 text-zinc-500">
-              Sign in or create an account to get started
+              Connect your wallet to get started
             </p>
           </div>
 
           {/* Error Message */}
-          {(error || privyError) && (
+          {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-4 h-4" />
                 <span className="text-sm">
-                  {privyError || errorMessages[error!] || errorMessages.default}
+                  {errorMessages[error] || errorMessages.default}
                 </span>
               </div>
             </div>
@@ -358,7 +130,7 @@ function SignInContent() {
               >
                 <div className="flex items-center gap-3">
                   <Wallet className="w-5 h-5" />
-                  <span>Continue with Wallet</span>
+                  <span>Connect Wallet</span>
                 </div>
                 <ArrowRight className="w-4 h-4" />
               </Button>
@@ -378,36 +150,6 @@ function SignInContent() {
               </Button>
             )}
 
-            {/* Divider */}
-            {!connecting && !isWalletReady && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-3 bg-white dark:bg-zinc-900 text-zinc-500">
-                      or
-                    </span>
-                  </div>
-                </div>
-
-                {/* Email & Twitter Options */}
-                <PrivyLoginButtons
-                  onEmailClick={() => {
-                    setPrivyError(null);
-                    setAuthMethod("email");
-                  }}
-                  onTwitterClick={() => {
-                    setPrivyError(null);
-                    setAuthMethod("twitter");
-                  }}
-                  onAuthComplete={handlePrivyAuthComplete}
-                  onAuthError={handlePrivyAuthError}
-                />
-              </>
-            )}
-
             {/* Change wallet option when connected */}
             {connected && publicKey && !isWalletReady && (
               <div className="text-center">
@@ -424,16 +166,16 @@ function SignInContent() {
             )}
           </div>
 
-          {/* New to crypto info */}
+          {/* Wallet info */}
           <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800">
             <div className="flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
               <div>
                 <p className="font-medium text-green-800 dark:text-green-300 text-sm">
-                  New to crypto?
+                  Need a wallet?
                 </p>
                 <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                  No wallet? No problem. Sign up with email or X and we'll create one for you automatically.
+                  We recommend <a href="https://phantom.app" target="_blank" rel="noopener noreferrer" className="underline">Phantom</a> or <a href="https://solflare.com" target="_blank" rel="noopener noreferrer" className="underline">Solflare</a> for Solana.
                 </p>
               </div>
             </div>
