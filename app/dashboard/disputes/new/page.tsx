@@ -1,11 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Flag, Loader2, AlertTriangle } from "lucide-react";
 
 export default function NewDisputePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-zinc-400" /></div>}>
+      <NewDisputeContent />
+    </Suspense>
+  );
+}
+
+function NewDisputeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const transactionId = searchParams.get("transaction");
