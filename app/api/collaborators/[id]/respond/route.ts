@@ -167,7 +167,7 @@ export async function GET(
             slug: true,
             tagline: true,
             thumbnailUrl: true,
-            category: true,
+            categories: true,
             status: true,
             seller: {
               select: {

@@ -69,7 +69,8 @@ export async function GET(request: NextRequest) {
       title: listing.title,
       tagline: listing.tagline,
       thumbnailUrl: listing.thumbnailUrl,
-      category: listing.category,
+      categories: listing.categories,
+      category: listing.categories?.[0], // Backwards compatibility
       techStack: listing.techStack,
       startingPrice: listing.startingPrice,
       buyNowPrice: listing.buyNowPrice,
