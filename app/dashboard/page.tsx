@@ -62,7 +62,7 @@ export default function DashboardPage() {
       const walletAddress = (session?.user as any)?.walletAddress;
       if (walletAddress) {
         try {
-          const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+          const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
           const response = await fetch(rpcUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

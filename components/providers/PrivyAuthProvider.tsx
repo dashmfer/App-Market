@@ -58,16 +58,29 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
           noPromptOnSignature: false,
         },
-        solanaClusters: [
-          {
-            name: "mainnet-beta",
-            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
-          },
-          {
-            name: "devnet",
-            rpcUrl: "https://api.devnet.solana.com",
-          },
-        ],
+        // Dynamically order clusters based on NEXT_PUBLIC_SOLANA_NETWORK
+        // This ensures the correct network is used as primary
+        solanaClusters: process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet"
+          ? [
+              {
+                name: "devnet",
+                rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com",
+              },
+              {
+                name: "mainnet-beta",
+                rpcUrl: "https://api.mainnet-beta.solana.com",
+              },
+            ]
+          : [
+              {
+                name: "mainnet-beta",
+                rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
+              },
+              {
+                name: "devnet",
+                rpcUrl: "https://api.devnet.solana.com",
+              },
+            ],
         legal: {
           termsAndConditionsUrl: "/terms",
           privacyPolicyUrl: "/privacy",
