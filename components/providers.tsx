@@ -28,7 +28,10 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   // You can also provide a custom RPC endpoint
   const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
+    const url = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
+    console.log("[Solana] RPC endpoint:", url);
+    console.log("[Solana] NEXT_PUBLIC_SOLANA_RPC_URL:", process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "NOT SET");
+    return url;
   }, []);
 
   const wallets = useMemo(
