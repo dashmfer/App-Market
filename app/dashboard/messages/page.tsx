@@ -343,7 +343,7 @@ function MessagesPageContent() {
   useEffect(() => {
     if (newRecipientId && conversations.length > 0) {
       const existing = conversations.find(
-        (c) => c.otherUser.id === newRecipientId
+        (c) => c.otherParticipant.id === newRecipientId
       );
       if (existing) {
         setSelectedConversation(existing.id);
