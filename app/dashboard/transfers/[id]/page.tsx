@@ -442,7 +442,8 @@ export default function TransferPage() {
   const isSeller = transfer.isSeller;
   const isBuyer = transfer.isBuyer;
 
-  const completedItems = transfer.checklist.filter(
+  const requiredItems = transfer.checklist.filter((item) => item.required);
+  const completedItems = requiredItems.filter(
     (item) => item.sellerConfirmed && item.buyerConfirmed
   ).length;
 
@@ -502,14 +503,14 @@ export default function TransferPage() {
                   Transfer Progress
                 </h2>
                 <span className="text-sm text-zinc-500">
-                  {completedItems}/{transfer.checklist.length} items confirmed
+                  {completedItems}/{requiredItems.length} items confirmed
                 </span>
               </div>
               <div className="w-full h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transition-all duration-500"
                   style={{
-                    width: `${(completedItems / transfer.checklist.length) * 100}%`,
+                    width: `${requiredItems.length > 0 ? (completedItems / requiredItems.length) * 100 : 0}%`,
                   }}
                 />
               </div>
@@ -548,7 +549,7 @@ export default function TransferPage() {
               </div>
 
               <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {transfer.checklist.map((item) => {
+                {transfer.checklist.filter((item) => item.required).map((item) => {
                   const Icon = iconMap[item.iconType] || FileText;
                   const isComplete = item.sellerConfirmed && item.buyerConfirmed;
                   const awaitingBuyer = item.sellerConfirmed && !item.buyerConfirmed;

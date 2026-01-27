@@ -1020,6 +1020,15 @@ export default function ListingPage() {
                           </p>
                         </div>
                       </div>
+                      {isOwnListing && (
+                        <Link
+                          href={`/dashboard/transfers/${listing.purchaseInfo.transactionId}`}
+                          className="w-full btn-primary py-3 text-center flex items-center justify-center gap-2"
+                        >
+                          <Package className="w-4 h-4" />
+                          Go to Transfer Page
+                        </Link>
+                      )}
                       {listing.purchaseInfo.isCurrentUserBuyer && listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (
                         <Link
                           href={`/dashboard/transfers/${listing.purchaseInfo.transactionId}/buyer-info`}
@@ -1072,8 +1081,8 @@ export default function ListingPage() {
                   ) : null}
                 </div>
 
-                {/* Required Buyer Information */}
-                {listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (
+                {/* Required Buyer Information - only show to potential buyers, not the seller */}
+                {!isOwnListing && listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (
                   <div className="p-6 bg-purple-50 dark:bg-purple-900/10 border-t border-purple-200 dark:border-purple-800">
                     <h4 className="font-medium text-purple-700 dark:text-purple-400 mb-3 flex items-center gap-2">
                       <FileText className="w-4 h-4" />
