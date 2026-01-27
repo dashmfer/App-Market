@@ -703,7 +703,7 @@ export default function TransferPage() {
                                   onClick={() => setSelectedItem(item.id)}
                                   className="btn-primary text-sm py-2"
                                 >
-                                  Mark as Transferred
+                                  Submit Transfer Details
                                 </button>
                               )}
 
