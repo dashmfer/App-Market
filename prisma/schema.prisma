@@ -145,8 +145,6 @@ model UserWallet {
 }
 
 enum WalletType {
-  PRIVY_EMAIL    // Created via email signup
-  PRIVY_TWITTER  // Created via Twitter signup
   EXTERNAL       // Connected from Phantom, Solflare, etc.
 }
 
