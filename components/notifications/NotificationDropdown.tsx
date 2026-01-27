@@ -60,6 +60,12 @@ function NotificationItem({
   let href = "/dashboard/notifications";
   if (notification.type === "BUYER_INFO_REQUIRED" && transactionId) {
     href = `/dashboard/transfers/${transactionId}/buyer-info`;
+  } else if (notification.type === "BUYER_INFO_SUBMITTED" && transactionId) {
+    href = `/dashboard/transfers/${transactionId}`;
+  } else if (notification.type === "BUYER_INFO_SUBMITTED" && notification.data?.link) {
+    href = notification.data.link;
+  } else if (notification.type === "PAYMENT_RECEIVED" && transactionId) {
+    href = `/dashboard/transfers/${transactionId}`;
   } else if (notification.type === "MESSAGE_RECEIVED" && conversationId) {
     href = `/dashboard/messages?conversation=${conversationId}`;
   } else if (notification.type === "LISTING_RESERVED" || notification.type === "OFFER_ACCEPTED") {
