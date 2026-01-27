@@ -15,6 +15,7 @@ import {
 import {
   useConversations,
   useConversation,
+  startConversation,
   Conversation,
   Message,
 } from "@/hooks/useMessages";
@@ -320,11 +321,16 @@ function MessageThread({
 function MessagesPageContent() {
   const searchParams = useSearchParams();
   const conversationParam = searchParams.get("conversation");
+  const newRecipientId = searchParams.get("new");
+  const newListingId = searchParams.get("listing");
   const { conversations, totalUnread, loading, refetch } = useConversations();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(
     conversationParam
   );
   const [showList, setShowList] = useState(true);
+  const [newMessage, setNewMessage] = useState("");
+  const [sendingNew, setSendingNew] = useState(false);
+  const [showNewCompose, setShowNewCompose] = useState(false);
 
   useEffect(() => {
     if (conversationParam) {
@@ -332,6 +338,46 @@ function MessagesPageContent() {
       setShowList(false);
     }
   }, [conversationParam]);
+
+  // Handle ?new=recipientId - check for existing conversation or show compose
+  useEffect(() => {
+    if (newRecipientId && conversations.length > 0) {
+      const existing = conversations.find(
+        (c) => c.otherUser.id === newRecipientId
+      );
+      if (existing) {
+        setSelectedConversation(existing.id);
+        setShowList(false);
+        window.history.replaceState({}, "", "/dashboard/messages");
+      } else {
+        setShowNewCompose(true);
+        setShowList(false);
+      }
+    } else if (newRecipientId && !loading) {
+      setShowNewCompose(true);
+      setShowList(false);
+    }
+  }, [newRecipientId, conversations, loading]);
+
+  const handleSendNewMessage = async () => {
+    if (!newRecipientId || !newMessage.trim()) return;
+    setSendingNew(true);
+    try {
+      const result = await startConversation(newRecipientId, newMessage.trim(), newListingId || undefined);
+      if (result?.conversationId) {
+        setShowNewCompose(false);
+        setNewMessage("");
+        await refetch();
+        setSelectedConversation(result.conversationId);
+        window.history.replaceState({}, "", "/dashboard/messages");
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      alert("Failed to send message");
+    } finally {
+      setSendingNew(false);
+    }
+  };
 
   const handleSelectConversation = (id: string) => {
     setSelectedConversation(id);
@@ -381,7 +427,55 @@ function MessagesPageContent() {
                 showList && !selectedConversation ? "hidden lg:flex" : "flex"
               }`}
             >
-              {selectedConversation ? (
+              {showNewCompose ? (
+                <div className="w-full flex flex-col">
+                  <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setShowNewCompose(false);
+                        setShowList(true);
+                        window.history.replaceState({}, "", "/dashboard/messages");
+                      }}
+                      className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      <ArrowLeft className="w-5 h-5 text-zinc-500" />
+                    </button>
+                    <h3 className="font-medium text-zinc-900 dark:text-zinc-100">New Message</h3>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 text-zinc-300 dark:text-zinc-700" />
+                      <p className="text-sm text-zinc-500">
+                        Type your message below and press send
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendNewMessage()}
+                        placeholder="Write your message..."
+                        className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        disabled={sendingNew}
+                      />
+                      <button
+                        onClick={handleSendNewMessage}
+                        disabled={sendingNew || !newMessage.trim()}
+                        className="p-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {sendingNew ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Send className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedConversation ? (
                 <div className="w-full">
                   <MessageThread
                     conversationId={selectedConversation}
