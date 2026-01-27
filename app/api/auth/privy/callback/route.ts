@@ -277,7 +277,16 @@ export async function POST(request: NextRequest) {
         updates.twitterUsername = twitterUsername;
         updates.twitterVerified = true;
       }
-      if (walletAddress && !user.walletAddress) {
+
+      // Check if we should replace ETH wallet with Solana wallet
+      const isSolanaWallet = walletAddress && !walletAddress.startsWith("0x");
+      const userHasEthWallet = user.walletAddress?.startsWith("0x");
+
+      if (isSolanaWallet && userHasEthWallet) {
+        // Replace ETH wallet with Solana wallet
+        console.log("[Privy Callback] Replacing ETH wallet with Solana wallet:", walletAddress);
+        updates.walletAddress = walletAddress;
+      } else if (walletAddress && !user.walletAddress) {
         updates.walletAddress = walletAddress;
       }
 
@@ -293,13 +302,12 @@ export async function POST(request: NextRequest) {
         await prisma.userWallet.upsert({
           where: { walletAddress },
           update: {
-            // Update userId if wallet exists but belongs to this user
             userId: user.id,
           },
           create: {
             userId: user.id,
             walletAddress,
-            isPrimary: !user.walletAddress,
+            isPrimary: isSolanaWallet || !user.walletAddress,
             walletType,
           },
         });
@@ -313,13 +321,18 @@ export async function POST(request: NextRequest) {
       invitesLinked = await linkPendingInvitesToUser(user.id, walletAddress);
     }
 
+    // Return Solana wallet if we have one, otherwise user's wallet
+    const finalWalletAddress = (walletAddress && !walletAddress.startsWith("0x"))
+      ? walletAddress
+      : user.walletAddress;
+
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         username: user.username,
-        walletAddress: user.walletAddress,
+        walletAddress: finalWalletAddress,
       },
       invitesLinked,
     });
