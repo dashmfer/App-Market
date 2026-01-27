@@ -125,20 +125,23 @@ function PrivyEnabledButtons({
       }
 
       // Check if user has a Solana wallet, if not create one
-      const hasSolanaWallet = privyUser?.linkedAccounts?.some(
+      const existingSolanaWallet = privyUser?.linkedAccounts?.find(
         (account: any) =>
           account.type === "wallet" &&
           account.walletClientType === "privy" &&
           (account.chainType === "solana" || !account.address?.startsWith("0x"))
       );
 
-      if (!hasSolanaWallet && createSolanaWallet) {
+      let createdWalletAddress: string | null = null;
+
+      if (!existingSolanaWallet && createSolanaWallet) {
         console.log("[Signin] No Solana wallet found, creating one...");
         try {
           const newWallet = await createSolanaWallet();
-          console.log("[Signin] Created Solana wallet:", newWallet?.address);
+          createdWalletAddress = newWallet?.address || null;
+          console.log("[Signin] Created Solana wallet:", createdWalletAddress);
           // Wait a moment for wallet to be reflected in user data
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1500));
         } catch (walletError: any) {
           console.error("[Signin] Failed to create Solana wallet:", walletError);
           // Continue anyway - backend will handle missing wallet
@@ -149,10 +152,15 @@ function PrivyEnabledButtons({
       const freshAccessToken = await getAccessToken();
 
       // Call our backend to sync the user
+      // Pass the created wallet address directly since Privy may not have synced it yet
       const response = await fetch("/api/auth/privy/callback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: freshAccessToken || accessToken }),
+        body: JSON.stringify({
+          accessToken: freshAccessToken || accessToken,
+          // Pass wallet address directly - Privy might not have synced it to linkedAccounts yet
+          createdWalletAddress: createdWalletAddress || existingSolanaWallet?.address,
+        }),
       });
 
       if (!response.ok) {
