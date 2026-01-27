@@ -57,7 +57,7 @@ const categories = [
   { value: "BROWSER_EXTENSION", label: "Browser Extension", icon: "🧩" },
   { value: "API", label: "API / Backend", icon: "⚡" },
   { value: "ECOMMERCE", label: "E-commerce", icon: "🛒" },
-  { value: "CRYPTO_WEB3", label: "Crypto & Web3", icon: "⛓️" },
+  { value: "CRYPTO_WEB3", label: "Crypto", icon: "⛓️" },
   { value: "DEVELOPER_TOOLS", label: "Developer Tools", icon: "🛠️" },
   { value: "GAMING", label: "Gaming", icon: "🎮" },
   { value: "OTHER", label: "Other", icon: "📦" },
