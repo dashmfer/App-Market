@@ -66,43 +66,6 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
-    // Privy provider - for email/Twitter users authenticated via Privy
-    // This trusts that Privy has already verified the user
-    CredentialsProvider({
-      id: "privy",
-      name: "Privy",
-      credentials: {
-        userId: { label: "User ID", type: "text" },
-        walletAddress: { label: "Wallet Address", type: "text" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.userId) {
-          throw new Error("Missing user ID");
-        }
-
-        // Look up the user in our database
-        const user = await prisma.user.findUnique({
-          where: { id: credentials.userId },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            walletAddress: true,
-          },
-        });
-
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.username,
-          walletAddress: user.walletAddress || credentials.walletAddress,
-        };
-      },
-    }),
   ],
   session: {
     strategy: "jwt",
