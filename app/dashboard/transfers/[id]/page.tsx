@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
-import { startConversation } from "@/hooks/useMessages";
+
 import { SecurityNotice } from "@/components/transfers/SecurityNotice";
 
 interface ChecklistItem {

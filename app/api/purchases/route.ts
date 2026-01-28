@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
@@ -110,6 +111,36 @@ export async function POST(request: NextRequest) {
         { error: "This listing has already been purchased" },
         { status: 400 }
       );
+    }
+
+    // Verify on-chain transaction if provided
+    if (onChainTx) {
+      try {
+        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+        const connection = new Connection(rpcUrl, "confirmed");
+        const txInfo = await connection.getTransaction(onChainTx, {
+          maxSupportedTransactionVersion: 0,
+          commitment: "confirmed",
+        });
+
+        if (!txInfo) {
+          return NextResponse.json(
+            { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
+            { status: 400 }
+          );
+        }
+
+        if (txInfo.meta?.err) {
+          return NextResponse.json(
+            { error: "On-chain transaction failed" },
+            { status: 400 }
+          );
+        }
+      } catch (verifyErr) {
+        console.error("Error verifying on-chain tx:", verifyErr);
+        // Don't block purchase if RPC is temporarily unavailable
+        // The tx signature is still stored for manual verification
+      }
     }
 
     // Calculate buyer info deadline (48 hours from now)
