@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/buyer-info-deadlines",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/check-partner-deposits",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/transfer-deadlines",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/offer-expiry",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
