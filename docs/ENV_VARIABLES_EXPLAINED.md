@@ -47,7 +47,7 @@ You should see these variables set for **Production**:
 NEXTAUTH_URL=https://appmrkt.xyz
 
 # Generate with: openssl rand -base64 32
-NEXTAUTH_SECRET=bKnv/3/gj/JiW/G4RJlZoBKQADWKtpFKDQN5bi0OICI=
+NEXTAUTH_SECRET=your-generated-secret-here
 
 # Your database connection string
 DATABASE_URL=postgresql://username:password@host:5432/database
