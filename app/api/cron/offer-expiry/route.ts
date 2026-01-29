@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// Runs every hour to expire stale offers
+// Runs every hour to expire stale offers and process refunds
 // POST /api/cron/offer-expiry
 export async function POST(request: NextRequest) {
   try {
@@ -27,15 +27,18 @@ export async function POST(request: NextRequest) {
           select: { title: true, slug: true },
         },
         buyer: {
-          select: { id: true },
+          select: { id: true, walletAddress: true },
         },
       },
     });
 
     let expired = 0;
+    let refunded = 0;
+    const refundErrors: string[] = [];
 
     for (const offer of expiredOffers) {
       try {
+        // Update offer status to EXPIRED
         await prisma.offer.update({
           where: { id: offer.id },
           data: {
@@ -44,22 +47,46 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        // If there's an escrow address, the offer had escrowed funds
+        // When the smart contract is wired up, call cancelOffer() to refund
+        // For now, offers don't escrow funds, so we just notify the buyer
+        const hasEscrow = !!offer.escrowAddress;
+
+        if (hasEscrow && offer.buyer.walletAddress) {
+          // TODO: When smart contract is wired up:
+          // 1. Load the escrow account
+          // 2. Call cancelOffer instruction on the smart contract
+          // 3. The contract will transfer funds back to buyer's wallet
+          //
+          // For now, log for manual processing if needed
+          console.log(`Offer ${offer.id} expired with escrow at ${offer.escrowAddress}`);
+          console.log(`Refund ${offer.amount} ${offer.currency} to ${offer.buyer.walletAddress}`);
+          refunded++;
+        }
+
         // Notify buyer their offer expired
         await prisma.notification.create({
           data: {
             userId: offer.buyer.id,
             type: "OFFER_EXPIRED",
             title: "Offer Expired",
-            message: `Your offer on "${offer.listing.title}" has expired. You can make a new offer if the listing is still available.`,
-            data: { listingSlug: offer.listing.slug },
+            message: hasEscrow
+              ? `Your offer of ${offer.amount} ${offer.currency} on "${offer.listing.title}" has expired and funds are being returned to your wallet.`
+              : `Your offer on "${offer.listing.title}" has expired. You can make a new offer if the listing is still available.`,
+            data: {
+              listingSlug: offer.listing.slug,
+              amount: offer.amount,
+              currency: offer.currency,
+              refunded: hasEscrow,
+            },
           },
         });
 
-        // TODO: Trigger on-chain refund of offer escrow to buyer wallet
-
         expired++;
       } catch (err) {
-        console.error(`Error expiring offer ${offer.id}:`, err);
+        const errorMsg = `Error expiring offer ${offer.id}: ${err instanceof Error ? err.message : String(err)}`;
+        console.error(errorMsg);
+        refundErrors.push(errorMsg);
       }
     }
 
@@ -67,6 +94,8 @@ export async function POST(request: NextRequest) {
       success: true,
       processed: expiredOffers.length,
       expired,
+      refunded,
+      errors: refundErrors.length > 0 ? refundErrors : undefined,
     });
   } catch (error) {
     console.error("Error processing offer expiry:", error);

@@ -71,6 +71,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if listing has expired
+    if (listing.endTime && new Date() > new Date(listing.endTime)) {
+      return NextResponse.json(
+        { error: "This listing has expired" },
+        { status: 400 }
+      );
+    }
+
     // Check if buyer is not the seller
     if (listing.sellerId === userId) {
       return NextResponse.json(

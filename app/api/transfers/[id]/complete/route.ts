@@ -92,6 +92,21 @@ export async function POST(
       );
     }
 
+    // Check if transaction was refunded or in dispute
+    if (transaction.status === "REFUNDED") {
+      return NextResponse.json(
+        { error: "This transaction has been refunded" },
+        { status: 400 }
+      );
+    }
+
+    if (transaction.status === "DISPUTED") {
+      return NextResponse.json(
+        { error: "This transaction is under dispute and cannot be completed" },
+        { status: 400 }
+      );
+    }
+
     // TODO: Call smart contract to release escrow to seller
     // This would involve:
     // 1. Getting the listing PDA

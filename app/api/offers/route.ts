@@ -142,6 +142,9 @@ export async function POST(req: NextRequest) {
 /**
  * GET /api/offers
  * Get current user's offers
+ * Query params:
+ * - type=received: offers on user's listings
+ * - type=sent: offers user has made (default)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -154,27 +157,74 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const offers = await prisma.offer.findMany({
-      where: {
-        buyerId: session.user.id,
-      },
-      include: {
-        listing: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-            thumbnailUrl: true,
-            status: true,
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get('type') || 'sent';
+
+    if (type === 'received') {
+      // Get offers on listings owned by the user
+      const offers = await prisma.offer.findMany({
+        where: {
+          listing: {
+            sellerId: session.user.id,
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              thumbnailUrl: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
 
-    return NextResponse.json(offers);
+      return NextResponse.json({ offers });
+    } else {
+      // Get offers made by the user
+      const offers = await prisma.offer.findMany({
+        where: {
+          buyerId: session.user.id,
+        },
+        include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              thumbnailUrl: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      return NextResponse.json({ offers });
+    }
   } catch (error) {
     console.error('Error fetching offers:', error);
     return NextResponse.json(
