@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
-import { startConversation } from "@/hooks/useMessages";
+
 import { SecurityNotice } from "@/components/transfers/SecurityNotice";
 
 interface ChecklistItem {
@@ -447,13 +447,19 @@ export default function TransferPage() {
     (item) => item.sellerConfirmed && item.buyerConfirmed
   ).length;
 
-  const timeLeft = formatDistanceToNow(new Date(transfer.transferDeadline), { addSuffix: false });
+  const deadlineDate = new Date(transfer.transferDeadline);
+  const isDeadlineExpired = new Date() > deadlineDate;
+  const timeLeft = isDeadlineExpired
+    ? "Deadline passed"
+    : formatDistanceToNow(deadlineDate, { addSuffix: false });
 
   const allConfirmed = transfer.checklist
     .filter((item) => item.required)
     .every((item) => item.sellerConfirmed && item.buyerConfirmed);
 
   const isCompleted = transfer.status === "COMPLETED";
+  const isRefunded = transfer.status === "REFUNDED";
+  const isDisputed = transfer.status === "DISPUTED";
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -695,16 +701,21 @@ export default function TransferPage() {
                           </div>
 
                           {/* Actions */}
-                          {!isCompleted && (
+                          {!isCompleted && !isRefunded && (
                             <div className="mt-4 flex items-center gap-3">
                               {/* Seller Actions */}
-                              {isSeller && awaitingSeller && (
+                              {isSeller && awaitingSeller && !isDeadlineExpired && (
                                 <button
                                   onClick={() => setSelectedItem(item.id)}
                                   className="btn-primary text-sm py-2"
                                 >
                                   Submit Transfer Details
                                 </button>
+                              )}
+                              {isSeller && awaitingSeller && isDeadlineExpired && (
+                                <span className="text-sm text-red-600 dark:text-red-400">
+                                  Deadline passed - transfer actions disabled
+                                </span>
                               )}
 
                               {/* Buyer Actions */}
@@ -1077,21 +1088,56 @@ export default function TransferPage() {
             </div>
 
             {/* Deadline */}
-            {!isCompleted && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800 p-6">
+            {!isCompleted && !isRefunded && (
+              <div className={`rounded-2xl border p-6 ${
+                isDeadlineExpired
+                  ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                  : "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800"
+              }`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <Clock className="w-5 h-5 text-yellow-600" />
-                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-200">
+                  <Clock className={`w-5 h-5 ${isDeadlineExpired ? "text-red-600" : "text-yellow-600"}`} />
+                  <h3 className={`font-semibold ${
+                    isDeadlineExpired
+                      ? "text-red-800 dark:text-red-200"
+                      : "text-yellow-800 dark:text-yellow-200"
+                  }`}>
                     Transfer Deadline
                   </h3>
                 </div>
-                <p className="text-2xl font-display font-semibold text-yellow-900 dark:text-yellow-100">
-                  {timeLeft} left
+                <p className={`text-2xl font-display font-semibold ${
+                  isDeadlineExpired
+                    ? "text-red-900 dark:text-red-100"
+                    : "text-yellow-900 dark:text-yellow-100"
+                }`}>
+                  {isDeadlineExpired ? "Deadline Passed" : `${timeLeft} left`}
                 </p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
-                  {isSeller
-                    ? "Complete all transfers before the deadline to receive payment."
-                    : "If seller doesn't complete transfer, you can dispute."}
+                <p className={`text-sm mt-2 ${
+                  isDeadlineExpired
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-yellow-700 dark:text-yellow-300"
+                }`}>
+                  {isDeadlineExpired
+                    ? isSeller
+                      ? "The transfer deadline has passed. The buyer may open a dispute for a refund."
+                      : "The transfer deadline has passed. You can open a dispute to request a refund."
+                    : isSeller
+                      ? "Complete all transfers before the deadline to receive payment."
+                      : "If seller doesn't complete transfer, you can dispute."}
+                </p>
+              </div>
+            )}
+
+            {/* Refunded Status */}
+            {isRefunded && (
+              <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6">
+                <div className="flex items-center gap-3 mb-3">
+                  <AlertCircle className="w-5 h-5 text-zinc-600" />
+                  <h3 className="font-semibold text-zinc-800 dark:text-zinc-200">
+                    Transaction Refunded
+                  </h3>
+                </div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  This transaction has been refunded to the buyer.
                 </p>
               </div>
             )}
