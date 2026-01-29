@@ -36,6 +36,7 @@ import {
   Send,
   X,
   Lock,
+  DollarSign,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
 import { format, formatDistanceToNow } from "date-fns";
@@ -181,6 +182,23 @@ interface Listing {
   }>;
 }
 
+interface Offer {
+  id: string;
+  amount: number;
+  deadline: string;
+  currency: string;
+  status: "ACTIVE" | "ACCEPTED" | "CANCELLED" | "EXPIRED";
+  buyer: {
+    id: string;
+    name?: string;
+    username?: string;
+    image?: string;
+    rating?: number;
+    totalPurchases?: number;
+  };
+  createdAt: string;
+}
+
 export default function ListingPage() {
   const params = useParams();
   const router = useRouter();
@@ -205,6 +223,9 @@ export default function ListingPage() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [sellerPercentage, setSellerPercentage] = useState(100);
   const [purchasePartners, setPurchasePartners] = useState<PurchasePartner[]>([]);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [acceptingOffer, setAcceptingOffer] = useState<string | null>(null);
+  const [decliningOffer, setDecliningOffer] = useState<string | null>(null);
 
   // Real-time countdown hook - must be called before any conditional returns
   const { timeLeft, isExpired, isEndingSoon } = useCountdown(listing?.endTime);
@@ -263,6 +284,75 @@ export default function ListingPage() {
       fetchListing();
     }
   }, [slug]);
+
+  // Fetch offers for seller
+  useEffect(() => {
+    async function fetchOffers() {
+      if (!listing || session?.user?.id !== listing.seller.id) return;
+
+      try {
+        const response = await fetch(`/api/offers/listing/${listing.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setOffers(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch offers:", err);
+      }
+    }
+
+    fetchOffers();
+  }, [listing, session?.user?.id]);
+
+  // Handle accepting an offer
+  const handleAcceptOffer = async (offerId: string) => {
+    if (acceptingOffer) return;
+    setAcceptingOffer(offerId);
+
+    try {
+      const response = await fetch(`/api/offers/${offerId}/accept`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        // Refresh the page to show updated state
+        window.location.reload();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to accept offer");
+      }
+    } catch (err) {
+      console.error("Error accepting offer:", err);
+      alert("Failed to accept offer");
+    } finally {
+      setAcceptingOffer(null);
+    }
+  };
+
+  // Handle declining an offer
+  const handleDeclineOffer = async (offerId: string) => {
+    if (decliningOffer) return;
+    setDecliningOffer(offerId);
+
+    try {
+      const response = await fetch(`/api/offers/${offerId}/cancel`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        // Remove offer from list
+        setOffers(offers.filter(o => o.id !== offerId));
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to decline offer");
+      }
+    } catch (err) {
+      console.error("Error declining offer:", err);
+      alert("Failed to decline offer");
+    } finally {
+      setDecliningOffer(null);
+    }
+  };
 
   // Handler for responding to collaboration invites
   const handleInviteRespond = async (collaboratorId: string, action: "accept" | "decline") => {
@@ -956,8 +1046,25 @@ export default function ListingPage() {
 
                 {/* Bid/Buy Input */}
                 <div className="p-6 space-y-4">
-                  {/* Show bid input only for auction listings */}
-                  {!isBuyNowOnly && (
+                  {/* Show expired message */}
+                  {isExpired && !listing.purchaseInfo?.isPurchased && (
+                    <div className="p-4 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-zinc-500" />
+                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          {isBuyNowOnly ? "This listing has expired" : "This auction has ended"}
+                        </p>
+                      </div>
+                      {!isBuyNowOnly && listing.bidCount > 0 && (
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Final bid: {listing.currentBid} {formatCurrency(listing.currency)} ({listing.bidCount} bids)
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Show bid input only for auction listings that haven't expired */}
+                  {!isBuyNowOnly && !isExpired && (
                     <>
                       <div>
                         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -1039,7 +1146,7 @@ export default function ListingPage() {
                         </Link>
                       )}
                     </div>
-                  ) : listing.buyNowEnabled && listing.buyNowPrice ? (
+                  ) : listing.buyNowEnabled && listing.buyNowPrice && !isExpired ? (
                     <>
                       {!isBuyNowOnly && (
                         <div className="relative">
@@ -1080,6 +1187,94 @@ export default function ListingPage() {
                     </>
                   ) : null}
                 </div>
+
+                {/* Offers Section - Only visible to seller */}
+                {isOwnListing && offers.length > 0 && !listing.purchaseInfo?.isPurchased && (
+                  <div className="p-6 bg-blue-50 dark:bg-blue-900/10 border-t border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                        <DollarSign className="w-4 h-4" />
+                        Offers ({offers.filter(o => o.status === "ACTIVE").length})
+                      </h4>
+                      <Link
+                        href="/dashboard/offers"
+                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      >
+                        View All Offers →
+                      </Link>
+                    </div>
+                    <div className="space-y-3">
+                      {offers.filter(o => o.status === "ACTIVE").slice(0, 3).map((offer) => {
+                        const offerExpired = new Date() > new Date(offer.deadline);
+                        return (
+                          <div
+                            key={offer.id}
+                            className={`p-3 rounded-lg border ${
+                              offerExpired
+                                ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                                : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+                                  <span className="text-xs font-medium text-white">
+                                    {(offer.buyer.username || offer.buyer.name || "?")[0].toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                                    {offer.amount} {formatCurrency(offer.currency)}
+                                  </p>
+                                  <p className="text-xs text-zinc-500">
+                                    from {offer.buyer.username || offer.buyer.name || "Anonymous"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {offerExpired ? (
+                                  <span className="text-xs text-zinc-500 px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded">
+                                    Expired
+                                  </span>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => handleAcceptOffer(offer.id)}
+                                      disabled={acceptingOffer === offer.id}
+                                      className="text-xs px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      {acceptingOffer === offer.id ? "..." : "Accept"}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeclineOffer(offer.id)}
+                                      disabled={decliningOffer === offer.id}
+                                      className="text-xs px-3 py-1.5 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600 disabled:opacity-50"
+                                    >
+                                      {decliningOffer === offer.id ? "..." : "Decline"}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {!offerExpired && (
+                              <p className="text-xs text-zinc-400 mt-2">
+                                Expires {formatDistanceToNow(new Date(offer.deadline), { addSuffix: true })}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {offers.filter(o => o.status === "ACTIVE").length > 3 && (
+                        <Link
+                          href="/dashboard/offers"
+                          className="block text-center text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 py-2"
+                        >
+                          View {offers.filter(o => o.status === "ACTIVE").length - 3} more offers →
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Required Buyer Information - only show to potential buyers, not the seller */}
                 {!isOwnListing && listing.requiredBuyerInfo && Object.values(listing.requiredBuyerInfo).some(v => v?.required) && (

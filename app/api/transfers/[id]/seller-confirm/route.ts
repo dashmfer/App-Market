@@ -99,6 +99,16 @@ export async function POST(
       return NextResponse.json({ error: "Transfer not found" }, { status: 404 });
     }
 
+    // Check if 7-day transfer deadline has passed
+    const transferDeadline = new Date(transaction.createdAt);
+    transferDeadline.setDate(transferDeadline.getDate() + 7);
+    if (new Date() > transferDeadline) {
+      return NextResponse.json(
+        { error: "Transfer deadline has passed. This transaction will be refunded to the buyer." },
+        { status: 400 }
+      );
+    }
+
     // Only seller can confirm transfers
     if (transaction.sellerId !== session.user.id) {
       return NextResponse.json(
