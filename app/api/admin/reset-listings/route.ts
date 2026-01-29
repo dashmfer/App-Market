@@ -3,9 +3,8 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// ADMIN SECRET - Set this in your environment variables for production
-// For now, using a hardcoded key that you can change or disable
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "devnet-reset-2024";
+// ADMIN SECRET - Must be set in environment variables
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 // DELETE /api/admin/reset-listings
 // Delete all listings: DELETE /api/admin/reset-listings?secret=YOUR_SECRET&all=true
@@ -17,8 +16,8 @@ export async function DELETE(request: NextRequest) {
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 
-    // Verify admin secret
-    if (secret !== ADMIN_SECRET) {
+    // Verify admin secret is configured and matches
+    if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
     }
 
