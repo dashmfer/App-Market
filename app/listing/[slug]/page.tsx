@@ -43,6 +43,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useCountdown } from "@/hooks/useCountdown";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
+import { NDAGate } from "@/components/listings/NDAGate";
 
 // Helper to format currency display
 const formatCurrency = (currency: string): string => {
@@ -129,6 +130,11 @@ interface Listing {
   databaseType?: string;
   hasHosting: boolean;
   hostingProvider?: string;
+  hasVercel: boolean;
+  vercelProjectUrl?: string;
+  vercelTeamSlug?: string;
+  requiresNDA: boolean;
+  ndaTerms?: string;
   hasSocialAccounts: boolean;
   hasApiKeys: boolean;
   hasDesignFiles: boolean;
@@ -629,11 +635,19 @@ export default function ListingPage() {
     OTHER: "Other",
   };
 
+  // Vercel icon component
+  const VercelIcon = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 76 65" fill="currentColor">
+      <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+    </svg>
+  );
+
   const assetsList = [
     { key: "github", label: "GitHub Repository", value: listing.githubRepo, icon: Github, included: !!listing.githubRepo },
     { key: "domain", label: "Domain", value: listing.domain, icon: Globe, included: listing.hasDomain },
     { key: "database", label: "Database", value: listing.databaseType, icon: Database, included: listing.hasDatabase },
     { key: "hosting", label: "Hosting", value: listing.hostingProvider, icon: Globe, included: listing.hasHosting },
+    { key: "vercel", label: "Vercel Project Transfer", value: listing.vercelProjectUrl || "Included", icon: VercelIcon, included: listing.hasVercel },
     { key: "apiKeys", label: "API Keys & Credentials", value: "Included", icon: Key, included: listing.hasApiKeys },
     { key: "design", label: "Design Files", value: "Included", icon: Palette, included: listing.hasDesignFiles },
     { key: "docs", label: "Documentation", value: "Included", icon: FileText, included: listing.hasDocumentation },
@@ -871,6 +885,16 @@ export default function ListingPage() {
             </div>
 
             {/* Tab Content */}
+            <NDAGate
+              listingSlug={listing.slug}
+              listingTitle={listing.title}
+              requiresNDA={listing.requiresNDA || false}
+              blurredPreview={
+                <div className="prose prose-zinc dark:prose-invert max-w-none opacity-50">
+                  <div className="whitespace-pre-wrap line-clamp-6">{listing.description}</div>
+                </div>
+              }
+            >
             <div>
               {activeTab === "description" && (
                 <div className="prose prose-zinc dark:prose-invert max-w-none">
@@ -965,6 +989,7 @@ export default function ListingPage() {
                 </div>
               )}
             </div>
+            </NDAGate>
           </div>
 
           {/* Sidebar - Bid Panel */}

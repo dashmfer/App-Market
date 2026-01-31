@@ -1,0 +1,237 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/auth";
+import prisma from "@/lib/db";
+import {
+  calculateListingSimilarity,
+  SimilarityResult,
+} from "@/lib/similarity-detection";
+
+// POST /api/admin/similarity-scan - Run similarity scan on all active listings (admin only)
+export async function POST(request: NextRequest) {
+  try {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: token.id as string },
+      select: { isAdmin: true },
+    });
+
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      );
+    }
+
+    // Fetch all active listings
+    const listings = await prisma.listing.findMany({
+      where: {
+        status: {
+          in: ["ACTIVE", "RESERVED"],
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        techStack: true,
+        thumbnailUrl: true,
+        sellerId: true,
+      },
+    });
+
+    const similarities: Array<{
+      listingAId: string;
+      listingBId: string;
+      result: SimilarityResult;
+    }> = [];
+
+    // Compare each pair of listings
+    for (let i = 0; i < listings.length; i++) {
+      for (let j = i + 1; j < listings.length; j++) {
+        const result = calculateListingSimilarity(listings[i], listings[j]);
+
+        // Only store if there's some similarity
+        if (result.flagLevel !== "none") {
+          similarities.push({
+            listingAId: listings[i].id,
+            listingBId: listings[j].id,
+            result,
+          });
+        }
+      }
+    }
+
+    // Store results in database
+    const storedResults = [];
+    for (const sim of similarities) {
+      // Check if this pair already exists
+      const existing = await prisma.listingSimilarity.findFirst({
+        where: {
+          OR: [
+            { listingAId: sim.listingAId, listingBId: sim.listingBId },
+            { listingAId: sim.listingBId, listingBId: sim.listingAId },
+          ],
+        },
+      });
+
+      if (existing) {
+        // Update existing
+        const updated = await prisma.listingSimilarity.update({
+          where: { id: existing.id },
+          data: {
+            similarityScore: sim.result.overallSimilarity,
+            titleSimilarity: sim.result.titleSimilarity,
+            descriptionSimilarity: sim.result.descriptionSimilarity,
+            techStackSimilarity: sim.result.techStackSimilarity,
+            imageSimilarity: sim.result.imageSimilarity,
+            flagLevel: sim.result.flagLevel === "hard" ? "HARD" : "SOFT",
+            reasons: sim.result.reasons,
+            lastCheckedAt: new Date(),
+          },
+        });
+        storedResults.push(updated);
+      } else {
+        // Create new
+        const created = await prisma.listingSimilarity.create({
+          data: {
+            listingAId: sim.listingAId,
+            listingBId: sim.listingBId,
+            similarityScore: sim.result.overallSimilarity,
+            titleSimilarity: sim.result.titleSimilarity,
+            descriptionSimilarity: sim.result.descriptionSimilarity,
+            techStackSimilarity: sim.result.techStackSimilarity,
+            imageSimilarity: sim.result.imageSimilarity,
+            flagLevel: sim.result.flagLevel === "hard" ? "HARD" : "SOFT",
+            reasons: sim.result.reasons,
+          },
+        });
+        storedResults.push(created);
+      }
+    }
+
+    // Get summary
+    const hardFlags = storedResults.filter((r) => r.flagLevel === "HARD").length;
+    const softFlags = storedResults.filter((r) => r.flagLevel === "SOFT").length;
+
+    return NextResponse.json({
+      success: true,
+      listingsScanned: listings.length,
+      pairsAnalyzed: (listings.length * (listings.length - 1)) / 2,
+      similaritiesFound: storedResults.length,
+      hardFlags,
+      softFlags,
+    });
+  } catch (error) {
+    console.error("Error running similarity scan:", error);
+    return NextResponse.json(
+      { error: "Failed to run similarity scan" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET /api/admin/similarity-scan - Get flagged similar listings (admin only)
+export async function GET(request: NextRequest) {
+  try {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    const user = await prisma.user.findUnique({
+      where: { id: token.id as string },
+      select: { isAdmin: true },
+    });
+
+    if (!user?.isAdmin) {
+      return NextResponse.json(
+        { error: "Admin access required" },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const flagLevel = searchParams.get("flagLevel");
+    const status = searchParams.get("status");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "20");
+
+    const where: any = {};
+
+    if (flagLevel) {
+      where.flagLevel = flagLevel.toUpperCase();
+    }
+
+    if (status) {
+      where.status = status.toUpperCase();
+    }
+
+    const [similarities, total] = await Promise.all([
+      prisma.listingSimilarity.findMany({
+        where,
+        orderBy: { similarityScore: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          listingA: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              thumbnailUrl: true,
+              seller: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+          listingB: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+              thumbnailUrl: true,
+              seller: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.listingSimilarity.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      similarities,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching similarities:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch similarities" },
+      { status: 500 }
+    );
+  }
+}
