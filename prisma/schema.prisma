@@ -875,9 +875,12 @@ enum NotificationType {
   AUCTION_WON
   AUCTION_LOST
   AUCTION_ENDING_SOON
+  AUCTION_EXTENDED          // Notify when auction deadline is extended
   TRANSFER_STARTED
   TRANSFER_COMPLETED
   PAYMENT_RECEIVED
+  REFUND_PROCESSED          // Notify when refund is processed
+  SALE_CANCELLED            // Notify when sale is cancelled
   DISPUTE_OPENED
   DISPUTE_RESOLVED
   REVIEW_RECEIVED

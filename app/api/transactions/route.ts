@@ -232,22 +232,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update seller stats
-    await prisma.user.update({
-      where: { id: listing.sellerId },
-      data: {
-        totalSales: { increment: 1 },
-        totalVolume: { increment: salePrice },
-      },
-    });
-
-    // Update buyer stats
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        totalPurchases: { increment: 1 },
-      },
-    });
+    // NOTE: Seller stats (totalSales, totalVolume) are updated in transfers/[id]/complete
+    // when the transaction is actually completed, not at creation time.
+    // This prevents inflated stats from cancelled/disputed transactions.
 
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {

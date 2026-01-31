@@ -68,7 +68,36 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   });
 
   if (!listing) {
-    console.error("Listing not found for payment:", listingId);
+    // CRITICAL: Payment succeeded but listing doesn't exist
+    // Log critical error for manual intervention and attempt refund
+    console.error("CRITICAL: Payment succeeded but listing not found:", {
+      listingId,
+      paymentIntentId: paymentIntent.id,
+      buyerId,
+      amountSol,
+    });
+
+    // Attempt to refund the payment
+    try {
+      await stripe.refunds.create({
+        payment_intent: paymentIntent.id,
+        reason: 'requested_by_customer',
+      });
+      console.log("Refund initiated for missing listing:", paymentIntent.id);
+
+      // Notify buyer about the refund
+      await prisma.notification.create({
+        data: {
+          type: "SYSTEM",
+          title: "Payment Refunded",
+          message: "Your payment was refunded because the listing is no longer available.",
+          userId: buyerId,
+        },
+      });
+    } catch (refundError) {
+      console.error("CRITICAL: Failed to refund payment for missing listing:", refundError);
+      // Manual intervention required
+    }
     return;
   }
 
