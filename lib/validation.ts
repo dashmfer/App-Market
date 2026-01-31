@@ -119,16 +119,16 @@ export function calculatePartnerPayments(
   totalAmountSol: number,
   partners: { walletAddress: string; percentage: number }[]
 ): { walletAddress: string; amountSol: number; amountLamports: bigint }[] {
-  const LAMPORTS_PER_SOL = 1_000_000_000n;
+  const LAMPORTS_PER_SOL = BigInt(1000000000);
   const totalLamports = BigInt(Math.round(totalAmountSol * Number(LAMPORTS_PER_SOL)));
 
-  let distributedLamports = 0n;
+  let distributedLamports = BigInt(0);
   const payments = partners.map((partner, index) => {
     // For the last partner, give them the remainder to avoid rounding issues
     const isLast = index === partners.length - 1;
     const amountLamports = isLast
       ? totalLamports - distributedLamports
-      : (totalLamports * BigInt(Math.round(partner.percentage * 100))) / 10000n;
+      : (totalLamports * BigInt(Math.round(partner.percentage * 100))) / BigInt(10000);
 
     distributedLamports += amountLamports;
 
