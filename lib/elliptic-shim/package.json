@@ -1,0 +1,10 @@
+{
+  "name": "elliptic",
+  "version": "6.6.1",
+  "description": "Secure elliptic compatibility shim using @noble/curves",
+  "main": "index.js",
+  "dependencies": {
+    "@noble/curves": "^1.8.0"
+  },
+  "license": "MIT"
+}
