@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { canEditListing, isValidUrl, MAX_CATEGORIES } from "@/lib/validation";
 
 // GET /api/listings/[slug] - Get a single listing by slug
 export async function GET(
@@ -180,8 +181,35 @@ export async function PUT(
       );
     }
 
+    // SECURITY: Prevent editing listings that are sold, ended, or cancelled
+    if (!canEditListing(listing.status)) {
+      return NextResponse.json(
+        { error: `Cannot edit listing with status: ${listing.status}` },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Prevent editing listings that have bids (price manipulation)
+    if (listing._count.bids > 0) {
+      return NextResponse.json(
+        { error: "Cannot edit listing that already has bids" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
-    const { title, tagline, description } = body;
+    const { title, tagline, description, demoUrl, videoUrl, websiteUrl } = body;
+
+    // SECURITY: Validate URLs have safe protocols
+    const urlFields = { demoUrl, videoUrl, websiteUrl };
+    for (const [field, url] of Object.entries(urlFields)) {
+      if (url && !isValidUrl(url)) {
+        return NextResponse.json(
+          { error: `Invalid URL for ${field}: only http/https allowed` },
+          { status: 400 }
+        );
+      }
+    }
 
     // Update the listing
     const updatedListing = await prisma.listing.update({
@@ -190,6 +218,8 @@ export async function PUT(
         ...(title && { title }),
         ...(tagline !== undefined && { tagline }),
         ...(description && { description }),
+        ...(demoUrl !== undefined && { demoUrl }),
+        ...(videoUrl !== undefined && { videoUrl }),
       },
     });
 

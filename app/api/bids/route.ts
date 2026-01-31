@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
+import { PLATFORM_CONFIG } from "@/lib/config";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
@@ -198,7 +199,49 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ bid }, { status: 201 });
+    // ANTI-SNIPE: Extend auction if bid placed in final minutes
+    const now = new Date();
+    const timeUntilEndMs = listing.endTime.getTime() - now.getTime();
+    const antiSnipeWindowMs = PLATFORM_CONFIG.auction.antiSnipeMinutes * 60 * 1000;
+    const antiSnipeExtensionMs = PLATFORM_CONFIG.auction.antiSnipeExtension * 60 * 1000;
+
+    let newEndTime = null;
+    if (timeUntilEndMs > 0 && timeUntilEndMs <= antiSnipeWindowMs) {
+      // Bid placed in anti-snipe window - extend the auction
+      newEndTime = new Date(now.getTime() + antiSnipeExtensionMs);
+
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: { endTime: newEndTime },
+      });
+
+      // Notify all bidders about extension
+      const allBidders = await prisma.bid.findMany({
+        where: { listingId },
+        select: { bidderId: true },
+        distinct: ['bidderId'],
+      });
+
+      await Promise.all(
+        allBidders.map((b) =>
+          prisma.notification.create({
+            data: {
+              type: "AUCTION_EXTENDED",
+              title: "Auction Extended!",
+              message: `The auction for "${listing.title}" has been extended by ${PLATFORM_CONFIG.auction.antiSnipeExtension} minutes due to a late bid.`,
+              data: { listingId, listingSlug: listing.slug, newEndTime: newEndTime!.toISOString() },
+              userId: b.bidderId,
+            },
+          })
+        )
+      );
+    }
+
+    return NextResponse.json({
+      bid,
+      auctionExtended: newEndTime !== null,
+      newEndTime: newEndTime?.toISOString() || null,
+    }, { status: 201 });
   } catch (error) {
     console.error("Error placing bid:", error);
     return NextResponse.json(

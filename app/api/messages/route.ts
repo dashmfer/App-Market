@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { validateMessageContent } from "@/lib/validation";
 
 // GET /api/messages - Get all conversations for the user
 export async function GET(request: NextRequest) {
@@ -94,9 +95,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { recipientId, content, listingId } = body;
 
-    if (!recipientId || !content) {
+    if (!recipientId) {
       return NextResponse.json(
-        { error: "Recipient and content are required" },
+        { error: "Recipient is required" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate message content
+    const contentValidation = validateMessageContent(content);
+    if (!contentValidation.valid) {
+      return NextResponse.json(
+        { error: contentValidation.error },
         { status: 400 }
       );
     }

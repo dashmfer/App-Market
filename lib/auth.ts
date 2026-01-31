@@ -5,12 +5,69 @@ import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
 import { NextRequest } from "next/server";
 import { getToken as nextAuthGetToken } from "next-auth/jwt";
+import crypto from "crypto";
+import { validateWalletSignatureMessage } from "@/lib/validation";
 
-// Get the secret - must be set in environment
+// SECURITY: Secret MUST be set in all environments
 const secret = process.env.NEXTAUTH_SECRET;
 
-if (!secret && process.env.NODE_ENV === "production") {
-  throw new Error("NEXTAUTH_SECRET must be set in production");
+if (!secret) {
+  throw new Error("NEXTAUTH_SECRET must be set in environment variables");
+}
+
+// Session revocation - in-memory store (use Redis in production for multi-instance)
+// Maps sessionId -> userId for active sessions
+const activeSessions = new Map<string, { userId: string; createdAt: Date }>();
+
+// Revoked session IDs (blacklist)
+const revokedSessions = new Set<string>();
+
+// Clean up old sessions periodically (every hour)
+setInterval(() => {
+  const now = Date.now();
+  const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+  for (const [sessionId, data] of activeSessions.entries()) {
+    if (now - data.createdAt.getTime() > maxAge) {
+      activeSessions.delete(sessionId);
+    }
+  }
+}, 60 * 60 * 1000);
+
+/**
+ * Generate a unique session ID
+ */
+function generateSessionId(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Revoke a specific session
+ */
+export function revokeSession(sessionId: string): void {
+  revokedSessions.add(sessionId);
+  activeSessions.delete(sessionId);
+}
+
+/**
+ * Revoke all sessions for a user
+ */
+export function revokeAllUserSessions(userId: string): number {
+  let count = 0;
+  for (const [sessionId, data] of activeSessions.entries()) {
+    if (data.userId === userId) {
+      revokedSessions.add(sessionId);
+      activeSessions.delete(sessionId);
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Check if a session is valid (not revoked)
+ */
+export function isSessionValid(sessionId: string): boolean {
+  return !revokedSessions.has(sessionId);
 }
 
 // Helper function to get token from request with proper secret
@@ -19,17 +76,24 @@ export async function getAuthToken(req: NextRequest) {
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 
-  return nextAuthGetToken({
+  const token = await nextAuthGetToken({
     req,
-    secret: secret || "development-secret-change-in-production",
+    secret,
     cookieName,
   });
+
+  // SECURITY: Check if session has been revoked
+  if (token?.sessionId && !isSessionValid(token.sessionId as string)) {
+    return null;
+  }
+
+  return token;
 }
 
 export const authOptions: NextAuthOptions = {
   // Don't use adapter with credentials provider + JWT
   // adapter: PrismaAdapter(prisma) as any,
-  secret: secret || "development-secret-change-in-production",
+  secret,
   providers: [
     // Wallet provider - direct wallet authentication
     CredentialsProvider({
@@ -46,6 +110,16 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
+        // SECURITY: Validate message format and timestamp (replay protection)
+        const messageValidation = validateWalletSignatureMessage(
+          credentials.message,
+          credentials.publicKey,
+          300 // 5 minute validity
+        );
+        if (!messageValidation.valid) {
+          throw new Error(messageValidation.error || "Invalid signature message");
+        }
+
         // Verify wallet signature directly (pass referral code for new users)
         const result = await verifyWalletSignature(
           credentials.publicKey,
@@ -58,18 +132,26 @@ export const authOptions: NextAuthOptions = {
           throw new Error(result.error || "Wallet verification failed");
         }
 
+        // Generate session ID for revocation support
+        const sessionId = generateSessionId();
+        activeSessions.set(sessionId, {
+          userId: result.user.id,
+          createdAt: new Date(),
+        });
+
         return {
           id: result.user.id,
           email: result.user.email,
           name: result.user.username,
           walletAddress: result.user.walletAddress,
+          sessionId,
         };
       },
     }),
   ],
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 7 * 24 * 60 * 60, // SECURITY: 7 days instead of 30
   },
   cookies: {
     sessionToken: {
@@ -95,6 +177,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.walletAddress = (user as any).walletAddress;
+        token.sessionId = (user as any).sessionId; // For session revocation
       }
       return token;
     },
@@ -189,5 +272,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     walletAddress?: string;
+    sessionId?: string;
   }
 }
