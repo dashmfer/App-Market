@@ -7,14 +7,6 @@
     {
       "path": "/api/cron/partner-deposit-deadline",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/expired-offers",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/buyer-info-deadline",
-      "schedule": "*/30 * * * *"
     }
   ]
 }
