@@ -735,15 +735,21 @@ pub mod app_market {
         );
         anchor_lang::system_program::transfer(cpi_ctx, buy_now_price)?;
 
-        // SECURITY: Use withdrawal pattern for any existing bidder (only initialize if needed)
+        // SECURITY FIX M-2: Use withdrawal_count (same as PlaceBid) for consistent PDA seeds
         if let Some(previous_bidder) = old_bidder {
             if old_bid > 0 {
-                // Derive PDA and bump
+                // Increment withdrawal counter FIRST to prevent PDA collision (consistent with PlaceBid)
+                listing.withdrawal_count = listing.withdrawal_count
+                    .checked_add(1)
+                    .ok_or(AppMarketError::MathOverflow)?;
+
+                // Derive PDA using withdrawal_count (consistent with PlaceBid and WithdrawFunds)
                 let listing_key = listing.key();
+                let withdrawal_count_bytes = listing.withdrawal_count.to_le_bytes();
                 let withdrawal_seeds = &[
                     b"withdrawal",
                     listing_key.as_ref(),
-                    previous_bidder.as_ref(),
+                    &withdrawal_count_bytes,
                 ];
                 let (withdrawal_pda, bump) = Pubkey::find_program_address(
                     withdrawal_seeds,
@@ -872,6 +878,13 @@ pub mod app_market {
         require!(
             listing.current_bidder.is_some(),
             AppMarketError::NoBidsToSettle
+        );
+
+        // SECURITY FIX M-1: Validate bidder account matches listing.current_bidder
+        // This prevents passing an arbitrary account as the bidder
+        require!(
+            ctx.accounts.bidder.key() == listing.current_bidder.unwrap(),
+            AppMarketError::InvalidBidder
         );
 
         // Auction successful - create transaction
@@ -1712,7 +1725,8 @@ pub mod app_market {
             .checked_add(offer.amount)
             .ok_or(AppMarketError::MathOverflow)?;
 
-        // Handle any existing bidder with withdrawal pattern
+        // SECURITY FIX M-3: Only create withdrawal account when there's a previous bidder
+        // (prevents unnecessary account creation and rent waste)
         if let Some(previous_bidder) = old_bidder {
             if previous_bidder != offer.buyer && old_bid > 0 {
                 // Increment withdrawal counter to prevent PDA collision
@@ -1720,13 +1734,54 @@ pub mod app_market {
                     .checked_add(1)
                     .ok_or(AppMarketError::MathOverflow)?;
 
-                let withdrawal = &mut ctx.accounts.pending_withdrawal;
-                withdrawal.user = previous_bidder;
-                withdrawal.listing = listing.key();
-                withdrawal.amount = old_bid;  // SECURITY: Use old bid amount
-                withdrawal.withdrawal_id = listing.withdrawal_count;
-                withdrawal.created_at = clock.unix_timestamp;
-                withdrawal.bump = ctx.bumps.pending_withdrawal;
+                // Derive PDA and verify
+                let listing_key = listing.key();
+                let withdrawal_count_bytes = listing.withdrawal_count.to_le_bytes();
+                let withdrawal_seeds = &[
+                    b"withdrawal",
+                    listing_key.as_ref(),
+                    &withdrawal_count_bytes,
+                ];
+                let (withdrawal_pda, bump) = Pubkey::find_program_address(
+                    withdrawal_seeds,
+                    ctx.program_id
+                );
+
+                require!(
+                    withdrawal_pda == ctx.accounts.pending_withdrawal.key(),
+                    AppMarketError::InvalidPreviousBidder
+                );
+
+                // Create the withdrawal account
+                let rent = Rent::get()?;
+                let space = 8 + PendingWithdrawal::INIT_SPACE;
+                let lamports = rent.minimum_balance(space);
+
+                anchor_lang::system_program::create_account(
+                    CpiContext::new(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::CreateAccount {
+                            from: ctx.accounts.seller.to_account_info(),
+                            to: ctx.accounts.pending_withdrawal.to_account_info(),
+                        },
+                    ),
+                    lamports,
+                    space as u64,
+                    ctx.program_id,
+                )?;
+
+                // Initialize withdrawal data
+                let mut withdrawal_data = ctx.accounts.pending_withdrawal.try_borrow_mut_data()?;
+                let withdrawal = PendingWithdrawal {
+                    user: previous_bidder,
+                    listing: listing.key(),
+                    amount: old_bid,
+                    withdrawal_id: listing.withdrawal_count,
+                    created_at: clock.unix_timestamp,
+                    bump,
+                };
+
+                withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
 
                 emit!(WithdrawalCreated {
                     user: previous_bidder,
@@ -2010,6 +2065,14 @@ pub mod app_market {
         let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
         let rent = Rent::get()?.minimum_balance(
             ctx.accounts.escrow.to_account_info().data_len()
+        );
+
+        // SECURITY FIX M-4: Check for pending withdrawals before draining escrow
+        // If escrow.amount > sale_price, there are pending withdrawals that must be claimed first
+        // This prevents dispute resolution from draining funds owed to previous bidders
+        require!(
+            ctx.accounts.escrow.amount == sale_price,
+            AppMarketError::PendingWithdrawalsExist
         );
 
         let seeds = &[
@@ -2809,19 +2872,10 @@ pub struct AcceptOffer<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // Pending withdrawal for previous bidder if exists
-    #[account(
-        init,
-        payer = seller,
-        space = 8 + PendingWithdrawal::INIT_SPACE,
-        seeds = [
-            b"withdrawal",
-            listing.key().as_ref(),
-            &(listing.withdrawal_count + 1).to_le_bytes()
-        ],
-        bump
-    )]
-    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+    // SECURITY FIX M-3: Pending withdrawal only created when needed (previous bidder exists)
+    /// CHECK: Only created if listing.current_bidder exists and has a non-zero bid
+    #[account(mut)]
+    pub pending_withdrawal: UncheckedAccount<'info>,
 
     #[account(mut)]
     pub seller: Signer<'info>,
