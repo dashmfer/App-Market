@@ -474,41 +474,101 @@
     }
   },
   "howItWorks": {
-    "title": "Como Funciona",
-    "subtitle": "Simple, seguro, transparente",
+    "title": "Como Funciona App Market",
+    "subtitle": "Compra y vende productos digitales con confianza. Deposito seguro, propiedad verificada y resolucion justa de disputas.",
     "forSellers": {
-      "title": "Vendedores",
-      "step1": "Publica",
-      "step2": "Recibe ofertas",
-      "step3": "Acepta",
-      "step4": "Transfiere",
-      "step5": "Recibe pago"
+      "badge": "Para Vendedores",
+      "title": "Vende tu Proyecto",
+      "subtitle": "Convierte tus proyectos en dinero. Publica en minutos, cobra de forma segura.",
+      "step1": { "title": "Conecta tu GitHub", "description": "Vincula tu cuenta de GitHub para verificar la propiedad del repositorio." },
+      "step2": { "title": "Crea tu Publicacion", "description": "Describe tu proyecto, agrega capturas, especifica que incluye y configura la subasta." },
+      "step3": { "title": "Recibe Ofertas", "description": "Mira como los compradores descubren tu proyecto y hacen ofertas." },
+      "step4": { "title": "Proteccion de Deposito", "description": "Cuando termina la subasta, los fondos se bloquean en el contrato inteligente de Solana." },
+      "step5": { "title": "Transfiere Activos", "description": "Transfiere el repositorio, dominio y otros activos al comprador." },
+      "step6": { "title": "Recibe el Pago", "description": "Una vez que el comprador confirma, los fondos se liberan automaticamente." },
+      "cta": "Empezar a Vender"
     },
     "forBuyers": {
-      "title": "Compradores",
-      "step1": "Explora",
-      "step2": "Oferta",
-      "step3": "Gana",
-      "step4": "Recibe",
-      "step5": "Confirma"
+      "badge": "Para Compradores",
+      "title": "Adquiere un Proyecto",
+      "subtitle": "Salta meses de desarrollo. Compra un producto funcional y hazlo tuyo.",
+      "step1": { "title": "Explora y Descubre", "description": "Explora nuestro mercado curado de apps, prototipos y MVPs." },
+      "step2": { "title": "Verifica e Investiga", "description": "Revisa los detalles del proyecto, la reputacion del vendedor, examina el demo." },
+      "step3": { "title": "Haz tu Oferta", "description": "Oferta por proyectos o usa Comprar Ahora para adquisicion instantanea." },
+      "step4": { "title": "Fondos en Deposito", "description": "Tu pago se mantiene seguro en nuestro contrato inteligente." },
+      "step5": { "title": "Recibe los Activos", "description": "El vendedor transfiere el repositorio, dominio y otros activos." },
+      "step6": { "title": "Propiedad Asegurada", "description": "Una vez que confirmas, eres el nuevo propietario!" },
+      "cta": "Explorar Proyectos"
+    },
+    "features": {
+      "title": "Construido para la Confianza",
+      "subtitle": "Cada caracteristica disenada para hacer las transacciones seguras y justas.",
+      "escrow": { "title": "Deposito sin Confianza", "description": "Construido en contratos inteligentes de Solana." },
+      "payment": { "title": "Multiples Opciones de Pago", "description": "Paga con SOL, USDC o tarjeta de credito." },
+      "verified": { "title": "Propiedad Verificada", "description": "Verificamos la propiedad de GitHub antes de publicar." },
+      "disputes": { "title": "Resolucion Justa de Disputas", "description": "Decisiones basadas en evidencia, 2% de tarifa al perdedor." }
+    },
+    "fees": {
+      "title": "Precios Simples y Transparentes",
+      "subtitle": "Sin tarifas ocultas. Sabes exactamente lo que pagas.",
+      "platformFee": "Tarifa de Plataforma",
+      "deducted": "Deducido del precio de venta",
+      "discount": "3% para $APP, 5% para SOL/USDC",
+      "listingFee": "Tarifa de Publicacion",
+      "freeToList": "Gratis para publicar tu proyecto",
+      "disputeFee": "Tarifa de Resolucion de Disputas",
+      "losingParty": "Solo se cobra al perdedor si ocurre una disputa",
+      "example": "Ejemplo"
+    },
+    "cta": {
+      "title": "Listo para Empezar?",
+      "subtitle": "Unete al mercado donde los desarrolladores compran y venden productos digitales con confianza.",
+      "listProject": "Publicar Proyecto",
+      "browseMarketplace": "Explorar Mercado"
     }
   },
   "guides": {
     "sellers": {
-      "title": "Guia Vendedor",
-      "subtitle": "Todo sobre vender",
+      "title": "Guia del Vendedor",
+      "subtitle": "Todo lo que necesitas saber para vender tu proyecto en App Market",
+      "stats": {
+        "fee": "3-5% Tarifa",
+        "feeDesc": "3% para $APP, 5% para SOL/USDC",
+        "escrow": "Proteccion de Deposito",
+        "escrowDesc": "Tus fondos estan seguros on-chain",
+        "global": "Alcance Global",
+        "globalDesc": "Conecta con compradores mundialmente"
+      },
       "gettingStarted": "Comenzar",
-      "listingTips": "Consejos",
-      "pricing": "Precios",
-      "transfers": "Transferencias"
+      "whatToInclude": "Que Incluir en tu Publicacion",
+      "bestPractices": "Mejores Practicas",
+      "feeStructure": "Estructura de Tarifas",
+      "cta": {
+        "title": "Listo para Publicar tu Proyecto?",
+        "subtitle": "Unete a miles de vendedores que confian en App Market",
+        "button": "Crear Publicacion"
+      }
     },
     "buyers": {
-      "title": "Guia Comprador",
-      "subtitle": "Todo sobre comprar",
-      "findingProjects": "Encontrar",
-      "bidding": "Ofertar",
-      "dueDiligence": "Diligencia",
-      "receiving": "Recibir"
+      "title": "Guia del Comprador",
+      "subtitle": "Como comprar y evaluar proyectos de forma segura en App Market",
+      "benefits": {
+        "escrow": "Proteccion de Deposito",
+        "escrowDesc": "Tus fondos estan seguros hasta que recibas los activos",
+        "verified": "Vendedores Verificados",
+        "verifiedDesc": "Todos los vendedores verificados via GitHub",
+        "quality": "Proyectos de Calidad",
+        "qualityDesc": "Mercado curado de proyectos reales y funcionales"
+      },
+      "howToBuy": "Como Comprar",
+      "dueDiligence": "Lista de Verificacion",
+      "redFlags": "Senales de Alerta",
+      "paymentOptions": "Opciones de Pago",
+      "cta": {
+        "title": "Listo para Encontrar tu Proximo Proyecto?",
+        "subtitle": "Explora miles de proyectos verificados listos para adquisicion",
+        "button": "Explorar Mercado"
+      }
     }
   },
   "escrow": {
@@ -603,5 +663,33 @@
     "serverError": "Error servidor",
     "networkError": "Error de red",
     "tryAgain": "Intenta de nuevo"
+  },
+  "categories": {
+    "title": "Explorar Categorias",
+    "subtitle": "Encuentra proyectos en tu area de experiencia o descubre nuevas oportunidades.",
+    "projects": "proyectos",
+    "popular": "Popular",
+    "browse": "Explorar",
+    "cta": {
+      "title": "No encuentras lo que buscas?",
+      "subtitle": "Usa los filtros para encontrar el proyecto perfecto, o publica el tuyo!",
+      "searchAll": "Buscar Proyectos",
+      "listProject": "Publicar Proyecto"
+    }
+  },
+  "featured": {
+    "title": "Proyectos Destacados",
+    "subtitle": "Proyectos seleccionados con calidad y potencial excepcional",
+    "empty": "No hay proyectos destacados aun. Vuelve pronto!"
+  },
+  "recentSales": {
+    "title": "Ventas Recientes",
+    "subtitle": "Ve lo que se esta vendiendo en App Market",
+    "empty": {
+      "title": "Sin ventas aun",
+      "subtitle": "Se el primero en publicar y vender un proyecto en App Market",
+      "browse": "Explorar Proyectos",
+      "list": "Publicar Proyecto"
+    }
   }
 }
