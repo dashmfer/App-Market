@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import { verifyWalletOwnership } from "@/lib/wallet-verification";
 
 // POST /api/collaborators/[id]/respond - Accept or decline a collaboration invite
 export async function POST(
@@ -18,7 +19,9 @@ export async function POST(
     const { id: collaboratorId } = await params;
     const body = await request.json();
 
-    const { action } = body; // "accept" or "decline"
+    // action: "accept" or "decline"
+    // For accept: signature and message are required to prove wallet ownership
+    const { action, signature, message } = body;
 
     if (!["accept", "decline"].includes(action)) {
       return NextResponse.json(
@@ -83,6 +86,67 @@ export async function POST(
       );
     }
 
+    // SECURITY: For acceptance, require wallet signature to prove ownership
+    // This prevents someone from accepting on behalf of another wallet
+    if (action === "accept") {
+      if (!signature || !message) {
+        return NextResponse.json(
+          {
+            error: "Wallet signature required",
+            requiresSignature: true,
+            message: "You must sign a message with your wallet to accept this collaboration. This proves you own the wallet address.",
+            walletAddress: collaborator.walletAddress,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Verify the message contains the correct collaborator ID and wallet
+      const expectedContentChecks = [
+        message.includes(collaboratorId),
+        message.includes(collaborator.walletAddress) ||
+          message.includes(collaborator.walletAddress.toLowerCase()),
+        message.toLowerCase().includes("accept") ||
+          message.toLowerCase().includes("collaboration"),
+      ];
+
+      if (!expectedContentChecks.every(Boolean)) {
+        return NextResponse.json(
+          { error: "Invalid message format. Message must include collaborator ID and wallet address." },
+          { status: 400 }
+        );
+      }
+
+      // Check message timestamp (prevent replay - max 10 minutes)
+      const timestampMatch = message.match(/Timestamp: (.+)/);
+      if (timestampMatch) {
+        const messageTime = new Date(timestampMatch[1]);
+        const now = new Date();
+        const ageMs = now.getTime() - messageTime.getTime();
+
+        if (ageMs < 0 || ageMs > 10 * 60 * 1000) {
+          return NextResponse.json(
+            { error: "Signature has expired. Please sign a new message." },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Verify the signature
+      const verification = verifyWalletOwnership(
+        collaborator.walletAddress,
+        signature,
+        message
+      );
+
+      if (!verification.valid) {
+        return NextResponse.json(
+          { error: verification.error || "Invalid wallet signature" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Update the collaborator status
     const newStatus = action === "accept" ? "ACCEPTED" : "DECLINED";
 
@@ -93,6 +157,11 @@ export async function POST(
         respondedAt: new Date(),
         // Link userId if not already linked
         userId: collaborator.userId || userId,
+        // Store signature proof for audit trail
+        ...(action === "accept" && signature ? {
+          acceptanceSignature: signature,
+          acceptanceMessage: message,
+        } : {}),
       },
     });
 
