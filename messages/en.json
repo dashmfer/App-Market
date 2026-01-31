@@ -148,6 +148,395 @@
       "bitcoin": "Bitcoin"
     }
   },
+  "listing": {
+    "notFound": "Listing not found",
+    "notFoundDesc": "The listing you're looking for doesn't exist or has been removed.",
+    "browseListings": "Browse Listings",
+    "buyNow": "Buy Now",
+    "auction": "Auction",
+    "ended": "Ended",
+    "endingSoon": "Ending Soon",
+    "reservedForYou": "Reserved for you",
+    "sales": "sales",
+    "message": "Message",
+    "description": "Description",
+    "assets": "Assets",
+    "bids": "Bids",
+    "noBidsYet": "No bids yet. Be the first to bid!",
+    "highestBid": "Highest bid",
+    "buyNowPrice": "Buy Now Price",
+    "currentBid": "Current bid",
+    "startingPrice": "Starting price",
+    "left": "left",
+    "yourBid": "Your Bid",
+    "minimumBid": "Minimum bid",
+    "placeBid": "Place Bid",
+    "placingBid": "Placing Bid...",
+    "processing": "Processing...",
+    "listingExpired": "This listing has expired",
+    "auctionEnded": "This auction has ended",
+    "finalBid": "Final bid",
+    "youPurchased": "You purchased this listing",
+    "listingSold": "This listing has been sold",
+    "goToTransfer": "Go to Transfer Page",
+    "provideInfo": "Provide Required Information",
+    "or": "or",
+    "reservedForOther": "This listing is reserved for another buyer",
+    "reservedForUser": "This listing is reserved for @{name}",
+    "biddingUnavailable": "Bidding and purchasing are currently unavailable.",
+    "reservedForYouTitle": "This listing is reserved for you",
+    "completePurchase": "Complete your purchase when you're ready.",
+    "secureEscrow": "Secure escrow protection",
+    "verifiedOwnership": "Verified ownership",
+    "platformFee": "5% platform fee on sale",
+    "discountedFee": "3% platform fee (discounted)",
+    "projectMetrics": "Project Metrics",
+    "monthlyUsers": "Monthly Users",
+    "githubStars": "GitHub Stars",
+    "sendMessage": "Send Message",
+    "sending": "Sending...",
+    "askQuestion": "Ask {name} a question about this listing...",
+    "about": "About",
+    "whatYouNeed": "What You'll Need to Provide",
+    "after48Hours": "After purchase, you'll have 48 hours to provide:",
+    "githubUsername": "GitHub Username",
+    "domainRegistrar": "Domain Registrar Info",
+    "emailAddress": "Email Address",
+    "walletAddress": "Wallet Address",
+    "otherInfo": "Other Information",
+    "offers": "Offers",
+    "viewAllOffers": "View All Offers",
+    "expired": "Expired",
+    "accept": "Accept",
+    "decline": "Decline",
+    "expires": "Expires",
+    "moreOffers": "View {count} more offers",
+    "connectWallet": "Please connect your wallet to place a bid",
+    "connectWalletPurchase": "Please connect your wallet to purchase",
+    "buyNowUnavailable": "Buy Now is not available for this listing",
+    "transactionRejected": "Transaction was rejected. Please try again.",
+    "insufficientFunds": "Insufficient funds in your wallet.",
+    "rpcError": "RPC connection error. Please try again or contact support if the issue persists.",
+    "bidFailed": "Failed to place bid. Please try again.",
+    "purchaseFailed": "Failed to complete purchase. Please try again.",
+    "assetLabels": {
+      "github": "GitHub Repository",
+      "domain": "Domain",
+      "database": "Database",
+      "hosting": "Hosting",
+      "apiKeys": "API Keys & Credentials",
+      "design": "Design Files",
+      "docs": "Documentation",
+      "included": "Included",
+      "notIncluded": "Not included"
+    }
+  },
+  "create": {
+    "title": "List Your Project",
+    "subtitle": "Share your project with thousands of potential buyers",
+    "steps": {
+      "basics": "Basics",
+      "details": "Details",
+      "assets": "Assets",
+      "pricing": "Pricing",
+      "review": "Review"
+    },
+    "basics": {
+      "title": "Basic Information",
+      "projectName": "Project Name",
+      "projectNamePlaceholder": "e.g., My Awesome SaaS",
+      "tagline": "Tagline",
+      "taglinePlaceholder": "A short description of your project",
+      "category": "Category",
+      "selectCategory": "Select a category",
+      "techStack": "Tech Stack",
+      "techStackPlaceholder": "e.g., React, Node.js, PostgreSQL"
+    },
+    "details": {
+      "title": "Project Details",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe your project in detail...",
+      "demoUrl": "Demo URL",
+      "demoUrlPlaceholder": "https://demo.yourproject.com",
+      "videoUrl": "Video URL",
+      "videoUrlPlaceholder": "https://youtube.com/watch?v=..."
+    },
+    "assets": {
+      "title": "Included Assets",
+      "github": "GitHub Repository",
+      "domain": "Domain Name",
+      "database": "Database",
+      "hosting": "Hosting",
+      "apiKeys": "API Keys",
+      "designFiles": "Design Files",
+      "documentation": "Documentation"
+    },
+    "pricing": {
+      "title": "Pricing & Duration",
+      "listingType": "Listing Type",
+      "auctionType": "Auction",
+      "buyNowType": "Buy Now Only",
+      "startingPrice": "Starting Price",
+      "reservePrice": "Reserve Price",
+      "buyNowPrice": "Buy Now Price",
+      "duration": "Auction Duration",
+      "currency": "Currency"
+    },
+    "review": {
+      "title": "Review & Submit",
+      "reviewListing": "Review your listing before submitting",
+      "submit": "Submit Listing",
+      "submitting": "Submitting..."
+    },
+    "validation": {
+      "nameRequired": "Project name is required",
+      "categoryRequired": "Category is required",
+      "descriptionRequired": "Description is required",
+      "priceRequired": "Price is required"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back",
+    "overview": "Overview",
+    "listings": {
+      "title": "My Listings",
+      "active": "Active",
+      "sold": "Sold",
+      "draft": "Draft",
+      "empty": "You haven't created any listings yet.",
+      "createFirst": "Create Your First Listing"
+    },
+    "purchases": {
+      "title": "My Purchases",
+      "pending": "Pending",
+      "completed": "Completed",
+      "empty": "You haven't made any purchases yet.",
+      "browsePurchases": "Browse Projects"
+    },
+    "watchlist": {
+      "title": "Watchlist",
+      "empty": "Your watchlist is empty.",
+      "browseProjects": "Browse Projects"
+    },
+    "messages": {
+      "title": "Messages",
+      "empty": "No messages yet.",
+      "newConversation": "Start a conversation",
+      "typeMessage": "Type a message...",
+      "send": "Send"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "empty": "No notifications.",
+      "markAllRead": "Mark all as read"
+    },
+    "settings": {
+      "title": "Settings",
+      "profile": "Profile",
+      "account": "Account",
+      "notifications": "Notifications",
+      "security": "Security",
+      "displayName": "Display Name",
+      "username": "Username",
+      "bio": "Bio",
+      "email": "Email",
+      "saveChanges": "Save Changes",
+      "saving": "Saving..."
+    },
+    "transfers": {
+      "title": "Transfer",
+      "status": "Status",
+      "buyer": "Buyer",
+      "seller": "Seller",
+      "checklist": "Transfer Checklist",
+      "startTransfer": "Start Transfer",
+      "confirmTransfer": "Confirm Transfer",
+      "completeTransfer": "Complete Transfer",
+      "uploadProof": "Upload Proof",
+      "buyerInfo": "Buyer Information",
+      "deadline": "Deadline",
+      "timeRemaining": "Time Remaining"
+    },
+    "offers": {
+      "title": "Offers",
+      "received": "Received",
+      "sent": "Sent",
+      "empty": "No offers yet.",
+      "makeOffer": "Make an Offer"
+    },
+    "referrals": {
+      "title": "Referrals",
+      "yourCode": "Your Referral Code",
+      "copyCode": "Copy Code",
+      "earnings": "Total Earnings",
+      "referred": "Users Referred",
+      "howItWorks": "How It Works",
+      "share": "Share your code with friends",
+      "earn": "Earn commission on their sales"
+    },
+    "collaborations": {
+      "title": "Collaborations",
+      "pending": "Pending Invites",
+      "active": "Active Collaborations",
+      "empty": "No collaboration invites."
+    },
+    "partners": {
+      "title": "Purchase Partners",
+      "pending": "Pending",
+      "active": "Active",
+      "empty": "No purchase partner invites."
+    },
+    "disputes": {
+      "title": "Disputes",
+      "open": "Open a Dispute",
+      "reason": "Reason",
+      "description": "Description",
+      "evidence": "Evidence",
+      "submit": "Submit Dispute"
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Sign In",
+      "subtitle": "Connect your wallet to continue",
+      "connectWallet": "Connect Wallet",
+      "connecting": "Connecting...",
+      "noWallet": "Don't have a wallet?",
+      "getPhantom": "Get Phantom"
+    },
+    "signUp": {
+      "title": "Create Account",
+      "subtitle": "Join the marketplace",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign In"
+    }
+  },
+  "about": {
+    "title": "About App Market",
+    "subtitle": "The trusted marketplace for digital products",
+    "mission": {
+      "title": "Our Mission",
+      "description": "We're building the most trusted platform for buying and selling digital products, powered by blockchain technology."
+    },
+    "team": {
+      "title": "Our Team",
+      "description": "Built by builders, for builders."
+    },
+    "values": {
+      "title": "Our Values",
+      "security": "Security First",
+      "securityDesc": "Every transaction is protected by on-chain escrow.",
+      "transparency": "Transparency",
+      "transparencyDesc": "All transactions are verifiable on the blockchain.",
+      "community": "Community",
+      "communityDesc": "We're building together with our users."
+    }
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "We'd love to hear from you",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "subject": "Subject",
+      "message": "Message",
+      "send": "Send Message",
+      "sending": "Sending..."
+    },
+    "success": "Message sent successfully!",
+    "error": "Failed to send message. Please try again."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated",
+    "sections": {
+      "acceptance": "Acceptance of Terms",
+      "services": "Our Services",
+      "accounts": "User Accounts",
+      "listings": "Listings and Transactions",
+      "fees": "Fees and Payments",
+      "disputes": "Disputes",
+      "liability": "Limitation of Liability",
+      "changes": "Changes to Terms"
+    }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated",
+    "sections": {
+      "collection": "Information We Collect",
+      "use": "How We Use Information",
+      "sharing": "Information Sharing",
+      "security": "Data Security",
+      "rights": "Your Rights",
+      "contact": "Contact Us"
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Simple, secure, transparent",
+    "forSellers": {
+      "title": "For Sellers",
+      "step1": "List your project",
+      "step2": "Receive bids",
+      "step3": "Accept winning bid",
+      "step4": "Transfer assets",
+      "step5": "Receive payment"
+    },
+    "forBuyers": {
+      "title": "For Buyers",
+      "step1": "Browse projects",
+      "step2": "Place bids",
+      "step3": "Win auction",
+      "step4": "Receive assets",
+      "step5": "Confirm transfer"
+    }
+  },
+  "guides": {
+    "sellers": {
+      "title": "Seller Guide",
+      "subtitle": "Everything you need to know about selling",
+      "gettingStarted": "Getting Started",
+      "listingTips": "Listing Tips",
+      "pricing": "Pricing Strategies",
+      "transfers": "Asset Transfers"
+    },
+    "buyers": {
+      "title": "Buyer Guide",
+      "subtitle": "Everything you need to know about buying",
+      "findingProjects": "Finding Projects",
+      "bidding": "Bidding Strategies",
+      "dueDiligence": "Due Diligence",
+      "receiving": "Receiving Assets"
+    }
+  },
+  "escrow": {
+    "title": "Escrow Protection",
+    "subtitle": "Your funds are always protected",
+    "howItWorks": "How Escrow Works",
+    "step1": {
+      "title": "Buyer Deposits",
+      "description": "Funds are deposited into a secure smart contract"
+    },
+    "step2": {
+      "title": "Seller Transfers",
+      "description": "Assets are transferred to the buyer"
+    },
+    "step3": {
+      "title": "Buyer Confirms",
+      "description": "Buyer verifies receipt of assets"
+    },
+    "step4": {
+      "title": "Funds Released",
+      "description": "Payment is automatically released to seller"
+    },
+    "protection": {
+      "title": "Your Protection",
+      "buyer": "Buyers are protected until they confirm receipt",
+      "seller": "Sellers are guaranteed payment after confirmed transfer"
+    }
+  },
   "common": {
     "search": "Search",
     "loading": "Loading...",
@@ -163,7 +552,19 @@
     "back": "Back",
     "next": "Next",
     "submit": "Submit",
-    "sol": "SOL"
+    "sol": "SOL",
+    "from": "from",
+    "to": "to",
+    "status": "Status",
+    "date": "Date",
+    "amount": "Amount",
+    "actions": "Actions",
+    "all": "All",
+    "active": "Active",
+    "pending": "Pending",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
   },
   "footer": {
     "brand": "The marketplace for apps, prototypes, and MVPs. Secure on-chain auctions and transfers.",
@@ -194,5 +595,13 @@
     "fr": "French",
     "zh": "Chinese",
     "select": "Language"
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Access denied",
+    "serverError": "Server error",
+    "networkError": "Network error",
+    "tryAgain": "Please try again"
   }
 }
