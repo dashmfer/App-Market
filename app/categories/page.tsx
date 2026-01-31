@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // Categories base data
 const categoriesBase = [
@@ -118,6 +119,7 @@ const categoriesBase = [
 ];
 
 export default function CategoriesPage() {
+  const t = useTranslations("categories");
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -153,7 +155,7 @@ export default function CategoriesPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl font-display font-semibold text-zinc-900 dark:text-zinc-100"
             >
-              Browse Categories
+              {t("title")}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -161,7 +163,7 @@ export default function CategoriesPage() {
               transition={{ delay: 0.1 }}
               className="mt-4 text-lg text-zinc-600 dark:text-zinc-400"
             >
-              Find projects in your area of expertise or discover new opportunities across different niches.
+              {t("subtitle")}
             </motion.p>
           </div>
         </div>
@@ -192,7 +194,7 @@ export default function CategoriesPage() {
                           {category.icon}
                         </div>
                         <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                          {category.count} projects
+                          {category.count} {t("projects")}
                         </span>
                       </div>
 
@@ -205,7 +207,7 @@ export default function CategoriesPage() {
                       </p>
 
                       <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                        <p className="text-xs text-zinc-500 mb-2">Popular:</p>
+                        <p className="text-xs text-zinc-500 mb-2">{t("popular")}:</p>
                         <div className="flex flex-wrap gap-2">
                           {category.featured.map((item) => (
                             <span
@@ -219,7 +221,7 @@ export default function CategoriesPage() {
                       </div>
 
                       <div className="mt-4 flex items-center text-green-600 dark:text-green-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        Browse {category.name}
+                        {t("browse")} {category.name}
                         <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>
@@ -235,18 +237,18 @@ export default function CategoriesPage() {
       <section className="py-16 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
         <div className="container-tight text-center">
           <h2 className="text-2xl md:text-3xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-            Can't find what you're looking for?
+            {t("cta.title")}
           </h2>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-            Try our search with filters to find the perfect project, or list your own!
+            {t("cta.subtitle")}
           </p>
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/explore" className="btn-primary">
-              Search All Projects
+              {t("cta.searchAll")}
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link href="/create" className="btn-secondary">
-              List Your Project
+              {t("cta.listProject")}
             </Link>
           </div>
         </div>

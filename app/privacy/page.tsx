@@ -1,22 +1,28 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 export default function PrivacyPage() {
+  const t = useTranslations("privacy");
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="container-wide py-16">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Privacy Policy</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-8">Last updated: January 14, 2026</p>
+          <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">{t("title")}</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-8">{t("lastUpdated")}: January 14, 2026</p>
 
           <div className="prose prose-zinc dark:prose-invert max-w-none">
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
               <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">1. Introduction</h2>
               <p className="text-zinc-700 dark:text-zinc-300">
-                App Market ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains
+                App Market (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) is committed to protecting your privacy. This Privacy Policy explains
                 how we collect, use, disclose, and safeguard your information when you use our platform.
               </p>
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">2. Information We Collect</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">2. {t("sections.collection")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <div>
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Personal Information</h3>
@@ -52,7 +58,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">3. How We Use Your Information</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">3. {t("sections.use")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>We use your information to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -69,7 +75,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">4. Information Sharing</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">4. {t("sections.sharing")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>We may share your information with:</p>
                 <div>
@@ -113,7 +119,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">6. Data Security</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">6. {t("sections.security")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>We implement security measures including:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -130,7 +136,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">7. Your Rights</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">7. {t("sections.rights")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>You have the right to:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -179,7 +185,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">10. Children's Privacy</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">10. Children&apos;s Privacy</h2>
               <p className="text-zinc-700 dark:text-zinc-300">
                 Our services are not directed to individuals under 18. We do not knowingly collect information from
                 children. If we learn we have collected information from a child, we will delete it promptly.
@@ -203,7 +209,7 @@ export default function PrivacyPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">13. Contact Us</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">13. {t("sections.contact")}</h2>
               <p className="text-zinc-700 dark:text-zinc-300">
                 For questions about this Privacy Policy or our data practices, contact us at:{" "}
                 <a href="mailto:privacy@appmarket.xyz" className="text-green-600 dark:text-green-400 hover:underline">

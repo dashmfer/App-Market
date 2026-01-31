@@ -474,41 +474,101 @@
     }
   },
   "howItWorks": {
-    "title": "How It Works",
-    "subtitle": "Simple, secure, transparent",
+    "title": "How App Market Works",
+    "subtitle": "Buy and sell digital products with confidence. Trustless escrow, verified ownership, and fair dispute resolution.",
     "forSellers": {
-      "title": "For Sellers",
-      "step1": "List your project",
-      "step2": "Receive bids",
-      "step3": "Accept winning bid",
-      "step4": "Transfer assets",
-      "step5": "Receive payment"
+      "badge": "For Sellers",
+      "title": "Sell Your Project",
+      "subtitle": "Turn your side projects into cash. List in minutes, get paid securely.",
+      "step1": { "title": "Connect Your GitHub", "description": "Link your GitHub account to verify ownership of the repository you want to sell." },
+      "step2": { "title": "Create Your Listing", "description": "Describe your project, add screenshots, specify what's included, and set your auction parameters." },
+      "step3": { "title": "Receive Bids", "description": "Watch as buyers discover your project and place bids. Set a reserve price or enable Buy Now." },
+      "step4": { "title": "Escrow Protection", "description": "When your auction ends, funds are locked in our Solana smart contract escrow." },
+      "step5": { "title": "Transfer Assets", "description": "Transfer the GitHub repo, domain, and any other assets to the buyer." },
+      "step6": { "title": "Get Paid", "description": "Once the buyer confirms receipt, funds are automatically released to your wallet." },
+      "cta": "Start Selling"
     },
     "forBuyers": {
-      "title": "For Buyers",
-      "step1": "Browse projects",
-      "step2": "Place bids",
-      "step3": "Win auction",
-      "step4": "Receive assets",
-      "step5": "Confirm transfer"
+      "badge": "For Buyers",
+      "title": "Acquire a Project",
+      "subtitle": "Skip months of development. Buy a working product and make it your own.",
+      "step1": { "title": "Browse & Discover", "description": "Explore our curated marketplace of apps, prototypes, and MVPs." },
+      "step2": { "title": "Verify & Research", "description": "Review the project details, check the seller's reputation, examine the demo." },
+      "step3": { "title": "Place Your Bid", "description": "Bid on projects or use Buy Now for instant acquisition." },
+      "step4": { "title": "Funds in Escrow", "description": "Your payment is held securely in our smart contract." },
+      "step5": { "title": "Receive Assets", "description": "The seller transfers the GitHub repo, domain, and other assets to you." },
+      "step6": { "title": "Ownership Secured", "description": "Once you confirm receipt, you're the new owner!" },
+      "cta": "Browse Projects"
+    },
+    "features": {
+      "title": "Built for Trust",
+      "subtitle": "Every feature designed to make buying and selling secure and fair.",
+      "escrow": { "title": "Trustless Escrow", "description": "Built on Solana smart contracts. Funds are never held by us." },
+      "payment": { "title": "Multiple Payment Options", "description": "Pay with SOL, USDC, or credit card." },
+      "verified": { "title": "Verified Ownership", "description": "We verify GitHub ownership before any listing goes live." },
+      "disputes": { "title": "Fair Dispute Resolution", "description": "Evidence-based decisions, 2% fee to the losing party." }
+    },
+    "fees": {
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "No hidden fees. You know exactly what you're paying.",
+      "platformFee": "Platform Fee",
+      "deducted": "Deducted from the sale price",
+      "discount": "3% for $APP, 5% for SOL/USDC",
+      "listingFee": "Listing Fee",
+      "freeToList": "Free to list your project",
+      "disputeFee": "Dispute Resolution Fee",
+      "losingParty": "Only charged to the losing party if a dispute occurs",
+      "example": "Example"
+    },
+    "cta": {
+      "title": "Ready to Get Started?",
+      "subtitle": "Join the marketplace where builders buy and sell digital products with confidence.",
+      "listProject": "List Your Project",
+      "browseMarketplace": "Browse Marketplace"
     }
   },
   "guides": {
     "sellers": {
-      "title": "Seller Guide",
-      "subtitle": "Everything you need to know about selling",
+      "title": "Seller's Guide",
+      "subtitle": "Everything you need to know to successfully sell your project on App Market",
+      "stats": {
+        "fee": "3-5% Fee",
+        "feeDesc": "3% for $APP, 5% for SOL/USDC",
+        "escrow": "Escrow Protected",
+        "escrowDesc": "Your funds are secure on-chain",
+        "global": "Global Reach",
+        "globalDesc": "Connect with buyers worldwide"
+      },
       "gettingStarted": "Getting Started",
-      "listingTips": "Listing Tips",
-      "pricing": "Pricing Strategies",
-      "transfers": "Asset Transfers"
+      "whatToInclude": "What to Include in Your Listing",
+      "bestPractices": "Best Practices",
+      "feeStructure": "Fee Structure",
+      "cta": {
+        "title": "Ready to List Your Project?",
+        "subtitle": "Join thousands of sellers who trust App Market for their sales",
+        "button": "Create Listing"
+      }
     },
     "buyers": {
-      "title": "Buyer Guide",
-      "subtitle": "Everything you need to know about buying",
-      "findingProjects": "Finding Projects",
-      "bidding": "Bidding Strategies",
-      "dueDiligence": "Due Diligence",
-      "receiving": "Receiving Assets"
+      "title": "Buyer's Guide",
+      "subtitle": "How to safely buy and evaluate projects on App Market",
+      "benefits": {
+        "escrow": "Escrow Protection",
+        "escrowDesc": "Your funds are held securely until you receive all assets",
+        "verified": "Verified Sellers",
+        "verifiedDesc": "All sellers are verified through GitHub authentication",
+        "quality": "Quality Projects",
+        "qualityDesc": "Curated marketplace of real, functional projects"
+      },
+      "howToBuy": "How to Buy",
+      "dueDiligence": "Due Diligence Checklist",
+      "redFlags": "Red Flags to Watch For",
+      "paymentOptions": "Payment Options",
+      "cta": {
+        "title": "Ready to Find Your Next Project?",
+        "subtitle": "Browse thousands of vetted projects ready for acquisition",
+        "button": "Explore Marketplace"
+      }
     }
   },
   "escrow": {
@@ -603,5 +663,33 @@
     "serverError": "Server error",
     "networkError": "Network error",
     "tryAgain": "Please try again"
+  },
+  "categories": {
+    "title": "Browse Categories",
+    "subtitle": "Find projects in your area of expertise or discover new opportunities across different niches.",
+    "projects": "projects",
+    "popular": "Popular",
+    "browse": "Browse",
+    "cta": {
+      "title": "Can't find what you're looking for?",
+      "subtitle": "Try our search with filters to find the perfect project, or list your own!",
+      "searchAll": "Search All Projects",
+      "listProject": "List Your Project"
+    }
+  },
+  "featured": {
+    "title": "Featured Projects",
+    "subtitle": "Hand-picked projects with exceptional quality and potential",
+    "empty": "No featured projects yet. Check back soon!"
+  },
+  "recentSales": {
+    "title": "Recent Sales",
+    "subtitle": "See what's been selling on App Market",
+    "empty": {
+      "title": "No sales yet",
+      "subtitle": "Be the first to list and sell a project on App Market",
+      "browse": "Browse Projects",
+      "list": "List Your Project"
+    }
   }
 }

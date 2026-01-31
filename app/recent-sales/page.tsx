@@ -5,8 +5,10 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ShoppingBag, ArrowRight, Loader2 } from "lucide-react";
 import { ListingCard } from "@/components/listings/listing-card";
+import { useTranslations } from "next-intl";
 
 export default function RecentSalesPage() {
+  const t = useTranslations("recentSales");
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +36,10 @@ export default function RecentSalesPage() {
       <div className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
         <div className="container-wide py-12 md:py-16">
           <h1 className="text-4xl md:text-5xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-            Recent Sales
+            {t("title")}
           </h1>
           <p className="mt-4 text-xl text-zinc-600 dark:text-zinc-400">
-            See what's been selling on App Market
+            {t("subtitle")}
           </p>
         </div>
       </div>
@@ -57,17 +59,17 @@ export default function RecentSalesPage() {
               <ShoppingBag className="w-10 h-10 text-zinc-400" />
             </div>
             <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-              No sales yet
+              {t("empty.title")}
             </h2>
             <p className="text-zinc-500 mb-8 max-w-md mx-auto">
-              Be the first to list and sell a project on App Market
+              {t("empty.subtitle")}
             </p>
             <div className="flex items-center justify-center gap-4">
               <Link href="/explore" className="btn-secondary">
-                Browse Projects
+                {t("empty.browse")}
               </Link>
               <Link href="/create" className="btn-primary">
-                List Your Project
+                {t("empty.list")}
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
