@@ -21,6 +21,7 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',
+        pathname: '/profile-pictures/**',  // Restrict to profile images only
       },
     ],
   },
