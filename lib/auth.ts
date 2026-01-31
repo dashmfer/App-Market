@@ -26,11 +26,11 @@ const revokedSessions = new Set<string>();
 setInterval(() => {
   const now = Date.now();
   const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-  for (const [sessionId, data] of activeSessions.entries()) {
+  activeSessions.forEach((data, sessionId) => {
     if (now - data.createdAt.getTime() > maxAge) {
       activeSessions.delete(sessionId);
     }
-  }
+  });
 }, 60 * 60 * 1000);
 
 /**
