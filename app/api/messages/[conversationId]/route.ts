@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { validateMessageContent, sanitizePagination, isValidUUID } from "@/lib/validation";
+
+const DEFAULT_MESSAGE_LIMIT = 50;
 
 // GET /api/messages/[conversationId] - Get messages in a conversation
 export async function GET(
@@ -19,6 +22,22 @@ export async function GET(
 
     const userId = token.id as string;
     const { conversationId } = await params;
+
+    // SECURITY: Validate UUID format
+    if (!isValidUUID(conversationId)) {
+      return NextResponse.json(
+        { error: "Invalid conversation ID format" },
+        { status: 400 }
+      );
+    }
+
+    // Get pagination params
+    const { searchParams } = new URL(request.url);
+    const { page, limit } = sanitizePagination(
+      searchParams.get("page"),
+      searchParams.get("limit") || String(DEFAULT_MESSAGE_LIMIT)
+    );
+    const offset = (page - 1) * limit;
 
     // Verify user is a participant
     const conversation = await prisma.conversation.findUnique({
@@ -62,7 +81,12 @@ export async function GET(
       );
     }
 
-    // Fetch messages
+    // Get total count for pagination info
+    const totalMessages = await prisma.message.count({
+      where: { conversationId },
+    });
+
+    // Fetch messages with pagination (newest first, then reverse for display)
     const messages = await prisma.message.findMany({
       where: { conversationId },
       include: {
@@ -75,8 +99,13 @@ export async function GET(
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
     });
+
+    // Reverse to show oldest first in the page
+    messages.reverse();
 
     // Mark unread messages as read
     await prisma.message.updateMany({
@@ -104,6 +133,13 @@ export async function GET(
         createdAt: conversation.createdAt,
       },
       messages,
+      pagination: {
+        page,
+        limit,
+        total: totalMessages,
+        totalPages: Math.ceil(totalMessages / limit),
+        hasMore: offset + messages.length < totalMessages,
+      },
     });
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -134,9 +170,11 @@ export async function POST(
     const body = await request.json();
     const { content } = body;
 
-    if (!content) {
+    // SECURITY: Validate message content
+    const contentValidation = validateMessageContent(content);
+    if (!contentValidation.valid) {
       return NextResponse.json(
-        { error: "Message content is required" },
+        { error: contentValidation.error },
         { status: 400 }
       );
     }

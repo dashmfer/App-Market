@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { isValidTransactionTransition, isValidUUID, hashEvidence } from "@/lib/validation";
 
 // POST /api/transactions/[id]/confirm - Confirm transfer item
 export async function POST(
@@ -39,6 +40,15 @@ export async function POST(
       );
     }
 
+    // SECURITY: Validate transaction state allows confirmation
+    const allowedStates = ['FUNDED', 'IN_PROGRESS', 'TRANSFER_IN_PROGRESS', 'AWAITING_CONFIRMATION'];
+    if (!allowedStates.includes(transaction.status)) {
+      return NextResponse.json(
+        { error: `Cannot confirm transfers in state: ${transaction.status}` },
+        { status: 400 }
+      );
+    }
+
     // Check authorization
     const isBuyer = transaction.buyerId === session.user.id;
     const isSeller = transaction.sellerId === session.user.id;
@@ -68,8 +78,11 @@ export async function POST(
           { status: 403 }
         );
       }
+      // SECURITY: Hash evidence for integrity
+      const evidenceHash = evidence ? hashEvidence(evidence) : null;
       checklist[asset].confirmedBySeller = true;
       checklist[asset].sellerEvidence = evidence;
+      checklist[asset].sellerEvidenceHash = evidenceHash;
       checklist[asset].sellerConfirmedAt = new Date().toISOString();
     } else if (action === "buyerConfirm") {
       if (!isBuyer) {
