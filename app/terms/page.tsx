@@ -1,16 +1,22 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 export default function TermsPage() {
+  const t = useTranslations("terms");
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="container-wide py-16">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Terms of Service</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mb-8">Last updated: January 14, 2026</p>
+          <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">{t("title")}</h1>
+          <p className="text-zinc-600 dark:text-zinc-400 mb-8">{t("lastUpdated")}: January 14, 2026</p>
 
           <div className="prose prose-zinc dark:prose-invert max-w-none">
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">1. Acceptance of Terms</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">1. {t("sections.acceptance")}</h2>
               <p className="text-zinc-700 dark:text-zinc-300 mb-4">
-                By accessing and using App Market ("the Platform"), you accept and agree to be bound by these Terms of
+                By accessing and using App Market (&quot;the Platform&quot;), you accept and agree to be bound by these Terms of
                 Service. If you do not agree to these terms, please do not use our services.
               </p>
             </div>
@@ -24,7 +30,7 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">3. User Accounts</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">3. {t("sections.accounts")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>You are responsible for:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -41,7 +47,7 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">4. Listing Requirements</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">4. {t("sections.listings")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>Sellers must:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -58,7 +64,7 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">5. Fees and Payments</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">5. {t("sections.fees")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>Platform fees:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
@@ -88,7 +94,7 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">7. Disputes</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">7. {t("sections.disputes")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>
                   If disputes arise, either party may open a dispute through the Platform. Both parties must provide
@@ -109,7 +115,7 @@ export default function TermsPage() {
                   property rights as specified in the listing.
                 </p>
                 <p>
-                  App Market's branding, design, and software are protected by copyright and trademark laws.
+                  App Market&apos;s branding, design, and software are protected by copyright and trademark laws.
                   Unauthorized use is prohibited.
                 </p>
               </div>
@@ -135,7 +141,7 @@ export default function TermsPage() {
               <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">10. Disclaimers</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>
-                  THE PLATFORM IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. We do not guarantee:
+                  THE PLATFORM IS PROVIDED &quot;AS IS&quot; WITHOUT WARRANTIES OF ANY KIND. We do not guarantee:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>The accuracy of listings or user-provided information</li>
@@ -151,7 +157,7 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">11. Limitation of Liability</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">11. {t("sections.liability")}</h2>
               <div className="space-y-4 text-zinc-700 dark:text-zinc-300">
                 <p>
                   TO THE MAXIMUM EXTENT PERMITTED BY LAW, App Market shall not be liable for any indirect, incidental,
@@ -165,10 +171,10 @@ export default function TermsPage() {
             </div>
 
             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">12. Modifications</h2>
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">12. {t("sections.changes")}</h2>
               <p className="text-zinc-700 dark:text-zinc-300">
-                We reserve the right to modify these Terms at any time. Changes will be posted with an updated "Last
-                Updated" date. Continued use of the Platform constitutes acceptance of modified terms.
+                We reserve the right to modify these Terms at any time. Changes will be posted with an updated &quot;Last
+                Updated&quot; date. Continued use of the Platform constitutes acceptance of modified terms.
               </p>
             </div>
 

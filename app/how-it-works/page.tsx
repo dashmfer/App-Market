@@ -19,113 +19,36 @@ import {
   FileCheck,
   Scale,
 } from "lucide-react";
-
-const sellerSteps = [
-  {
-    icon: Github,
-    title: "Connect Your GitHub",
-    description:
-      "Link your GitHub account to verify ownership of the repository you want to sell. This ensures buyers know you're the real owner.",
-  },
-  {
-    icon: Upload,
-    title: "Create Your Listing",
-    description:
-      "Describe your project, add screenshots, specify what's included (domain, database, hosting), and set your auction parameters.",
-  },
-  {
-    icon: Gavel,
-    title: "Receive Bids",
-    description:
-      "Watch as buyers discover your project and place bids. Set a reserve price if you have a minimum in mind, or enable Buy Now for instant sales.",
-  },
-  {
-    icon: Lock,
-    title: "Escrow Protection",
-    description:
-      "When your auction ends or someone buys now, funds are locked in our Solana smart contract escrow. No middleman holds your money.",
-  },
-  {
-    icon: FileCheck,
-    title: "Transfer Assets",
-    description:
-      "Transfer the GitHub repo, domain, and any other assets to the buyer. Check off each item as you complete it.",
-  },
-  {
-    icon: Coins,
-    title: "Get Paid",
-    description:
-      "Once the buyer confirms receipt of all assets, funds are automatically released to your wallet. Simple as that.",
-  },
-];
-
-const buyerSteps = [
-  {
-    icon: Users,
-    title: "Browse & Discover",
-    description:
-      "Explore our curated marketplace of apps, prototypes, and MVPs. Filter by category, tech stack, price range, and more.",
-  },
-  {
-    icon: CheckCircle2,
-    title: "Verify & Research",
-    description:
-      "Review the project details, check the seller's reputation, examine the demo, and verify what's included in the sale.",
-  },
-  {
-    icon: Gavel,
-    title: "Place Your Bid",
-    description:
-      "Bid on projects you're interested in, or use Buy Now for instant acquisition. Pay with SOL, USDC, or credit card.",
-  },
-  {
-    icon: Lock,
-    title: "Funds in Escrow",
-    description:
-      "Your payment is held securely in our smart contract. The seller can't access it until you confirm the transfer is complete.",
-  },
-  {
-    icon: RefreshCw,
-    title: "Receive Assets",
-    description:
-      "The seller transfers the GitHub repo, domain, and other assets to you. Confirm each item as you receive it.",
-  },
-  {
-    icon: Shield,
-    title: "Ownership Secured",
-    description:
-      "Once you confirm receipt, you're the new owner! All assets are transferred and the sale is complete.",
-  },
-];
-
-const features = [
-  {
-    icon: Shield,
-    title: "Trustless Escrow",
-    description:
-      "Built on Solana smart contracts. Funds are never held by us—they're locked in code until both parties are satisfied.",
-  },
-  {
-    icon: CreditCard,
-    title: "Multiple Payment Options",
-    description:
-      "Pay with SOL, USDC, or credit card. We handle the conversion so you can use whatever works best for you.",
-  },
-  {
-    icon: Github,
-    title: "Verified Ownership",
-    description:
-      "We verify GitHub ownership before any listing goes live. No fake sellers, no stolen code.",
-  },
-  {
-    icon: Scale,
-    title: "Fair Dispute Resolution",
-    description:
-      "If something goes wrong, our dispute system ensures fair resolution. Evidence-based decisions, 2% fee to the losing party.",
-  },
-];
+import { useTranslations } from "next-intl";
 
 export default function HowItWorksPage() {
+  const t = useTranslations("howItWorks");
+
+  const sellerSteps = [
+    { icon: Github, key: "step1" },
+    { icon: Upload, key: "step2" },
+    { icon: Gavel, key: "step3" },
+    { icon: Lock, key: "step4" },
+    { icon: FileCheck, key: "step5" },
+    { icon: Coins, key: "step6" },
+  ];
+
+  const buyerSteps = [
+    { icon: Users, key: "step1" },
+    { icon: CheckCircle2, key: "step2" },
+    { icon: Gavel, key: "step3" },
+    { icon: Lock, key: "step4" },
+    { icon: RefreshCw, key: "step5" },
+    { icon: Shield, key: "step6" },
+  ];
+
+  const features = [
+    { icon: Shield, key: "escrow" },
+    { icon: CreditCard, key: "payment" },
+    { icon: Github, key: "verified" },
+    { icon: Scale, key: "disputes" },
+  ];
+
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -138,7 +61,7 @@ export default function HowItWorksPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl md:text-5xl lg:text-6xl font-display font-semibold text-zinc-900 dark:text-zinc-100"
             >
-              How App Market Works
+              {t("title")}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -146,8 +69,7 @@ export default function HowItWorksPage() {
               transition={{ delay: 0.1 }}
               className="mt-6 text-xl text-zinc-600 dark:text-zinc-400"
             >
-              Buy and sell digital products with confidence. Trustless escrow,
-              verified ownership, and fair dispute resolution.
+              {t("subtitle")}
             </motion.p>
           </div>
         </div>
@@ -157,19 +79,19 @@ export default function HowItWorksPage() {
       <section className="py-20 bg-zinc-50 dark:bg-zinc-950">
         <div className="container-wide">
           <div className="text-center mb-16">
-            <span className="badge-green mb-4">For Sellers</span>
+            <span className="badge-green mb-4">{t("forSellers.badge")}</span>
             <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-              Sell Your Project
+              {t("forSellers.title")}
             </h2>
             <p className="mt-4 text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-              Turn your side projects into cash. List in minutes, get paid securely.
+              {t("forSellers.subtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {sellerSteps.map((step, index) => (
               <motion.div
-                key={step.title}
+                key={step.key}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -186,10 +108,10 @@ export default function HowItWorksPage() {
                     </span>
                   </div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                    {step.title}
+                    {t(`forSellers.${step.key}.title`)}
                   </h3>
                   <p className="text-zinc-600 dark:text-zinc-400">
-                    {step.description}
+                    {t(`forSellers.${step.key}.description`)}
                   </p>
                 </div>
               </motion.div>
@@ -198,7 +120,7 @@ export default function HowItWorksPage() {
 
           <div className="mt-12 text-center">
             <Link href="/create" className="btn-success text-lg px-8 py-4">
-              Start Selling
+              {t("forSellers.cta")}
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
@@ -209,19 +131,19 @@ export default function HowItWorksPage() {
       <section className="py-20">
         <div className="container-wide">
           <div className="text-center mb-16">
-            <span className="badge-green mb-4">For Buyers</span>
+            <span className="badge-green mb-4">{t("forBuyers.badge")}</span>
             <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-              Acquire a Project
+              {t("forBuyers.title")}
             </h2>
             <p className="mt-4 text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto">
-              Skip months of development. Buy a working product and make it your own.
+              {t("forBuyers.subtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {buyerSteps.map((step, index) => (
               <motion.div
-                key={step.title}
+                key={step.key}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -238,10 +160,10 @@ export default function HowItWorksPage() {
                     </span>
                   </div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
-                    {step.title}
+                    {t(`forBuyers.${step.key}.title`)}
                   </h3>
                   <p className="text-zinc-600 dark:text-zinc-400">
-                    {step.description}
+                    {t(`forBuyers.${step.key}.description`)}
                   </p>
                 </div>
               </motion.div>
@@ -250,7 +172,7 @@ export default function HowItWorksPage() {
 
           <div className="mt-12 text-center">
             <Link href="/explore" className="btn-primary text-lg px-8 py-4">
-              Browse Projects
+              {t("forBuyers.cta")}
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
@@ -262,17 +184,17 @@ export default function HowItWorksPage() {
         <div className="container-wide">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-display font-semibold">
-              Built for Trust
+              {t("features.title")}
             </h2>
             <p className="mt-4 text-zinc-400 max-w-2xl mx-auto">
-              Every feature designed to make buying and selling secure and fair.
+              {t("features.subtitle")}
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             {features.map((feature, index) => (
               <motion.div
-                key={feature.title}
+                key={feature.key}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -282,8 +204,12 @@ export default function HowItWorksPage() {
                 <div className="w-14 h-14 rounded-xl bg-green-500/10 flex items-center justify-center text-green-400 mb-6">
                   <feature.icon className="w-7 h-7" />
                 </div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-zinc-400">{feature.description}</p>
+                <h3 className="text-xl font-semibold mb-3">
+                  {t(`features.${feature.key}.title`)}
+                </h3>
+                <p className="text-zinc-400">
+                  {t(`features.${feature.key}.description`)}
+                </p>
               </motion.div>
             ))}
           </div>
@@ -295,10 +221,10 @@ export default function HowItWorksPage() {
         <div className="container-tight">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-              Simple, Transparent Pricing
+              {t("fees.title")}
             </h2>
             <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-              No hidden fees. You know exactly what you're paying.
+              {t("fees.subtitle")}
             </p>
           </div>
 
@@ -307,10 +233,10 @@ export default function HowItWorksPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                    Platform Fee
+                    {t("fees.platformFee")}
                   </h3>
                   <p className="text-zinc-500 mt-1">
-                    Deducted from the sale price
+                    {t("fees.deducted")}
                   </p>
                 </div>
                 <div className="text-right">
@@ -318,7 +244,7 @@ export default function HowItWorksPage() {
                     3-5%
                   </div>
                   <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                    3% for $APP, 5% for SOL/USDC
+                    {t("fees.discount")}
                   </p>
                 </div>
               </div>
@@ -328,10 +254,10 @@ export default function HowItWorksPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                    Listing Fee
+                    {t("fees.listingFee")}
                   </h3>
                   <p className="text-zinc-500 mt-1">
-                    Free to list your project
+                    {t("fees.freeToList")}
                   </p>
                 </div>
                 <div className="text-4xl font-display font-bold text-green-500">
@@ -344,10 +270,10 @@ export default function HowItWorksPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                    Dispute Resolution Fee
+                    {t("fees.disputeFee")}
                   </h3>
                   <p className="text-zinc-500 mt-1">
-                    Only charged to the losing party if a dispute occurs
+                    {t("fees.losingParty")}
                   </p>
                 </div>
                 <div className="text-4xl font-display font-bold text-yellow-500">
@@ -363,7 +289,7 @@ export default function HowItWorksPage() {
                 <AlertTriangle className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
                   <h4 className="font-semibold text-blue-900 dark:text-blue-100">
-                    Example: Selling for 100 SOL
+                    {t("fees.example")}: 100 SOL
                   </h4>
                   <p className="text-blue-700 dark:text-blue-300 mt-2">
                     Sale price: 100 SOL<br />
@@ -378,7 +304,7 @@ export default function HowItWorksPage() {
                 <AlertTriangle className="w-6 h-6 text-green-600 dark:text-green-400 mt-0.5" />
                 <div>
                   <h4 className="font-semibold text-green-900 dark:text-green-100">
-                    Example: Selling for 100 $APP
+                    {t("fees.example")}: 100 $APP
                   </h4>
                   <p className="text-green-700 dark:text-green-300 mt-2">
                     Sale price: 100 $APP<br />
@@ -396,25 +322,24 @@ export default function HowItWorksPage() {
       <section className="py-20 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500">
         <div className="container-tight text-center">
           <h2 className="text-3xl md:text-4xl font-display font-semibold text-white mb-4">
-            Ready to Get Started?
+            {t("cta.title")}
           </h2>
           <p className="text-lg text-white/80 max-w-xl mx-auto mb-8">
-            Join the marketplace where builders buy and sell digital products
-            with confidence.
+            {t("cta.subtitle")}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/create"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white text-green-600 font-semibold rounded-full hover:bg-zinc-100 transition-colors"
             >
-              List Your Project
+              {t("cta.listProject")}
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
               href="/explore"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white/10 text-white font-semibold rounded-full hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/20"
             >
-              Browse Marketplace
+              {t("cta.browseMarketplace")}
             </Link>
           </div>
         </div>
