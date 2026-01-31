@@ -380,9 +380,20 @@ export async function POST(request: NextRequest) {
         hasHosting,
         hostingProvider,
         hasSocialAccounts,
-        socialAccounts: socialAccounts && typeof socialAccounts === 'string' && socialAccounts.trim()
-          ? JSON.parse(socialAccounts)
-          : (typeof socialAccounts === 'object' ? socialAccounts : null),
+        socialAccounts: (() => {
+          if (typeof socialAccounts === 'object' && socialAccounts !== null) {
+            return socialAccounts;
+          }
+          if (typeof socialAccounts === 'string' && socialAccounts.trim()) {
+            try {
+              return JSON.parse(socialAccounts);
+            } catch {
+              // Invalid JSON, ignore
+              return null;
+            }
+          }
+          return null;
+        })(),
         hasApiKeys,
         hasDesignFiles,
         hasDocumentation,
