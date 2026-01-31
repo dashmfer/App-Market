@@ -16,6 +16,61 @@ export interface WalletVerificationResult {
 }
 
 /**
+ * Verify a wallet signature without user lookup/creation
+ * Used for verifying ownership claims (e.g., collaborator acceptance)
+ */
+export function verifyWalletOwnership(
+  publicKey: string,
+  signature: string,
+  message: string
+): { valid: boolean; error?: string } {
+  try {
+    if (!publicKey || !signature || !message) {
+      return { valid: false, error: "Missing required fields" };
+    }
+
+    // Verify the signature
+    const publicKeyObj = new PublicKey(publicKey);
+    const signatureUint8 = bs58.decode(signature);
+    const messageUint8 = new TextEncoder().encode(message);
+    const publicKeyUint8 = publicKeyObj.toBytes();
+
+    const verified = nacl.sign.detached.verify(
+      messageUint8,
+      signatureUint8,
+      publicKeyUint8
+    );
+
+    if (!verified) {
+      return { valid: false, error: "Invalid signature" };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    console.error("[Wallet Ownership Verification] Error:", error);
+    return { valid: false, error: "Verification failed" };
+  }
+}
+
+/**
+ * Generate a message for collaborator wallet verification
+ */
+export function generateCollaboratorVerificationMessage(
+  collaboratorId: string,
+  listingTitle: string,
+  walletAddress: string
+): string {
+  const timestamp = new Date().toISOString();
+  return `Accept collaboration for "${listingTitle}"
+
+Collaborator ID: ${collaboratorId}
+Wallet: ${walletAddress}
+Timestamp: ${timestamp}
+
+Sign this message to prove you own this wallet and accept the collaboration.`;
+}
+
+/**
  * Generate a unique referral code for new users
  */
 function generateReferralCode(): string {
