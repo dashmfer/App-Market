@@ -482,6 +482,8 @@ model Transaction {
   transferStartedAt   DateTime?
   transferCompletedAt DateTime?
   releasedAt          DateTime?
+  refundedAt          DateTime?
+  refundReason        String?
 
   @@index([buyerId])
   @@index([sellerId])
