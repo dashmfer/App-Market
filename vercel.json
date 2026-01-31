@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/escrow-auto-release",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/partner-deposit-deadline",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/expired-offers",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
