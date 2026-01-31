@@ -28,6 +28,7 @@ model User {
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
   kycStatus       KycStatus @default(NONE)
+  isAdmin         Boolean   @default(false)
   
   // Stats
   totalSales      Int       @default(0)
