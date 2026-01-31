@@ -53,13 +53,22 @@ export function revokeSession(sessionId: string): void {
  */
 export function revokeAllUserSessions(userId: string): number {
   let count = 0;
-  for (const [sessionId, data] of activeSessions.entries()) {
+  const sessionsToRevoke: string[] = [];
+
+  // Collect sessions to revoke (can't delete during forEach)
+  activeSessions.forEach((data, sessionId) => {
     if (data.userId === userId) {
-      revokedSessions.add(sessionId);
-      activeSessions.delete(sessionId);
-      count++;
+      sessionsToRevoke.push(sessionId);
     }
-  }
+  });
+
+  // Now revoke them
+  sessionsToRevoke.forEach(sessionId => {
+    revokedSessions.add(sessionId);
+    activeSessions.delete(sessionId);
+    count++;
+  });
+
   return count;
 }
 
