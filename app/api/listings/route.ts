@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@prisma/client";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -18,8 +19,12 @@ export async function GET(request: NextRequest) {
     const minPrice = searchParams.get("minPrice");
     const maxPrice = searchParams.get("maxPrice");
     const featured = searchParams.get("featured");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+
+    // SECURITY: Sanitize pagination parameters
+    const { page, limit } = sanitizePagination(
+      searchParams.get("page"),
+      searchParams.get("limit")
+    );
 
     // Build where clause
     const where: any = {};
@@ -50,7 +55,10 @@ export async function GET(request: NextRequest) {
       where.blockchain = blockchain.toUpperCase();
     }
 
-    if (search) {
+    // SECURITY: Sanitize search query length
+    const sanitizedSearch = sanitizeSearchQuery(search);
+
+    if (sanitizedSearch) {
       // Map common search terms to categories for comprehensive search
       const categoryMappings: Record<string, string[]> = {
         "saas": ["SAAS"],
@@ -90,7 +98,7 @@ export async function GET(request: NextRequest) {
       };
 
       // Find matching categories for the search term
-      const searchLower = search.toLowerCase();
+      const searchLower = sanitizedSearch.toLowerCase();
       const matchedCategories: string[] = [];
       for (const [term, cats] of Object.entries(categoryMappings)) {
         if (searchLower.includes(term) || term.includes(searchLower)) {
@@ -101,10 +109,10 @@ export async function GET(request: NextRequest) {
 
       // Build OR conditions for text search and category matching
       const searchConditions: any[] = [
-        { title: { contains: search, mode: "insensitive" } },
-        { tagline: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { techStack: { has: search } },
+        { title: { contains: sanitizedSearch, mode: "insensitive" } },
+        { tagline: { contains: sanitizedSearch, mode: "insensitive" } },
+        { description: { contains: sanitizedSearch, mode: "insensitive" } },
+        { techStack: { has: sanitizedSearch } },
       ];
 
       // Add category matching if we found related categories
@@ -311,6 +319,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Limit number of categories
+    if (finalCategories.length > MAX_CATEGORIES) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_CATEGORIES} categories allowed` },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate reserve price equals starting price (per business rule)
+    // If reserve price is set, it must equal starting price - auctions start at reserve
+    const parsedStartingPrice = startingPrice ? parseFloat(startingPrice) : 0;
+    const parsedReservePrice = reservePrice ? parseFloat(reservePrice) : null;
+
+    if (parsedReservePrice !== null && parsedReservePrice !== parsedStartingPrice) {
+      return NextResponse.json(
+        { error: "Reserve price must equal starting price. Auctions start at the reserve price." },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate buy now price
+    const parsedBuyNowPrice = buyNowPrice ? parseFloat(buyNowPrice) : null;
+    if (buyNowEnabled) {
+      if (!parsedBuyNowPrice || parsedBuyNowPrice <= 0) {
+        return NextResponse.json(
+          { error: "Buy Now price must be greater than 0" },
+          { status: 400 }
+        );
+      }
+      // If auction is also enabled, buy now must be >= starting price
+      if (parsedStartingPrice > 0 && parsedBuyNowPrice < parsedStartingPrice) {
+        return NextResponse.json(
+          { error: "Buy Now price must be at least the starting price" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // SECURITY: Validate URLs have safe protocols
+    const urlsToValidate = { demoUrl, videoUrl, githubRepo };
+    for (const [field, url] of Object.entries(urlsToValidate)) {
+      if (url && !isValidUrl(url)) {
+        return NextResponse.json(
+          { error: `Invalid URL for ${field}: only http/https allowed` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // SECURITY: Validate wallet address format
+    if (reservedBuyerWallet && reservedBuyerWallet.trim()) {
+      if (!isValidSolanaAddress(reservedBuyerWallet.trim())) {
+        return NextResponse.json(
+          { error: "Invalid Solana wallet address format" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate slug
     const baseSlug = title
       .toLowerCase()
@@ -341,14 +408,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (reservedBuyerWallet && reservedBuyerWallet.trim()) {
-      // Validate wallet address format (Solana addresses are 32-44 characters)
-      if (reservedBuyerWallet.length < 32 || reservedBuyerWallet.length > 44) {
-        return NextResponse.json(
-          { error: "Invalid wallet address format for reservation" },
-          { status: 400 }
-        );
-      }
-
+      // Wallet already validated above with isValidSolanaAddress
       // Check if the wallet belongs to a registered user
       const reservedUser = await prisma.user.findFirst({
         where: { walletAddress: reservedBuyerWallet },
@@ -380,9 +440,20 @@ export async function POST(request: NextRequest) {
         hasHosting,
         hostingProvider,
         hasSocialAccounts,
-        socialAccounts: socialAccounts && typeof socialAccounts === 'string' && socialAccounts.trim()
-          ? JSON.parse(socialAccounts)
-          : (typeof socialAccounts === 'object' ? socialAccounts : null),
+        socialAccounts: (() => {
+          if (typeof socialAccounts === 'object' && socialAccounts !== null) {
+            return socialAccounts;
+          }
+          if (typeof socialAccounts === 'string' && socialAccounts.trim()) {
+            try {
+              return JSON.parse(socialAccounts);
+            } catch {
+              // Invalid JSON, ignore
+              return null;
+            }
+          }
+          return null;
+        })(),
         hasApiKeys,
         hasDesignFiles,
         hasDocumentation,

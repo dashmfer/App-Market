@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/db";
+import { validatePasswordComplexity } from "@/lib/validation";
+import { withRateLimit, getClientIp } from "@/lib/rate-limit";
+
+// Rate limiter for registration
+const rateLimitRegister = withRateLimit('auth', 'register');
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit registration attempts
+    const rateLimit = rateLimitRegister(request);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: 429, headers: rateLimit.headers }
+      );
+    }
+
     const body = await request.json();
     const { name, email, password } = body;
 
@@ -24,10 +38,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate password length
-    if (password.length < 8) {
+    // SECURITY: Validate password complexity
+    const passwordValidation = validatePasswordComplexity(password);
+    if (!passwordValidation.valid) {
       return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
+        { error: passwordValidation.errors.join('. ') },
         { status: 400 }
       );
     }

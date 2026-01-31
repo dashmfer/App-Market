@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hashEvidence, isValidUUID } from "@/lib/validation";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
 export async function POST(
@@ -45,10 +46,26 @@ export async function POST(
       );
     }
 
-    // For now, only admin can resolve disputes
-    // In the future, this could be expanded to community arbitration
-    // TODO: Add admin check
-    // For MVP, we'll allow the initiator or respondent to "accept" a resolution
+    // SECURITY: Only admin can resolve disputes
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
+    if (!currentUser?.isAdmin) {
+      return NextResponse.json(
+        { error: "Admin access required to resolve disputes" },
+        { status: 403 }
+      );
+    }
+
+    // SECURITY: Can't resolve already resolved disputes
+    if (dispute.status === "RESOLVED") {
+      return NextResponse.json(
+        { error: "Dispute has already been resolved" },
+        { status: 400 }
+      );
+    }
 
     // Valid resolutions
     const validResolutions = ["FULL_REFUND", "PARTIAL_REFUND", "RELEASE_TO_SELLER", "EXTEND_DEADLINE"];
@@ -216,14 +233,29 @@ export async function PUT(
       );
     }
 
-    // Update dispute with response
+    // SECURITY: Can't respond to resolved disputes
+    if (dispute.status === "RESOLVED") {
+      return NextResponse.json(
+        { error: "Cannot respond to a resolved dispute" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Hash evidence for integrity verification
+    const evidenceData = {
+      response,
+      items: evidence || [],
+      respondedAt: new Date().toISOString(),
+    };
+    const evidenceHash = hashEvidence(evidenceData);
+
+    // Update dispute with response and hash
     await prisma.dispute.update({
       where: { id: disputeId },
       data: {
         respondentEvidence: {
-          response,
-          items: evidence || [],
-          respondedAt: new Date().toISOString(),
+          ...evidenceData,
+          integrityHash: evidenceHash,
         },
         status: "UNDER_REVIEW",
       },

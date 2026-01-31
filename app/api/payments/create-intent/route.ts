@@ -75,9 +75,28 @@ export async function POST(request: NextRequest) {
       amountInSol = bidAmount;
     }
 
-    // Convert SOL to USD (would use real-time oracle in production)
-    // For now, use a fixed rate or fetch from CoinGecko
-    const solPriceUsd = 150; // Placeholder - fetch real price
+    // Fetch real-time SOL price from CoinGecko
+    let solPriceUsd: number;
+    try {
+      const priceResponse = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+        { next: { revalidate: 60 } } // Cache for 60 seconds
+      );
+      if (!priceResponse.ok) {
+        throw new Error('Failed to fetch SOL price');
+      }
+      const priceData = await priceResponse.json();
+      solPriceUsd = priceData.solana?.usd;
+      if (!solPriceUsd || typeof solPriceUsd !== 'number') {
+        throw new Error('Invalid price data');
+      }
+    } catch (priceError) {
+      console.error('Error fetching SOL price:', priceError);
+      return NextResponse.json(
+        { error: 'Unable to fetch current SOL price. Please try again.' },
+        { status: 503 }
+      );
+    }
     const amountUsd = amountInSol * solPriceUsd;
     const amountCents = Math.round(amountUsd * 100);
 

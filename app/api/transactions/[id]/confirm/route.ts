@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { hashEvidence } from "@/lib/validation";
 
 // POST /api/transactions/[id]/confirm - Confirm transfer item
 export async function POST(
@@ -10,7 +11,7 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -20,15 +21,18 @@ export async function POST(
 
     const transactionId = params.id;
     const body = await request.json();
-    const { asset, action, evidence } = body; // action: "sellerConfirm", "buyerConfirm", "buyerDispute"
+    const { asset, action, evidence } = body; // action: "sellerConfirm", "buyerConfirm", "partnerConfirm"
 
-    // Get transaction
+    // Get transaction with partners for majority voting
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
       include: {
         listing: true,
         buyer: true,
         seller: true,
+        partners: {
+          where: { depositStatus: "DEPOSITED" },
+        },
       },
     });
 
@@ -39,11 +43,22 @@ export async function POST(
       );
     }
 
-    // Check authorization
+    // SECURITY: Validate transaction state allows confirmation
+    const allowedStates = ['FUNDED', 'IN_PROGRESS', 'TRANSFER_IN_PROGRESS', 'AWAITING_CONFIRMATION'];
+    if (!allowedStates.includes(transaction.status)) {
+      return NextResponse.json(
+        { error: `Cannot confirm transfers in state: ${transaction.status}` },
+        { status: 400 }
+      );
+    }
+
+    // Check authorization - include partners for group purchases
     const isBuyer = transaction.buyerId === session.user.id;
     const isSeller = transaction.sellerId === session.user.id;
+    const userPartner = transaction.partners.find(p => p.userId === session.user.id);
+    const isPartner = !!userPartner;
 
-    if (!isBuyer && !isSeller) {
+    if (!isBuyer && !isSeller && !isPartner) {
       return NextResponse.json(
         { error: "Not authorized for this transaction" },
         { status: 403 }
@@ -52,8 +67,8 @@ export async function POST(
 
     // Get current checklist
     const checklist = transaction.transferChecklist as Record<string, any>;
-    
-    if (!checklist[asset]) {
+
+    if (!checklist || !checklist[asset]) {
       return NextResponse.json(
         { error: "Invalid asset" },
         { status: 400 }
@@ -68,19 +83,84 @@ export async function POST(
           { status: 403 }
         );
       }
+      // SECURITY: Hash evidence for integrity
+      const evidenceHash = evidence ? hashEvidence(evidence) : null;
       checklist[asset].confirmedBySeller = true;
       checklist[asset].sellerEvidence = evidence;
+      checklist[asset].sellerEvidenceHash = evidenceHash;
       checklist[asset].sellerConfirmedAt = new Date().toISOString();
-    } else if (action === "buyerConfirm") {
-      if (!isBuyer) {
-        return NextResponse.json(
-          { error: "Only buyer can confirm receipt" },
-          { status: 403 }
-        );
+    } else if (action === "buyerConfirm" || action === "partnerConfirm") {
+      // For group purchases, use majority voting
+      if (transaction.hasPartners && transaction.partners.length > 0) {
+        // Partner or lead buyer confirmation
+        if (!isBuyer && !isPartner) {
+          return NextResponse.json(
+            { error: "Only buyer or partners can confirm receipt" },
+            { status: 403 }
+          );
+        }
+
+        // Track individual partner confirmation
+        if (isPartner && userPartner) {
+          await prisma.transactionPartner.update({
+            where: { id: userPartner.id },
+            data: {
+              hasConfirmedTransfer: true,
+              confirmedAt: new Date(),
+            },
+          });
+        }
+
+        // Track lead buyer confirmation separately
+        if (isBuyer) {
+          // Initialize partnerConfirmations if not present
+          if (!checklist[asset].partnerConfirmations) {
+            checklist[asset].partnerConfirmations = {};
+          }
+          checklist[asset].partnerConfirmations.leadBuyer = {
+            confirmed: true,
+            confirmedAt: new Date().toISOString(),
+          };
+        }
+
+        // Count confirmations for majority vote
+        const updatedPartners = await prisma.transactionPartner.findMany({
+          where: {
+            transactionId,
+            depositStatus: "DEPOSITED",
+          },
+        });
+
+        const totalVoters = updatedPartners.length + 1; // Partners + lead buyer
+        const confirmedCount = updatedPartners.filter(p => p.hasConfirmedTransfer).length +
+          (checklist[asset].partnerConfirmations?.leadBuyer?.confirmed ? 1 : 0);
+        const majorityNeeded = Math.floor(totalVoters / 2) + 1;
+
+        checklist[asset].majorityVote = {
+          totalVoters,
+          confirmedCount,
+          majorityNeeded,
+          hasMajority: confirmedCount >= majorityNeeded,
+        };
+
+        // Only mark as completed if majority reached
+        if (confirmedCount >= majorityNeeded) {
+          checklist[asset].confirmedByBuyer = true;
+          checklist[asset].completed = true;
+          checklist[asset].buyerConfirmedAt = new Date().toISOString();
+        }
+      } else {
+        // Single buyer - direct confirmation
+        if (!isBuyer) {
+          return NextResponse.json(
+            { error: "Only buyer can confirm receipt" },
+            { status: 403 }
+          );
+        }
+        checklist[asset].confirmedByBuyer = true;
+        checklist[asset].completed = true;
+        checklist[asset].buyerConfirmedAt = new Date().toISOString();
       }
-      checklist[asset].confirmedByBuyer = true;
-      checklist[asset].completed = true;
-      checklist[asset].buyerConfirmedAt = new Date().toISOString();
     }
 
     // Update transaction
@@ -109,10 +189,24 @@ export async function POST(
         },
       });
 
-      // Mint ownership NFT (placeholder - would call Solana program)
-      // await mintOwnershipNFT(transaction);
+      // Update seller stats
+      await prisma.user.update({
+        where: { id: transaction.sellerId },
+        data: {
+          totalSales: { increment: 1 },
+          totalVolume: { increment: transaction.salePrice },
+        },
+      });
 
-      // Notify both parties
+      // Update buyer stats
+      await prisma.user.update({
+        where: { id: transaction.buyerId },
+        data: {
+          totalPurchases: { increment: 1 },
+        },
+      });
+
+      // Notify seller
       await prisma.notification.create({
         data: {
           type: "TRANSFER_COMPLETED",
@@ -123,6 +217,7 @@ export async function POST(
         },
       });
 
+      // Notify buyer
       await prisma.notification.create({
         data: {
           type: "TRANSFER_COMPLETED",
@@ -132,6 +227,23 @@ export async function POST(
           userId: transaction.buyerId,
         },
       });
+
+      // Notify all partners
+      if (transaction.hasPartners) {
+        for (const partner of transaction.partners) {
+          if (partner.userId) {
+            await prisma.notification.create({
+              data: {
+                type: "TRANSFER_COMPLETED",
+                title: "Transfer Complete!",
+                message: `Your group purchase of "${transaction.listing.title}" is complete. Assets have been transferred.`,
+                data: { transactionId },
+                userId: partner.userId,
+              },
+            });
+          }
+        }
+      }
     } else if (action === "sellerConfirm") {
       // Notify buyer to confirm
       await prisma.notification.create({
@@ -143,12 +255,30 @@ export async function POST(
           userId: transaction.buyerId,
         },
       });
+
+      // Also notify partners
+      if (transaction.hasPartners) {
+        for (const partner of transaction.partners) {
+          if (partner.userId) {
+            await prisma.notification.create({
+              data: {
+                type: "TRANSFER_STARTED",
+                title: "Asset transferred - Vote to confirm",
+                message: `The seller has marked ${asset} as transferred for "${transaction.listing.title}". Please vote to confirm receipt.`,
+                data: { transactionId, asset },
+                userId: partner.userId,
+              },
+            });
+          }
+        }
+      }
     }
 
     return NextResponse.json({
       success: true,
       checklist,
       allConfirmed,
+      majorityVote: checklist[asset]?.majorityVote || null,
     });
   } catch (error) {
     console.error("Error confirming transfer:", error);
