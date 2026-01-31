@@ -138,6 +138,11 @@ export default function CreateListingPage() {
     domain: "",
     hasHosting: false,
     hostingProvider: "",
+
+    // Vercel Transfer
+    hasVercel: false,
+    vercelProjectUrl: "",
+    vercelTeamSlug: "",
     
     // Database
     hasDatabase: false,
@@ -213,6 +218,10 @@ export default function CreateListingPage() {
     // Reserve for specific buyer (optional)
     reserveForBuyer: false,
     reservedBuyerWallet: "",
+
+    // NDA Settings
+    requiresNDA: false,
+    ndaTerms: "",
 
     // Terms accepted
     termsAccepted: false,
@@ -460,6 +469,9 @@ export default function CreateListingPage() {
           databaseType: formData.databaseType,
           hasHosting: formData.hasHosting,
           hostingProvider: formData.hostingProvider,
+          hasVercel: formData.hasVercel,
+          vercelProjectUrl: formData.vercelProjectUrl || null,
+          vercelTeamSlug: formData.vercelTeamSlug || null,
           hasSocialAccounts: formData.socialAccounts.length > 0,
           socialAccounts: formData.socialAccounts.length > 0 ? JSON.stringify(formData.socialAccounts) : null,
           hasApiKeys: formData.hasApiKeys,
@@ -476,6 +488,8 @@ export default function CreateListingPage() {
           currency: formData.currency,
           duration: formData.duration,
           reservedBuyerWallet: formData.reserveForBuyer ? formData.reservedBuyerWallet : null,
+          requiresNDA: formData.requiresNDA,
+          ndaTerms: formData.requiresNDA ? formData.ndaTerms : null,
           // Collaborators - transform for API
           collaborators: formData.collaborators.length > 0
             ? formData.collaborators.map(c => ({
@@ -525,6 +539,7 @@ export default function CreateListingPage() {
     if (formData.hasDomain) items.push(`Domain: ${formData.domain}`);
     if (formData.hasDatabase) items.push(`Database: ${formData.databaseType}`);
     if (formData.hasHosting) items.push(`Hosting: ${formData.hostingProvider}`);
+    if (formData.hasVercel) items.push("Vercel Project Transfer");
     if (formData.hasApiKeys) items.push("API Keys & Credentials");
     if (formData.hasDesignFiles) items.push("Design Files");
     if (formData.hasDocumentation) items.push("Documentation");
@@ -1053,6 +1068,42 @@ export default function CreateListingPage() {
                       </label>
                       {formData.hasHosting && (
                         <input type="text" value={formData.hostingProvider} onChange={(e) => updateFormData("hostingProvider", e.target.value)} placeholder="Vercel, AWS, Netlify, etc." className="input-field mt-3 ml-8" />
+                      )}
+                    </div>
+
+                    {/* Vercel Transfer */}
+                    <div className={`p-4 rounded-xl border ${formData.hasVercel ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" checked={formData.hasVercel} onChange={(e) => updateFormData("hasVercel", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-zinc-600" viewBox="0 0 76 65" fill="currentColor">
+                              <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
+                            </svg>
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Vercel Project Transfer</span>
+                            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full">Premium</span>
+                          </div>
+                          <p className="text-sm text-zinc-500 mt-1">Transfer your Vercel project to the buyer's team</p>
+                        </div>
+                      </label>
+                      {formData.hasVercel && (
+                        <div className="mt-3 ml-8 space-y-3">
+                          <input
+                            type="text"
+                            value={formData.vercelProjectUrl}
+                            onChange={(e) => updateFormData("vercelProjectUrl", e.target.value)}
+                            placeholder="https://vercel.com/your-team/your-project"
+                            className="input-field"
+                          />
+                          <input
+                            type="text"
+                            value={formData.vercelTeamSlug}
+                            onChange={(e) => updateFormData("vercelTeamSlug", e.target.value)}
+                            placeholder="Your Vercel team slug (optional)"
+                            className="input-field"
+                          />
+                          <p className="text-xs text-zinc-500">After sale, buyer will provide their email for a Vercel team invite</p>
+                        </div>
                       )}
                     </div>
 
@@ -1665,6 +1716,42 @@ export default function CreateListingPage() {
                       )}
                     </div>
 
+                    {/* NDA Requirement */}
+                    <div className={`p-6 rounded-xl border ${formData.requiresNDA ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer mb-4">
+                        <input type="checkbox" checked={formData.requiresNDA} onChange={(e) => updateFormData("requiresNDA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div>
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            Require NDA Before Viewing
+                            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 rounded-full">Premium</span>
+                          </span>
+                          <p className="text-sm text-zinc-500">Buyers must sign an NDA with their wallet before viewing full details</p>
+                        </div>
+                      </label>
+
+                      {formData.requiresNDA && (
+                        <div className="ml-8 space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">NDA Terms (Optional)</label>
+                            <textarea
+                              value={formData.ndaTerms}
+                              onChange={(e) => updateFormData("ndaTerms", e.target.value)}
+                              placeholder="Add custom NDA terms, or leave blank to use our standard NDA template that protects confidential business information..."
+                              rows={4}
+                              className="input-field resize-none text-sm"
+                            />
+                          </div>
+                          <div className="p-3 bg-purple-100/50 dark:bg-purple-900/30 rounded-lg">
+                            <p className="text-xs text-purple-700 dark:text-purple-400">
+                              <Info className="w-3 h-3 inline mr-1" />
+                              Buyers will only see a blurred preview until they sign the NDA. The NDA is wallet-signed, creating a legally binding digital signature.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Fee Info */}
                     <div className={`p-4 rounded-xl ${formData.currency === "APP" ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800" : "bg-zinc-50 dark:bg-zinc-800/50"}`}>
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -1728,6 +1815,19 @@ export default function CreateListingPage() {
                         </h4>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
                           Only wallet <code className="font-mono text-xs bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">{formData.reservedBuyerWallet.slice(0, 8)}...{formData.reservedBuyerWallet.slice(-6)}</code> can purchase this listing.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* NDA Required */}
+                    {formData.requiresNDA && (
+                      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                        <h4 className="font-medium text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          NDA Required
+                        </h4>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                          Buyers must sign an NDA with their wallet before viewing full listing details.
                         </p>
                       </div>
                     )}
