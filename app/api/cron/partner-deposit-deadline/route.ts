@@ -10,8 +10,11 @@ import prisma from "@/lib/db";
  * 2. Cancel the transaction
  * 3. Remove reservation from listing
  *
- * Runs every 5 minutes to check for expired deadlines.
+ * Runs every 2 minutes to check for expired deadlines.
  */
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
@@ -24,6 +27,30 @@ function verifyCronSecret(request: NextRequest): boolean {
   }
 
   return authHeader === `Bearer ${cronSecret}`;
+}
+
+// Retry wrapper for database operations
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string,
+  maxRetries = MAX_RETRIES
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 export async function GET(request: NextRequest) {
@@ -42,7 +69,7 @@ export async function GET(request: NextRequest) {
     // 1. Has partners
     // 2. Status is AWAITING_PARTNER_DEPOSITS
     // 3. Deposit deadline has passed
-    const expiredTransactions = await prisma.transaction.findMany({
+    const expiredTransactions = await withRetry(() => prisma.transaction.findMany({
       where: {
         hasPartners: true,
         status: "AWAITING_PARTNER_DEPOSITS",
@@ -66,7 +93,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-    });
+    }), "Find expired partner transactions");
 
     if (expiredTransactions.length === 0) {
       return NextResponse.json({
