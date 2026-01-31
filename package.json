@@ -2,6 +2,9 @@
   "name": "app-market",
   "version": "0.1.0",
   "private": true,
+  "overrides": {
+    "elliptic": "npm:@noble/curves@^1.8.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
