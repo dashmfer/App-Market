@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "overrides": {
-    "elliptic": "npm:@noble/curves@^1.8.0",
     "lodash": "^4.17.23"
   },
   "scripts": {
