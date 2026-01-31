@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "overrides": {
-    "lodash": "^4.17.23"
+    "lodash": "^4.17.23",
+    "elliptic": "file:./lib/elliptic-shim"
   },
   "scripts": {
     "dev": "next dev",
