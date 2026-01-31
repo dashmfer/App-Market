@@ -834,6 +834,7 @@ enum PaymentMethod {
 enum TransactionStatus {
   PENDING
   AWAITING_PARTNER_DEPOSITS  // Waiting for all purchase partners to deposit
+  FUNDED                     // Funds deposited, ready for transfer
   PAID
   IN_ESCROW
   TRANSFER_PENDING
