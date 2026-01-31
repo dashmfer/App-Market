@@ -2689,10 +2689,6 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
-    /// CHECK: Buyer (not used for rent, just fund transfer)
-    #[account(mut)]
-    pub buyer: AccountInfo<'info>,
-
     /// CHECK: Treasury to receive fees
     #[account(mut)]
     pub treasury: AccountInfo<'info>,
