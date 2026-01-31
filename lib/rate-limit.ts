@@ -19,11 +19,15 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 // Clean up expired entries every minute
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
+  const keysToDelete: string[] = [];
+
+  rateLimitStore.forEach((entry, key) => {
     if (entry.resetTime < now) {
-      rateLimitStore.delete(key);
+      keysToDelete.push(key);
     }
-  }
+  });
+
+  keysToDelete.forEach(key => rateLimitStore.delete(key));
 }, 60 * 1000);
 
 // Preset configurations for different endpoint types
