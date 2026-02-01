@@ -192,7 +192,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           theme: "dark",
           accentColor: "#22c55e",
           logo: "/logo.png",
-          showWalletLoginFirst: false,
+          showWalletLoginFirst: true,
         },
 
         // Embedded Solana wallet for email/twitter users
@@ -200,6 +200,11 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           solana: {
             createOnLogin: "users-without-wallets",
           },
+        },
+
+        // External Solana wallets (Phantom, Solflare, etc.)
+        externalWallets: {
+          solana: {},
         },
 
         // Legal
