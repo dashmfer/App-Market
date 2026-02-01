@@ -194,5 +194,506 @@
     "fr": "法语",
     "zh": "中文",
     "select": "语言"
+  },
+  "listing": {
+    "notFound": "未找到列表",
+    "notFoundDesc": "您寻找的列表不存在或已被删除。",
+    "browseListings": "浏览列表",
+    "buyNow": "立即购买",
+    "auction": "拍卖",
+    "ended": "已结束",
+    "endingSoon": "即将结束",
+    "reservedForYou": "为您保留",
+    "sales": "销售",
+    "message": "消息",
+    "description": "描述",
+    "assets": "资产",
+    "bids": "出价",
+    "noBidsYet": "暂无出价。成为第一个！",
+    "highestBid": "最高出价",
+    "buyNowPrice": "立即购买价格",
+    "currentBid": "当前出价",
+    "startingPrice": "起始价格",
+    "left": "剩余",
+    "yourBid": "您的出价",
+    "minimumBid": "最低出价",
+    "placeBid": "出价",
+    "placingBid": "出价中...",
+    "processing": "处理中...",
+    "listingExpired": "此列表已过期",
+    "auctionEnded": "此拍卖已结束",
+    "finalBid": "最终出价",
+    "youPurchased": "您已购买此列表",
+    "listingSold": "此列表已售出",
+    "goToTransfer": "前往转让页面",
+    "provideInfo": "提供所需信息",
+    "or": "或",
+    "reservedForOther": "已为其他买家保留",
+    "reservedForUser": "已为 @{name} 保留",
+    "biddingUnavailable": "出价暂不可用。",
+    "reservedForYouTitle": "为您保留",
+    "completePurchase": "准备好后完成购买。",
+    "secureEscrow": "安全托管保护",
+    "verifiedOwnership": "已验证所有权",
+    "platformFee": "5%平台费",
+    "discountedFee": "3%平台费（优惠）",
+    "projectMetrics": "项目指标",
+    "monthlyUsers": "月活用户",
+    "githubStars": "GitHub星标",
+    "sendMessage": "发送消息",
+    "sending": "发送中...",
+    "askQuestion": "向{name}提问...",
+    "about": "关于",
+    "whatYouNeed": "您需要提供的信息",
+    "after48Hours": "购买后48小时内需提供：",
+    "githubUsername": "GitHub用户名",
+    "domainRegistrar": "域名注册信息",
+    "emailAddress": "电子邮件",
+    "walletAddress": "钱包地址",
+    "otherInfo": "其他信息",
+    "offers": "报价",
+    "viewAllOffers": "查看全部",
+    "expired": "已过期",
+    "accept": "接受",
+    "decline": "拒绝",
+    "expires": "到期",
+    "moreOffers": "查看更多{count}个报价",
+    "connectWallet": "请连接钱包以出价",
+    "connectWalletPurchase": "请连接钱包以购买",
+    "buyNowUnavailable": "立即购买不可用",
+    "transactionRejected": "交易被拒绝。",
+    "insufficientFunds": "余额不足。",
+    "rpcError": "RPC连接错误。",
+    "bidFailed": "出价失败。",
+    "purchaseFailed": "购买失败。",
+    "assetLabels": {
+      "github": "GitHub仓库",
+      "domain": "域名",
+      "database": "数据库",
+      "hosting": "托管",
+      "apiKeys": "API密钥",
+      "design": "设计文件",
+      "docs": "文档",
+      "included": "包含",
+      "notIncluded": "不包含"
+    }
+  },
+  "create": {
+    "title": "发布项目",
+    "subtitle": "与数千潜在买家分享",
+    "steps": {
+      "basics": "基础",
+      "details": "详情",
+      "assets": "资产",
+      "pricing": "定价",
+      "review": "审核"
+    },
+    "basics": {
+      "title": "基本信息",
+      "projectName": "项目名称",
+      "projectNamePlaceholder": "我的SaaS",
+      "tagline": "简介",
+      "taglinePlaceholder": "项目简短描述",
+      "category": "类别",
+      "selectCategory": "选择类别",
+      "techStack": "技术栈",
+      "techStackPlaceholder": "React, Node.js"
+    },
+    "details": {
+      "title": "项目详情",
+      "description": "描述",
+      "descriptionPlaceholder": "详细描述您的项目...",
+      "demoUrl": "演示地址",
+      "demoUrlPlaceholder": "https://demo.com",
+      "videoUrl": "视频地址",
+      "videoUrlPlaceholder": "https://youtube.com"
+    },
+    "assets": {
+      "title": "包含资产",
+      "github": "GitHub仓库",
+      "domain": "域名",
+      "database": "数据库",
+      "hosting": "托管",
+      "apiKeys": "API密钥",
+      "designFiles": "设计文件",
+      "documentation": "文档"
+    },
+    "pricing": {
+      "title": "定价与时长",
+      "listingType": "列表类型",
+      "auctionType": "拍卖",
+      "buyNowType": "一口价",
+      "startingPrice": "起始价",
+      "reservePrice": "保留价",
+      "buyNowPrice": "立即购买价",
+      "duration": "持续时间",
+      "currency": "货币"
+    },
+    "review": {
+      "title": "审核提交",
+      "reviewListing": "提交前请审核",
+      "submit": "提交",
+      "submitting": "提交中..."
+    },
+    "validation": {
+      "nameRequired": "项目名称必填",
+      "categoryRequired": "类别必填",
+      "descriptionRequired": "描述必填",
+      "priceRequired": "价格必填"
+    }
+  },
+  "dashboard": {
+    "title": "控制面板",
+    "welcome": "欢迎回来",
+    "overview": "概览",
+    "listings": {
+      "title": "我的发布",
+      "active": "活跃",
+      "sold": "已售",
+      "draft": "草稿",
+      "empty": "暂无发布。",
+      "createFirst": "创建第一个"
+    },
+    "purchases": {
+      "title": "我的购买",
+      "pending": "待处理",
+      "completed": "已完成",
+      "empty": "暂无购买。",
+      "browsePurchases": "浏览项目"
+    },
+    "watchlist": {
+      "title": "收藏夹",
+      "empty": "收藏夹为空。",
+      "browseProjects": "浏览项目"
+    },
+    "messages": {
+      "title": "消息",
+      "empty": "暂无消息。",
+      "newConversation": "开始对话",
+      "typeMessage": "输入消息...",
+      "send": "发送"
+    },
+    "notifications": {
+      "title": "通知",
+      "empty": "暂无通知。",
+      "markAllRead": "全部标记已读"
+    },
+    "settings": {
+      "title": "设置",
+      "profile": "个人资料",
+      "account": "账户",
+      "notifications": "通知",
+      "security": "安全",
+      "displayName": "显示名称",
+      "username": "用户名",
+      "bio": "简介",
+      "email": "邮箱",
+      "saveChanges": "保存",
+      "saving": "保存中..."
+    },
+    "transfers": {
+      "title": "转让",
+      "status": "状态",
+      "buyer": "买家",
+      "seller": "卖家",
+      "checklist": "清单",
+      "startTransfer": "开始转让",
+      "confirmTransfer": "确认转让",
+      "completeTransfer": "完成转让",
+      "uploadProof": "上传证明",
+      "buyerInfo": "买家信息",
+      "deadline": "截止时间",
+      "timeRemaining": "剩余时间"
+    },
+    "offers": {
+      "title": "报价",
+      "received": "收到的",
+      "sent": "发送的",
+      "empty": "暂无报价。",
+      "makeOffer": "发起报价"
+    },
+    "referrals": {
+      "title": "推荐",
+      "yourCode": "您的推荐码",
+      "copyCode": "复制",
+      "earnings": "总收益",
+      "referred": "已推荐用户",
+      "howItWorks": "如何运作",
+      "share": "分享您的推荐码",
+      "earn": "赚取销售佣金"
+    },
+    "collaborations": {
+      "title": "协作",
+      "pending": "待处理邀请",
+      "active": "活跃协作",
+      "empty": "暂无协作邀请。"
+    },
+    "partners": {
+      "title": "合作伙伴",
+      "pending": "待处理",
+      "active": "活跃",
+      "empty": "暂无合作伙伴邀请。"
+    },
+    "disputes": {
+      "title": "争议",
+      "open": "发起争议",
+      "reason": "原因",
+      "description": "描述",
+      "evidence": "证据",
+      "submit": "提交"
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "登录",
+      "subtitle": "连接钱包继续",
+      "connectWallet": "连接钱包",
+      "connecting": "连接中...",
+      "noWallet": "没有钱包？",
+      "getPhantom": "获取Phantom"
+    },
+    "signUp": {
+      "title": "创建账户",
+      "subtitle": "加入市场",
+      "haveAccount": "已有账户？",
+      "signIn": "登录"
+    }
+  },
+  "about": {
+    "title": "关于App Market",
+    "subtitle": "值得信赖的数字产品市场",
+    "mission": {
+      "title": "我们的使命",
+      "description": "打造最值得信赖的数字产品买卖平台，由区块链技术驱动。"
+    },
+    "team": {
+      "title": "我们的团队",
+      "description": "由开发者创建，为开发者服务。"
+    },
+    "values": {
+      "title": "我们的价值观",
+      "security": "安全第一",
+      "securityDesc": "每笔交易都受链上托管保护。",
+      "transparency": "透明",
+      "transparencyDesc": "所有交易可在区块链上验证。",
+      "community": "社区",
+      "communityDesc": "与用户共同建设。"
+    }
+  },
+  "contact": {
+    "title": "联系我们",
+    "subtitle": "期待您的来信",
+    "form": {
+      "name": "姓名",
+      "email": "邮箱",
+      "subject": "主题",
+      "message": "消息",
+      "send": "发送消息",
+      "sending": "发送中..."
+    },
+    "success": "消息发送成功！",
+    "error": "发送失败，请重试。"
+  },
+  "terms": {
+    "title": "服务条款",
+    "lastUpdated": "最后更新",
+    "sections": {
+      "acceptance": "条款接受",
+      "services": "我们的服务",
+      "accounts": "用户账户",
+      "listings": "列表与交易",
+      "fees": "费用与支付",
+      "disputes": "争议",
+      "liability": "责任限制",
+      "changes": "条款变更"
+    }
+  },
+  "privacy": {
+    "title": "隐私政策",
+    "lastUpdated": "最后更新",
+    "sections": {
+      "collection": "信息收集",
+      "use": "信息使用",
+      "sharing": "信息共享",
+      "security": "数据安全",
+      "rights": "您的权利",
+      "contact": "联系我们"
+    }
+  },
+  "howItWorks": {
+    "title": "App Market如何运作",
+    "subtitle": "自信地买卖数字产品。无信任托管、验证所有权和公平的争议解决。",
+    "forSellers": {
+      "badge": "卖家指南",
+      "title": "出售您的项目",
+      "subtitle": "将您的副业项目变现。几分钟内发布，安全收款。",
+      "step1": { "title": "连接GitHub", "description": "关联您的GitHub账户以验证要出售的仓库所有权。" },
+      "step2": { "title": "创建列表", "description": "描述您的项目，添加截图，指定包含内容，设置拍卖参数。" },
+      "step3": { "title": "接收出价", "description": "观看买家发现您的项目并出价。设置保留价或启用立即购买。" },
+      "step4": { "title": "托管保护", "description": "拍卖结束时，资金锁定在我们的Solana智能合约托管中。" },
+      "step5": { "title": "转让资产", "description": "将GitHub仓库、域名和其他资产转让给买家。" },
+      "step6": { "title": "收到付款", "description": "买家确认收到后，资金自动释放到您的钱包。" },
+      "cta": "开始销售"
+    },
+    "forBuyers": {
+      "badge": "买家指南",
+      "title": "收购项目",
+      "subtitle": "跳过数月的开发。购买成品并使其成为您的。",
+      "step1": { "title": "浏览发现", "description": "探索我们精选的应用、原型和MVP市场。" },
+      "step2": { "title": "验证研究", "description": "查看项目详情，检查卖家信誉，测试演示。" },
+      "step3": { "title": "出价竞拍", "description": "对项目出价或使用立即购买进行即时收购。" },
+      "step4": { "title": "资金托管", "description": "您的付款安全地保存在我们的智能合约中。" },
+      "step5": { "title": "接收资产", "description": "卖家将GitHub仓库、域名和其他资产转让给您。" },
+      "step6": { "title": "确认所有权", "description": "确认收到后，您就是新的所有者！" },
+      "cta": "浏览项目"
+    },
+    "features": {
+      "title": "为信任而建",
+      "subtitle": "每个功能都旨在使交易安全公平。",
+      "escrow": { "title": "无信任托管", "description": "建立在Solana智能合约上。资金从不由我们持有。" },
+      "payment": { "title": "多种支付方式", "description": "使用SOL、USDC或信用卡支付。" },
+      "verified": { "title": "验证所有权", "description": "我们在列表上线前验证GitHub所有权。" },
+      "disputes": { "title": "公平争议解决", "description": "基于证据的决定，败诉方支付2%费用。" }
+    },
+    "fees": {
+      "title": "简单透明的定价",
+      "subtitle": "无隐藏费用。您清楚知道自己支付多少。",
+      "platformFee": "平台费",
+      "deducted": "从销售价格中扣除",
+      "discount": "$APP支付3%，SOL/USDC支付5%",
+      "listingFee": "发布费",
+      "freeToList": "免费发布项目",
+      "disputeFee": "争议解决费",
+      "losingParty": "仅在发生争议时向败诉方收取",
+      "example": "示例"
+    },
+    "cta": {
+      "title": "准备好开始了吗？",
+      "subtitle": "加入开发者自信买卖数字产品的市场。",
+      "listProject": "发布项目",
+      "browseMarketplace": "浏览市场"
+    }
+  },
+  "guides": {
+    "sellers": {
+      "title": "卖家指南",
+      "subtitle": "在App Market成功销售项目所需的一切",
+      "stats": {
+        "fee": "3-5%费用",
+        "feeDesc": "$APP支付3%，SOL/USDC支付5%",
+        "escrow": "托管保护",
+        "escrowDesc": "您的资金在链上安全",
+        "global": "全球覆盖",
+        "globalDesc": "与全球买家建立联系"
+      },
+      "gettingStarted": "入门指南",
+      "whatToInclude": "列表中应包含的内容",
+      "bestPractices": "最佳实践",
+      "feeStructure": "费用结构",
+      "cta": {
+        "title": "准备发布您的项目？",
+        "subtitle": "加入数千名信任App Market的卖家",
+        "button": "创建列表"
+      }
+    },
+    "buyers": {
+      "title": "买家指南",
+      "subtitle": "如何在App Market安全购买和评估项目",
+      "benefits": {
+        "escrow": "托管保护",
+        "escrowDesc": "您的资金在收到所有资产前安全保管",
+        "verified": "验证卖家",
+        "verifiedDesc": "所有卖家通过GitHub认证验证",
+        "quality": "优质项目",
+        "qualityDesc": "精选的真实、功能性项目市场"
+      },
+      "howToBuy": "如何购买",
+      "dueDiligence": "尽职调查清单",
+      "redFlags": "需要警惕的信号",
+      "paymentOptions": "支付选项",
+      "cta": {
+        "title": "准备寻找下一个项目？",
+        "subtitle": "浏览数千个准备收购的已验证项目",
+        "button": "探索市场"
+      }
+    }
+  },
+  "escrow": {
+    "title": "托管保护",
+    "subtitle": "您的资金始终受到保护",
+    "howItWorks": "托管如何运作",
+    "step1": {
+      "title": "买家存款",
+      "description": "资金存入安全的智能合约"
+    },
+    "step2": {
+      "title": "卖家转让",
+      "description": "资产转让给买家"
+    },
+    "step3": {
+      "title": "买家确认",
+      "description": "买家验证收到资产"
+    },
+    "step4": {
+      "title": "资金释放",
+      "description": "付款自动释放给卖家"
+    },
+    "protection": {
+      "title": "您的保护",
+      "buyer": "买家在确认收到前受保护",
+      "seller": "卖家在确认转让后保证收到付款"
+    }
+  },
+  "categories": {
+    "title": "浏览类别",
+    "subtitle": "在您的专业领域找到项目或发现不同领域的新机会。",
+    "projects": "个项目",
+    "popular": "热门",
+    "browse": "浏览",
+    "cta": {
+      "title": "找不到想要的？",
+      "subtitle": "尝试使用筛选器找到完美项目，或发布您自己的！",
+      "searchAll": "搜索所有项目",
+      "listProject": "发布项目"
+    }
+  },
+  "featured": {
+    "title": "精选项目",
+    "subtitle": "精心挑选的卓越品质和潜力项目",
+    "empty": "暂无精选项目。敬请期待！"
+  },
+  "recentSales": {
+    "title": "最近销售",
+    "subtitle": "查看App Market的最新成交",
+    "empty": {
+      "title": "暂无销售",
+      "subtitle": "成为第一个在App Market发布和销售项目的人",
+      "browse": "浏览项目",
+      "list": "发布项目"
+    }
+  },
+  "errors": {
+    "notFound": "页面未找到",
+    "unauthorized": "未授权",
+    "forbidden": "访问被拒绝",
+    "serverError": "服务器错误",
+    "networkError": "网络错误",
+    "tryAgain": "请重试"
+  },
+  "listingCard": {
+    "buyNow": "立即购买",
+    "auction": "拍卖",
+    "endingSoon": "即将结束",
+    "reservedForYou": "为您保留",
+    "reserved": "已保留",
+    "bidsCount": "{count}次出价",
+    "timeLeft": "剩余{time}",
+    "ended": "已结束",
+    "addedToWatchlist": "已添加到收藏",
+    "removedFromWatchlist": "已从收藏移除",
+    "signInToWatchlist": "请登录以管理收藏",
+    "failedToAdd": "添加到收藏失败",
+    "failedToRemove": "从收藏移除失败",
+    "somethingWentWrong": "出了点问题"
   }
 }

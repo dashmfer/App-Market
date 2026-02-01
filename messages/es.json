@@ -691,5 +691,21 @@
       "browse": "Explorar Proyectos",
       "list": "Publicar Proyecto"
     }
+  },
+  "listingCard": {
+    "buyNow": "Comprar Ahora",
+    "auction": "Subasta",
+    "endingSoon": "Termina pronto",
+    "reservedForYou": "Reservado para ti",
+    "reserved": "Reservado",
+    "bidsCount": "{count} ofertas",
+    "timeLeft": "{time} restante",
+    "ended": "Finalizado",
+    "addedToWatchlist": "Agregado a favoritos",
+    "removedFromWatchlist": "Eliminado de favoritos",
+    "signInToWatchlist": "Inicia sesion para gestionar favoritos",
+    "failedToAdd": "Error al agregar a favoritos",
+    "failedToRemove": "Error al eliminar de favoritos",
+    "somethingWentWrong": "Algo salio mal"
   }
 }
