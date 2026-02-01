@@ -275,6 +275,9 @@ export async function POST(request: NextRequest) {
       databaseType,
       hasHosting,
       hostingProvider,
+      hasVercel,
+      vercelProjectUrl,
+      vercelTeamSlug,
       hasSocialAccounts,
       socialAccounts,
       hasApiKeys,
@@ -296,6 +299,8 @@ export async function POST(request: NextRequest) {
       currency,
       duration,
       reservedBuyerWallet,
+      requiresNDA,
+      ndaTerms,
       collaborators,
     } = body;
 
@@ -439,6 +444,9 @@ export async function POST(request: NextRequest) {
         databaseType,
         hasHosting,
         hostingProvider,
+        hasVercel: hasVercel || false,
+        vercelProjectUrl: vercelProjectUrl || null,
+        vercelTeamSlug: vercelTeamSlug || null,
         hasSocialAccounts,
         socialAccounts: (() => {
           if (typeof socialAccounts === 'object' && socialAccounts !== null) {
@@ -479,6 +487,9 @@ export async function POST(request: NextRequest) {
         reservedBuyerWallet: reservedBuyerWallet?.trim() || null,
         reservedBuyerId,
         reservedAt: reservedBuyerWallet?.trim() ? new Date() : null,
+        // NDA settings
+        requiresNDA: requiresNDA || false,
+        ndaTerms: requiresNDA ? ndaTerms : null,
       },
       include: {
         seller: {

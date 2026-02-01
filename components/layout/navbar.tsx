@@ -4,16 +4,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { usePrivyAuth } from "@/components/providers/PrivyAuthProvider";
 import {
   Menu,
   X,
   Search,
   Plus,
   ChevronDown,
-  Wallet,
   User,
   Settings,
   LogOut,
@@ -22,6 +20,7 @@ import {
   Heart,
   LayoutDashboard,
   MessageCircle,
+  Mail,
 } from "lucide-react";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -41,13 +40,13 @@ export function Navbar() {
   ];
 
   const { data: session } = useSession();
-  const { publicKey, connected, disconnect } = useWallet();
-  const { setVisible: setWalletModalVisible } = useWalletModal();
+  const { isAuthenticated, isLoading, login, logout, walletAddress, authMethod } = usePrivyAuth();
 
-  const isAuthenticated = session?.user || connected;
   // Use displayName, then name, then username, then wallet address
-  const displayName = (session?.user as any)?.displayName || session?.user?.name || (session?.user as any)?.username ||
-    (publicKey ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}` : null);
+  const displayName = (session?.user as any)?.displayName ||
+    session?.user?.name ||
+    (session?.user as any)?.username ||
+    (walletAddress ? `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}` : null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,18 +62,29 @@ export function Navbar() {
     setIsUserMenuOpen(false);
   }, [pathname]);
 
-  const handleConnectWallet = () => {
-    setWalletModalVisible(true);
+  const handleSignIn = () => {
+    login();
   };
 
   const handleDisconnect = async () => {
-    if (connected) {
-      await disconnect();
-    }
-    if (session) {
-      await signOut();
-    }
+    await logout();
     setIsUserMenuOpen(false);
+  };
+
+  // Show auth method icon
+  const getAuthIcon = () => {
+    switch (authMethod) {
+      case "email":
+        return <Mail className="w-4 h-4 text-white" />;
+      case "twitter":
+        return (
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        );
+      default:
+        return <User className="w-4 h-4 text-white" />;
+    }
   };
 
   return (
@@ -147,7 +157,7 @@ export function Navbar() {
                       className="flex items-center gap-2 p-1.5 pr-3 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
                     >
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
+                        {getAuthIcon()}
                       </div>
                       <ChevronDown className="w-4 h-4 text-zinc-500" />
                     </button>
@@ -170,10 +180,15 @@ export function Navbar() {
                               <p className="font-medium text-zinc-900 dark:text-zinc-100">
                                 {displayName}
                               </p>
-                              {publicKey && (
+                              {walletAddress && (
                                 <p className="text-sm text-zinc-500 mt-0.5">
-                                  {publicKey.toBase58().slice(0, 8)}...
-                                  {publicKey.toBase58().slice(-8)}
+                                  {walletAddress.slice(0, 8)}...
+                                  {walletAddress.slice(-8)}
+                                </p>
+                              )}
+                              {authMethod && (
+                                <p className="text-xs text-zinc-400 mt-1 capitalize">
+                                  Signed in via {authMethod}
                                 </p>
                               )}
                             </div>
@@ -237,13 +252,16 @@ export function Navbar() {
                   </div>
                 </>
               ) : (
-                <Link
-                  href="/auth/signin"
+                <button
+                  onClick={handleSignIn}
+                  disabled={isLoading}
                   className="btn-primary text-sm py-2"
                 >
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign In</span>
-                </Link>
+                  <span className="hidden sm:inline">
+                    {isLoading ? "Loading..." : "Sign In"}
+                  </span>
+                </button>
               )}
 
               {/* Mobile Menu Button */}
@@ -306,13 +324,14 @@ export function Navbar() {
                       <span>{t("listProject")}</span>
                     </Link>
                   ) : (
-                    <Link
-                      href="/auth/signin"
+                    <button
+                      onClick={handleSignIn}
+                      disabled={isLoading}
                       className="btn-primary w-full justify-center"
                     >
                       <User className="w-5 h-5" />
-                      <span>Sign In</span>
-                    </Link>
+                      <span>{isLoading ? "Loading..." : "Sign In"}</span>
+                    </button>
                   )}
                 </div>
               </div>

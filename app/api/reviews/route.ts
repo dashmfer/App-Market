@@ -68,6 +68,19 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          response: {
+            include: {
+              responder: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  image: true,
+                  isVerified: true,
+                },
+              },
+            },
+          },
         },
       }),
       prisma.review.count({ where }),
