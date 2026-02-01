@@ -192,14 +192,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           theme: "dark",
           accentColor: "#10B981", // Emerald to match App Market branding
           showWalletLoginFirst: true,
-          walletList: ["phantom", "solflare", "detected_solana_wallets"],
-        },
-
-        // External wallets - prioritize Solana wallets
-        externalWallets: {
-          solana: {
-            connectors: (connectors) => connectors, // Use all available Solana connectors
-          },
+          walletList: ["phantom", "solflare", "detected_wallets"],
         },
 
         // Embedded wallet config
