@@ -984,6 +984,9 @@ enum NotificationType {
   PURCHASE_PARTNER_LEAD_TRANSFERRED // Notify when lead status transferred
   // Referral notifications
   REFERRAL_EARNED          // Notify referrer when they earn commission
+  // Agreement notifications
+  AGREEMENT_REQUESTED      // Buyer requested APA or Non-Compete
+  AGREEMENT_SIGNED         // Seller signed APA or Non-Compete
   SYSTEM
 }
 
