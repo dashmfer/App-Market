@@ -195,8 +195,9 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         loginMethods: ["email", "twitter", "wallet"],
         // Embedded wallet config for Solana
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-          noPromptOnSignature: false,
+          solana: {
+            createOnLogin: "users-without-wallets",
+          },
         },
         // Solana config
         solanaClusters: [
