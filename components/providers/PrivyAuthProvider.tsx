@@ -187,10 +187,11 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         // Login methods - wallet first, then email, then twitter
         loginMethods: ["wallet", "email", "twitter"],
 
-        // Appearance - sleek dark theme with green accent
+        // Appearance - sleek dark theme with green accent, Solana wallets only
         appearance: {
           theme: "dark",
           accentColor: "#22c55e",
+          walletChainType: "solana-only",
           landingHeader: "Sign in to App Market",
           loginMessage: "Connect your wallet or sign in with email",
         },
