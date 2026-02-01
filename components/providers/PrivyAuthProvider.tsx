@@ -184,23 +184,55 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods - wallet first, then email, then twitter
+        // Login methods
         loginMethods: ["wallet", "email", "twitter"],
 
-        // Appearance - white/light theme with green accent
+        // Appearance
         appearance: {
-          theme: "light",
-          accentColor: "#10B981", // Emerald green
-          walletList: ["phantom", "metamask", "coinbase_wallet", "rabby_wallet", "rainbow"],
+          theme: "dark",
+          accentColor: "#10B981", // Emerald to match App Market branding
+          logo: "https://www.appmrkt.xyz/logo.png",
           showWalletLoginFirst: true,
         },
 
-        // Embedded Solana wallet for email users
+        // Embedded wallet config
         embeddedWallets: {
-          solana: {
-            createOnLogin: "users-without-wallets",
-          },
+          createOnLogin: "users-without-wallets", // Create embedded wallet for email/twitter users
         },
+
+        // Supported chains
+        supportedChains: [
+          {
+            id: 101, // Solana mainnet
+            name: "Solana",
+            nativeCurrency: {
+              name: "SOL",
+              symbol: "SOL",
+              decimals: 9,
+            },
+            rpcUrls: {
+              default: {
+                http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
+              },
+            },
+          } as any,
+        ],
+
+        // Default chain
+        defaultChain: {
+          id: 101,
+          name: "Solana",
+          nativeCurrency: {
+            name: "SOL",
+            symbol: "SOL",
+            decimals: 9,
+          },
+          rpcUrls: {
+            default: {
+              http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
+            },
+          },
+        } as any,
 
         // Legal
         legal: {
