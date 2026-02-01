@@ -82,9 +82,9 @@ const nextConfig = {
               // Allow fonts from self
               "font-src 'self' data:",
               // Allow connections to self and required APIs
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.mainnet-beta.solana.com wss://api.devnet.solana.com https://*.helius-rpc.com https://*.vercel-storage.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.mainnet-beta.solana.com wss://api.devnet.solana.com https://*.helius-rpc.com https://*.vercel-storage.com https://auth.privy.io https://*.privy.io wss://*.privy.io https://*.walletconnect.com wss://*.walletconnect.com https://explorer-api.walletconnect.com",
               // Allow frames for wallet connections
-              "frame-src 'self' https://phantom.app https://solflare.com",
+              "frame-src 'self' https://phantom.app https://solflare.com https://auth.privy.io https://*.privy.io",
               // No plugins/objects
               "object-src 'none'",
               // Form submissions only to self
