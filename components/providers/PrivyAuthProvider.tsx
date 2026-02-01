@@ -193,9 +193,11 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           accentColor: "#10B981", // Emerald to match App Market branding
         },
 
-        // Embedded wallet config for email/twitter users
+        // Embedded Solana wallet for email/twitter users
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
+          solana: {
+            createOnLogin: "users-without-wallets",
+          },
         },
 
         // Legal
