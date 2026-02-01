@@ -1,0 +1,15 @@
+{
+  "name": "lucide-react",
+  "version": "0.294.0",
+  "description": "Compatibility shim for lucide-react with CloudUpload alias",
+  "main": "./index.js",
+  "module": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.js"
+    }
+  }
+}
