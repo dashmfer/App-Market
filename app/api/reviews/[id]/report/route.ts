@@ -25,10 +25,11 @@ export async function POST(
 
     // Validate reason
     const validReasons: ReviewReportReason[] = [
-      "INAPPROPRIATE",
+      "INAPPROPRIATE_CONTENT",
       "SPAM",
       "HARASSMENT",
       "FALSE_INFORMATION",
+      "OFF_TOPIC",
       "OTHER",
     ];
 
