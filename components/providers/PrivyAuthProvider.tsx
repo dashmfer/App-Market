@@ -184,32 +184,24 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Appearance
+        // Login methods - email first, then twitter, then wallet
+        loginMethods: ["email", "twitter", "wallet"],
+
+        // Appearance - dark theme with green accent
         appearance: {
           theme: "dark",
-          accentColor: "#22c55e", // Green to match the app theme
+          accentColor: "#22c55e",
           logo: "/logo.png",
           showWalletLoginFirst: false,
         },
-        // Login methods - email, twitter, and external wallets
-        loginMethods: ["email", "twitter", "wallet"],
-        // Embedded wallet config for Solana
+
+        // Embedded Solana wallet for email/twitter users
         embeddedWallets: {
           solana: {
             createOnLogin: "users-without-wallets",
           },
         },
-        // Solana config
-        solanaClusters: [
-          {
-            name: "mainnet-beta",
-            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
-          },
-          {
-            name: "devnet",
-            rpcUrl: "https://api.devnet.solana.com",
-          },
-        ],
+
         // Legal
         legal: {
           termsAndConditionsUrl: "/terms",
