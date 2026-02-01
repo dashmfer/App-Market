@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -36,6 +37,13 @@ model User {
   totalVolume     Float     @default(0)
   rating          Float     @default(0)
   ratingCount     Int       @default(0)
+  sellerLevel     Int       @default(1)
+  successRate     Float     @default(100)
+
+  // Dispute Stats
+  totalDisputes   Int       @default(0)
+  disputeCount    Int       @default(0)
+  disputesWon     Int       @default(0)
   disputesLost    Int       @default(0)
 
   // Badges
@@ -168,6 +176,8 @@ model UserWallet {
 enum WalletType {
   EXTERNAL       // Connected from Phantom, Solflare, etc.
   PRIVY_EMBEDDED // Created by Privy for email/social login
+  PRIVY_EMAIL    // Email login via Privy
+  PRIVY_TWITTER  // Twitter login via Privy
 }
 
 enum AuthMethod {
@@ -511,6 +521,7 @@ model Transaction {
   // Non-compete request (buyer can request at purchase)
   nonCompeteRequested       Boolean       @default(false)
   nonCompeteDurationYears   Int?          // 1, 2, or 3 years
+  nonCompeteSigned          Boolean       @default(false)
 
   // Relations
   listingId           String            @unique

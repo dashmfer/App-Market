@@ -26,6 +26,9 @@ import {
   ChevronDown,
   ChevronUp,
   Link as LinkIcon,
+  Scale,
+  FileCheck,
+  PenTool,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
@@ -51,6 +54,9 @@ interface Transfer {
     id: string;
     title: string;
     slug: string;
+    offersAPA?: boolean;
+    offersNonCompete?: boolean;
+    nonCompeteDurationYears?: number;
   };
   salePrice: number;
   platformFee: number;
@@ -73,6 +79,15 @@ interface Transfer {
   checklist: ChecklistItem[];
   isSeller: boolean;
   isBuyer: boolean;
+  // Agreement fields
+  apaSigned?: boolean;
+  apaSignedAt?: string;
+  apaSignature?: string;
+  nonCompeteSigned?: boolean;
+  nonCompeteSignedAt?: string;
+  nonCompeteSignature?: string;
+  buyerRequestedAPA?: boolean;
+  buyerRequestedNonCompete?: boolean;
 }
 
 const iconMap: Record<string, LucideIcon> = {
@@ -215,6 +230,12 @@ export default function TransferPage() {
 
   // Messaging state
   const [startingConversation, setStartingConversation] = useState(false);
+
+  // Agreement signing state
+  const [signingAPA, setSigningAPA] = useState(false);
+  const [signingNonCompete, setSigningNonCompete] = useState(false);
+  const [requestingAPA, setRequestingAPA] = useState(false);
+  const [requestingNonCompete, setRequestingNonCompete] = useState(false);
 
   useEffect(() => {
     fetchTransfer();
@@ -413,6 +434,116 @@ export default function TransferPage() {
 
   const handleBuyerDispute = async (itemId: string) => {
     router.push(`/dashboard/disputes/new?transaction=${params.id}&item=${itemId}`);
+  };
+
+  // Agreement signing handlers
+  const handleSignAPA = async () => {
+    if (!confirm("By signing this Asset Purchase Agreement, you agree to transfer all rights and ownership of the listed assets to the buyer. Continue?")) {
+      return;
+    }
+
+    setSigningAPA(true);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/sign-apa`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to sign APA");
+      }
+
+      await fetchTransfer();
+      alert("Asset Purchase Agreement signed successfully!");
+    } catch (err) {
+      console.error("Error signing APA:", err);
+      alert(err instanceof Error ? err.message : "Failed to sign APA");
+    } finally {
+      setSigningAPA(false);
+    }
+  };
+
+  const handleSignNonCompete = async () => {
+    const duration = transfer?.listing.nonCompeteDurationYears || 2;
+    if (!confirm(`By signing this Non-Compete Agreement, you agree not to create a competing product for ${duration} year(s). Continue?`)) {
+      return;
+    }
+
+    setSigningNonCompete(true);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/sign-non-compete`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to sign Non-Compete");
+      }
+
+      await fetchTransfer();
+      alert("Non-Compete Agreement signed successfully!");
+    } catch (err) {
+      console.error("Error signing Non-Compete:", err);
+      alert(err instanceof Error ? err.message : "Failed to sign Non-Compete");
+    } finally {
+      setSigningNonCompete(false);
+    }
+  };
+
+  const handleRequestAPA = async () => {
+    if (!confirm("Request the seller to sign an Asset Purchase Agreement? This protects your purchase by legally transferring ownership.")) {
+      return;
+    }
+
+    setRequestingAPA(true);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/request-apa`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to request APA");
+      }
+
+      await fetchTransfer();
+      alert("APA request sent to seller!");
+    } catch (err) {
+      console.error("Error requesting APA:", err);
+      alert(err instanceof Error ? err.message : "Failed to request APA");
+    } finally {
+      setRequestingAPA(false);
+    }
+  };
+
+  const handleRequestNonCompete = async () => {
+    if (!confirm("Request the seller to sign a Non-Compete Agreement? This protects you from the seller creating a competing product.")) {
+      return;
+    }
+
+    setRequestingNonCompete(true);
+    try {
+      const res = await fetch(`/api/transfers/${params.id}/request-non-compete`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to request Non-Compete");
+      }
+
+      await fetchTransfer();
+      alert("Non-Compete request sent to seller!");
+    } catch (err) {
+      console.error("Error requesting Non-Compete:", err);
+      alert(err instanceof Error ? err.message : "Failed to request Non-Compete");
+    } finally {
+      setRequestingNonCompete(false);
+    }
   };
 
   if (loading) {
@@ -1086,6 +1217,189 @@ export default function TransferPage() {
                 </div>
               )}
             </div>
+
+            {/* Legal Agreements Section */}
+            {(transfer.listing.offersAPA || transfer.listing.offersNonCompete || transfer.buyerRequestedAPA || transfer.buyerRequestedNonCompete) && (
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Scale className="w-5 h-5 text-indigo-500" />
+                  <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    Legal Agreements
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {/* APA Section */}
+                  {(transfer.listing.offersAPA || transfer.buyerRequestedAPA) && (
+                    <div className={`p-3 rounded-lg border ${
+                      transfer.apaSigned
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileCheck className={`w-4 h-4 ${transfer.apaSigned ? "text-green-600" : "text-zinc-500"}`} />
+                          <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            Asset Purchase Agreement
+                          </span>
+                        </div>
+                        {transfer.apaSigned ? (
+                          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Signed
+                          </span>
+                        ) : transfer.buyerRequestedAPA ? (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Requested by buyer
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-500">
+                            Offered by seller
+                          </span>
+                        )}
+                      </div>
+                      {!transfer.apaSigned && isSeller && (transfer.listing.offersAPA || transfer.buyerRequestedAPA) && (
+                        <button
+                          onClick={handleSignAPA}
+                          disabled={signingAPA}
+                          className="mt-3 w-full btn-primary text-sm py-2 justify-center"
+                        >
+                          {signingAPA ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Signing...
+                            </>
+                          ) : (
+                            <>
+                              <PenTool className="w-4 h-4" />
+                              Sign APA
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {transfer.apaSigned && transfer.apaSignedAt && (
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Signed {formatDistanceToNow(new Date(transfer.apaSignedAt), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Non-Compete Section */}
+                  {(transfer.listing.offersNonCompete || transfer.buyerRequestedNonCompete) && (
+                    <div className={`p-3 rounded-lg border ${
+                      transfer.nonCompeteSigned
+                        ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+                        : "bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Shield className={`w-4 h-4 ${transfer.nonCompeteSigned ? "text-green-600" : "text-zinc-500"}`} />
+                          <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            Non-Compete ({transfer.listing.nonCompeteDurationYears || 2} years)
+                          </span>
+                        </div>
+                        {transfer.nonCompeteSigned ? (
+                          <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Signed
+                          </span>
+                        ) : transfer.buyerRequestedNonCompete ? (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Requested by buyer
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-500">
+                            Offered by seller
+                          </span>
+                        )}
+                      </div>
+                      {!transfer.nonCompeteSigned && isSeller && (transfer.listing.offersNonCompete || transfer.buyerRequestedNonCompete) && (
+                        <button
+                          onClick={handleSignNonCompete}
+                          disabled={signingNonCompete}
+                          className="mt-3 w-full btn-primary text-sm py-2 justify-center"
+                        >
+                          {signingNonCompete ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Signing...
+                            </>
+                          ) : (
+                            <>
+                              <PenTool className="w-4 h-4" />
+                              Sign Non-Compete
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {transfer.nonCompeteSigned && transfer.nonCompeteSignedAt && (
+                        <p className="text-xs text-zinc-500 mt-2">
+                          Signed {formatDistanceToNow(new Date(transfer.nonCompeteSignedAt), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Buyer Request Agreements Section - Only show to buyer when seller didn't offer */}
+            {isBuyer && !isCompleted && !isRefunded && (
+              (!transfer.listing.offersAPA && !transfer.buyerRequestedAPA) ||
+              (!transfer.listing.offersNonCompete && !transfer.buyerRequestedNonCompete)
+            ) && (
+              <div className="bg-indigo-50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800 p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Scale className="w-5 h-5 text-indigo-500" />
+                  <h3 className="font-semibold text-indigo-800 dark:text-indigo-200">
+                    Request Agreements
+                  </h3>
+                </div>
+                <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-4">
+                  The seller hasn't offered these agreements, but you can request them for additional protection.
+                </p>
+                <div className="space-y-2">
+                  {!transfer.listing.offersAPA && !transfer.buyerRequestedAPA && !transfer.apaSigned && (
+                    <button
+                      onClick={handleRequestAPA}
+                      disabled={requestingAPA}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50"
+                    >
+                      {requestingAPA ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Requesting...
+                        </>
+                      ) : (
+                        <>
+                          <FileCheck className="w-4 h-4" />
+                          Request Asset Purchase Agreement
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {!transfer.listing.offersNonCompete && !transfer.buyerRequestedNonCompete && !transfer.nonCompeteSigned && (
+                    <button
+                      onClick={handleRequestNonCompete}
+                      disabled={requestingNonCompete}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium disabled:opacity-50"
+                    >
+                      {requestingNonCompete ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Requesting...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="w-4 h-4" />
+                          Request Non-Compete Agreement
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Deadline */}
             {!isCompleted && !isRefunded && (

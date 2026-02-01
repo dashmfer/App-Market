@@ -37,6 +37,9 @@ import {
   X,
   Lock,
   DollarSign,
+  FileCheck,
+  Scale,
+  Server,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
 import { format, formatDistanceToNow } from "date-fns";
@@ -126,15 +129,22 @@ interface Listing {
   githubRepo?: string;
   hasDomain: boolean;
   domain?: string;
+  domainRegistrar?: string;
   hasDatabase: boolean;
   databaseType?: string;
+  databaseProvider?: string;
+  databaseName?: string;
   hasHosting: boolean;
   hostingProvider?: string;
+  hostingProjectUrl?: string;
   hasVercel: boolean;
   vercelProjectUrl?: string;
   vercelTeamSlug?: string;
   requiresNDA: boolean;
   ndaTerms?: string;
+  offersAPA: boolean;
+  offersNonCompete: boolean;
+  nonCompeteDurationYears?: number;
   hasSocialAccounts: boolean;
   hasApiKeys: boolean;
   hasDesignFiles: boolean;
@@ -644,9 +654,31 @@ export default function ListingPage() {
 
   const assetsList = [
     { key: "github", label: "GitHub Repository", value: listing.githubRepo, icon: Github, included: !!listing.githubRepo },
-    { key: "domain", label: "Domain", value: listing.domain, icon: Globe, included: listing.hasDomain },
-    { key: "database", label: "Database", value: listing.databaseType, icon: Database, included: listing.hasDatabase },
-    { key: "hosting", label: "Hosting", value: listing.hostingProvider, icon: Globe, included: listing.hasHosting },
+    {
+      key: "domain",
+      label: "Domain",
+      value: listing.domain,
+      subValue: listing.domainRegistrar ? `Registrar: ${listing.domainRegistrar}` : undefined,
+      icon: Globe,
+      included: listing.hasDomain
+    },
+    {
+      key: "database",
+      label: "Database",
+      value: listing.databaseProvider
+        ? `${listing.databaseProvider}${listing.databaseName ? ` (${listing.databaseName})` : ''}`
+        : listing.databaseType,
+      icon: Database,
+      included: listing.hasDatabase
+    },
+    {
+      key: "hosting",
+      label: "Hosting",
+      value: listing.hostingProvider,
+      subValue: listing.hostingProjectUrl ? `Project: ${listing.hostingProjectUrl}` : undefined,
+      icon: Server,
+      included: listing.hasHosting
+    },
     { key: "vercel", label: "Vercel Project Transfer", value: listing.vercelProjectUrl || "Included", icon: VercelIcon, included: listing.hasVercel },
     { key: "apiKeys", label: "API Keys & Credentials", value: "Included", icon: Key, included: listing.hasApiKeys },
     { key: "design", label: "Design Files", value: "Included", icon: Palette, included: listing.hasDesignFiles },
@@ -919,6 +951,9 @@ export default function ListingPage() {
                           </div>
                           {asset.value && (
                             <div className="text-sm text-zinc-500">{asset.value}</div>
+                          )}
+                          {(asset as any).subValue && (
+                            <div className="text-xs text-zinc-400 mt-0.5">{(asset as any).subValue}</div>
                           )}
                         </div>
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -1362,6 +1397,52 @@ export default function ListingPage() {
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Legal Agreements Section */}
+                {(listing.offersAPA || listing.offersNonCompete || listing.requiresNDA) && (
+                  <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 border-t border-indigo-200 dark:border-indigo-800">
+                    <h4 className="font-medium text-indigo-700 dark:text-indigo-400 mb-3 flex items-center gap-2">
+                      <Scale className="w-4 h-4" />
+                      Legal Agreements
+                    </h4>
+                    <div className="space-y-2">
+                      {listing.requiresNDA && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Lock className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300 font-medium">NDA Required</span>
+                            <p className="text-xs text-zinc-500 mt-0.5">Sign before viewing confidential details</p>
+                          </div>
+                        </div>
+                      )}
+                      {listing.offersAPA && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <FileCheck className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300 font-medium">Asset Purchase Agreement</span>
+                            <p className="text-xs text-zinc-500 mt-0.5">Seller offers APA for buyer protection</p>
+                          </div>
+                        </div>
+                      )}
+                      {listing.offersNonCompete && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Shield className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <span className="text-zinc-700 dark:text-zinc-300 font-medium">Non-Compete Agreement</span>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                              Seller offers {listing.nonCompeteDurationYears || 2} year non-compete
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {!listing.offersAPA && !listing.offersNonCompete && !listing.requiresNDA && (
+                      <p className="text-xs text-zinc-500 mt-2">
+                        You can request agreements during the transfer process
+                      </p>
+                    )}
                   </div>
                 )}
 
