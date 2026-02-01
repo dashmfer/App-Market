@@ -4,6 +4,7 @@
     "categories": "Categories",
     "howItWorks": "Comment ca marche",
     "signIn": "Se connecter",
+    "loading": "Chargement...",
     "connectWallet": "Connecter Portefeuille",
     "listProject": "Publier Projet",
     "dashboard": "Tableau de bord",
@@ -587,9 +588,38 @@
         "globalDesc": "Connectez-vous avec des acheteurs mondialement"
       },
       "gettingStarted": "Pour Commencer",
+      "steps": {
+        "step1": { "title": "Connectez votre Compte GitHub", "description": "Liez votre GitHub pour verifier la propriete et afficher les metriques du depot aux acheteurs potentiels." },
+        "step2": { "title": "Creez votre Annonce", "description": "Remplissez les details du projet - nom, description, stack technique, captures d'ecran et tous les actifs inclus." },
+        "step3": { "title": "Definissez votre Prix", "description": "Choisissez entre enchere ou prix fixe. Definissez un prix de reserve ou activez l'achat immediat." },
+        "step4": { "title": "Publiez et Promouvez", "description": "Votre annonce sera en direct sur le marche. Partagez-la pour attirer plus d'acheteurs." },
+        "step5": { "title": "Transferez et Recevez le Paiement", "description": "Une fois vendu, transferez les actifs a l'acheteur. Les fonds sont liberes apres confirmation." }
+      },
       "whatToInclude": "Quoi Inclure dans votre Annonce",
+      "includes": {
+        "item1": "Description claire du projet et de ses fonctionnalites",
+        "item2": "Stack technique et dependances",
+        "item3": "Captures d'ecran ou video demo de haute qualite",
+        "item4": "Metriques actuelles (utilisateurs, revenus si applicable)",
+        "item5": "Ce qui est inclus (depot, domaine, base de donnees, etc.)",
+        "item6": "Etat de la documentation",
+        "item7": "Problemes connus ou dette technique",
+        "item8": "Raison de la vente"
+      },
       "bestPractices": "Meilleures Pratiques",
+      "practices": {
+        "practice1": { "title": "Soyez Transparent", "description": "Decrivez honnetement l'etat de votre projet, incluant tous problemes connus ou limitations." },
+        "practice2": { "title": "Fournissez une Demo", "description": "Une demo en direct ou une video permet aux acheteurs d'evaluer votre projet efficacement." },
+        "practice3": { "title": "Repondez Rapidement", "description": "Les reponses rapides aux questions des acheteurs augmentent la confiance et les chances de vente." },
+        "practice4": { "title": "Preparez les Actifs", "description": "Ayez tous les actifs prets pour le transfert avant la fin de l'enchere." }
+      },
       "feeStructure": "Structure des Frais",
+      "fees": {
+        "appFee": { "label": "Frais App Market", "note": "Frais reduit en payant avec $APP" },
+        "solFee": { "label": "Frais Standard (SOL/USDC)" },
+        "stripeFee": { "label": "Frais Carte de Credit (Stripe)" },
+        "blockchainFee": { "label": "Frais Reseau Blockchain" }
+      },
       "cta": {
         "title": "Pret a Publier votre Projet?",
         "subtitle": "Rejoignez des milliers de vendeurs qui font confiance a App Market",
@@ -608,9 +638,42 @@
         "qualityDesc": "Marche organise de projets reels et fonctionnels"
       },
       "howToBuy": "Comment Acheter",
+      "steps": {
+        "step1": { "title": "Parcourir et Rechercher", "description": "Explorez les annonces par categorie, technologie ou metriques. Utilisez les filtres pour trouver exactement ce dont vous avez besoin." },
+        "step2": { "title": "Evaluer le Projet", "description": "Examinez les captures, la qualite du code, les metriques et les evaluations du vendeur. Posez des questions si necessaire." },
+        "step3": { "title": "Encherir ou Acheter", "description": "Pour les encheres, placez des offres competitives. Pour les prix fixes, cliquez sur Acheter Maintenant." },
+        "step4": { "title": "Paiement Securise", "description": "Les fonds sont conserves en sequestre blockchain jusqu'a ce que vous confirmiez la reception de tous les actifs." },
+        "step5": { "title": "Recevoir et Confirmer", "description": "Le vendeur transfere le depot GitHub, identifiants, domaine, etc. Verifiez et liberez le sequestre." }
+      },
       "dueDiligence": "Liste de Verification",
+      "checklist": {
+        "item1": "Verifiez que le depot GitHub existe et que le code correspond a la description",
+        "item2": "Verifiez l'historique des commits pour l'activite recente et la qualite",
+        "item3": "Examinez la compatibilite de la technologie avec vos besoins",
+        "item4": "Validez les metriques reclamees (utilisateurs, revenus) si possible",
+        "item5": "Recherchez la reputation du vendeur et les ventes passees",
+        "item6": "Testez la demo/version en ligne en profondeur",
+        "item7": "Lisez la qualite de la documentation",
+        "item8": "Confirmez que tous les actifs promis sont listes",
+        "item9": "Verifiez s'il y a des problemes ou bugs en suspens",
+        "item10": "Verifiez la propriete du domaine si inclus"
+      },
+      "tip": {
+        "label": "Conseil:",
+        "text": "Ne vous precipitez pas! Prenez le temps d'evaluer en profondeur. Posez des questions au vendeur avant de vous engager."
+      },
       "redFlags": "Signaux d'Alerte",
+      "flags": {
+        "flag1": { "title": "Descriptions vagues", "description": "Manque de details sur les fonctionnalites, la technologie ou les metriques" },
+        "flag2": { "title": "Pas de demo ou captures", "description": "Reticence a montrer le produit reel" },
+        "flag3": { "title": "Metriques non verifiees", "description": "Affirmations qui ne peuvent pas etre verifiees ou semblent trop belles" },
+        "flag4": { "title": "Code de mauvaise qualite", "description": "Code desordonne, non documente ou obsolete" }
+      },
       "paymentOptions": "Options de Paiement",
+      "payment": {
+        "card": { "title": "Carte de Credit (Stripe)", "description": "Payez avec n'importe quelle carte de credit. Fonds en sequestre jusqu'a la fin du transfert.", "fee": "Frais: 2.9% + 0.30$" },
+        "crypto": { "title": "Solana (SOL/USDC)", "description": "Payez directement en crypto. Frais les plus bas et reglement le plus rapide.", "fee": "Frais: ~0.00001 SOL" }
+      },
       "cta": {
         "title": "Pret a Trouver votre Prochain Projet?",
         "subtitle": "Explorez des milliers de projets verifies prets pour acquisition",

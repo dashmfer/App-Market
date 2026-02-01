@@ -4,6 +4,7 @@
     "categories": "Categories",
     "howItWorks": "How It Works",
     "signIn": "Sign In",
+    "loading": "Loading...",
     "connectWallet": "Connect Wallet",
     "listProject": "List Project",
     "dashboard": "Dashboard",
@@ -540,9 +541,38 @@
         "globalDesc": "Connect with buyers worldwide"
       },
       "gettingStarted": "Getting Started",
+      "steps": {
+        "step1": { "title": "Create Your Account", "description": "Sign up with GitHub to verify your identity and build trust with buyers." },
+        "step2": { "title": "Prepare Your Project", "description": "Gather all assets: code, documentation, credentials, and access tokens." },
+        "step3": { "title": "Create a Listing", "description": "Provide detailed information about your project, including tech stack and metrics." },
+        "step4": { "title": "Set Your Price", "description": "Choose between auction or fixed price, set starting/reserve prices." },
+        "step5": { "title": "Publish & Promote", "description": "Once live, share your listing and respond to buyer inquiries promptly." }
+      },
       "whatToInclude": "What to Include in Your Listing",
+      "includes": {
+        "item1": "Complete source code (GitHub repo)",
+        "item2": "Documentation and setup guides",
+        "item3": "Domain name (if applicable)",
+        "item4": "Database credentials",
+        "item5": "API keys and credentials",
+        "item6": "Design files (Figma, Sketch, etc.)",
+        "item7": "Social media accounts",
+        "item8": "Analytics and metrics data"
+      },
       "bestPractices": "Best Practices",
+      "practices": {
+        "practice1": { "title": "Use Quality Screenshots", "description": "Include clear, high-resolution images showing your project's key features and UI." },
+        "practice2": { "title": "Be Transparent with Metrics", "description": "Provide accurate data about users, revenue, and growth. Honesty builds trust." },
+        "practice3": { "title": "Respond Quickly", "description": "Answer buyer questions promptly to increase confidence and close deals faster." },
+        "practice4": { "title": "Prepare for Transfer", "description": "Have all access credentials ready before listing to ensure smooth handoff." }
+      },
       "feeStructure": "Fee Structure",
+      "fees": {
+        "appFee": { "label": "Platform Fee ($APP)", "note": "Discounted rate" },
+        "solFee": { "label": "Platform Fee (SOL/USDC)" },
+        "stripeFee": { "label": "Payment Processing (Stripe)" },
+        "blockchainFee": { "label": "Blockchain Fee (Solana)" }
+      },
       "cta": {
         "title": "Ready to List Your Project?",
         "subtitle": "Join thousands of sellers who trust App Market for their sales",
@@ -561,9 +591,42 @@
         "qualityDesc": "Curated marketplace of real, functional projects"
       },
       "howToBuy": "How to Buy",
+      "steps": {
+        "step1": { "title": "Browse & Search", "description": "Explore listings by category, tech stack, or metrics. Use filters to find exactly what you need." },
+        "step2": { "title": "Evaluate the Project", "description": "Review screenshots, code quality, metrics, and seller ratings. Ask questions if needed." },
+        "step3": { "title": "Place a Bid or Buy Now", "description": "For auctions, place competitive bids. For fixed-price listings, click Buy Now to proceed." },
+        "step4": { "title": "Secure Payment & Escrow", "description": "Funds are held in blockchain escrow until you confirm receipt of all project assets." },
+        "step5": { "title": "Receive Assets & Confirm", "description": "Seller transfers GitHub repo, credentials, domain, etc. Verify and release escrow." }
+      },
       "dueDiligence": "Due Diligence Checklist",
+      "checklist": {
+        "item1": "Verify GitHub repo exists and code matches the description",
+        "item2": "Check commit history for recent activity and quality",
+        "item3": "Review tech stack compatibility with your needs",
+        "item4": "Validate claimed metrics (users, revenue) if possible",
+        "item5": "Research seller's reputation and past sales",
+        "item6": "Test the demo/live version thoroughly",
+        "item7": "Read through documentation quality",
+        "item8": "Confirm all promised assets are listed",
+        "item9": "Check for any outstanding issues or bugs",
+        "item10": "Verify domain ownership if included"
+      },
+      "tip": {
+        "label": "Tip:",
+        "text": "Don't rush! Take time to evaluate thoroughly. Ask the seller questions before committing."
+      },
       "redFlags": "Red Flags to Watch For",
+      "flags": {
+        "flag1": { "title": "Vague descriptions", "description": "Lack of detail about features, tech stack, or metrics" },
+        "flag2": { "title": "No demo or screenshots", "description": "Unwillingness to show the actual product" },
+        "flag3": { "title": "Unverified metrics", "description": "Claims that can't be verified or seem too good to be true" },
+        "flag4": { "title": "Poor code quality", "description": "Messy, undocumented, or outdated code" }
+      },
       "paymentOptions": "Payment Options",
+      "payment": {
+        "card": { "title": "Credit Card (Stripe)", "description": "Pay with any major credit card. Funds held in escrow until transfer complete.", "fee": "Fee: 2.9% + $0.30" },
+        "crypto": { "title": "Solana (SOL/USDC)", "description": "Pay directly with crypto. Lowest fees and fastest settlement.", "fee": "Fee: ~0.00001 SOL" }
+      },
       "cta": {
         "title": "Ready to Find Your Next Project?",
         "subtitle": "Browse thousands of vetted projects ready for acquisition",
