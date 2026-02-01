@@ -1,7 +1,6 @@
 "use client";
 
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
-import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 import { useEffect, useRef, useCallback, createContext, useContext, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
@@ -206,11 +205,9 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
         },
 
-        // External Solana wallets (Phantom, Solflare, etc.)
+        // External Solana wallets (Phantom, Solflare, etc.) - enabled in Privy dashboard
         externalWallets: {
-          solana: {
-            connectors: toSolanaWalletConnectors(),
-          },
+          solana: {},
         },
 
         // Legal
