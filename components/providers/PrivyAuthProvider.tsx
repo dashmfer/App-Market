@@ -184,60 +184,35 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods
-        loginMethods: ["wallet", "email", "twitter"],
-
         // Appearance
         appearance: {
           theme: "dark",
-          accentColor: "#10B981", // Emerald to match App Market branding
-          logo: "https://www.appmrkt.xyz/logo.png",
-          showWalletLoginFirst: true,
+          accentColor: "#22c55e", // Green to match the app theme
+          logo: "/logo.png",
+          showWalletLoginFirst: false,
         },
-
-        // Embedded wallet config
+        // Login methods - email, twitter, and external wallets
+        loginMethods: ["email", "twitter", "wallet"],
+        // Embedded wallet config for Solana
         embeddedWallets: {
-          createOnLogin: "users-without-wallets", // Create embedded wallet for email/twitter users
+          createOnLogin: "users-without-wallets",
+          noPromptOnSignature: false,
         },
-
-        // Supported chains
-        supportedChains: [
+        // Solana config
+        solanaClusters: [
           {
-            id: 101, // Solana mainnet
-            name: "Solana",
-            nativeCurrency: {
-              name: "SOL",
-              symbol: "SOL",
-              decimals: 9,
-            },
-            rpcUrls: {
-              default: {
-                http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
-              },
-            },
-          } as any,
+            name: "mainnet-beta",
+            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
+          },
+          {
+            name: "devnet",
+            rpcUrl: "https://api.devnet.solana.com",
+          },
         ],
-
-        // Default chain
-        defaultChain: {
-          id: 101,
-          name: "Solana",
-          nativeCurrency: {
-            name: "SOL",
-            symbol: "SOL",
-            decimals: 9,
-          },
-          rpcUrls: {
-            default: {
-              http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
-            },
-          },
-        } as any,
-
         // Legal
         legal: {
-          termsAndConditionsUrl: "https://www.appmrkt.xyz/terms",
-          privacyPolicyUrl: "https://www.appmrkt.xyz/privacy",
+          termsAndConditionsUrl: "/terms",
+          privacyPolicyUrl: "/privacy",
         },
       }}
     >
