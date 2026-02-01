@@ -196,8 +196,8 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           theme: "dark",
           accentColor: "#22c55e",
           walletChainType: "solana-only",
-          // Show detected Solana wallets first, then popular Solana wallets as options
-          walletList: ["detected_solana_wallets", "phantom", "solflare", "backpack"],
+          // Only show wallets that are actually installed
+          walletList: ["detected_solana_wallets"],
           landingHeader: "Sign in to App Market",
           loginMessage: "Connect your wallet or sign in with email",
         },
