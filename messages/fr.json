@@ -683,6 +683,7 @@
     "title": "Protection Sequestre",
     "subtitle": "Fonds proteges",
     "howItWorks": "Comment ca Marche",
+    "stepLabel": "Etape {number}",
     "step1": {
       "title": "Depot",
       "description": "Fonds dans un contrat securise"
@@ -701,8 +702,38 @@
     },
     "protection": {
       "title": "Protection",
-      "buyer": "Acheteurs proteges",
-      "seller": "Vendeurs garantis"
+      "forBuyers": "Pour les Acheteurs",
+      "forSellers": "Pour les Vendeurs",
+      "buyer": "Acheteurs proteges jusqu'a confirmation de reception",
+      "seller": "Vendeurs garantis paiement apres transfert confirme"
+    },
+    "benefits": {
+      "title": "Pourquoi le Sequestre Blockchain?",
+      "trustless": { "title": "Transactions sans Confiance", "description": "Les contrats intelligents s'executent automatiquement sans necesiter de confiance entre les parties." },
+      "transparent": { "title": "Transparent et Auditable", "description": "Toutes les transactions sont enregistrees on-chain et peuvent etre verifiees par quiconque." },
+      "noMiddleman": { "title": "Sans Intermediaire", "description": "Les fonds vont directement du acheteur au vendeur sans intermediaires." },
+      "instant": { "title": "Reglement Instantane", "description": "Une fois confirme, les fonds sont liberes immediatement - sans attendre les virements bancaires." }
+    },
+    "security": {
+      "title": "Caracteristiques de Securite",
+      "feature1": { "title": "Contrats Audites", "description": "Nos contrats de sequestre ont ete audites professionnellement pour les vulnerabilites." },
+      "feature2": { "title": "Controles Multi-Signature", "description": "Les operations critiques necessitent plusieurs signatures pour prevenir l'acces non autorise." },
+      "feature3": { "title": "Liberations avec Verrouillage Temporel", "description": "Remboursement automatique si le vendeur ne livre pas dans le delai convenu." },
+      "feature4": { "title": "Resolution des Litiges", "description": "Mecanisme integre pour gerer les conflits avec arbitrage base sur les preuves." },
+      "feature5": { "title": "Enregistrements Immuables", "description": "Toutes les transactions de sequestre sont enregistrees de facon permanente sur Solana." }
+    },
+    "faq": {
+      "title": "Questions Frequentes",
+      "q1": "Que se passe-t-il si le vendeur ne livre jamais?",
+      "a1": "Si le vendeur ne livre pas dans le delai convenu, vous pouvez demander un remboursement. En cas de litige, notre equipe examine les preuves et prend une decision equitable.",
+      "q2": "Le vendeur peut-il acceder a mon paiement avant que je confirme?",
+      "a2": "Non. Les fonds restent bloques dans le contrat intelligent jusqu'a ce que vous confirmiez explicitement la reception ou que la periode de litige expire.",
+      "q3": "Que se passe-t-il en cas de desaccord?",
+      "a3": "Chaque partie peut ouvrir un litige. Les deux cotes presentent des preuves, et notre equipe prend une decision basee sur les faits. Le perdant paie 2% de frais.",
+      "q4": "Combien de temps dure le sequestre?",
+      "a4": "Generalement 7-14 jours pour le transfert. Une fois confirme, les fonds sont liberes immediatement. Sans confirmation, il y a une periode de revision automatique.",
+      "q5": "Les contrats intelligents de sequestre sont-ils surs?",
+      "a5": "Oui. Nos contrats ont ete audites et testes. Tout le code est open source et verifiable on-chain."
     }
   },
   "categories": {

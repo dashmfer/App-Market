@@ -636,6 +636,7 @@
     "title": "Escrow Protection",
     "subtitle": "Your funds are always protected",
     "howItWorks": "How Escrow Works",
+    "stepLabel": "Step {number}",
     "step1": {
       "title": "Buyer Deposits",
       "description": "Funds are deposited into a secure smart contract"
@@ -654,8 +655,38 @@
     },
     "protection": {
       "title": "Your Protection",
+      "forBuyers": "For Buyers",
+      "forSellers": "For Sellers",
       "buyer": "Buyers are protected until they confirm receipt",
       "seller": "Sellers are guaranteed payment after confirmed transfer"
+    },
+    "benefits": {
+      "title": "Why Blockchain Escrow?",
+      "trustless": { "title": "Trustless Transactions", "description": "Smart contracts execute automatically without requiring trust between parties." },
+      "transparent": { "title": "Transparent & Auditable", "description": "All transactions are recorded on-chain and can be verified by anyone." },
+      "noMiddleman": { "title": "No Middleman", "description": "Funds go directly from buyer to seller without intermediaries holding your money." },
+      "instant": { "title": "Instant Settlement", "description": "Once confirmed, funds are released immediately - no waiting for bank transfers." }
+    },
+    "security": {
+      "title": "Security Features",
+      "feature1": { "title": "Audited Smart Contracts", "description": "Our escrow contracts have been professionally audited for security vulnerabilities." },
+      "feature2": { "title": "Multi-Signature Controls", "description": "Critical operations require multiple signatures to prevent unauthorized access." },
+      "feature3": { "title": "Time-Locked Releases", "description": "Automatic refund if seller doesn't deliver within the agreed timeframe." },
+      "feature4": { "title": "Dispute Resolution", "description": "Built-in mechanism for handling conflicts with evidence-based arbitration." },
+      "feature5": { "title": "Immutable Records", "description": "All escrow transactions are permanently recorded on Solana blockchain." }
+    },
+    "faq": {
+      "title": "Common Questions",
+      "q1": "What if the seller never delivers?",
+      "a1": "If the seller doesn't deliver within the agreed timeframe, you can request a refund. If there's a dispute, our team reviews the evidence and makes a fair decision.",
+      "q2": "Can the seller access my payment before I confirm?",
+      "a2": "No. Funds remain locked in the smart contract escrow until you explicitly confirm receipt or the dispute period expires.",
+      "q3": "What happens if there's a disagreement?",
+      "a3": "Either party can open a dispute. Both sides submit evidence, and our team makes a determination based on the facts. The losing party pays a 2% dispute fee.",
+      "q4": "How long does escrow last?",
+      "a4": "Typically 7-14 days for the transfer. Once you confirm, funds are released immediately. If there's no confirmation, there's an automatic review period.",
+      "q5": "Are blockchain escrow smart contracts safe?",
+      "a5": "Yes. Our contracts have been audited and battle-tested. All code is open source and verifiable on-chain."
     }
   },
   "common": {

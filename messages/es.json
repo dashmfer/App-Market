@@ -636,6 +636,7 @@
     "title": "Proteccion Deposito",
     "subtitle": "Fondos protegidos",
     "howItWorks": "Como Funciona",
+    "stepLabel": "Paso {number}",
     "step1": {
       "title": "Deposita",
       "description": "Fondos en contrato seguro"
@@ -654,8 +655,38 @@
     },
     "protection": {
       "title": "Proteccion",
-      "buyer": "Compradores protegidos",
-      "seller": "Vendedores garantizados"
+      "forBuyers": "Para Compradores",
+      "forSellers": "Para Vendedores",
+      "buyer": "Compradores protegidos hasta confirmar recepcion",
+      "seller": "Vendedores garantizados pago despues de transferencia"
+    },
+    "benefits": {
+      "title": "Por que Deposito Blockchain?",
+      "trustless": { "title": "Transacciones sin Confianza", "description": "Los contratos inteligentes se ejecutan automaticamente sin requerir confianza entre partes." },
+      "transparent": { "title": "Transparente y Auditable", "description": "Todas las transacciones se registran on-chain y pueden ser verificadas por cualquiera." },
+      "noMiddleman": { "title": "Sin Intermediarios", "description": "Los fondos van directamente del comprador al vendedor sin intermediarios." },
+      "instant": { "title": "Liquidacion Instantanea", "description": "Una vez confirmado, los fondos se liberan inmediatamente - sin esperar transferencias bancarias." }
+    },
+    "security": {
+      "title": "Caracteristicas de Seguridad",
+      "feature1": { "title": "Contratos Auditados", "description": "Nuestros contratos de deposito han sido auditados profesionalmente." },
+      "feature2": { "title": "Controles Multi-Firma", "description": "Las operaciones criticas requieren multiples firmas para prevenir acceso no autorizado." },
+      "feature3": { "title": "Liberaciones con Bloqueo de Tiempo", "description": "Reembolso automatico si el vendedor no entrega en el tiempo acordado." },
+      "feature4": { "title": "Resolucion de Disputas", "description": "Mecanismo integrado para manejar conflictos con arbitraje basado en evidencia." },
+      "feature5": { "title": "Registros Inmutables", "description": "Todas las transacciones de deposito se registran permanentemente en Solana." }
+    },
+    "faq": {
+      "title": "Preguntas Comunes",
+      "q1": "Que pasa si el vendedor nunca entrega?",
+      "a1": "Si el vendedor no entrega en el tiempo acordado, puedes solicitar un reembolso. Si hay disputa, nuestro equipo revisa la evidencia y toma una decision justa.",
+      "q2": "Puede el vendedor acceder a mi pago antes de que confirme?",
+      "a2": "No. Los fondos permanecen bloqueados en el contrato inteligente hasta que confirmes explicitamente la recepcion o expire el periodo de disputa.",
+      "q3": "Que pasa si hay un desacuerdo?",
+      "a3": "Cualquier parte puede abrir una disputa. Ambos lados presentan evidencia, y nuestro equipo toma una determinacion basada en los hechos. El perdedor paga 2% de tarifa.",
+      "q4": "Cuanto dura el deposito?",
+      "a4": "Tipicamente 7-14 dias para la transferencia. Una vez confirmas, los fondos se liberan inmediatamente. Si no hay confirmacion, hay un periodo de revision automatico.",
+      "q5": "Son seguros los contratos inteligentes de deposito?",
+      "a5": "Si. Nuestros contratos han sido auditados y probados. Todo el codigo es open source y verificable on-chain."
     }
   },
   "common": {
