@@ -570,12 +570,11 @@
       "fees": {
         "appFee": { "label": "Platform Fee ($APP)", "note": "Discounted rate" },
         "solFee": { "label": "Platform Fee (SOL/USDC)" },
-        "stripeFee": { "label": "Payment Processing (Stripe)" },
         "blockchainFee": { "label": "Blockchain Fee (Solana)" }
       },
       "cta": {
         "title": "Ready to List Your Project?",
-        "subtitle": "Join thousands of sellers who trust App Market for their sales",
+        "subtitle": "Start selling your digital products with secure on-chain escrow",
         "button": "Create Listing"
       }
     },
@@ -624,8 +623,7 @@
       },
       "paymentOptions": "Payment Options",
       "payment": {
-        "card": { "title": "Credit Card (Stripe)", "description": "Pay with any major credit card. Funds held in escrow until transfer complete.", "fee": "Fee: 2.9% + $0.30" },
-        "crypto": { "title": "Solana (SOL/USDC)", "description": "Pay directly with crypto. Lowest fees and fastest settlement.", "fee": "Fee: ~0.00001 SOL" }
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Pay directly with crypto. Low fees and instant settlement on Solana.", "fee": "Fee: ~0.00001 SOL" }
       },
       "cta": {
         "title": "Ready to Find Your Next Project?",

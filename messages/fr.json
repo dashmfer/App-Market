@@ -617,12 +617,11 @@
       "fees": {
         "appFee": { "label": "Frais App Market", "note": "Frais reduit en payant avec $APP" },
         "solFee": { "label": "Frais Standard (SOL/USDC)" },
-        "stripeFee": { "label": "Frais Carte de Credit (Stripe)" },
         "blockchainFee": { "label": "Frais Reseau Blockchain" }
       },
       "cta": {
         "title": "Pret a Publier votre Projet?",
-        "subtitle": "Rejoignez des milliers de vendeurs qui font confiance a App Market",
+        "subtitle": "Commencez a vendre vos produits numeriques avec un sequestre securise on-chain",
         "button": "Creer une Annonce"
       }
     },
@@ -671,8 +670,7 @@
       },
       "paymentOptions": "Options de Paiement",
       "payment": {
-        "card": { "title": "Carte de Credit (Stripe)", "description": "Payez avec n'importe quelle carte de credit. Fonds en sequestre jusqu'a la fin du transfert.", "fee": "Frais: 2.9% + 0.30$" },
-        "crypto": { "title": "Solana (SOL/USDC)", "description": "Payez directement en crypto. Frais les plus bas et reglement le plus rapide.", "fee": "Frais: ~0.00001 SOL" }
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Payez directement en crypto. Frais bas et reglement instantane sur Solana.", "fee": "Frais: ~0.00001 SOL" }
       },
       "cta": {
         "title": "Pret a Trouver votre Prochain Projet?",

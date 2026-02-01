@@ -103,10 +103,6 @@ export default function SellersGuidePage() {
                   <span className="text-zinc-700 dark:text-zinc-300">{t("fees.solFee.label")}</span>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">5%</span>
                 </div>
-                <div className="flex justify-between items-center py-3 border-b border-zinc-200 dark:border-zinc-800">
-                  <span className="text-zinc-700 dark:text-zinc-300">{t("fees.stripeFee.label")}</span>
-                  <span className="font-semibold text-zinc-900 dark:text-zinc-100">2.9% + $0.30</span>
-                </div>
                 <div className="flex justify-between items-center py-3">
                   <span className="text-zinc-700 dark:text-zinc-300">{t("fees.blockchainFee.label")}</span>
                   <span className="font-semibold text-zinc-900 dark:text-zinc-100">~0.00001 SOL</span>

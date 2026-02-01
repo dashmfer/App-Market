@@ -102,21 +102,12 @@ export default function BuyersGuidePage() {
           {/* Payment Options */}
           <section className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-8 mb-8">
             <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">{t("paymentOptions")}</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">{t("payment.card.title")}</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                  {t("payment.card.description")}
-                </p>
-                <p className="text-xs text-zinc-500">{t("payment.card.fee")}</p>
-              </div>
-              <div className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">{t("payment.crypto.title")}</h3>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
-                  {t("payment.crypto.description")}
-                </p>
-                <p className="text-xs text-zinc-500">{t("payment.crypto.fee")}</p>
-              </div>
+            <div className="p-4 border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">{t("payment.crypto.title")}</h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-2">
+                {t("payment.crypto.description")}
+              </p>
+              <p className="text-xs text-green-600 dark:text-green-400">{t("payment.crypto.fee")}</p>
             </div>
           </section>
 

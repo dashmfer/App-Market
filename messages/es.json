@@ -570,12 +570,11 @@
       "fees": {
         "appFee": { "label": "Tarifa Plataforma ($APP)", "note": "Tarifa con descuento" },
         "solFee": { "label": "Tarifa Plataforma (SOL/USDC)" },
-        "stripeFee": { "label": "Procesamiento de Pago (Stripe)" },
         "blockchainFee": { "label": "Tarifa Blockchain (Solana)" }
       },
       "cta": {
         "title": "Listo para Publicar tu Proyecto?",
-        "subtitle": "Unete a miles de vendedores que confian en App Market",
+        "subtitle": "Comienza a vender tus productos digitales con deposito seguro on-chain",
         "button": "Crear Publicacion"
       }
     },
@@ -624,8 +623,7 @@
       },
       "paymentOptions": "Opciones de Pago",
       "payment": {
-        "card": { "title": "Tarjeta de Credito (Stripe)", "description": "Paga con cualquier tarjeta de credito. Fondos en deposito hasta completar la transferencia.", "fee": "Comision: 2.9% + $0.30" },
-        "crypto": { "title": "Solana (SOL/USDC)", "description": "Paga directamente con crypto. Menores comisiones y liquidacion mas rapida.", "fee": "Comision: ~0.00001 SOL" }
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Paga directamente con crypto. Comisiones bajas y liquidacion instantanea en Solana.", "fee": "Comision: ~0.00001 SOL" }
       },
       "cta": {
         "title": "Listo para Encontrar tu Proximo Proyecto?",

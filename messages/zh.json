@@ -617,12 +617,11 @@
       "fees": {
         "appFee": { "label": "App Market费用", "note": "使用$APP支付可享受优惠费率" },
         "solFee": { "label": "标准费用 (SOL/USDC)" },
-        "stripeFee": { "label": "信用卡费用 (Stripe)" },
         "blockchainFee": { "label": "区块链网络费用" }
       },
       "cta": {
         "title": "准备发布您的项目？",
-        "subtitle": "加入数千名信任App Market的卖家",
+        "subtitle": "通过安全的链上托管开始销售您的数字产品",
         "button": "创建列表"
       }
     },
@@ -671,8 +670,7 @@
       },
       "paymentOptions": "支付选项",
       "payment": {
-        "card": { "title": "信用卡 (Stripe)", "description": "使用任何主要信用卡支付。资金托管直到转让完成。", "fee": "费用：2.9% + $0.30" },
-        "crypto": { "title": "Solana (SOL/USDC)", "description": "直接使用加密货币支付。最低费用和最快结算。", "fee": "费用：~0.00001 SOL" }
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "直接使用加密货币支付。低费用，Solana即时结算。", "fee": "费用：~0.00001 SOL" }
       },
       "cta": {
         "title": "准备寻找下一个项目？",
