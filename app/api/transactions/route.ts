@@ -154,16 +154,93 @@ export async function POST(request: NextRequest) {
     const platformFee = calculatePlatformFee(salePrice, listing.currency);
     const sellerProceeds = salePrice - platformFee;
 
-    // Create transfer checklist based on listing assets
-    const transferChecklist = {
-      github: { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false },
-      domain: listing.hasDomain ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-      database: listing.hasDatabase ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-      hosting: listing.hasHosting ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-      apiKeys: listing.hasApiKeys ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-      designFiles: listing.hasDesignFiles ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-      documentation: listing.hasDocumentation ? { required: true, completed: false, confirmedBySeller: false, confirmedByBuyer: false } : null,
-    };
+    // Create transfer checklist based on listing assets (array format for consistency)
+    const transferChecklist = [
+      {
+        id: "github",
+        label: "GitHub Repository",
+        description: "Transfer ownership of the repository to buyer",
+        iconType: "github",
+        required: !!listing.githubRepo,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "domain",
+        label: "Domain",
+        description: "Transfer domain ownership via registrar",
+        iconType: "domain",
+        required: listing.hasDomain,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "database",
+        label: "Database Access",
+        description: "Provide database credentials and data export",
+        iconType: "database",
+        required: listing.hasDatabase,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "hosting",
+        label: "Hosting Access",
+        description: "Transfer hosting account access",
+        iconType: "hosting",
+        required: listing.hasHosting,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "apiKeys",
+        label: "API Keys & Credentials",
+        description: "Share all necessary API keys and service credentials",
+        iconType: "apiKeys",
+        required: listing.hasApiKeys,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "designFiles",
+        label: "Design Files",
+        description: "Share Figma/Sketch files",
+        iconType: "designFiles",
+        required: listing.hasDesignFiles,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+      {
+        id: "documentation",
+        label: "Documentation",
+        description: "Provide setup guides and documentation",
+        iconType: "documentation",
+        required: listing.hasDocumentation,
+        sellerConfirmed: false,
+        sellerConfirmedAt: null,
+        sellerEvidence: null,
+        buyerConfirmed: false,
+        buyerConfirmedAt: null,
+      },
+    ];
 
     // Calculate buyer info deadline (48 hours from now)
     const hasRequiredBuyerInfo = listing.requiredBuyerInfo !== null;

@@ -262,13 +262,46 @@ export async function POST(
         (updateData.sellerSigned || existingAgreement.sellerSigned);
 
       if (bothSigned) {
-        updateData.status = "SIGNED";
+        updateData.status = "COMPLETED";
       }
 
       const updatedAgreement = await prisma.transactionAgreement.update({
         where: { id: existingAgreement.id },
         data: updateData,
       });
+
+      // Notify both parties when agreement is fully signed
+      if (bothSigned) {
+        const agreementName = type === "ASSET_PURCHASE" ? "Asset Purchase Agreement" : "Non-Compete Agreement";
+        await Promise.all([
+          prisma.notification.create({
+            data: {
+              type: "SYSTEM",
+              title: `${agreementName} Completed`,
+              message: `The ${agreementName.toLowerCase()} has been signed by both parties.`,
+              userId: transaction.buyerId,
+              data: {
+                transactionId,
+                agreementId: updatedAgreement.id,
+                agreementType: type,
+              },
+            },
+          }),
+          prisma.notification.create({
+            data: {
+              type: "SYSTEM",
+              title: `${agreementName} Completed`,
+              message: `The ${agreementName.toLowerCase()} has been signed by both parties.`,
+              userId: transaction.sellerId,
+              data: {
+                transactionId,
+                agreementId: updatedAgreement.id,
+                agreementType: type,
+              },
+            },
+          }),
+        ]);
+      }
 
       return NextResponse.json({ agreement: updatedAgreement });
     }
