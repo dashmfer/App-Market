@@ -623,7 +623,7 @@
       },
       "paymentOptions": "Opciones de Pago",
       "payment": {
-        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Paga directamente con crypto. Comisiones bajas y liquidacion instantanea en Solana.", "fee": "Comision: ~0.00001 SOL" }
+        "crypto": { "title": "Solana (APP/SOL/USDC)", "description": "Paga directamente con crypto. Comisiones bajas y liquidacion instantanea en Solana.", "fee": "Comision: ~0.00001 SOL" }
       },
       "cta": {
         "title": "Listo para Encontrar tu Proximo Proyecto?",

@@ -670,7 +670,7 @@
       },
       "paymentOptions": "Options de Paiement",
       "payment": {
-        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Payez directement en crypto. Frais bas et reglement instantane sur Solana.", "fee": "Frais: ~0.00001 SOL" }
+        "crypto": { "title": "Solana (APP/SOL/USDC)", "description": "Payez directement en crypto. Frais bas et reglement instantane sur Solana.", "fee": "Frais: ~0.00001 SOL" }
       },
       "cta": {
         "title": "Pret a Trouver votre Prochain Projet?",

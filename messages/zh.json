@@ -670,7 +670,7 @@
       },
       "paymentOptions": "支付选项",
       "payment": {
-        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "直接使用加密货币支付。低费用，Solana即时结算。", "fee": "费用：~0.00001 SOL" }
+        "crypto": { "title": "Solana (APP/SOL/USDC)", "description": "直接使用加密货币支付。低费用，Solana即时结算。", "fee": "费用：~0.00001 SOL" }
       },
       "cta": {
         "title": "准备寻找下一个项目？",
