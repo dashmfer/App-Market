@@ -9,6 +9,7 @@ export default function FeaturedPage() {
   const t = useTranslations("featured");
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [watchlistedIds, setWatchlistedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchFeatured() {
@@ -25,7 +26,21 @@ export default function FeaturedPage() {
       }
     }
 
+    async function fetchWatchlist() {
+      try {
+        const response = await fetch("/api/watchlist");
+        if (response.ok) {
+          const data = await response.json();
+          const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
+          setWatchlistedIds(ids);
+        }
+      } catch (error) {
+        // Silently fail - user might not be logged in
+      }
+    }
+
     fetchFeatured();
+    fetchWatchlist();
   }, []);
 
   return (
@@ -53,7 +68,12 @@ export default function FeaturedPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {listings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} index={index} />
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                index={index}
+                initialWatchlisted={watchlistedIds.has(listing.id)}
+              />
             ))}
           </div>
         )}

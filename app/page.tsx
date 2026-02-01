@@ -40,6 +40,7 @@ export default function HomePage() {
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+  const [watchlistedIds, setWatchlistedIds] = useState<Set<string>>(new Set());
   const [platformStats, setPlatformStats] = useState({
     projectsSold: 0,
     totalVolume: 0,
@@ -126,9 +127,23 @@ export default function HomePage() {
       }
     }
 
+    async function fetchWatchlist() {
+      try {
+        const response = await fetch("/api/watchlist");
+        if (response.ok) {
+          const data = await response.json();
+          const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
+          setWatchlistedIds(ids);
+        }
+      } catch (error) {
+        // Silently fail - user might not be logged in
+      }
+    }
+
     fetchListings();
     fetchCategoryCounts();
     fetchPlatformStats();
+    fetchWatchlist();
   }, []);
 
   // Map categories with dynamic counts
@@ -253,7 +268,12 @@ export default function HomePage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredListings.map((listing, index) => (
-                <ListingCard key={listing.id} listing={listing} index={index} />
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  index={index}
+                  initialWatchlisted={watchlistedIds.has(listing.id)}
+                />
               ))}
             </div>
           )}
