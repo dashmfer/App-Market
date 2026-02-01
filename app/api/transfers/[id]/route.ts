@@ -103,6 +103,9 @@ export async function GET(
             hasDesignFiles: true,
             hasDocumentation: true,
             githubRepo: true,
+            offersAPA: true,
+            offersNonCompete: true,
+            nonCompeteDurationYears: true,
           },
         },
         buyer: {
@@ -239,6 +242,15 @@ export async function GET(
       confirmationsNeeded: transaction.hasPartners
         ? Math.floor(transaction.partners.length / 2) + 1
         : 1,
+      // Agreement fields
+      apaSigned: transaction.apaSigned,
+      apaSignedAt: transaction.apaSignedAt,
+      apaSignature: transaction.apaSignature,
+      nonCompeteSigned: transaction.nonCompeteSigned,
+      nonCompeteSignedAt: transaction.nonCompeteSignedAt,
+      nonCompeteSignature: transaction.nonCompeteSignature,
+      buyerRequestedAPA: transaction.buyerRequestedAPA,
+      buyerRequestedNonCompete: transaction.buyerRequestedNonCompete,
     };
 
     return NextResponse.json(response);

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift, Star, Twitter } from "lucide-react";
+import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift, Star, Twitter, Award, TrendingUp, Shield, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ListingCard } from "@/components/listings/listing-card";
 import { ReviewList } from "@/components/reviews/review-list";
@@ -49,8 +49,14 @@ interface UserProfile {
   bio?: string;
   isVerified: boolean;
   totalSales: number;
+  totalPurchases: number;
   rating: number;
   ratingCount: number;
+  sellerLevel?: string;
+  successRate?: number;
+  totalDisputes: number;
+  disputesWon: number;
+  disputesLost: number;
   twitterUsername?: string;
   twitterVerified?: boolean;
   createdAt: string;
@@ -190,12 +196,42 @@ export default function UserProfilePage() {
                 </p>
               )}
 
+              {/* Seller Level Badge */}
+              {profile.sellerLevel && profile.sellerLevel !== "NEW" && (
+                <div className="flex items-center gap-2 mt-3">
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
+                    profile.sellerLevel === "GOLD"
+                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                      : profile.sellerLevel === "SILVER"
+                      ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-700/30 dark:text-zinc-300"
+                      : profile.sellerLevel === "BRONZE"
+                      ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}>
+                    <Award className="w-4 h-4" />
+                    {profile.sellerLevel.charAt(0) + profile.sellerLevel.slice(1).toLowerCase()} Seller
+                  </div>
+                </div>
+              )}
+
               {/* Stats */}
-              <div className="flex items-center justify-center md:justify-start gap-6 mt-4">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-4">
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <ShoppingBag className="w-4 h-4" />
                   <span>{profile.totalSales} sales</span>
                 </div>
+                {profile.totalPurchases > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-zinc-500">
+                    <Package className="w-4 h-4" />
+                    <span>{profile.totalPurchases} purchases</span>
+                  </div>
+                )}
+                {profile.successRate !== undefined && profile.successRate > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>{profile.successRate}% success rate</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-sm text-zinc-500">
                   <Calendar className="w-4 h-4" />
                   <span>
@@ -206,6 +242,26 @@ export default function UserProfilePage() {
                   </span>
                 </div>
               </div>
+
+              {/* Dispute Stats - only show if there have been disputes */}
+              {profile.totalDisputes > 0 && (
+                <div className="flex items-center gap-4 mt-3 text-sm">
+                  <div className="flex items-center gap-1.5 text-zinc-500">
+                    <Shield className="w-4 h-4" />
+                    <span>{profile.totalDisputes} dispute{profile.totalDisputes !== 1 ? 's' : ''}</span>
+                  </div>
+                  {profile.disputesWon > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {profile.disputesWon} won
+                    </span>
+                  )}
+                  {profile.disputesLost > 0 && (
+                    <span className="text-red-500">
+                      {profile.disputesLost} lost
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
