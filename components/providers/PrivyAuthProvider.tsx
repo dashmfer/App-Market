@@ -197,7 +197,9 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
 
         // Embedded wallet config
         embeddedWallets: {
-          createOnLogin: "users-without-wallets", // Create embedded wallet for email/twitter users
+          solana: {
+            createOnLogin: "users-without-wallets", // Create embedded wallet for email/twitter users
+          },
         },
 
         // Supported chains
