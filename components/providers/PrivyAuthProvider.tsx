@@ -205,7 +205,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
         },
 
-        // External Solana wallets (Phantom, Solflare, etc.)
+        // External Solana wallets (Phantom, Solflare, etc.) - enabled in Privy dashboard
         externalWallets: {
           solana: {},
         },
