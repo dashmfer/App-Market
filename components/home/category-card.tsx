@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface CategoryCardProps {
   category: {
@@ -15,6 +16,7 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ category, index = 0 }: CategoryCardProps) {
+  const t = useTranslations("categories");
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -34,7 +36,7 @@ export function CategoryCard({ category, index = 0 }: CategoryCardProps) {
               {category.name}
             </h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {category.count} projects
+              {category.count} {t("projects")}
             </p>
           </div>
           <ArrowRight className="w-5 h-5 text-zinc-400 group-hover:text-green-500 group-hover:translate-x-1 transition-all duration-300" />

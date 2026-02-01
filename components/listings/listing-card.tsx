@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2, Lock, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useCountdown } from "@/hooks/useCountdown";
+import { useTranslations } from "next-intl";
 
 interface ListingCardProps {
   listing: {
@@ -62,6 +63,8 @@ const getCurrencyLabel = (currency?: string): string => {
 };
 
 export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingCardProps) {
+  const t = useTranslations("listingCard");
+  const tCategories = useTranslations("explore.categories");
   const [isWatchlisted, setIsWatchlisted] = useState(initialWatchlisted || !!listing.watchlistId);
   const [isWatchlistLoading, setIsWatchlistLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -80,13 +83,13 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
 
         if (response.ok) {
           setIsWatchlisted(false);
-          toast.success("Removed from watchlist");
+          toast.success(t("removedFromWatchlist"));
         } else {
           const data = await response.json();
           if (response.status === 401) {
-            toast.error("Please sign in to manage your watchlist");
+            toast.error(t("signInToWatchlist"));
           } else {
-            throw new Error(data.error || "Failed to remove from watchlist");
+            throw new Error(data.error || t("failedToRemove"));
           }
         }
       } else {
@@ -99,21 +102,21 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
 
         if (response.ok) {
           setIsWatchlisted(true);
-          toast.success("Added to watchlist");
+          toast.success(t("addedToWatchlist"));
         } else {
           const data = await response.json();
           if (response.status === 401) {
-            toast.error("Please sign in to manage your watchlist");
+            toast.error(t("signInToWatchlist"));
           } else if (data.error === "Already in watchlist") {
             setIsWatchlisted(true);
           } else {
-            throw new Error(data.error || "Failed to add to watchlist");
+            throw new Error(data.error || t("failedToAdd"));
           }
         }
       }
     } catch (error) {
       console.error("Watchlist error:", error);
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(error instanceof Error ? error.message : t("somethingWentWrong"));
     } finally {
       setIsWatchlistLoading(false);
     }
@@ -135,15 +138,15 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
   const sellerName = listing.seller?.displayName || listing.seller?.name || listing.seller?.username || "Anonymous";
 
   const categoryLabels: Record<string, string> = {
-    SAAS: "SaaS",
-    AI_ML: "AI & ML",
-    MOBILE_APP: "Mobile App",
-    WEB_APP: "Web App",
-    BROWSER_EXTENSION: "Extension",
-    CRYPTO_WEB3: "Crypto",
-    ECOMMERCE: "E-commerce",
-    DEVELOPER_TOOLS: "Dev Tools",
-    OTHER: "Other",
+    SAAS: tCategories("saas"),
+    AI_ML: tCategories("aiMl"),
+    MOBILE_APP: tCategories("mobileApps"),
+    WEB_APP: tCategories("webApps"),
+    BROWSER_EXTENSION: tCategories("extensions"),
+    CRYPTO_WEB3: tCategories("crypto"),
+    ECOMMERCE: tCategories("ecommerce"),
+    DEVELOPER_TOOLS: tCategories("devTools"),
+    OTHER: tCategories("other"),
   };
 
   return (
@@ -183,12 +186,12 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
               {isBuyNowOnly ? (
                 <span className="px-2.5 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-xs font-medium text-white flex items-center gap-1">
                   <Tag className="w-3 h-3" />
-                  Buy Now
+                  {t("buyNow")}
                 </span>
               ) : (
                 <span className="px-2.5 py-1 rounded-full bg-zinc-900/70 dark:bg-zinc-100/90 backdrop-blur-sm text-xs font-medium text-white dark:text-zinc-900 flex items-center gap-1">
                   <Gavel className="w-3 h-3" />
-                  Auction
+                  {t("auction")}
                 </span>
               )}
             </div>
@@ -215,7 +218,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
               <div className="absolute bottom-3 left-3 right-3">
                 <div className="px-3 py-1.5 rounded-full bg-yellow-500/90 backdrop-blur-sm text-yellow-900 text-xs font-medium flex items-center gap-1.5 w-fit">
                   <Clock className="w-3.5 h-3.5" />
-                  Ending soon
+                  {t("endingSoon")}
                 </div>
               </div>
             )}
@@ -225,7 +228,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
               <div className="absolute bottom-3 left-3 right-3">
                 <div className="px-3 py-1.5 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs font-medium flex items-center gap-1.5 w-fit">
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  Reserved for you
+                  {t("reservedForYou")}
                 </div>
               </div>
             )}
@@ -235,7 +238,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
               <div className="absolute bottom-3 left-3 right-3">
                 <div className="px-3 py-1.5 rounded-full bg-amber-500/90 backdrop-blur-sm text-amber-900 text-xs font-medium flex items-center gap-1.5 w-fit">
                   <Lock className="w-3.5 h-3.5" />
-                  Reserved
+                  {t("reserved")}
                 </div>
               </div>
             )}
@@ -312,7 +315,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                   <div>
                     <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
                       <ShoppingCart className="w-4 h-4" />
-                      <span>Buy Now</span>
+                      <span>{t("buyNow")}</span>
                     </div>
                     <div className="mt-1 flex items-baseline gap-1">
                       <span className="text-xl font-semibold text-green-600 dark:text-green-400">
@@ -327,7 +330,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                     <div>
                       <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
                         <Gavel className="w-4 h-4" />
-                        <span>{bidCount} bids</span>
+                        <span>{t("bidsCount", { count: bidCount })}</span>
                       </div>
                       <div className="mt-1 flex items-baseline gap-1">
                         <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
@@ -341,7 +344,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                       <div className="text-right">
                         <div className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
                           <ShoppingCart className="w-4 h-4" />
-                          <span>Buy Now</span>
+                          <span>{t("buyNow")}</span>
                         </div>
                         <div className="mt-1 flex items-baseline gap-1 justify-end">
                           <span className="text-lg font-semibold text-green-600 dark:text-green-400">
@@ -364,7 +367,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
                     : "text-zinc-500"
               }`}>
                 <Clock className="w-4 h-4" />
-                <span>{isExpired ? "Ended" : `${timeLeft} left`}</span>
+                <span>{isExpired ? t("ended") : t("timeLeft", { time: timeLeft })}</span>
               </div>
             </div>
           </div>

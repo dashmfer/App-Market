@@ -691,5 +691,21 @@
       "browse": "Browse Projects",
       "list": "List Your Project"
     }
+  },
+  "listingCard": {
+    "buyNow": "Buy Now",
+    "auction": "Auction",
+    "endingSoon": "Ending soon",
+    "reservedForYou": "Reserved for you",
+    "reserved": "Reserved",
+    "bidsCount": "{count} bids",
+    "timeLeft": "{time} left",
+    "ended": "Ended",
+    "addedToWatchlist": "Added to watchlist",
+    "removedFromWatchlist": "Removed from watchlist",
+    "signInToWatchlist": "Please sign in to manage your watchlist",
+    "failedToAdd": "Failed to add to watchlist",
+    "failedToRemove": "Failed to remove from watchlist",
+    "somethingWentWrong": "Something went wrong"
   }
 }

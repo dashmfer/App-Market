@@ -194,5 +194,506 @@
     "fr": "Francais",
     "zh": "Chinois",
     "select": "Langue"
+  },
+  "listing": {
+    "notFound": "Annonce non trouvee",
+    "notFoundDesc": "L'annonce que vous recherchez n'existe pas ou a ete supprimee.",
+    "browseListings": "Voir les Annonces",
+    "buyNow": "Acheter Maintenant",
+    "auction": "Enchere",
+    "ended": "Terminee",
+    "endingSoon": "Se termine bientot",
+    "reservedForYou": "Reserve pour vous",
+    "sales": "ventes",
+    "message": "Message",
+    "description": "Description",
+    "assets": "Actifs",
+    "bids": "Encheres",
+    "noBidsYet": "Pas encore d'encheres. Soyez le premier!",
+    "highestBid": "Enchere la plus haute",
+    "buyNowPrice": "Prix d'achat immediat",
+    "currentBid": "Enchere actuelle",
+    "startingPrice": "Prix de depart",
+    "left": "restant",
+    "yourBid": "Votre Enchere",
+    "minimumBid": "Enchere minimum",
+    "placeBid": "Placer une Enchere",
+    "placingBid": "Placement en cours...",
+    "processing": "Traitement...",
+    "listingExpired": "Cette annonce a expire",
+    "auctionEnded": "Cette enchere est terminee",
+    "finalBid": "Enchere finale",
+    "youPurchased": "Vous avez achete cette annonce",
+    "listingSold": "Cette annonce a ete vendue",
+    "goToTransfer": "Aller au Transfert",
+    "provideInfo": "Fournir les Informations",
+    "or": "ou",
+    "reservedForOther": "Reservee pour un autre acheteur",
+    "reservedForUser": "Reservee pour @{name}",
+    "biddingUnavailable": "Les encheres ne sont pas disponibles.",
+    "reservedForYouTitle": "Reservee pour vous",
+    "completePurchase": "Completez votre achat.",
+    "secureEscrow": "Protection sequestre",
+    "verifiedOwnership": "Propriete verifiee",
+    "platformFee": "5% de frais",
+    "discountedFee": "3% de frais (reduction)",
+    "projectMetrics": "Metriques",
+    "monthlyUsers": "Utilisateurs Mensuels",
+    "githubStars": "Etoiles GitHub",
+    "sendMessage": "Envoyer Message",
+    "sending": "Envoi...",
+    "askQuestion": "Posez une question a {name}...",
+    "about": "A propos",
+    "whatYouNeed": "Ce dont vous aurez besoin",
+    "after48Hours": "48 heures pour fournir:",
+    "githubUsername": "Nom d'utilisateur GitHub",
+    "domainRegistrar": "Info Domaine",
+    "emailAddress": "Email",
+    "walletAddress": "Portefeuille",
+    "otherInfo": "Autres Infos",
+    "offers": "Offres",
+    "viewAllOffers": "Voir Toutes",
+    "expired": "Expiree",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "expires": "Expire",
+    "moreOffers": "Voir {count} de plus",
+    "connectWallet": "Connectez votre portefeuille",
+    "connectWalletPurchase": "Connectez votre portefeuille pour acheter",
+    "buyNowUnavailable": "Achat immediat non disponible",
+    "transactionRejected": "Transaction rejetee.",
+    "insufficientFunds": "Fonds insuffisants.",
+    "rpcError": "Erreur de connexion RPC.",
+    "bidFailed": "Echec de l'enchere.",
+    "purchaseFailed": "Echec de l'achat.",
+    "assetLabels": {
+      "github": "Depot GitHub",
+      "domain": "Domaine",
+      "database": "Base de donnees",
+      "hosting": "Hebergement",
+      "apiKeys": "Cles API",
+      "design": "Fichiers Design",
+      "docs": "Documentation",
+      "included": "Inclus",
+      "notIncluded": "Non inclus"
+    }
+  },
+  "create": {
+    "title": "Publier un Projet",
+    "subtitle": "Partagez avec des milliers d'acheteurs",
+    "steps": {
+      "basics": "Base",
+      "details": "Details",
+      "assets": "Actifs",
+      "pricing": "Prix",
+      "review": "Revision"
+    },
+    "basics": {
+      "title": "Informations de Base",
+      "projectName": "Nom",
+      "projectNamePlaceholder": "Mon SaaS",
+      "tagline": "Slogan",
+      "taglinePlaceholder": "Description courte",
+      "category": "Categorie",
+      "selectCategory": "Choisir une categorie",
+      "techStack": "Stack",
+      "techStackPlaceholder": "React, Node.js"
+    },
+    "details": {
+      "title": "Details",
+      "description": "Description",
+      "descriptionPlaceholder": "Decrivez votre projet...",
+      "demoUrl": "URL Demo",
+      "demoUrlPlaceholder": "https://demo.com",
+      "videoUrl": "URL Video",
+      "videoUrlPlaceholder": "https://youtube.com"
+    },
+    "assets": {
+      "title": "Actifs Inclus",
+      "github": "Depot GitHub",
+      "domain": "Domaine",
+      "database": "Base de donnees",
+      "hosting": "Hebergement",
+      "apiKeys": "Cles API",
+      "designFiles": "Designs",
+      "documentation": "Documentation"
+    },
+    "pricing": {
+      "title": "Prix",
+      "listingType": "Type",
+      "auctionType": "Enchere",
+      "buyNowType": "Achat Immediat",
+      "startingPrice": "Prix Initial",
+      "reservePrice": "Prix Reserve",
+      "buyNowPrice": "Prix Achat",
+      "duration": "Duree",
+      "currency": "Devise"
+    },
+    "review": {
+      "title": "Revision",
+      "reviewListing": "Verifiez avant de soumettre",
+      "submit": "Soumettre",
+      "submitting": "Soumission..."
+    },
+    "validation": {
+      "nameRequired": "Nom requis",
+      "categoryRequired": "Categorie requise",
+      "descriptionRequired": "Description requise",
+      "priceRequired": "Prix requis"
+    }
+  },
+  "dashboard": {
+    "title": "Tableau de Bord",
+    "welcome": "Bienvenue",
+    "overview": "Apercu",
+    "listings": {
+      "title": "Mes Annonces",
+      "active": "Actives",
+      "sold": "Vendues",
+      "draft": "Brouillon",
+      "empty": "Pas encore d'annonces.",
+      "createFirst": "Creer la Premiere"
+    },
+    "purchases": {
+      "title": "Mes Achats",
+      "pending": "En attente",
+      "completed": "Termines",
+      "empty": "Pas encore d'achats.",
+      "browsePurchases": "Explorer"
+    },
+    "watchlist": {
+      "title": "Favoris",
+      "empty": "Liste vide.",
+      "browseProjects": "Explorer"
+    },
+    "messages": {
+      "title": "Messages",
+      "empty": "Pas de messages.",
+      "newConversation": "Nouvelle conversation",
+      "typeMessage": "Ecrivez...",
+      "send": "Envoyer"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "empty": "Pas de notifications.",
+      "markAllRead": "Marquer comme lues"
+    },
+    "settings": {
+      "title": "Parametres",
+      "profile": "Profil",
+      "account": "Compte",
+      "notifications": "Notifications",
+      "security": "Securite",
+      "displayName": "Nom",
+      "username": "Utilisateur",
+      "bio": "Biographie",
+      "email": "Email",
+      "saveChanges": "Enregistrer",
+      "saving": "Enregistrement..."
+    },
+    "transfers": {
+      "title": "Transfert",
+      "status": "Statut",
+      "buyer": "Acheteur",
+      "seller": "Vendeur",
+      "checklist": "Liste",
+      "startTransfer": "Commencer",
+      "confirmTransfer": "Confirmer",
+      "completeTransfer": "Terminer",
+      "uploadProof": "Telecharger Preuve",
+      "buyerInfo": "Info Acheteur",
+      "deadline": "Date Limite",
+      "timeRemaining": "Temps Restant"
+    },
+    "offers": {
+      "title": "Offres",
+      "received": "Recues",
+      "sent": "Envoyees",
+      "empty": "Pas d'offres.",
+      "makeOffer": "Faire une Offre"
+    },
+    "referrals": {
+      "title": "Parrainages",
+      "yourCode": "Votre Code",
+      "copyCode": "Copier",
+      "earnings": "Gains",
+      "referred": "Parraines",
+      "howItWorks": "Comment ca marche",
+      "share": "Partagez votre code",
+      "earn": "Gagnez des commissions"
+    },
+    "collaborations": {
+      "title": "Collaborations",
+      "pending": "En attente",
+      "active": "Actives",
+      "empty": "Pas d'invitations."
+    },
+    "partners": {
+      "title": "Partenaires",
+      "pending": "En attente",
+      "active": "Actifs",
+      "empty": "Pas de partenaires."
+    },
+    "disputes": {
+      "title": "Litiges",
+      "open": "Ouvrir un Litige",
+      "reason": "Raison",
+      "description": "Description",
+      "evidence": "Preuves",
+      "submit": "Soumettre"
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Connexion",
+      "subtitle": "Connectez votre portefeuille",
+      "connectWallet": "Connecter",
+      "connecting": "Connexion...",
+      "noWallet": "Pas de portefeuille?",
+      "getPhantom": "Obtenir Phantom"
+    },
+    "signUp": {
+      "title": "Creer un Compte",
+      "subtitle": "Rejoignez le marche",
+      "haveAccount": "Deja un compte?",
+      "signIn": "Connexion"
+    }
+  },
+  "about": {
+    "title": "A propos d'App Market",
+    "subtitle": "Le marche de confiance",
+    "mission": {
+      "title": "Notre Mission",
+      "description": "La plateforme la plus fiable pour les produits numeriques."
+    },
+    "team": {
+      "title": "Equipe",
+      "description": "Par des developpeurs, pour des developpeurs."
+    },
+    "values": {
+      "title": "Valeurs",
+      "security": "Securite",
+      "securityDesc": "Protege par sequestre on-chain.",
+      "transparency": "Transparence",
+      "transparencyDesc": "Verifiable sur la blockchain.",
+      "community": "Communaute",
+      "communityDesc": "Construire ensemble."
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "subtitle": "Nous aimerions vous entendre",
+    "form": {
+      "name": "Nom",
+      "email": "Email",
+      "subject": "Sujet",
+      "message": "Message",
+      "send": "Envoyer",
+      "sending": "Envoi..."
+    },
+    "success": "Message envoye!",
+    "error": "Erreur d'envoi."
+  },
+  "terms": {
+    "title": "Conditions d'Utilisation",
+    "lastUpdated": "Mis a jour",
+    "sections": {
+      "acceptance": "Acceptation",
+      "services": "Services",
+      "accounts": "Comptes",
+      "listings": "Annonces",
+      "fees": "Frais",
+      "disputes": "Litiges",
+      "liability": "Responsabilite",
+      "changes": "Modifications"
+    }
+  },
+  "privacy": {
+    "title": "Politique de Confidentialite",
+    "lastUpdated": "Mis a jour",
+    "sections": {
+      "collection": "Informations",
+      "use": "Utilisation",
+      "sharing": "Partage",
+      "security": "Securite",
+      "rights": "Droits",
+      "contact": "Contact"
+    }
+  },
+  "howItWorks": {
+    "title": "Comment Fonctionne App Market",
+    "subtitle": "Achetez et vendez des produits numeriques en toute confiance. Sequestre securise, propriete verifiee et resolution equitable des litiges.",
+    "forSellers": {
+      "badge": "Pour les Vendeurs",
+      "title": "Vendez Votre Projet",
+      "subtitle": "Transformez vos projets en argent. Publiez en minutes, encaissez en securite.",
+      "step1": { "title": "Connectez GitHub", "description": "Liez votre compte GitHub pour verifier la propriete du depot." },
+      "step2": { "title": "Creez votre Annonce", "description": "Decrivez votre projet, ajoutez des captures, specifiez ce qui est inclus." },
+      "step3": { "title": "Recevez des Encheres", "description": "Regardez les acheteurs decouvrir votre projet et encherir." },
+      "step4": { "title": "Protection Sequestre", "description": "A la fin de l'enchere, les fonds sont bloques dans le contrat intelligent Solana." },
+      "step5": { "title": "Transferez les Actifs", "description": "Transferez le depot, le domaine et autres actifs a l'acheteur." },
+      "step6": { "title": "Recevez le Paiement", "description": "Une fois que l'acheteur confirme, les fonds sont automatiquement liberes." },
+      "cta": "Commencer a Vendre"
+    },
+    "forBuyers": {
+      "badge": "Pour les Acheteurs",
+      "title": "Acquerir un Projet",
+      "subtitle": "Economisez des mois de developpement. Achetez un produit fonctionnel.",
+      "step1": { "title": "Explorez et Decouvrez", "description": "Explorez notre marche d'apps, prototypes et MVPs." },
+      "step2": { "title": "Verifiez et Recherchez", "description": "Examinez les details du projet, la reputation du vendeur, testez la demo." },
+      "step3": { "title": "Placez votre Enchere", "description": "Encherissez sur des projets ou utilisez Achat Immediat." },
+      "step4": { "title": "Fonds en Sequestre", "description": "Votre paiement est securise dans notre contrat intelligent." },
+      "step5": { "title": "Recevez les Actifs", "description": "Le vendeur transfere le depot, domaine et autres actifs." },
+      "step6": { "title": "Propriete Assuree", "description": "Une fois confirme, vous etes le nouveau proprietaire!" },
+      "cta": "Explorer les Projets"
+    },
+    "features": {
+      "title": "Construit pour la Confiance",
+      "subtitle": "Chaque fonctionnalite concue pour des transactions securisees et equitables.",
+      "escrow": { "title": "Sequestre Sans Confiance", "description": "Construit sur les contrats intelligents Solana." },
+      "payment": { "title": "Options de Paiement Multiples", "description": "Payez en SOL, USDC ou carte de credit." },
+      "verified": { "title": "Propriete Verifiee", "description": "Nous verifions la propriete GitHub avant publication." },
+      "disputes": { "title": "Resolution Equitable des Litiges", "description": "Decisions basees sur les preuves, 2% de frais pour le perdant." }
+    },
+    "fees": {
+      "title": "Prix Simple et Transparent",
+      "subtitle": "Pas de frais caches. Vous savez exactement ce que vous payez.",
+      "platformFee": "Frais de Plateforme",
+      "deducted": "Deduit du prix de vente",
+      "discount": "3% pour $APP, 5% pour SOL/USDC",
+      "listingFee": "Frais de Publication",
+      "freeToList": "Gratuit pour publier",
+      "disputeFee": "Frais de Resolution de Litige",
+      "losingParty": "Facture au perdant si un litige survient",
+      "example": "Exemple"
+    },
+    "cta": {
+      "title": "Pret a Commencer?",
+      "subtitle": "Rejoignez le marche ou les developpeurs achetent et vendent en confiance.",
+      "listProject": "Publier un Projet",
+      "browseMarketplace": "Explorer le Marche"
+    }
+  },
+  "guides": {
+    "sellers": {
+      "title": "Guide du Vendeur",
+      "subtitle": "Tout ce que vous devez savoir pour vendre sur App Market",
+      "stats": {
+        "fee": "3-5% Frais",
+        "feeDesc": "3% pour $APP, 5% pour SOL/USDC",
+        "escrow": "Protection Sequestre",
+        "escrowDesc": "Vos fonds sont securises on-chain",
+        "global": "Portee Mondiale",
+        "globalDesc": "Connectez-vous avec des acheteurs mondialement"
+      },
+      "gettingStarted": "Pour Commencer",
+      "whatToInclude": "Quoi Inclure dans votre Annonce",
+      "bestPractices": "Meilleures Pratiques",
+      "feeStructure": "Structure des Frais",
+      "cta": {
+        "title": "Pret a Publier votre Projet?",
+        "subtitle": "Rejoignez des milliers de vendeurs qui font confiance a App Market",
+        "button": "Creer une Annonce"
+      }
+    },
+    "buyers": {
+      "title": "Guide de l'Acheteur",
+      "subtitle": "Comment acheter et evaluer des projets en securite sur App Market",
+      "benefits": {
+        "escrow": "Protection Sequestre",
+        "escrowDesc": "Vos fonds sont securises jusqu'a reception des actifs",
+        "verified": "Vendeurs Verifies",
+        "verifiedDesc": "Tous les vendeurs verifies via GitHub",
+        "quality": "Projets de Qualite",
+        "qualityDesc": "Marche organise de projets reels et fonctionnels"
+      },
+      "howToBuy": "Comment Acheter",
+      "dueDiligence": "Liste de Verification",
+      "redFlags": "Signaux d'Alerte",
+      "paymentOptions": "Options de Paiement",
+      "cta": {
+        "title": "Pret a Trouver votre Prochain Projet?",
+        "subtitle": "Explorez des milliers de projets verifies prets pour acquisition",
+        "button": "Explorer le Marche"
+      }
+    }
+  },
+  "escrow": {
+    "title": "Protection Sequestre",
+    "subtitle": "Fonds proteges",
+    "howItWorks": "Comment ca Marche",
+    "step1": {
+      "title": "Depot",
+      "description": "Fonds dans un contrat securise"
+    },
+    "step2": {
+      "title": "Transfert",
+      "description": "Actifs a l'acheteur"
+    },
+    "step3": {
+      "title": "Confirmation",
+      "description": "Verifier la reception"
+    },
+    "step4": {
+      "title": "Liberation",
+      "description": "Paiement automatique"
+    },
+    "protection": {
+      "title": "Protection",
+      "buyer": "Acheteurs proteges",
+      "seller": "Vendeurs garantis"
+    }
+  },
+  "categories": {
+    "title": "Explorer les Categories",
+    "subtitle": "Trouvez des projets dans votre domaine d'expertise ou decouvrez de nouvelles opportunites.",
+    "projects": "projets",
+    "popular": "Populaire",
+    "browse": "Explorer",
+    "cta": {
+      "title": "Vous ne trouvez pas ce que vous cherchez?",
+      "subtitle": "Utilisez les filtres pour trouver le projet parfait, ou publiez le votre!",
+      "searchAll": "Chercher Projets",
+      "listProject": "Publier un Projet"
+    }
+  },
+  "featured": {
+    "title": "Projets en Vedette",
+    "subtitle": "Projets selectionnes avec qualite et potentiel exceptionnels",
+    "empty": "Pas encore de projets en vedette. Revenez bientot!"
+  },
+  "recentSales": {
+    "title": "Ventes Recentes",
+    "subtitle": "Decouvrez ce qui se vend sur App Market",
+    "empty": {
+      "title": "Pas encore de ventes",
+      "subtitle": "Soyez le premier a publier et vendre un projet sur App Market",
+      "browse": "Explorer les Projets",
+      "list": "Publier un Projet"
+    }
+  },
+  "errors": {
+    "notFound": "Page non trouvee",
+    "unauthorized": "Non autorise",
+    "forbidden": "Acces refuse",
+    "serverError": "Erreur serveur",
+    "networkError": "Erreur reseau",
+    "tryAgain": "Veuillez reessayer"
+  },
+  "listingCard": {
+    "buyNow": "Acheter",
+    "auction": "Enchere",
+    "endingSoon": "Se termine bientot",
+    "reservedForYou": "Reserve pour vous",
+    "reserved": "Reserve",
+    "bidsCount": "{count} encheres",
+    "timeLeft": "{time} restant",
+    "ended": "Termine",
+    "addedToWatchlist": "Ajoute aux favoris",
+    "removedFromWatchlist": "Retire des favoris",
+    "signInToWatchlist": "Connectez-vous pour gerer vos favoris",
+    "failedToAdd": "Echec de l'ajout aux favoris",
+    "failedToRemove": "Echec de la suppression des favoris",
+    "somethingWentWrong": "Une erreur est survenue"
   }
 }
