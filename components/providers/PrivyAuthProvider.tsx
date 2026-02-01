@@ -184,28 +184,35 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods - wallet first, then email, then twitter
-        loginMethods: ["wallet", "email", "twitter"],
-
-        // Appearance - white/light theme with green accent
+        // Appearance
         appearance: {
-          theme: "light",
-          accentColor: "#10B981", // Emerald green
-          walletList: ["phantom", "metamask", "coinbase_wallet", "rabby_wallet", "rainbow"],
-          showWalletLoginFirst: true,
+          theme: "dark",
+          accentColor: "#22c55e", // Green to match the app theme
+          logo: "/logo.png",
+          showWalletLoginFirst: false,
         },
-
-        // Embedded Solana wallet for email users
+        // Login methods - email, twitter, and external wallets
+        loginMethods: ["email", "twitter", "wallet"],
+        // Embedded wallet config for Solana
         embeddedWallets: {
-          solana: {
-            createOnLogin: "users-without-wallets",
-          },
+          createOnLogin: "users-without-wallets",
+          noPromptOnSignature: false,
         },
-
+        // Solana config
+        solanaClusters: [
+          {
+            name: "mainnet-beta",
+            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com",
+          },
+          {
+            name: "devnet",
+            rpcUrl: "https://api.devnet.solana.com",
+          },
+        ],
         // Legal
         legal: {
-          termsAndConditionsUrl: "https://www.appmrkt.xyz/terms",
-          privacyPolicyUrl: "https://www.appmrkt.xyz/privacy",
+          termsAndConditionsUrl: "/terms",
+          privacyPolicyUrl: "/privacy",
         },
       }}
     >
