@@ -184,16 +184,19 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods - wallet first for Solana users
-        loginMethods: ["wallet", "email", "twitter"],
+        // Login methods - wallet first, then email
+        loginMethods: ["wallet", "email"],
 
-        // Appearance
+        // Appearance - white/light theme with green accent
         appearance: {
-          theme: "dark",
-          accentColor: "#10B981", // Emerald to match App Market branding
+          theme: "light",
+          accentColor: "#10B981", // Emerald green
+          logo: "https://www.appmrkt.xyz/logo.png",
+          walletList: ["phantom", "metamask", "coinbase_wallet", "rabby_wallet", "rainbow"],
+          showWalletLoginFirst: true,
         },
 
-        // Embedded Solana wallet for email/twitter users
+        // Embedded Solana wallet for email users
         embeddedWallets: {
           solana: {
             createOnLogin: "users-without-wallets",
