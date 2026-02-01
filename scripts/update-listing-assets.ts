@@ -22,8 +22,6 @@ async function main() {
       databaseType: true,
       hasHosting: true,
       hostingProvider: true,
-      hasVercel: true,
-      vercelProjectUrl: true,
       hasApiKeys: true,
       hasDesignFiles: true,
       hasDocumentation: true,
@@ -49,11 +47,6 @@ async function main() {
     // If hostingProvider is set but hasHosting is false, set it to true
     if (listing.hostingProvider && !listing.hasHosting) {
       updates.hasHosting = true;
-    }
-
-    // If vercelProjectUrl is set but hasVercel is false, set it to true
-    if (listing.vercelProjectUrl && !listing.hasVercel) {
-      updates.hasVercel = true;
     }
 
     // If there are updates to make
