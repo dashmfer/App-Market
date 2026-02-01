@@ -191,8 +191,15 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         appearance: {
           theme: "dark",
           accentColor: "#10B981", // Emerald to match App Market branding
-          logo: "https://www.appmrkt.xyz/logo.png",
           showWalletLoginFirst: true,
+          walletList: ["phantom", "solflare", "detected_solana_wallets"],
+        },
+
+        // External wallets - prioritize Solana wallets
+        externalWallets: {
+          solana: {
+            connectors: (connectors) => connectors, // Use all available Solana connectors
+          },
         },
 
         // Embedded wallet config
@@ -202,39 +209,13 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
         },
 
-        // Supported chains
-        supportedChains: [
+        // Solana clusters
+        solanaClusters: [
           {
-            id: 101, // Solana mainnet
-            name: "Solana",
-            nativeCurrency: {
-              name: "SOL",
-              symbol: "SOL",
-              decimals: 9,
-            },
-            rpcUrls: {
-              default: {
-                http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
-              },
-            },
-          } as any,
+            name: "devnet",
+            rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com",
+          },
         ],
-
-        // Default chain
-        defaultChain: {
-          id: 101,
-          name: "Solana",
-          nativeCurrency: {
-            name: "SOL",
-            symbol: "SOL",
-            decimals: 9,
-          },
-          rpcUrls: {
-            default: {
-              http: [process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com"],
-            },
-          },
-        } as any,
 
         // Legal
         legal: {
