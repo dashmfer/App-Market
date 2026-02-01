@@ -192,7 +192,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           theme: "light",
           accentColor: "#10B981", // Emerald green
           logo: "https://www.appmrkt.xyz/logo.png",
-          walletList: ["phantom", "metamask", "coinbase_wallet", "rabby_wallet", "rainbow"],
+          walletList: ["phantom", "solflare", "backpack"],
           showWalletLoginFirst: true,
         },
 
