@@ -522,6 +522,17 @@ model Transaction {
   nonCompeteRequested       Boolean       @default(false)
   nonCompeteDurationYears   Int?          // 1, 2, or 3 years
   nonCompeteSigned          Boolean       @default(false)
+  nonCompeteSignedAt        DateTime?
+  nonCompeteSignature       String?
+
+  // APA (Asset Purchase Agreement)
+  apaSigned                 Boolean       @default(false)
+  apaSignedAt               DateTime?
+  apaSignature              String?
+
+  // Buyer agreement requests (when seller didn't offer)
+  buyerRequestedAPA         Boolean       @default(false)
+  buyerRequestedNonCompete  Boolean       @default(false)
 
   // Relations
   listingId           String            @unique
