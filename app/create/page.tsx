@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   Github,
   Globe,
   Database,
@@ -36,10 +37,122 @@ import {
   ExternalLink,
   File,
   Wallet,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { CollaboratorInput, type Collaborator } from "@/components/listings/collaborator-input";
+
+// Custom Provider Dropdown with logos and premium badges
+interface ProviderOption {
+  value: string;
+  label: string;
+  transferMethod: string;
+  placeholder: string;
+  logo: string | null;
+  premium: boolean;
+}
+
+function ProviderDropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+}: {
+  options: ProviderOption[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-left hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+      >
+        {selected ? (
+          <div className="flex items-center gap-3">
+            {selected.logo ? (
+              <div className="w-5 h-5 relative flex-shrink-0">
+                <NextImage src={selected.logo} alt={selected.label} fill className="object-contain" />
+              </div>
+            ) : (
+              <div className="w-5 h-5 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                <Globe className="w-3 h-3 text-zinc-500" />
+              </div>
+            )}
+            <span className="text-zinc-900 dark:text-zinc-100">{selected.label}</span>
+            {selected.premium && (
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded flex items-center gap-0.5">
+                <Star className="w-2.5 h-2.5 fill-current" />
+                PRO
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-zinc-400">{placeholder}</span>
+        )}
+        <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-2 py-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-xl max-h-64 overflow-y-auto">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors ${
+                value === option.value ? "bg-emerald-50 dark:bg-emerald-900/20" : ""
+              }`}
+            >
+              {option.logo ? (
+                <div className="w-5 h-5 relative flex-shrink-0">
+                  <NextImage src={option.logo} alt={option.label} fill className="object-contain" />
+                </div>
+              ) : (
+                <div className="w-5 h-5 rounded bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center">
+                  <Globe className="w-3 h-3 text-zinc-500" />
+                </div>
+              )}
+              <span className="flex-1 text-left text-zinc-900 dark:text-zinc-100">{option.label}</span>
+              {option.premium && (
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded flex items-center gap-0.5">
+                  <Star className="w-2.5 h-2.5 fill-current" />
+                  PRO
+                </span>
+              )}
+              {value === option.value && (
+                <Check className="w-4 h-4 text-emerald-500" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const steps = [
   { id: 1, name: "Basics", description: "Project info" },
@@ -89,48 +202,48 @@ const socialPlatforms = [
   { key: "other", label: "Other", icon: Globe, placeholder: "URL" },
 ];
 
-// Infrastructure Providers
+// Infrastructure Providers with logos and premium flags
 const hostingProviders = [
-  { value: "vercel", label: "Vercel", transferMethod: "Project transfer via dashboard", placeholder: "Project URL" },
-  { value: "railway", label: "Railway", transferMethod: "Team invite or project transfer", placeholder: "Project URL" },
-  { value: "render", label: "Render", transferMethod: "Team transfer or account handoff", placeholder: "Service URL" },
-  { value: "fly", label: "Fly.io", transferMethod: "Organization transfer", placeholder: "App name" },
-  { value: "heroku", label: "Heroku", transferMethod: "App transfer via dashboard", placeholder: "App name" },
-  { value: "digitalocean", label: "DigitalOcean", transferMethod: "Team invite or droplet transfer", placeholder: "Project/Droplet URL" },
-  { value: "aws", label: "AWS", transferMethod: "IAM account or organization transfer", placeholder: "Account/Resource ID" },
-  { value: "gcp", label: "Google Cloud", transferMethod: "Project ownership transfer", placeholder: "Project ID" },
-  { value: "azure", label: "Azure", transferMethod: "Subscription or resource transfer", placeholder: "Resource URL" },
-  { value: "netlify", label: "Netlify", transferMethod: "Team invite or site transfer", placeholder: "Site URL" },
-  { value: "cloudflare", label: "Cloudflare Pages", transferMethod: "Account or project transfer", placeholder: "Project URL" },
-  { value: "other", label: "Other", transferMethod: "Manual credential transfer", placeholder: "Provider details" },
+  { value: "vercel", label: "Vercel", transferMethod: "Project transfer via dashboard", placeholder: "Project URL", logo: "/logos/vercel.svg", premium: true },
+  { value: "railway", label: "Railway", transferMethod: "Team invite or project transfer", placeholder: "Project URL", logo: "/logos/railway.svg", premium: true },
+  { value: "render", label: "Render", transferMethod: "Team transfer or account handoff", placeholder: "Service URL", logo: "/logos/render.svg", premium: false },
+  { value: "fly", label: "Fly.io", transferMethod: "Organization transfer", placeholder: "App name", logo: "/logos/fly.svg", premium: true },
+  { value: "heroku", label: "Heroku", transferMethod: "App transfer via dashboard", placeholder: "App name", logo: "/logos/heroku.svg", premium: false },
+  { value: "digitalocean", label: "DigitalOcean", transferMethod: "Team invite or droplet transfer", placeholder: "Project/Droplet URL", logo: "/logos/digitalocean.svg", premium: false },
+  { value: "aws", label: "AWS", transferMethod: "IAM account or organization transfer", placeholder: "Account/Resource ID", logo: "/logos/aws.svg", premium: true },
+  { value: "gcp", label: "Google Cloud", transferMethod: "Project ownership transfer", placeholder: "Project ID", logo: "/logos/gcp.svg", premium: true },
+  { value: "azure", label: "Azure", transferMethod: "Subscription or resource transfer", placeholder: "Resource URL", logo: "/logos/azure.svg", premium: true },
+  { value: "netlify", label: "Netlify", transferMethod: "Team invite or site transfer", placeholder: "Site URL", logo: "/logos/netlify.svg", premium: false },
+  { value: "cloudflare", label: "Cloudflare Pages", transferMethod: "Account or project transfer", placeholder: "Project URL", logo: "/logos/cloudflare.svg", premium: true },
+  { value: "other", label: "Other", transferMethod: "Manual credential transfer", placeholder: "Provider details", logo: null, premium: false },
 ];
 
 const domainRegistrars = [
-  { value: "namecheap", label: "Namecheap", transferMethod: "Domain push or auth code transfer", placeholder: "domain.com" },
-  { value: "godaddy", label: "GoDaddy", transferMethod: "Domain transfer with auth code", placeholder: "domain.com" },
-  { value: "google", label: "Google Domains", transferMethod: "Transfer to another registrar", placeholder: "domain.com" },
-  { value: "cloudflare", label: "Cloudflare Registrar", transferMethod: "Account transfer or auth code", placeholder: "domain.com" },
-  { value: "porkbun", label: "Porkbun", transferMethod: "Push to another account", placeholder: "domain.com" },
-  { value: "hover", label: "Hover", transferMethod: "Transfer with auth code", placeholder: "domain.com" },
-  { value: "name", label: "Name.com", transferMethod: "Push or transfer with auth code", placeholder: "domain.com" },
-  { value: "dynadot", label: "Dynadot", transferMethod: "Account push or transfer", placeholder: "domain.com" },
-  { value: "gandi", label: "Gandi", transferMethod: "Change of registrant", placeholder: "domain.com" },
-  { value: "other", label: "Other", transferMethod: "Auth code transfer", placeholder: "domain.com" },
+  { value: "namecheap", label: "Namecheap", transferMethod: "Domain push or auth code transfer", placeholder: "domain.com", logo: "/logos/namecheap.svg", premium: false },
+  { value: "godaddy", label: "GoDaddy", transferMethod: "Domain transfer with auth code", placeholder: "domain.com", logo: "/logos/godaddy.svg", premium: false },
+  { value: "google", label: "Google Domains", transferMethod: "Transfer to another registrar", placeholder: "domain.com", logo: "/logos/google.svg", premium: true },
+  { value: "cloudflare", label: "Cloudflare Registrar", transferMethod: "Account transfer or auth code", placeholder: "domain.com", logo: "/logos/cloudflare.svg", premium: true },
+  { value: "porkbun", label: "Porkbun", transferMethod: "Push to another account", placeholder: "domain.com", logo: "/logos/porkbun.svg", premium: false },
+  { value: "hover", label: "Hover", transferMethod: "Transfer with auth code", placeholder: "domain.com", logo: "/logos/hover.svg", premium: false },
+  { value: "name", label: "Name.com", transferMethod: "Push or transfer with auth code", placeholder: "domain.com", logo: "/logos/namecom.svg", premium: false },
+  { value: "dynadot", label: "Dynadot", transferMethod: "Account push or transfer", placeholder: "domain.com", logo: "/logos/dynadot.svg", premium: false },
+  { value: "gandi", label: "Gandi", transferMethod: "Change of registrant", placeholder: "domain.com", logo: "/logos/gandi.svg", premium: false },
+  { value: "other", label: "Other", transferMethod: "Auth code transfer", placeholder: "domain.com", logo: null, premium: false },
 ];
 
 const databaseProviders = [
-  { value: "supabase", label: "Supabase", transferMethod: "Organization transfer or project export", placeholder: "Project URL" },
-  { value: "planetscale", label: "PlanetScale", transferMethod: "Organization transfer", placeholder: "Database URL" },
-  { value: "neon", label: "Neon", transferMethod: "Project transfer or connection string", placeholder: "Project URL" },
-  { value: "mongodb", label: "MongoDB Atlas", transferMethod: "Organization invite or cluster transfer", placeholder: "Cluster URL" },
-  { value: "firebase", label: "Firebase / Firestore", transferMethod: "Project ownership transfer", placeholder: "Project ID" },
-  { value: "upstash", label: "Upstash", transferMethod: "Team invite or database transfer", placeholder: "Database URL" },
-  { value: "turso", label: "Turso", transferMethod: "Organization transfer", placeholder: "Database URL" },
-  { value: "aws-rds", label: "AWS RDS", transferMethod: "Snapshot share or account transfer", placeholder: "Instance identifier" },
-  { value: "aws-dynamodb", label: "AWS DynamoDB", transferMethod: "Account transfer or export", placeholder: "Table name" },
-  { value: "cockroachdb", label: "CockroachDB", transferMethod: "Organization transfer", placeholder: "Cluster URL" },
-  { value: "redis", label: "Redis Cloud", transferMethod: "Subscription transfer", placeholder: "Database URL" },
-  { value: "other", label: "Other", transferMethod: "Credential handoff", placeholder: "Database details" },
+  { value: "supabase", label: "Supabase", transferMethod: "Organization transfer or project export", placeholder: "Project URL", logo: "/logos/supabase.svg", premium: true },
+  { value: "planetscale", label: "PlanetScale", transferMethod: "Organization transfer", placeholder: "Database URL", logo: "/logos/planetscale.svg", premium: true },
+  { value: "neon", label: "Neon", transferMethod: "Project transfer or connection string", placeholder: "Project URL", logo: "/logos/neon.svg", premium: true },
+  { value: "mongodb", label: "MongoDB Atlas", transferMethod: "Organization invite or cluster transfer", placeholder: "Cluster URL", logo: "/logos/mongodb.svg", premium: true },
+  { value: "firebase", label: "Firebase / Firestore", transferMethod: "Project ownership transfer", placeholder: "Project ID", logo: "/logos/firebase.svg", premium: true },
+  { value: "upstash", label: "Upstash", transferMethod: "Team invite or database transfer", placeholder: "Database URL", logo: "/logos/upstash.svg", premium: true },
+  { value: "turso", label: "Turso", transferMethod: "Organization transfer", placeholder: "Database URL", logo: "/logos/turso.svg", premium: true },
+  { value: "aws-rds", label: "AWS RDS", transferMethod: "Snapshot share or account transfer", placeholder: "Instance identifier", logo: "/logos/aws.svg", premium: true },
+  { value: "aws-dynamodb", label: "AWS DynamoDB", transferMethod: "Account transfer or export", placeholder: "Table name", logo: "/logos/aws.svg", premium: true },
+  { value: "cockroachdb", label: "CockroachDB", transferMethod: "Organization transfer", placeholder: "Cluster URL", logo: "/logos/cockroachdb.svg", premium: false },
+  { value: "redis", label: "Redis Cloud", transferMethod: "Subscription transfer", placeholder: "Database URL", logo: "/logos/redis.svg", premium: false },
+  { value: "other", label: "Other", transferMethod: "Credential handoff", placeholder: "Database details", logo: null, premium: false },
 ];
 
 export default function CreateListingPage() {
@@ -178,11 +291,6 @@ export default function CreateListingPage() {
     hasHosting: false,
     hostingProvider: "", // Selected provider from dropdown
     hostingProjectUrl: "", // Project URL or identifier
-
-    // Vercel Transfer (separate premium option)
-    hasVercel: false,
-    vercelProjectUrl: "",
-    vercelTeamSlug: "",
 
     // Domain
     hasDomain: false,
@@ -512,10 +620,6 @@ export default function CreateListingPage() {
           hasHosting: formData.hasHosting,
           hostingProvider: formData.hostingProvider || null,
           hostingProjectUrl: formData.hostingProjectUrl || null,
-          // Vercel (separate)
-          hasVercel: formData.hasVercel,
-          vercelProjectUrl: formData.vercelProjectUrl || null,
-          vercelTeamSlug: formData.vercelTeamSlug || null,
           // Domain
           hasDomain: formData.hasDomain,
           domainRegistrar: formData.domainRegistrar || null,
@@ -593,7 +697,6 @@ export default function CreateListingPage() {
   const getTransferableItems = () => {
     const items: string[] = [];
     if (formData.githubRepo && formData.githubVerified) items.push("GitHub Repository");
-    if (formData.hasVercel) items.push("Vercel Project Transfer");
     if (formData.hasHosting && formData.hostingProvider) {
       const provider = hostingProviders.find(p => p.value === formData.hostingProvider);
       items.push(`Hosting: ${provider?.label || formData.hostingProvider}`);
@@ -1074,45 +1177,6 @@ export default function CreateListingPage() {
                   <p className="text-zinc-500 mb-6">Hosting, domain, and database access</p>
 
                   <div className="space-y-4">
-                    {/* Vercel Transfer */}
-                    <div className={`p-4 rounded-xl border transition-all ${formData.hasVercel ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasVercel} onChange={(e) => updateFormData("hasVercel", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-zinc-600" viewBox="0 0 76 65" fill="currentColor">
-                              <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" />
-                            </svg>
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Vercel Project Transfer</span>
-                            <span className="px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 rounded-full">Premium</span>
-                          </div>
-                          <p className="text-sm text-zinc-500 mt-1">Transfer your Vercel project to the buyer's team</p>
-                        </div>
-                      </label>
-                      {formData.hasVercel && (
-                        <div className="mt-4 ml-8 space-y-3">
-                          <input
-                            type="text"
-                            value={formData.vercelProjectUrl}
-                            onChange={(e) => updateFormData("vercelProjectUrl", e.target.value)}
-                            placeholder="https://vercel.com/your-team/your-project"
-                            className="input-field"
-                          />
-                          <input
-                            type="text"
-                            value={formData.vercelTeamSlug}
-                            onChange={(e) => updateFormData("vercelTeamSlug", e.target.value)}
-                            placeholder="Your Vercel team slug (optional)"
-                            className="input-field"
-                          />
-                          <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                            <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-zinc-500">Transfer method: Team invite. Buyer will provide their email for a Vercel team invite.</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
                     {/* Hosting */}
                     <div className={`p-4 rounded-xl border transition-all ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
@@ -1127,19 +1191,15 @@ export default function CreateListingPage() {
                       </label>
                       {formData.hasHosting && (
                         <div className="mt-4 ml-8 space-y-3">
-                          <select
+                          <ProviderDropdown
+                            options={hostingProviders}
                             value={formData.hostingProvider}
-                            onChange={(e) => {
-                              updateFormData("hostingProvider", e.target.value);
+                            onChange={(value) => {
+                              updateFormData("hostingProvider", value);
                               updateFormData("hostingProjectUrl", "");
                             }}
-                            className="input-field"
-                          >
-                            <option value="">Select hosting provider...</option>
-                            {hostingProviders.map(p => (
-                              <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                          </select>
+                            placeholder="Select hosting provider..."
+                          />
                           {formData.hostingProvider && (
                             <>
                               <input
@@ -1175,19 +1235,15 @@ export default function CreateListingPage() {
                       </label>
                       {formData.hasDomain && (
                         <div className="mt-4 ml-8 space-y-3">
-                          <select
+                          <ProviderDropdown
+                            options={domainRegistrars}
                             value={formData.domainRegistrar}
-                            onChange={(e) => {
-                              updateFormData("domainRegistrar", e.target.value);
+                            onChange={(value) => {
+                              updateFormData("domainRegistrar", value);
                               updateFormData("domain", "");
                             }}
-                            className="input-field"
-                          >
-                            <option value="">Select registrar...</option>
-                            {domainRegistrars.map(p => (
-                              <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                          </select>
+                            placeholder="Select registrar..."
+                          />
                           {formData.domainRegistrar && (
                             <>
                               <input
@@ -1223,19 +1279,15 @@ export default function CreateListingPage() {
                       </label>
                       {formData.hasDatabase && (
                         <div className="mt-4 ml-8 space-y-3">
-                          <select
+                          <ProviderDropdown
+                            options={databaseProviders}
                             value={formData.databaseProvider}
-                            onChange={(e) => {
-                              updateFormData("databaseProvider", e.target.value);
+                            onChange={(value) => {
+                              updateFormData("databaseProvider", value);
                               updateFormData("databaseName", "");
                             }}
-                            className="input-field"
-                          >
-                            <option value="">Select database provider...</option>
-                            {databaseProviders.map(p => (
-                              <option key={p.value} value={p.value}>{p.label}</option>
-                            ))}
-                          </select>
+                            placeholder="Select database provider..."
+                          />
                           {formData.databaseProvider && (
                             <>
                               <input
