@@ -41,7 +41,7 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
     if (!wallets || wallets.length === 0) return null;
 
     // Prefer Solana wallet, then any wallet
-    const solanaWallet = wallets.find(w => w.walletClientType === "solana" || w.chainType === "solana");
+    const solanaWallet = wallets.find(w => w.walletClientType === "solana");
     if (solanaWallet) return solanaWallet.address;
 
     // Return first wallet if no Solana wallet
