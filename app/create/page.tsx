@@ -26,7 +26,6 @@ import {
   MessageSquare,
   Sparkles,
   Lock,
-  Code,
   Twitter,
   Instagram,
   Youtube,
@@ -125,9 +124,7 @@ export default function CreateListingPage() {
     generatedImageUrl: "",
     
     // Step 2: Assets Included (all will be required in transfer)
-    // Code & Repository
-    hasCodeFiles: false,
-    codeFilesDescription: "",
+    // Code Repository
     githubRepo: "",
     githubVerified: false,
     githubVerificationError: "",
@@ -364,15 +361,12 @@ export default function CreateListingPage() {
     }
     
     if (step === 2) {
-      // Must have at least code files or github
-      if (!formData.hasCodeFiles && !formData.githubRepo.trim()) {
-        newErrors.assets = "You must include either Code Files or a GitHub Repository";
+      // Must have a verified GitHub repo
+      if (!formData.githubRepo.trim()) {
+        newErrors.assets = "You must include a GitHub Repository";
       }
       if (formData.githubRepo.trim() && !formData.githubVerified) {
         newErrors.githubRepo = "Please verify your GitHub repository ownership";
-      }
-      if (formData.hasCodeFiles && !formData.codeFilesDescription.trim()) {
-        newErrors.codeFilesDescription = "Describe what code files will be transferred";
       }
     }
     
@@ -534,7 +528,6 @@ export default function CreateListingPage() {
   // Get all transferable items for review
   const getTransferableItems = () => {
     const items: string[] = [];
-    if (formData.hasCodeFiles) items.push("Code Files");
     if (formData.githubRepo && formData.githubVerified) items.push("GitHub Repository");
     if (formData.hasDomain) items.push(`Domain: ${formData.domain}`);
     if (formData.hasDatabase) items.push(`Database: ${formData.databaseType}`);
@@ -911,15 +904,15 @@ export default function CreateListingPage() {
                   </div>
                 </div>
 
-                {/* Code & Repository Section */}
+                {/* Repository Section */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
-                  <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Code & Repository</h2>
+                  <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Repository</h2>
                   <p className="text-zinc-500 mb-4">Source code and version control access</p>
 
                   {/* Required notice */}
                   <div className="mb-6 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                     <p className="text-sm text-amber-700 dark:text-amber-400">
-                      <strong>Required:</strong> You must include at least one - either Code Files or a GitHub Repository (or both).
+                      <strong>Required:</strong> You must include a verified GitHub Repository.
                     </p>
                   </div>
 
@@ -930,37 +923,6 @@ export default function CreateListingPage() {
                   )}
 
                   <div className="space-y-6">
-                    {/* Code Files */}
-                    <div className={`p-4 rounded-xl border ${formData.hasCodeFiles ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={formData.hasCodeFiles} 
-                          onChange={(e) => updateFormData("hasCodeFiles", e.target.checked)} 
-                          className="w-5 h-5 mt-0.5 rounded border-zinc-300 text-green-500"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Code className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Code Files</span>
-                          </div>
-                          <p className="text-sm text-zinc-500 mt-1">Source code files to be transferred directly</p>
-                        </div>
-                      </label>
-                      {formData.hasCodeFiles && (
-                        <div className="mt-4 ml-8">
-                          <textarea
-                            value={formData.codeFilesDescription}
-                            onChange={(e) => updateFormData("codeFilesDescription", e.target.value)}
-                            placeholder="Describe what code files will be transferred (e.g., 'Full Next.js frontend + Node.js backend, 47 files including components, API routes, and utilities')"
-                            rows={3}
-                            className={`input-field resize-none ${errors.codeFilesDescription ? "border-red-500" : ""}`}
-                          />
-                          {errors.codeFilesDescription && <p className="mt-1 text-sm text-red-500">{errors.codeFilesDescription}</p>}
-                        </div>
-                      )}
-                    </div>
-
                     {/* GitHub Repository */}
                     <div className={`p-4 rounded-xl border ${formData.githubVerified ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <div className="flex items-start gap-3">
@@ -1036,41 +998,9 @@ export default function CreateListingPage() {
                 {/* Infrastructure Section */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">
                   <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Infrastructure</h2>
-                  <p className="text-zinc-500 mb-6">Domain, hosting, and database access</p>
-                  
+                  <p className="text-zinc-500 mb-6">Hosting, domain, and database access</p>
+
                   <div className="space-y-4">
-                    {/* Domain */}
-                    <div className={`p-4 rounded-xl border ${formData.hasDomain ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasDomain} onChange={(e) => updateFormData("hasDomain", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Name</span>
-                          </div>
-                        </div>
-                      </label>
-                      {formData.hasDomain && (
-                        <input type="text" value={formData.domain} onChange={(e) => updateFormData("domain", e.target.value)} placeholder="example.com" className="input-field mt-3 ml-8" />
-                      )}
-                    </div>
-
-                    {/* Hosting */}
-                    <div className={`p-4 rounded-xl border ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasHosting} onChange={(e) => updateFormData("hasHosting", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting Account</span>
-                          </div>
-                        </div>
-                      </label>
-                      {formData.hasHosting && (
-                        <input type="text" value={formData.hostingProvider} onChange={(e) => updateFormData("hostingProvider", e.target.value)} placeholder="Vercel, AWS, Netlify, etc." className="input-field mt-3 ml-8" />
-                      )}
-                    </div>
-
                     {/* Vercel Transfer */}
                     <div className={`p-4 rounded-xl border ${formData.hasVercel ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
@@ -1104,6 +1034,38 @@ export default function CreateListingPage() {
                           />
                           <p className="text-xs text-zinc-500">After sale, buyer will provide their email for a Vercel team invite</p>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Domain */}
+                    <div className={`p-4 rounded-xl border ${formData.hasDomain ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" checked={formData.hasDomain} onChange={(e) => updateFormData("hasDomain", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-zinc-600" />
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Name</span>
+                          </div>
+                        </div>
+                      </label>
+                      {formData.hasDomain && (
+                        <input type="text" value={formData.domain} onChange={(e) => updateFormData("domain", e.target.value)} placeholder="example.com" className="input-field mt-3 ml-8" />
+                      )}
+                    </div>
+
+                    {/* Hosting */}
+                    <div className={`p-4 rounded-xl border ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" checked={formData.hasHosting} onChange={(e) => updateFormData("hasHosting", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-zinc-600" />
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting Account</span>
+                          </div>
+                        </div>
+                      </label>
+                      {formData.hasHosting && (
+                        <input type="text" value={formData.hostingProvider} onChange={(e) => updateFormData("hostingProvider", e.target.value)} placeholder="AWS, Netlify, Railway, etc." className="input-field mt-3 ml-8" />
                       )}
                     </div>
 
