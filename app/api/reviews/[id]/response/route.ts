@@ -222,7 +222,6 @@ export async function PUT(
       where: { reviewId },
       data: {
         content: content.trim(),
-        editedAt: new Date(),
       },
       include: {
         responder: {
