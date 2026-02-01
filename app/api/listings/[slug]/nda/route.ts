@@ -244,6 +244,35 @@ export async function POST(
       },
     });
 
+    // Get signer info and listing title for notification
+    const [signer, listingInfo] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true, displayName: true },
+      }),
+      prisma.listing.findUnique({
+        where: { id: listing.id },
+        select: { title: true },
+      }),
+    ]);
+
+    const signerName = signer?.displayName || signer?.username || "A buyer";
+
+    // Notify seller that NDA was signed
+    await prisma.notification.create({
+      data: {
+        type: "SYSTEM",
+        title: "NDA Signed",
+        message: `${signerName} has signed the NDA for "${listingInfo?.title}" and can now view confidential information.`,
+        userId: listing.sellerId,
+        data: {
+          listingId: listing.id,
+          ndaId: nda.id,
+          signerId: userId,
+        },
+      },
+    });
+
     return NextResponse.json({
       success: true,
       ndaId: nda.id,

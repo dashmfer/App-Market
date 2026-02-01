@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
     });
 
     const similarities: Array<{
-      listingAId: string;
-      listingBId: string;
+      listingId: string;
+      similarListingId: string;
       result: SimilarityResult;
     }> = [];
 
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
         // Only store if there's some similarity
         if (result.flagLevel !== "none") {
           similarities.push({
-            listingAId: listings[i].id,
-            listingBId: listings[j].id,
+            listingId: listings[i].id,
+            similarListingId: listings[j].id,
             result,
           });
         }
@@ -76,25 +76,26 @@ export async function POST(request: NextRequest) {
       const existing = await prisma.listingSimilarity.findFirst({
         where: {
           OR: [
-            { listingAId: sim.listingAId, listingBId: sim.listingBId },
-            { listingAId: sim.listingBId, listingBId: sim.listingAId },
+            { listingId: sim.listingId, similarListingId: sim.similarListingId },
+            { listingId: sim.similarListingId, similarListingId: sim.listingId },
           ],
         },
       });
+
+      // Map flagLevel to flagType enum
+      const flagType = sim.result.flagLevel === "hard" ? "HARD" : sim.result.flagLevel === "soft" ? "SOFT" : "INFO";
 
       if (existing) {
         // Update existing
         const updated = await prisma.listingSimilarity.update({
           where: { id: existing.id },
           data: {
-            similarityScore: sim.result.overallSimilarity,
+            overallSimilarity: sim.result.overallSimilarity,
             titleSimilarity: sim.result.titleSimilarity,
             descriptionSimilarity: sim.result.descriptionSimilarity,
-            techStackSimilarity: sim.result.techStackSimilarity,
-            imageSimilarity: sim.result.imageSimilarity,
-            flagLevel: sim.result.flagLevel === "hard" ? "HARD" : "SOFT",
-            reasons: sim.result.reasons,
-            lastCheckedAt: new Date(),
+            screenshotSimilarity: sim.result.imageSimilarity,
+            flagType,
+            analyzedAt: new Date(),
           },
         });
         storedResults.push(updated);
@@ -102,15 +103,13 @@ export async function POST(request: NextRequest) {
         // Create new
         const created = await prisma.listingSimilarity.create({
           data: {
-            listingAId: sim.listingAId,
-            listingBId: sim.listingBId,
-            similarityScore: sim.result.overallSimilarity,
+            listingId: sim.listingId,
+            similarListingId: sim.similarListingId,
+            overallSimilarity: sim.result.overallSimilarity,
             titleSimilarity: sim.result.titleSimilarity,
             descriptionSimilarity: sim.result.descriptionSimilarity,
-            techStackSimilarity: sim.result.techStackSimilarity,
-            imageSimilarity: sim.result.imageSimilarity,
-            flagLevel: sim.result.flagLevel === "hard" ? "HARD" : "SOFT",
-            reasons: sim.result.reasons,
+            screenshotSimilarity: sim.result.imageSimilarity,
+            flagType,
           },
         });
         storedResults.push(created);
@@ -118,8 +117,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get summary
-    const hardFlags = storedResults.filter((r) => r.flagLevel === "HARD").length;
-    const softFlags = storedResults.filter((r) => r.flagLevel === "SOFT").length;
+    const hardFlags = storedResults.filter((r) => r.flagType === "HARD").length;
+    const softFlags = storedResults.filter((r) => r.flagType === "SOFT").length;
 
     return NextResponse.json({
       success: true,
@@ -163,29 +162,24 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const flagLevel = searchParams.get("flagLevel");
-    const status = searchParams.get("status");
+    const flagType = searchParams.get("flagType") || searchParams.get("flagLevel");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
 
     const where: any = {};
 
-    if (flagLevel) {
-      where.flagLevel = flagLevel.toUpperCase();
-    }
-
-    if (status) {
-      where.status = status.toUpperCase();
+    if (flagType) {
+      where.flagType = flagType.toUpperCase();
     }
 
     const [similarities, total] = await Promise.all([
       prisma.listingSimilarity.findMany({
         where,
-        orderBy: { similarityScore: "desc" },
+        orderBy: { overallSimilarity: "desc" },
         skip: (page - 1) * limit,
         take: limit,
         include: {
-          listingA: {
+          listing: {
             select: {
               id: true,
               title: true,
@@ -199,7 +193,7 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          listingB: {
+          similarListing: {
             select: {
               id: true,
               title: true,
