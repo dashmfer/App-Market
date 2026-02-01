@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { ReportReason } from "@prisma/client";
+import { ReviewReportReason } from "@prisma/client";
 
 // POST /api/reviews/[id]/report - Report a review
 export async function POST(
@@ -24,7 +24,7 @@ export async function POST(
     const { reason, details } = body;
 
     // Validate reason
-    const validReasons: ReportReason[] = [
+    const validReasons: ReviewReportReason[] = [
       "INAPPROPRIATE",
       "SPAM",
       "HARASSMENT",
