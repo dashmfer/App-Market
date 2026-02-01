@@ -310,8 +310,8 @@ export async function POST(request: NextRequest) {
       // Agreements
       requiresNDA,
       ndaTerms,
-      requiresAPA,
-      requiresNonCompete,
+      offersAPA,
+      offersNonCompete,
       nonCompeteDurationYears,
       collaborators,
     } = body;
@@ -507,9 +507,9 @@ export async function POST(request: NextRequest) {
         // Agreement settings
         requiresNDA: requiresNDA || false,
         ndaTerms: requiresNDA ? ndaTerms : null,
-        requiresAPA: requiresAPA !== false, // Default to true
-        requiresNonCompete: requiresNonCompete || false,
-        nonCompeteDurationYears: requiresNonCompete ? (nonCompeteDurationYears || 1) : null,
+        offersAPA: offersAPA || false,
+        offersNonCompete: offersNonCompete || false,
+        nonCompeteDurationYears: offersNonCompete ? (nonCompeteDurationYears || 1) : null,
       },
       include: {
         seller: {

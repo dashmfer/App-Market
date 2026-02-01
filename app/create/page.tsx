@@ -268,9 +268,9 @@ export default function CreateListingPage() {
     requiresNDA: false,
     ndaTerms: "",
 
-    // Agreement Settings (signed at purchase time)
-    requiresAPA: true, // Asset Purchase Agreement (default on)
-    requiresNonCompete: false,
+    // Agreement Settings (seller offers upfront; buyer can request during transfer if not offered)
+    offersAPA: false, // Seller offers Asset Purchase Agreement
+    offersNonCompete: false, // Seller offers Non-Compete Agreement
     nonCompeteDurationYears: 1 as 1 | 2 | 3,
 
     // Terms accepted
@@ -547,9 +547,9 @@ export default function CreateListingPage() {
           // Agreements
           requiresNDA: formData.requiresNDA,
           ndaTerms: formData.requiresNDA ? formData.ndaTerms : null,
-          requiresAPA: formData.requiresAPA,
-          requiresNonCompete: formData.requiresNonCompete,
-          nonCompeteDurationYears: formData.requiresNonCompete ? formData.nonCompeteDurationYears : null,
+          offersAPA: formData.offersAPA,
+          offersNonCompete: formData.offersNonCompete,
+          nonCompeteDurationYears: formData.offersNonCompete ? formData.nonCompeteDurationYears : null,
           // Collaborators - transform for API
           collaborators: formData.collaborators.length > 0
             ? formData.collaborators.map(c => ({
@@ -1899,24 +1899,23 @@ export default function CreateListingPage() {
                         </div>
 
                         {/* Asset Purchase Agreement */}
-                        <div className={`p-4 rounded-xl border transition-all ${formData.requiresAPA ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                        <div className={`p-4 rounded-xl border transition-all ${formData.offersAPA ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                           <label className="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" checked={formData.requiresAPA} onChange={(e) => updateFormData("requiresAPA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                            <input type="checkbox" checked={formData.offersAPA} onChange={(e) => updateFormData("offersAPA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                             <div className="flex-1">
                               <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <FileText className="w-4 h-4" />
-                                Asset Purchase Agreement (APA)
-                                <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full">Recommended</span>
+                                Offer Asset Purchase Agreement (APA)
                               </span>
-                              <p className="text-sm text-zinc-500 mt-1">Standard agreement covering transfer of ownership, IP rights, and warranties</p>
+                              <p className="text-sm text-zinc-500 mt-1">Offer to sign an APA covering transfer of ownership, IP rights, and warranties</p>
                             </div>
                           </label>
-                          {formData.requiresAPA && (
+                          {formData.offersAPA && (
                             <div className="mt-4 ml-8">
                               <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-100/50 dark:bg-blue-900/30">
                                 <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-blue-700 dark:text-blue-400">
-                                  Both parties sign at purchase. Covers asset transfer, IP assignment, and seller warranties.
+                                  Both parties sign at purchase. Buyers can also request this during transfer if you don't offer it here.
                                 </p>
                               </div>
                             </div>
@@ -1924,18 +1923,18 @@ export default function CreateListingPage() {
                         </div>
 
                         {/* Non-Compete Agreement */}
-                        <div className={`p-4 rounded-xl border transition-all ${formData.requiresNonCompete ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                        <div className={`p-4 rounded-xl border transition-all ${formData.offersNonCompete ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                           <label className="flex items-start gap-3 cursor-pointer">
-                            <input type="checkbox" checked={formData.requiresNonCompete} onChange={(e) => updateFormData("requiresNonCompete", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                            <input type="checkbox" checked={formData.offersNonCompete} onChange={(e) => updateFormData("offersNonCompete", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                             <div className="flex-1">
                               <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <Lock className="w-4 h-4" />
-                                Non-Compete Agreement
+                                Offer Non-Compete Agreement
                               </span>
-                              <p className="text-sm text-zinc-500 mt-1">Seller agrees not to build a competing product for a specified period</p>
+                              <p className="text-sm text-zinc-500 mt-1">Offer to sign a non-compete, agreeing not to build competing products</p>
                             </div>
                           </label>
-                          {formData.requiresNonCompete && (
+                          {formData.offersNonCompete && (
                             <div className="mt-4 ml-8 space-y-3">
                               <div>
                                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Non-Compete Duration</label>
@@ -1959,7 +1958,7 @@ export default function CreateListingPage() {
                               <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-100/50 dark:bg-amber-900/30">
                                 <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-amber-700 dark:text-amber-400">
-                                  As seller, you agree not to create or work on competing products for {formData.nonCompeteDurationYears} year{formData.nonCompeteDurationYears > 1 ? "s" : ""} after sale.
+                                  You commit to not creating competing products for {formData.nonCompeteDurationYears} year{formData.nonCompeteDurationYears > 1 ? "s" : ""}. Buyers can also request this during transfer.
                                 </p>
                               </div>
                             </div>
@@ -2036,7 +2035,7 @@ export default function CreateListingPage() {
                     )}
 
                     {/* Legal Agreements Summary */}
-                    {(formData.requiresNDA || formData.requiresAPA || formData.requiresNonCompete) && (
+                    {(formData.requiresNDA || formData.offersAPA || formData.offersNonCompete) && (
                       <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
                         <h4 className="font-medium text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
                           <FileText className="w-5 h-5" />
@@ -2045,23 +2044,23 @@ export default function CreateListingPage() {
                         <div className="flex flex-wrap gap-2">
                           {formData.requiresNDA && (
                             <span className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-lg text-sm font-medium">
-                              NDA (before viewing)
+                              NDA Required (before viewing)
                             </span>
                           )}
-                          {formData.requiresAPA && (
+                          {formData.offersAPA && (
                             <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium">
-                              Asset Purchase Agreement
+                              Offering APA
                             </span>
                           )}
-                          {formData.requiresNonCompete && (
+                          {formData.offersNonCompete && (
                             <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium">
-                              Non-Compete ({formData.nonCompeteDurationYears} year{formData.nonCompeteDurationYears > 1 ? "s" : ""})
+                              Offering Non-Compete ({formData.nonCompeteDurationYears}yr)
                             </span>
                           )}
                         </div>
                         <p className="text-xs text-zinc-500 mt-2">
-                          {formData.requiresNDA ? "NDA signed before viewing. " : ""}
-                          {(formData.requiresAPA || formData.requiresNonCompete) ? "Other agreements signed at purchase." : ""}
+                          {formData.requiresNDA ? "Buyers sign NDA before viewing details. " : ""}
+                          {(formData.offersAPA || formData.offersNonCompete) ? "Offered agreements signed at purchase." : ""}
                         </p>
                       </div>
                     )}
