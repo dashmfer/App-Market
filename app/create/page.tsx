@@ -101,9 +101,9 @@ function ProviderDropdown({
             )}
             <span className="text-zinc-900 dark:text-zinc-100">{selected.label}</span>
             {selected.premium && (
-              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded flex items-center gap-0.5">
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded flex items-center gap-0.5">
                 <Star className="w-2.5 h-2.5 fill-current" />
-                PRO
+                Premium
               </span>
             )}
           </div>
@@ -138,9 +138,9 @@ function ProviderDropdown({
               )}
               <span className="flex-1 text-left text-zinc-900 dark:text-zinc-100">{option.label}</span>
               {option.premium && (
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded flex items-center gap-0.5">
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded flex items-center gap-0.5">
                   <Star className="w-2.5 h-2.5 fill-current" />
-                  PRO
+                  Premium
                 </span>
               )}
               {value === option.value && (
