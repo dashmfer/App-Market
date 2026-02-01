@@ -904,37 +904,31 @@ export default function ListingPage() {
 
               {activeTab === "assets" && (
                 <div className="space-y-4">
-                  {assetsList.map((asset) => (
-                    <div
-                      key={asset.key}
-                      className={`flex items-center gap-4 p-4 rounded-xl border ${
-                        asset.included
-                          ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
-                          : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 opacity-50"
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        asset.included
-                          ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
-                      }`}>
-                        <asset.icon className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {asset.label}
+                  {assetsList.filter(asset => asset.included).length > 0 ? (
+                    assetsList.filter(asset => asset.included).map((asset) => (
+                      <div
+                        key={asset.key}
+                        className="flex items-center gap-4 p-4 rounded-xl border bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800"
+                      >
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                          <asset.icon className="w-5 h-5" />
                         </div>
-                        {asset.included && asset.value && (
-                          <div className="text-sm text-zinc-500">{asset.value}</div>
-                        )}
-                      </div>
-                      {asset.included ? (
+                        <div className="flex-1">
+                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {asset.label}
+                          </div>
+                          {asset.value && (
+                            <div className="text-sm text-zinc-500">{asset.value}</div>
+                          )}
+                        </div>
                         <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <span className="text-sm text-zinc-400">Not included</span>
-                      )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-zinc-500">
+                      No assets information available for this listing.
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
