@@ -202,6 +202,11 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           },
         },
 
+        // External Solana wallets (Phantom, Solflare, etc.)
+        externalWallets: {
+          solana: {},
+        },
+
         // Legal
         legal: {
           termsAndConditionsUrl: "/terms",
