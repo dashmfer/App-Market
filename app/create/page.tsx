@@ -91,6 +91,7 @@ const socialPlatforms = [
 
 // Infrastructure Providers
 const hostingProviders = [
+  { value: "vercel", label: "Vercel", transferMethod: "Project transfer via dashboard", placeholder: "Project URL" },
   { value: "railway", label: "Railway", transferMethod: "Team invite or project transfer", placeholder: "Project URL" },
   { value: "render", label: "Render", transferMethod: "Team transfer or account handoff", placeholder: "Service URL" },
   { value: "fly", label: "Fly.io", transferMethod: "Organization transfer", placeholder: "App name" },
@@ -414,10 +415,7 @@ export default function CreateListingPage() {
     }
     
     if (step === 2) {
-      // Must have a verified GitHub repo
-      if (!formData.githubRepo.trim()) {
-        newErrors.assets = "You must include a GitHub Repository";
-      }
+      // GitHub is optional, but if provided must be verified
       if (formData.githubRepo.trim() && !formData.githubVerified) {
         newErrors.githubRepo = "Please verify your GitHub repository ownership";
       }
