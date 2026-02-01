@@ -21,7 +21,7 @@ export async function POST(
     const { id: reviewId } = params;
 
     const body = await request.json();
-    const { reason, details } = body;
+    const { reason, description } = body;
 
     // Validate reason
     const validReasons: ReviewReportReason[] = [
@@ -88,7 +88,7 @@ export async function POST(
         reviewId,
         reporterId,
         reason,
-        details: details || null,
+        description: description || null,
       },
     });
 
@@ -97,11 +97,11 @@ export async function POST(
       where: { reviewId },
     });
 
-    // If review has 3+ reports, flag it for admin review
+    // If review has 3+ reports, hide it for admin review
     if (reportCount >= 3) {
       await prisma.review.update({
         where: { id: reviewId },
-        data: { flaggedForReview: true },
+        data: { isVisible: false },
       });
 
       // Create admin notification
