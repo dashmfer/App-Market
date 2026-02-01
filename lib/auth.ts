@@ -7,6 +7,29 @@ import { NextRequest } from "next/server";
 import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
 import { validateWalletSignatureMessage } from "@/lib/validation";
+import { AuthMethod } from "@prisma/client";
+
+/**
+ * Map auth method string to Prisma enum
+ */
+function mapAuthMethod(method: string | undefined): AuthMethod {
+  switch (method) {
+    case "email":
+      return "PRIVY_EMAIL";
+    case "twitter":
+      return "PRIVY_TWITTER";
+    case "wallet":
+    default:
+      return "WALLET";
+  }
+}
+
+/**
+ * Generate a unique referral code for new users
+ */
+function generateUserReferralCode(): string {
+  return crypto.randomBytes(4).toString("hex").toLowerCase();
+}
 
 // SECURITY: Secret MUST be set in all environments
 const secret = process.env.NEXTAUTH_SECRET;
@@ -153,6 +176,160 @@ export const authOptions: NextAuthOptions = {
           email: result.user.email,
           name: result.user.username,
           walletAddress: result.user.walletAddress,
+          sessionId,
+        };
+      },
+    }),
+
+    // Privy provider - unified auth (wallet, email, twitter)
+    CredentialsProvider({
+      id: "privy",
+      name: "Privy",
+      credentials: {
+        privyUserId: { label: "Privy User ID", type: "text" },
+        walletAddress: { label: "Wallet Address", type: "text" },
+        email: { label: "Email", type: "text" },
+        twitterUsername: { label: "Twitter Username", type: "text" },
+        authMethod: { label: "Auth Method", type: "text" },
+        referralCode: { label: "Referral Code", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.privyUserId) {
+          throw new Error("Missing Privy user ID");
+        }
+
+        // Find or create user by Privy ID
+        let user = await prisma.user.findUnique({
+          where: { privyUserId: credentials.privyUserId },
+        });
+
+        if (!user) {
+          // Check if user exists by wallet address
+          if (credentials.walletAddress) {
+            user = await prisma.user.findUnique({
+              where: { walletAddress: credentials.walletAddress },
+            });
+
+            if (user) {
+              // Link existing wallet user to Privy
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  privyUserId: credentials.privyUserId,
+                  authMethod: mapAuthMethod(credentials.authMethod),
+                },
+              });
+            }
+          }
+
+          // Check if user exists by email
+          if (!user && credentials.email) {
+            user = await prisma.user.findUnique({
+              where: { email: credentials.email },
+            });
+
+            if (user) {
+              // Link existing email user to Privy
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  privyUserId: credentials.privyUserId,
+                  authMethod: mapAuthMethod(credentials.authMethod),
+                  walletAddress: credentials.walletAddress || user.walletAddress,
+                },
+              });
+            }
+          }
+        }
+
+        if (!user) {
+          // Create new user
+          const referralCode = generateUserReferralCode();
+
+          // Handle referral
+          let referrerId: string | undefined;
+          if (credentials.referralCode) {
+            const referrer = await prisma.user.findUnique({
+              where: { referralCode: credentials.referralCode.toLowerCase() },
+              select: { id: true },
+            });
+            if (referrer) {
+              referrerId = referrer.id;
+            }
+          }
+
+          // Generate username
+          let username = credentials.twitterUsername
+            || credentials.email?.split("@")[0]
+            || `user_${Date.now().toString(36)}`;
+
+          // Ensure username is unique
+          const existingUser = await prisma.user.findUnique({ where: { username } });
+          if (existingUser) {
+            username = `${username}_${Date.now().toString(36)}`;
+          }
+
+          user = await prisma.user.create({
+            data: {
+              privyUserId: credentials.privyUserId,
+              walletAddress: credentials.walletAddress || null,
+              email: credentials.email || null,
+              twitterUsername: credentials.twitterUsername || null,
+              twitterVerified: !!credentials.twitterUsername,
+              username,
+              referralCode,
+              authMethod: mapAuthMethod(credentials.authMethod),
+              referredBy: referrerId,
+            },
+          });
+
+          // Create referral record if applicable
+          if (referrerId) {
+            await prisma.referral.create({
+              data: {
+                referrerId,
+                referredUserId: user.id,
+                status: "REGISTERED",
+              },
+            });
+          }
+
+          console.log("[Privy Auth] Created new user:", user.id);
+        } else {
+          // Update user with latest info from Privy
+          const updateData: any = {};
+
+          if (credentials.walletAddress && !user.walletAddress) {
+            updateData.walletAddress = credentials.walletAddress;
+          }
+          if (credentials.email && !user.email) {
+            updateData.email = credentials.email;
+          }
+          if (credentials.twitterUsername && !user.twitterUsername) {
+            updateData.twitterUsername = credentials.twitterUsername;
+            updateData.twitterVerified = true;
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: updateData,
+            });
+          }
+        }
+
+        // Generate session ID for revocation support
+        const sessionId = generateSessionId();
+        activeSessions.set(sessionId, {
+          userId: user.id,
+          createdAt: new Date(),
+        });
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.username,
+          walletAddress: user.walletAddress,
           sessionId,
         };
       },

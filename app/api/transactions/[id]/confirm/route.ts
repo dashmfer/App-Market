@@ -65,15 +65,38 @@ export async function POST(
       );
     }
 
-    // Get current checklist
-    const checklist = transaction.transferChecklist as Record<string, any>;
+    // Get current checklist (array format)
+    const checklist = transaction.transferChecklist as Array<{
+      id: string;
+      label: string;
+      description: string;
+      iconType: string;
+      required: boolean;
+      sellerConfirmed: boolean;
+      sellerConfirmedAt: string | null;
+      sellerEvidence: string | null;
+      sellerEvidenceHash?: string | null;
+      buyerConfirmed: boolean;
+      buyerConfirmedAt: string | null;
+      partnerConfirmations?: Record<string, { confirmed: boolean; confirmedAt: string }>;
+      majorityVote?: { totalVoters: number; confirmedCount: number; majorityNeeded: number; hasMajority: boolean };
+    }>;
 
-    if (!checklist || !checklist[asset]) {
+    if (!checklist || !Array.isArray(checklist)) {
+      return NextResponse.json(
+        { error: "Transfer checklist not initialized" },
+        { status: 400 }
+      );
+    }
+
+    const itemIndex = checklist.findIndex(item => item.id === asset);
+    if (itemIndex === -1) {
       return NextResponse.json(
         { error: "Invalid asset" },
         { status: 400 }
       );
     }
+    const item = checklist[itemIndex];
 
     // Update checklist based on action
     if (action === "sellerConfirm") {
@@ -85,10 +108,10 @@ export async function POST(
       }
       // SECURITY: Hash evidence for integrity
       const evidenceHash = evidence ? hashEvidence(evidence) : null;
-      checklist[asset].confirmedBySeller = true;
-      checklist[asset].sellerEvidence = evidence;
-      checklist[asset].sellerEvidenceHash = evidenceHash;
-      checklist[asset].sellerConfirmedAt = new Date().toISOString();
+      item.sellerConfirmed = true;
+      item.sellerEvidence = evidence;
+      item.sellerEvidenceHash = evidenceHash;
+      item.sellerConfirmedAt = new Date().toISOString();
     } else if (action === "buyerConfirm" || action === "partnerConfirm") {
       // For group purchases, use majority voting
       if (transaction.hasPartners && transaction.partners.length > 0) {
@@ -114,10 +137,10 @@ export async function POST(
         // Track lead buyer confirmation separately
         if (isBuyer) {
           // Initialize partnerConfirmations if not present
-          if (!checklist[asset].partnerConfirmations) {
-            checklist[asset].partnerConfirmations = {};
+          if (!item.partnerConfirmations) {
+            item.partnerConfirmations = {};
           }
-          checklist[asset].partnerConfirmations.leadBuyer = {
+          item.partnerConfirmations.leadBuyer = {
             confirmed: true,
             confirmedAt: new Date().toISOString(),
           };
@@ -133,10 +156,10 @@ export async function POST(
 
         const totalVoters = updatedPartners.length + 1; // Partners + lead buyer
         const confirmedCount = updatedPartners.filter(p => p.hasConfirmedTransfer).length +
-          (checklist[asset].partnerConfirmations?.leadBuyer?.confirmed ? 1 : 0);
+          (item.partnerConfirmations?.leadBuyer?.confirmed ? 1 : 0);
         const majorityNeeded = Math.floor(totalVoters / 2) + 1;
 
-        checklist[asset].majorityVote = {
+        item.majorityVote = {
           totalVoters,
           confirmedCount,
           majorityNeeded,
@@ -145,9 +168,8 @@ export async function POST(
 
         // Only mark as completed if majority reached
         if (confirmedCount >= majorityNeeded) {
-          checklist[asset].confirmedByBuyer = true;
-          checklist[asset].completed = true;
-          checklist[asset].buyerConfirmedAt = new Date().toISOString();
+          item.buyerConfirmed = true;
+          item.buyerConfirmedAt = new Date().toISOString();
         }
       } else {
         // Single buyer - direct confirmation
@@ -157,11 +179,13 @@ export async function POST(
             { status: 403 }
           );
         }
-        checklist[asset].confirmedByBuyer = true;
-        checklist[asset].completed = true;
-        checklist[asset].buyerConfirmedAt = new Date().toISOString();
+        item.buyerConfirmed = true;
+        item.buyerConfirmedAt = new Date().toISOString();
       }
     }
+
+    // Update the item in the array
+    checklist[itemIndex] = item;
 
     // Update transaction
     await prisma.transaction.update({
@@ -173,10 +197,10 @@ export async function POST(
       },
     });
 
-    // Check if all items confirmed
-    const allConfirmed = Object.values(checklist)
-      .filter((item: any) => item !== null && item.required)
-      .every((item: any) => item.completed);
+    // Check if all required items confirmed by both parties
+    const allConfirmed = checklist
+      .filter(item => item.required)
+      .every(item => item.sellerConfirmed && item.buyerConfirmed);
 
     if (allConfirmed) {
       // All transfers complete - release escrow
@@ -278,7 +302,7 @@ export async function POST(
       success: true,
       checklist,
       allConfirmed,
-      majorityVote: checklist[asset]?.majorityVote || null,
+      majorityVote: item.majorityVote || null,
     });
   } catch (error) {
     console.error("Error confirming transfer:", error);

@@ -36,6 +36,17 @@ model User {
   totalVolume     Float     @default(0)
   rating          Float     @default(0)
   ratingCount     Int       @default(0)
+  disputesLost    Int       @default(0)
+
+  // Badges
+  isSuperSeller   Boolean   @default(false)
+  isSuperBuyer    Boolean   @default(false)
+  superSellerAt   DateTime?
+  superBuyerAt    DateTime?
+
+  // Auth method (how user signed up)
+  authMethod      AuthMethod @default(WALLET)
+  privyUserId     String?   @unique  // Privy DID if using Privy
   
   // Referral System
   referralCode       String?   @unique  // Unique code like "alex123" or auto-generated
@@ -96,11 +107,20 @@ model User {
   // Multi-wallet support
   wallets           UserWallet[]
 
+  // NDA signatures
+  ndaSignatures     ListingNDA[]
+
+  // Review reports & responses
+  reviewReportsSubmitted ReviewReport[] @relation("ReviewReporter")
+  reviewReportsResolved  ReviewReport[] @relation("ReviewReportResolver")
+  reviewResponses        ReviewResponse[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
   @@index([referralCode])
   @@index([twitterUsername])
+  @@index([privyUserId])
 }
 
 model Account {
@@ -147,6 +167,14 @@ model UserWallet {
 
 enum WalletType {
   EXTERNAL       // Connected from Phantom, Solflare, etc.
+  PRIVY_EMBEDDED // Created by Privy for email/social login
+}
+
+enum AuthMethod {
+  WALLET         // Direct wallet connection
+  PRIVY_EMAIL    // Email via Privy
+  PRIVY_TWITTER  // Twitter via Privy
+  PRIVY_WALLET   // Wallet via Privy
 }
 
 // ============================================
@@ -223,7 +251,14 @@ model Listing {
   hasApiKeys        Boolean       @default(false)
   hasDesignFiles    Boolean       @default(false)
   hasDocumentation  Boolean       @default(false)
+  hasVercel         Boolean       @default(false)
+  vercelProjectUrl  String?
+  vercelTeamSlug    String?
   additionalAssets  String?       @db.Text
+
+  // NDA Settings
+  requiresNDA       Boolean       @default(false)
+  ndaTerms          String?       @db.Text  // Custom terms or null for default
   
   // Media
   thumbnailUrl      String?
@@ -277,6 +312,9 @@ model Listing {
   pendingWithdrawals PendingWithdrawal[]
   transaction       Transaction?
   watchlist         Watchlist[]
+  ndaSignatures     ListingNDA[]
+  similarities      ListingSimilarity[] @relation("ListingSimilarities")
+  similarTo         ListingSimilarity[] @relation("SimilarListings")
   
   // Timestamps
   createdAt         DateTime      @default(now())
@@ -465,6 +503,10 @@ model Transaction {
   partnerDepositDeadline DateTime?       // 30 min from initiation for all partners to deposit
   hasPartners           Boolean          @default(false)
 
+  // Non-compete request (buyer can request at purchase)
+  nonCompeteRequested       Boolean       @default(false)
+  nonCompeteDurationYears   Int?          // 1, 2, or 3 years
+
   // Relations
   listingId           String            @unique
   listing             Listing           @relation(fields: [listingId], references: [id])
@@ -475,6 +517,7 @@ model Transaction {
   dispute             Dispute?
   reviews             Review[]
   uploads             Upload[]
+  agreements          TransactionAgreement[]
 
   // Timestamps
   createdAt           DateTime          @default(now())
@@ -624,6 +667,10 @@ model Review {
   isVisible       Boolean     @default(true)
   reportedAt      DateTime?
   reportReason    String?
+
+  // Relations
+  reports         ReviewReport[]
+  response        ReviewResponse?
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -1020,6 +1067,207 @@ enum UploadType {
   SOCIAL_ACCOUNT
   API_KEYS
   DESIGN_FILES
+  VERCEL
+}
+
+// ============================================
+// NDA (Non-Disclosure Agreements)
+// ============================================
+
+model ListingNDA {
+  id              String    @id @default(cuid())
+
+  // Listing relation
+  listingId       String
+  listing         Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Signer info
+  signerId        String
+  signer          User      @relation(fields: [signerId], references: [id])
+  signerWallet    String    // Wallet that signed
+
+  // Signature proof
+  signature       String    // Wallet signature
+  signedMessage   String    @db.Text // The exact message that was signed
+
+  // Terms version (in case we update terms)
+  termsVersion    String    @default("1.0")
+
+  // Timestamps
+  signedAt        DateTime  @default(now())
+
+  @@unique([listingId, signerId]) // One NDA per user per listing
+  @@index([listingId])
+  @@index([signerId])
+}
+
+// ============================================
+// AGREEMENTS (APA, Non-Compete)
+// ============================================
+
+model TransactionAgreement {
+  id              String          @id @default(cuid())
+
+  // Transaction relation
+  transactionId   String
+  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  // Agreement type
+  type            AgreementType
+
+  // Terms content (markdown)
+  termsContent    String          @db.Text
+  termsVersion    String          @default("1.0")
+
+  // For non-compete: duration in years
+  nonCompeteDurationYears Int?
+
+  // Seller signature
+  sellerSigned    Boolean         @default(false)
+  sellerSignature String?
+  sellerSignedAt  DateTime?
+
+  // Buyer signature
+  buyerSigned     Boolean         @default(false)
+  buyerSignature  String?
+  buyerSignedAt   DateTime?
+
+  // Status
+  status          AgreementStatus @default(PENDING)
+
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([transactionId, type]) // One of each type per transaction
+  @@index([transactionId])
+  @@index([type])
+  @@index([status])
+}
+
+enum AgreementType {
+  ASSET_PURCHASE    // APA - standard for all transactions
+  NON_COMPETE       // Optional non-compete
+}
+
+enum AgreementStatus {
+  PENDING           // Waiting for signatures
+  SELLER_SIGNED     // Seller signed, waiting for buyer
+  BUYER_SIGNED      // Buyer signed, waiting for seller
+  COMPLETED         // Both signed
+  DECLINED          // One party declined
+}
+
+// ============================================
+// SIMILAR LISTING DETECTION
+// ============================================
+
+model ListingSimilarity {
+  id              String    @id @default(cuid())
+
+  // The listing being analyzed
+  listingId       String
+  listing         Listing   @relation("ListingSimilarities", fields: [listingId], references: [id], onDelete: Cascade)
+
+  // The similar listing found
+  similarListingId String
+  similarListing  Listing   @relation("SimilarListings", fields: [similarListingId], references: [id], onDelete: Cascade)
+
+  // Similarity scores (0-100)
+  titleSimilarity       Float   @default(0)
+  descriptionSimilarity Float   @default(0)
+  screenshotSimilarity  Float   @default(0)
+  overallSimilarity     Float   @default(0)
+
+  // Flags
+  flagType        SimilarityFlagType @default(INFO)
+
+  // Analysis metadata
+  analyzedAt      DateTime  @default(now())
+
+  @@unique([listingId, similarListingId])
+  @@index([listingId])
+  @@index([similarListingId])
+  @@index([overallSimilarity])
+  @@index([flagType])
+}
+
+enum SimilarityFlagType {
+  INFO        // <50% - no display
+  SOFT        // 50-89% - visible to buyers
+  HARD        // 90%+ - blocks listing pending review
+}
+
+// ============================================
+// REVIEW REPORTS & RESPONSES
+// ============================================
+
+model ReviewReport {
+  id              String    @id @default(cuid())
+
+  // Review being reported
+  reviewId        String
+  review          Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  // Reporter
+  reporterId      String
+  reporter        User      @relation("ReviewReporter", fields: [reporterId], references: [id])
+
+  // Report details
+  reason          ReviewReportReason
+  description     String?   @db.Text
+
+  // Admin resolution
+  status          ReportStatus @default(PENDING)
+  resolvedById    String?
+  resolvedBy      User?     @relation("ReviewReportResolver", fields: [resolvedById], references: [id])
+  resolution      String?   @db.Text
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  resolvedAt      DateTime?
+
+  @@unique([reviewId, reporterId]) // One report per user per review
+  @@index([reviewId])
+  @@index([status])
+}
+
+model ReviewResponse {
+  id              String    @id @default(cuid())
+
+  // Review being responded to
+  reviewId        String    @unique
+  review          Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  // Responder (the subject of the review)
+  responderId     String
+  responder       User      @relation(fields: [responderId], references: [id])
+
+  // Response content
+  content         String    @db.Text
+
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([reviewId])
+  @@index([responderId])
+}
+
+enum ReviewReportReason {
+  SPAM
+  HARASSMENT
+  FALSE_INFORMATION
+  INAPPROPRIATE_CONTENT
+  OFF_TOPIC
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED_REMOVED    // Review was hidden
+  RESOLVED_KEPT       // Review was kept (report dismissed)
 }
 
 // ============================================
