@@ -259,6 +259,11 @@ model Listing {
   // NDA Settings
   requiresNDA       Boolean       @default(false)
   ndaTerms          String?       @db.Text  // Custom terms or null for default
+
+  // Agreement Settings (signed at purchase time)
+  requiresAPA             Boolean   @default(true)   // Asset Purchase Agreement
+  requiresNonCompete      Boolean   @default(false)  // Non-Compete Agreement
+  nonCompeteDurationYears Int?                       // 1, 2, or 3 years (if requiresNonCompete)
   
   // Media
   thumbnailUrl      String?

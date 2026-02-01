@@ -89,6 +89,49 @@ const socialPlatforms = [
   { key: "other", label: "Other", icon: Globe, placeholder: "URL" },
 ];
 
+// Infrastructure Providers
+const hostingProviders = [
+  { value: "railway", label: "Railway", transferMethod: "Team invite or project transfer", placeholder: "Project URL" },
+  { value: "render", label: "Render", transferMethod: "Team transfer or account handoff", placeholder: "Service URL" },
+  { value: "fly", label: "Fly.io", transferMethod: "Organization transfer", placeholder: "App name" },
+  { value: "heroku", label: "Heroku", transferMethod: "App transfer via dashboard", placeholder: "App name" },
+  { value: "digitalocean", label: "DigitalOcean", transferMethod: "Team invite or droplet transfer", placeholder: "Project/Droplet URL" },
+  { value: "aws", label: "AWS", transferMethod: "IAM account or organization transfer", placeholder: "Account/Resource ID" },
+  { value: "gcp", label: "Google Cloud", transferMethod: "Project ownership transfer", placeholder: "Project ID" },
+  { value: "azure", label: "Azure", transferMethod: "Subscription or resource transfer", placeholder: "Resource URL" },
+  { value: "netlify", label: "Netlify", transferMethod: "Team invite or site transfer", placeholder: "Site URL" },
+  { value: "cloudflare", label: "Cloudflare Pages", transferMethod: "Account or project transfer", placeholder: "Project URL" },
+  { value: "other", label: "Other", transferMethod: "Manual credential transfer", placeholder: "Provider details" },
+];
+
+const domainRegistrars = [
+  { value: "namecheap", label: "Namecheap", transferMethod: "Domain push or auth code transfer", placeholder: "domain.com" },
+  { value: "godaddy", label: "GoDaddy", transferMethod: "Domain transfer with auth code", placeholder: "domain.com" },
+  { value: "google", label: "Google Domains", transferMethod: "Transfer to another registrar", placeholder: "domain.com" },
+  { value: "cloudflare", label: "Cloudflare Registrar", transferMethod: "Account transfer or auth code", placeholder: "domain.com" },
+  { value: "porkbun", label: "Porkbun", transferMethod: "Push to another account", placeholder: "domain.com" },
+  { value: "hover", label: "Hover", transferMethod: "Transfer with auth code", placeholder: "domain.com" },
+  { value: "name", label: "Name.com", transferMethod: "Push or transfer with auth code", placeholder: "domain.com" },
+  { value: "dynadot", label: "Dynadot", transferMethod: "Account push or transfer", placeholder: "domain.com" },
+  { value: "gandi", label: "Gandi", transferMethod: "Change of registrant", placeholder: "domain.com" },
+  { value: "other", label: "Other", transferMethod: "Auth code transfer", placeholder: "domain.com" },
+];
+
+const databaseProviders = [
+  { value: "supabase", label: "Supabase", transferMethod: "Organization transfer or project export", placeholder: "Project URL" },
+  { value: "planetscale", label: "PlanetScale", transferMethod: "Organization transfer", placeholder: "Database URL" },
+  { value: "neon", label: "Neon", transferMethod: "Project transfer or connection string", placeholder: "Project URL" },
+  { value: "mongodb", label: "MongoDB Atlas", transferMethod: "Organization invite or cluster transfer", placeholder: "Cluster URL" },
+  { value: "firebase", label: "Firebase / Firestore", transferMethod: "Project ownership transfer", placeholder: "Project ID" },
+  { value: "upstash", label: "Upstash", transferMethod: "Team invite or database transfer", placeholder: "Database URL" },
+  { value: "turso", label: "Turso", transferMethod: "Organization transfer", placeholder: "Database URL" },
+  { value: "aws-rds", label: "AWS RDS", transferMethod: "Snapshot share or account transfer", placeholder: "Instance identifier" },
+  { value: "aws-dynamodb", label: "AWS DynamoDB", transferMethod: "Account transfer or export", placeholder: "Table name" },
+  { value: "cockroachdb", label: "CockroachDB", transferMethod: "Organization transfer", placeholder: "Cluster URL" },
+  { value: "redis", label: "Redis Cloud", transferMethod: "Subscription transfer", placeholder: "Database URL" },
+  { value: "other", label: "Other", transferMethod: "Credential handoff", placeholder: "Database details" },
+];
+
 export default function CreateListingPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -130,20 +173,25 @@ export default function CreateListingPage() {
     githubVerificationError: "",
     repoStats: null as { files: number; lines: number; lastUpdated: string } | null,
     
-    // Domain & Hosting
-    hasDomain: false,
-    domain: "",
+    // Hosting
     hasHosting: false,
-    hostingProvider: "",
+    hostingProvider: "", // Selected provider from dropdown
+    hostingProjectUrl: "", // Project URL or identifier
 
-    // Vercel Transfer
+    // Vercel Transfer (separate premium option)
     hasVercel: false,
     vercelProjectUrl: "",
     vercelTeamSlug: "",
-    
+
+    // Domain
+    hasDomain: false,
+    domainRegistrar: "", // Selected registrar from dropdown
+    domain: "", // The actual domain name
+
     // Database
     hasDatabase: false,
-    databaseType: "",
+    databaseProvider: "", // Selected provider from dropdown
+    databaseName: "", // Database name or connection identifier
     
     // API Keys & Credentials
     hasApiKeys: false,
@@ -219,6 +267,11 @@ export default function CreateListingPage() {
     // NDA Settings
     requiresNDA: false,
     ndaTerms: "",
+
+    // Agreement Settings (signed at purchase time)
+    requiresAPA: true, // Asset Purchase Agreement (default on)
+    requiresNonCompete: false,
+    nonCompeteDurationYears: 1 as 1 | 2 | 3,
 
     // Terms accepted
     termsAccepted: false,
@@ -457,15 +510,23 @@ export default function CreateListingPage() {
           demoUrl: formData.demoUrl,
           videoUrl: formData.videoUrl,
           githubRepo: formData.githubRepo,
-          hasDomain: formData.hasDomain,
-          domain: formData.domain,
-          hasDatabase: formData.hasDatabase,
-          databaseType: formData.databaseType,
+          // Hosting
           hasHosting: formData.hasHosting,
-          hostingProvider: formData.hostingProvider,
+          hostingProvider: formData.hostingProvider || null,
+          hostingProjectUrl: formData.hostingProjectUrl || null,
+          // Vercel (separate)
           hasVercel: formData.hasVercel,
           vercelProjectUrl: formData.vercelProjectUrl || null,
           vercelTeamSlug: formData.vercelTeamSlug || null,
+          // Domain
+          hasDomain: formData.hasDomain,
+          domainRegistrar: formData.domainRegistrar || null,
+          domain: formData.domain || null,
+          // Database
+          hasDatabase: formData.hasDatabase,
+          databaseProvider: formData.databaseProvider || null,
+          databaseName: formData.databaseName || null,
+          // Social & Other Assets
           hasSocialAccounts: formData.socialAccounts.length > 0,
           socialAccounts: formData.socialAccounts.length > 0 ? JSON.stringify(formData.socialAccounts) : null,
           hasApiKeys: formData.hasApiKeys,
@@ -475,6 +536,7 @@ export default function CreateListingPage() {
           requiredBuyerInfo: Object.values(formData.requiredBuyerInfo).some(v => v.required)
             ? formData.requiredBuyerInfo
             : null,
+          // Pricing
           startingPrice: formData.startingPrice,
           reservePrice: formData.reservePrice || null,
           buyNowEnabled: formData.enableBuyNow,
@@ -482,8 +544,12 @@ export default function CreateListingPage() {
           currency: formData.currency,
           duration: formData.duration,
           reservedBuyerWallet: formData.reserveForBuyer ? formData.reservedBuyerWallet : null,
+          // Agreements
           requiresNDA: formData.requiresNDA,
           ndaTerms: formData.requiresNDA ? formData.ndaTerms : null,
+          requiresAPA: formData.requiresAPA,
+          requiresNonCompete: formData.requiresNonCompete,
+          nonCompeteDurationYears: formData.requiresNonCompete ? formData.nonCompeteDurationYears : null,
           // Collaborators - transform for API
           collaborators: formData.collaborators.length > 0
             ? formData.collaborators.map(c => ({
@@ -529,10 +595,19 @@ export default function CreateListingPage() {
   const getTransferableItems = () => {
     const items: string[] = [];
     if (formData.githubRepo && formData.githubVerified) items.push("GitHub Repository");
-    if (formData.hasDomain) items.push(`Domain: ${formData.domain}`);
-    if (formData.hasDatabase) items.push(`Database: ${formData.databaseType}`);
-    if (formData.hasHosting) items.push(`Hosting: ${formData.hostingProvider}`);
     if (formData.hasVercel) items.push("Vercel Project Transfer");
+    if (formData.hasHosting && formData.hostingProvider) {
+      const provider = hostingProviders.find(p => p.value === formData.hostingProvider);
+      items.push(`Hosting: ${provider?.label || formData.hostingProvider}`);
+    }
+    if (formData.hasDomain && formData.domainRegistrar) {
+      const registrar = domainRegistrars.find(p => p.value === formData.domainRegistrar);
+      items.push(`Domain: ${formData.domain || ""} (${registrar?.label || formData.domainRegistrar})`);
+    }
+    if (formData.hasDatabase && formData.databaseProvider) {
+      const provider = databaseProviders.find(p => p.value === formData.databaseProvider);
+      items.push(`Database: ${provider?.label || formData.databaseProvider}`);
+    }
     if (formData.hasApiKeys) items.push("API Keys & Credentials");
     if (formData.hasDesignFiles) items.push("Design Files");
     if (formData.hasDocumentation) items.push("Documentation");
@@ -1002,7 +1077,7 @@ export default function CreateListingPage() {
 
                   <div className="space-y-4">
                     {/* Vercel Transfer */}
-                    <div className={`p-4 rounded-xl border ${formData.hasVercel ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hasVercel ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input type="checkbox" checked={formData.hasVercel} onChange={(e) => updateFormData("hasVercel", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                         <div className="flex-1">
@@ -1017,7 +1092,7 @@ export default function CreateListingPage() {
                         </div>
                       </label>
                       {formData.hasVercel && (
-                        <div className="mt-3 ml-8 space-y-3">
+                        <div className="mt-4 ml-8 space-y-3">
                           <input
                             type="text"
                             value={formData.vercelProjectUrl}
@@ -1032,13 +1107,64 @@ export default function CreateListingPage() {
                             placeholder="Your Vercel team slug (optional)"
                             className="input-field"
                           />
-                          <p className="text-xs text-zinc-500">After sale, buyer will provide their email for a Vercel team invite</p>
+                          <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                            <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500">Transfer method: Team invite. Buyer will provide their email for a Vercel team invite.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hosting */}
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" checked={formData.hasHosting} onChange={(e) => updateFormData("hasHosting", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-zinc-600" />
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting</span>
+                          </div>
+                          <p className="text-sm text-zinc-500 mt-1">Server, cloud, or platform hosting</p>
+                        </div>
+                      </label>
+                      {formData.hasHosting && (
+                        <div className="mt-4 ml-8 space-y-3">
+                          <select
+                            value={formData.hostingProvider}
+                            onChange={(e) => {
+                              updateFormData("hostingProvider", e.target.value);
+                              updateFormData("hostingProjectUrl", "");
+                            }}
+                            className="input-field"
+                          >
+                            <option value="">Select hosting provider...</option>
+                            {hostingProviders.map(p => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                          {formData.hostingProvider && (
+                            <>
+                              <input
+                                type="text"
+                                value={formData.hostingProjectUrl}
+                                onChange={(e) => updateFormData("hostingProjectUrl", e.target.value)}
+                                placeholder={hostingProviders.find(p => p.value === formData.hostingProvider)?.placeholder || "Project URL or identifier"}
+                                className="input-field"
+                              />
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-zinc-500">
+                                  Transfer method: {hostingProviders.find(p => p.value === formData.hostingProvider)?.transferMethod}
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Domain */}
-                    <div className={`p-4 rounded-xl border ${formData.hasDomain ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hasDomain ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input type="checkbox" checked={formData.hasDomain} onChange={(e) => updateFormData("hasDomain", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                         <div className="flex-1">
@@ -1046,31 +1172,47 @@ export default function CreateListingPage() {
                             <Globe className="w-5 h-5 text-zinc-600" />
                             <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Name</span>
                           </div>
+                          <p className="text-sm text-zinc-500 mt-1">Transfer domain ownership to buyer</p>
                         </div>
                       </label>
                       {formData.hasDomain && (
-                        <input type="text" value={formData.domain} onChange={(e) => updateFormData("domain", e.target.value)} placeholder="example.com" className="input-field mt-3 ml-8" />
-                      )}
-                    </div>
-
-                    {/* Hosting */}
-                    <div className={`p-4 rounded-xl border ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasHosting} onChange={(e) => updateFormData("hasHosting", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting Account</span>
-                          </div>
+                        <div className="mt-4 ml-8 space-y-3">
+                          <select
+                            value={formData.domainRegistrar}
+                            onChange={(e) => {
+                              updateFormData("domainRegistrar", e.target.value);
+                              updateFormData("domain", "");
+                            }}
+                            className="input-field"
+                          >
+                            <option value="">Select registrar...</option>
+                            {domainRegistrars.map(p => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                          {formData.domainRegistrar && (
+                            <>
+                              <input
+                                type="text"
+                                value={formData.domain}
+                                onChange={(e) => updateFormData("domain", e.target.value)}
+                                placeholder={domainRegistrars.find(p => p.value === formData.domainRegistrar)?.placeholder || "domain.com"}
+                                className="input-field"
+                              />
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-zinc-500">
+                                  Transfer method: {domainRegistrars.find(p => p.value === formData.domainRegistrar)?.transferMethod}
+                                </p>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </label>
-                      {formData.hasHosting && (
-                        <input type="text" value={formData.hostingProvider} onChange={(e) => updateFormData("hostingProvider", e.target.value)} placeholder="AWS, Netlify, Railway, etc." className="input-field mt-3 ml-8" />
                       )}
                     </div>
 
                     {/* Database */}
-                    <div className={`p-4 rounded-xl border ${formData.hasDatabase ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hasDatabase ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input type="checkbox" checked={formData.hasDatabase} onChange={(e) => updateFormData("hasDatabase", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                         <div className="flex-1">
@@ -1078,15 +1220,47 @@ export default function CreateListingPage() {
                             <Database className="w-5 h-5 text-zinc-600" />
                             <span className="font-medium text-zinc-900 dark:text-zinc-100">Database</span>
                           </div>
+                          <p className="text-sm text-zinc-500 mt-1">Database access and credentials</p>
                         </div>
                       </label>
                       {formData.hasDatabase && (
-                        <input type="text" value={formData.databaseType} onChange={(e) => updateFormData("databaseType", e.target.value)} placeholder="PostgreSQL, MongoDB, Supabase, etc." className="input-field mt-3 ml-8" />
+                        <div className="mt-4 ml-8 space-y-3">
+                          <select
+                            value={formData.databaseProvider}
+                            onChange={(e) => {
+                              updateFormData("databaseProvider", e.target.value);
+                              updateFormData("databaseName", "");
+                            }}
+                            className="input-field"
+                          >
+                            <option value="">Select database provider...</option>
+                            {databaseProviders.map(p => (
+                              <option key={p.value} value={p.value}>{p.label}</option>
+                            ))}
+                          </select>
+                          {formData.databaseProvider && (
+                            <>
+                              <input
+                                type="text"
+                                value={formData.databaseName}
+                                onChange={(e) => updateFormData("databaseName", e.target.value)}
+                                placeholder={databaseProviders.find(p => p.value === formData.databaseProvider)?.placeholder || "Database name or URL"}
+                                className="input-field"
+                              />
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-zinc-500">
+                                  Transfer method: {databaseProviders.find(p => p.value === formData.databaseProvider)?.transferMethod}
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
 
                     {/* API Keys */}
-                    <div className={`p-4 rounded-xl border ${formData.hasApiKeys ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hasApiKeys ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
                       <label className="flex items-start gap-3 cursor-pointer">
                         <input type="checkbox" checked={formData.hasApiKeys} onChange={(e) => updateFormData("hasApiKeys", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
                         <div className="flex-1">
@@ -1094,10 +1268,19 @@ export default function CreateListingPage() {
                             <Key className="w-5 h-5 text-zinc-600" />
                             <span className="font-medium text-zinc-900 dark:text-zinc-100">API Keys & Credentials</span>
                           </div>
+                          <p className="text-sm text-zinc-500 mt-1">Third-party service API keys</p>
                         </div>
                       </label>
                       {formData.hasApiKeys && (
-                        <textarea value={formData.apiKeysDescription} onChange={(e) => updateFormData("apiKeysDescription", e.target.value)} placeholder="List the API keys included (e.g., OpenAI, Stripe, etc.)" rows={2} className="input-field mt-3 ml-8 resize-none" />
+                        <div className="mt-4 ml-8">
+                          <textarea
+                            value={formData.apiKeysDescription}
+                            onChange={(e) => updateFormData("apiKeysDescription", e.target.value)}
+                            placeholder="List the API keys included (e.g., OpenAI, Stripe, Twilio, SendGrid...)"
+                            rows={2}
+                            className="input-field resize-none"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1678,40 +1861,111 @@ export default function CreateListingPage() {
                       )}
                     </div>
 
-                    {/* NDA Requirement */}
-                    <div className={`p-6 rounded-xl border ${formData.requiresNDA ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer mb-4">
-                        <input type="checkbox" checked={formData.requiresNDA} onChange={(e) => updateFormData("requiresNDA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                            <FileText className="w-4 h-4" />
-                            Require NDA Before Viewing
-                            <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400 rounded-full">Premium</span>
-                          </span>
-                          <p className="text-sm text-zinc-500">Buyers must sign an NDA with their wallet before viewing full details</p>
-                        </div>
-                      </label>
+                    {/* Legal Agreements Section */}
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+                      <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Legal Agreements</h3>
+                      <p className="text-sm text-zinc-500 mb-4">Configure which agreements buyers must sign at time of purchase</p>
 
-                      {formData.requiresNDA && (
-                        <div className="ml-8 space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">NDA Terms (Optional)</label>
-                            <textarea
-                              value={formData.ndaTerms}
-                              onChange={(e) => updateFormData("ndaTerms", e.target.value)}
-                              placeholder="Add custom NDA terms, or leave blank to use our standard NDA template that protects confidential business information..."
-                              rows={4}
-                              className="input-field resize-none text-sm"
-                            />
-                          </div>
-                          <div className="p-3 bg-purple-100/50 dark:bg-purple-900/30 rounded-lg">
-                            <p className="text-xs text-purple-700 dark:text-purple-400">
-                              <Info className="w-3 h-3 inline mr-1" />
-                              Buyers will only see a blurred preview until they sign the NDA. The NDA is wallet-signed, creating a legally binding digital signature.
-                            </p>
-                          </div>
+                      <div className="space-y-4">
+                        {/* NDA Requirement */}
+                        <div className={`p-4 rounded-xl border transition-all ${formData.requiresNDA ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" checked={formData.requiresNDA} onChange={(e) => updateFormData("requiresNDA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                            <div className="flex-1">
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                Non-Disclosure Agreement (NDA)
+                              </span>
+                              <p className="text-sm text-zinc-500 mt-1">Buyers must sign an NDA before viewing full listing details</p>
+                            </div>
+                          </label>
+                          {formData.requiresNDA && (
+                            <div className="mt-4 ml-8 space-y-3">
+                              <textarea
+                                value={formData.ndaTerms}
+                                onChange={(e) => updateFormData("ndaTerms", e.target.value)}
+                                placeholder="Add custom NDA terms, or leave blank to use our standard NDA template..."
+                                rows={3}
+                                className="input-field resize-none text-sm"
+                              />
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-purple-100/50 dark:bg-purple-900/30">
+                                <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-purple-700 dark:text-purple-400">
+                                  Buyers will see a blurred preview until they sign. NDA is wallet-signed for legal validity.
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        {/* Asset Purchase Agreement */}
+                        <div className={`p-4 rounded-xl border transition-all ${formData.requiresAPA ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" checked={formData.requiresAPA} onChange={(e) => updateFormData("requiresAPA", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                            <div className="flex-1">
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                Asset Purchase Agreement (APA)
+                                <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 rounded-full">Recommended</span>
+                              </span>
+                              <p className="text-sm text-zinc-500 mt-1">Standard agreement covering transfer of ownership, IP rights, and warranties</p>
+                            </div>
+                          </label>
+                          {formData.requiresAPA && (
+                            <div className="mt-4 ml-8">
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-100/50 dark:bg-blue-900/30">
+                                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-blue-700 dark:text-blue-400">
+                                  Both parties sign at purchase. Covers asset transfer, IP assignment, and seller warranties.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Non-Compete Agreement */}
+                        <div className={`p-4 rounded-xl border transition-all ${formData.requiresNonCompete ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" checked={formData.requiresNonCompete} onChange={(e) => updateFormData("requiresNonCompete", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
+                            <div className="flex-1">
+                              <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <Lock className="w-4 h-4" />
+                                Non-Compete Agreement
+                              </span>
+                              <p className="text-sm text-zinc-500 mt-1">Seller agrees not to build a competing product for a specified period</p>
+                            </div>
+                          </label>
+                          {formData.requiresNonCompete && (
+                            <div className="mt-4 ml-8 space-y-3">
+                              <div>
+                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Non-Compete Duration</label>
+                                <div className="flex gap-2">
+                                  {[1, 2, 3].map((years) => (
+                                    <button
+                                      key={years}
+                                      type="button"
+                                      onClick={() => updateFormData("nonCompeteDurationYears", years)}
+                                      className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium transition-all ${
+                                        formData.nonCompeteDurationYears === years
+                                          ? "border-amber-500 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400"
+                                          : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300"
+                                      }`}
+                                    >
+                                      {years} Year{years > 1 ? "s" : ""}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-100/50 dark:bg-amber-900/30">
+                                <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-xs text-amber-700 dark:text-amber-400">
+                                  As seller, you agree not to create or work on competing products for {formData.nonCompeteDurationYears} year{formData.nonCompeteDurationYears > 1 ? "s" : ""} after sale.
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Fee Info */}
@@ -1781,15 +2035,33 @@ export default function CreateListingPage() {
                       </div>
                     )}
 
-                    {/* NDA Required */}
-                    {formData.requiresNDA && (
-                      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
-                        <h4 className="font-medium text-purple-700 dark:text-purple-400 mb-2 flex items-center gap-2">
-                          <FileText className="w-4 h-4" />
-                          NDA Required
+                    {/* Legal Agreements Summary */}
+                    {(formData.requiresNDA || formData.requiresAPA || formData.requiresNonCompete) && (
+                      <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
+                        <h4 className="font-medium text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                          <FileText className="w-5 h-5" />
+                          Legal Agreements
                         </h4>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                          Buyers must sign an NDA with their wallet before viewing full listing details.
+                        <div className="flex flex-wrap gap-2">
+                          {formData.requiresNDA && (
+                            <span className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-lg text-sm font-medium">
+                              NDA (before viewing)
+                            </span>
+                          )}
+                          {formData.requiresAPA && (
+                            <span className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-medium">
+                              Asset Purchase Agreement
+                            </span>
+                          )}
+                          {formData.requiresNonCompete && (
+                            <span className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium">
+                              Non-Compete ({formData.nonCompeteDurationYears} year{formData.nonCompeteDurationYears > 1 ? "s" : ""})
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-2">
+                          {formData.requiresNDA ? "NDA signed before viewing. " : ""}
+                          {(formData.requiresAPA || formData.requiresNonCompete) ? "Other agreements signed at purchase." : ""}
                         </p>
                       </div>
                     )}

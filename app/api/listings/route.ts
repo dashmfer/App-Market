@@ -269,15 +269,23 @@ export async function POST(request: NextRequest) {
       blockchain,
       techStack,
       githubRepo,
-      hasDomain,
-      domain,
-      hasDatabase,
-      databaseType,
+      // Hosting
       hasHosting,
       hostingProvider,
+      hostingProjectUrl,
+      // Vercel
       hasVercel,
       vercelProjectUrl,
       vercelTeamSlug,
+      // Domain
+      hasDomain,
+      domainRegistrar,
+      domain,
+      // Database
+      hasDatabase,
+      databaseProvider,
+      databaseName,
+      // Other assets
       hasSocialAccounts,
       socialAccounts,
       hasApiKeys,
@@ -299,8 +307,12 @@ export async function POST(request: NextRequest) {
       currency,
       duration,
       reservedBuyerWallet,
+      // Agreements
       requiresNDA,
       ndaTerms,
+      requiresAPA,
+      requiresNonCompete,
+      nonCompeteDurationYears,
       collaborators,
     } = body;
 
@@ -438,15 +450,20 @@ export async function POST(request: NextRequest) {
         blockchain: blockchain || null,
         techStack,
         githubRepo,
-        hasDomain,
-        domain,
-        hasDatabase,
-        databaseType,
+        // Hosting
         hasHosting,
-        hostingProvider,
+        hostingProvider: hostingProvider || null,
+        // Vercel
         hasVercel: hasVercel || false,
         vercelProjectUrl: vercelProjectUrl || null,
         vercelTeamSlug: vercelTeamSlug || null,
+        // Domain
+        hasDomain,
+        domain: domain || null,
+        // Database
+        hasDatabase,
+        databaseType: databaseProvider || null, // Map databaseProvider to databaseType field
+        // Social & other assets
         hasSocialAccounts,
         socialAccounts: (() => {
           if (typeof socialAccounts === 'object' && socialAccounts !== null) {
@@ -487,9 +504,12 @@ export async function POST(request: NextRequest) {
         reservedBuyerWallet: reservedBuyerWallet?.trim() || null,
         reservedBuyerId,
         reservedAt: reservedBuyerWallet?.trim() ? new Date() : null,
-        // NDA settings
+        // Agreement settings
         requiresNDA: requiresNDA || false,
         ndaTerms: requiresNDA ? ndaTerms : null,
+        requiresAPA: requiresAPA !== false, // Default to true
+        requiresNonCompete: requiresNonCompete || false,
+        nonCompeteDurationYears: requiresNonCompete ? (nonCompeteDurationYears || 1) : null,
       },
       include: {
         seller: {
