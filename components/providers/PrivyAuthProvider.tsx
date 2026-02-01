@@ -184,17 +184,15 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods - wallet first
+        // Login methods - wallet first, then email, then twitter
         loginMethods: ["wallet", "email", "twitter"],
 
-        // Appearance - light/green theme
+        // Appearance - dark theme with green accent
         appearance: {
-          theme: "light",
+          theme: "dark",
           accentColor: "#22c55e",
           logo: "/logo.png",
-          showWalletLoginFirst: true,
-          walletList: ["phantom", "solflare", "backpack", "coinbase_wallet"],
-          walletChainType: "solana-only",
+          showWalletLoginFirst: false,
         },
 
         // Embedded Solana wallet for email/twitter users
