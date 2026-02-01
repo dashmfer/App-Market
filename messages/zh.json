@@ -4,6 +4,7 @@
     "categories": "分类",
     "howItWorks": "使用指南",
     "signIn": "登录",
+    "loading": "加载中...",
     "connectWallet": "连接钱包",
     "listProject": "发布项目",
     "dashboard": "控制面板",
@@ -587,12 +588,40 @@
         "globalDesc": "与全球买家建立联系"
       },
       "gettingStarted": "入门指南",
+      "steps": {
+        "step1": { "title": "连接您的GitHub账户", "description": "关联您的GitHub以验证所有权并向潜在买家展示仓库指标。" },
+        "step2": { "title": "创建您的列表", "description": "填写项目详情 - 名称、描述、技术栈、截图以及包含的所有资产。" },
+        "step3": { "title": "设定您的价格", "description": "选择拍卖或固定价格。设置保留价或启用立即购买。" },
+        "step4": { "title": "发布并推广", "description": "您的列表将在市场上线。分享以吸引更多买家。" },
+        "step5": { "title": "转让并收款", "description": "售出后，将资产转让给买家。确认后资金将被释放。" }
+      },
       "whatToInclude": "列表中应包含的内容",
+      "includes": {
+        "item1": "清晰的项目描述及其功能",
+        "item2": "技术栈和依赖项",
+        "item3": "高质量截图或演示视频",
+        "item4": "当前指标（用户数、收入等，如适用）",
+        "item5": "包含内容（仓库、域名、数据库等）",
+        "item6": "文档状态",
+        "item7": "已知问题或技术债务",
+        "item8": "出售原因"
+      },
       "bestPractices": "最佳实践",
+      "practices": {
+        "practice1": { "title": "保持透明", "description": "诚实描述项目状态，包括任何已知问题或限制。" },
+        "practice2": { "title": "提供演示", "description": "在线演示或视频可以让买家有效评估您的项目。" },
+        "practice3": { "title": "快速响应", "description": "及时回复买家问题可以增加信任度和成交机会。" },
+        "practice4": { "title": "准备好资产", "description": "在拍卖结束前准备好所有待转让的资产。" }
+      },
       "feeStructure": "费用结构",
+      "fees": {
+        "appFee": { "label": "App Market费用", "note": "使用$APP支付可享受优惠费率" },
+        "solFee": { "label": "标准费用 (SOL/USDC)" },
+        "blockchainFee": { "label": "区块链网络费用" }
+      },
       "cta": {
         "title": "准备发布您的项目？",
-        "subtitle": "加入数千名信任App Market的卖家",
+        "subtitle": "通过安全的链上托管开始销售您的数字产品",
         "button": "创建列表"
       }
     },
@@ -608,9 +637,41 @@
         "qualityDesc": "精选的真实、功能性项目市场"
       },
       "howToBuy": "如何购买",
+      "steps": {
+        "step1": { "title": "浏览和搜索", "description": "按类别、技术栈或指标浏览列表。使用筛选器找到您需要的。" },
+        "step2": { "title": "评估项目", "description": "查看截图、代码质量、指标和卖家评价。如有需要可提问。" },
+        "step3": { "title": "出价或立即购买", "description": "对于拍卖，进行竞价。对于固定价格，点击立即购买。" },
+        "step4": { "title": "安全支付和托管", "description": "资金保存在区块链托管中，直到您确认收到所有项目资产。" },
+        "step5": { "title": "接收资产并确认", "description": "卖家转让GitHub仓库、凭证、域名等。验证后释放托管。" }
+      },
       "dueDiligence": "尽职调查清单",
+      "checklist": {
+        "item1": "验证GitHub仓库存在且代码与描述相符",
+        "item2": "检查提交历史的近期活动和质量",
+        "item3": "审查技术栈与您需求的兼容性",
+        "item4": "如有可能，验证声称的指标（用户、收入）",
+        "item5": "研究卖家的声誉和过往销售",
+        "item6": "彻底测试演示/在线版本",
+        "item7": "阅读文档质量",
+        "item8": "确认所有承诺的资产都已列出",
+        "item9": "检查是否有未解决的问题或错误",
+        "item10": "如包含域名，验证域名所有权"
+      },
+      "tip": {
+        "label": "提示：",
+        "text": "不要着急！花时间彻底评估。在承诺之前向卖家提问。"
+      },
       "redFlags": "需要警惕的信号",
+      "flags": {
+        "flag1": { "title": "描述模糊", "description": "缺乏关于功能、技术栈或指标的细节" },
+        "flag2": { "title": "无演示或截图", "description": "不愿展示实际产品" },
+        "flag3": { "title": "未经验证的指标", "description": "无法验证或看起来太好的声明" },
+        "flag4": { "title": "代码质量差", "description": "混乱、无文档或过时的代码" }
+      },
       "paymentOptions": "支付选项",
+      "payment": {
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "直接使用加密货币支付。低费用，Solana即时结算。", "fee": "费用：~0.00001 SOL" }
+      },
       "cta": {
         "title": "准备寻找下一个项目？",
         "subtitle": "浏览数千个准备收购的已验证项目",

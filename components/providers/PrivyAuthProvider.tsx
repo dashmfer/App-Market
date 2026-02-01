@@ -184,15 +184,14 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        // Login methods - wallet first, then email
-        loginMethods: ["wallet", "email"],
+        // Login methods - wallet first, then email, then twitter
+        loginMethods: ["wallet", "email", "twitter"],
 
         // Appearance - white/light theme with green accent
         appearance: {
           theme: "light",
           accentColor: "#10B981", // Emerald green
-          logo: "https://www.appmrkt.xyz/logo.png",
-          walletList: ["phantom", "solflare", "backpack"],
+          walletList: ["phantom", "metamask", "coinbase_wallet", "rabby_wallet", "rainbow"],
           showWalletLoginFirst: true,
         },
 

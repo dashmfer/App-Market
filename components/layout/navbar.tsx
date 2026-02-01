@@ -259,7 +259,7 @@ export function Navbar() {
                 >
                   <User className="w-4 h-4" />
                   <span className="hidden sm:inline">
-                    {isLoading ? "Loading..." : "Sign In"}
+                    {isLoading ? t("loading") : t("signIn")}
                   </span>
                 </button>
               )}
@@ -330,7 +330,7 @@ export function Navbar() {
                       className="btn-primary w-full justify-center"
                     >
                       <User className="w-5 h-5" />
-                      <span>{isLoading ? "Loading..." : "Sign In"}</span>
+                      <span>{isLoading ? t("loading") : t("signIn")}</span>
                     </button>
                   )}
                 </div>

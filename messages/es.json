@@ -4,6 +4,7 @@
     "categories": "Categorias",
     "howItWorks": "Como Funciona",
     "signIn": "Iniciar Sesion",
+    "loading": "Cargando...",
     "connectWallet": "Conectar Billetera",
     "listProject": "Publicar Proyecto",
     "dashboard": "Panel",
@@ -540,12 +541,40 @@
         "globalDesc": "Conecta con compradores mundialmente"
       },
       "gettingStarted": "Comenzar",
+      "steps": {
+        "step1": { "title": "Crea tu Cuenta", "description": "Registrate con GitHub para verificar tu identidad y generar confianza con los compradores." },
+        "step2": { "title": "Prepara tu Proyecto", "description": "Reune todos los activos: codigo, documentacion, credenciales y tokens de acceso." },
+        "step3": { "title": "Crea una Publicacion", "description": "Proporciona informacion detallada sobre tu proyecto, incluyendo stack tecnologico y metricas." },
+        "step4": { "title": "Establece tu Precio", "description": "Elige entre subasta o precio fijo, establece precios iniciales/de reserva." },
+        "step5": { "title": "Publica y Promociona", "description": "Una vez en vivo, comparte tu publicacion y responde a las consultas de los compradores." }
+      },
       "whatToInclude": "Que Incluir en tu Publicacion",
+      "includes": {
+        "item1": "Codigo fuente completo (repo GitHub)",
+        "item2": "Documentacion y guias de configuracion",
+        "item3": "Nombre de dominio (si aplica)",
+        "item4": "Credenciales de base de datos",
+        "item5": "Claves API y credenciales",
+        "item6": "Archivos de diseno (Figma, Sketch, etc.)",
+        "item7": "Cuentas de redes sociales",
+        "item8": "Datos de analiticas y metricas"
+      },
       "bestPractices": "Mejores Practicas",
+      "practices": {
+        "practice1": { "title": "Usa Capturas de Calidad", "description": "Incluye imagenes claras y de alta resolucion mostrando las caracteristicas principales." },
+        "practice2": { "title": "Se Transparente con las Metricas", "description": "Proporciona datos precisos sobre usuarios, ingresos y crecimiento. La honestidad genera confianza." },
+        "practice3": { "title": "Responde Rapido", "description": "Contesta las preguntas de los compradores rapidamente para aumentar la confianza." },
+        "practice4": { "title": "Preparate para la Transferencia", "description": "Ten todas las credenciales listas antes de publicar para asegurar una entrega sin problemas." }
+      },
       "feeStructure": "Estructura de Tarifas",
+      "fees": {
+        "appFee": { "label": "Tarifa Plataforma ($APP)", "note": "Tarifa con descuento" },
+        "solFee": { "label": "Tarifa Plataforma (SOL/USDC)" },
+        "blockchainFee": { "label": "Tarifa Blockchain (Solana)" }
+      },
       "cta": {
         "title": "Listo para Publicar tu Proyecto?",
-        "subtitle": "Unete a miles de vendedores que confian en App Market",
+        "subtitle": "Comienza a vender tus productos digitales con deposito seguro on-chain",
         "button": "Crear Publicacion"
       }
     },
@@ -561,9 +590,41 @@
         "qualityDesc": "Mercado curado de proyectos reales y funcionales"
       },
       "howToBuy": "Como Comprar",
+      "steps": {
+        "step1": { "title": "Buscar y Explorar", "description": "Explora listados por categoria, tecnologia o metricas. Usa filtros para encontrar exactamente lo que necesitas." },
+        "step2": { "title": "Evaluar el Proyecto", "description": "Revisa capturas, calidad del codigo, metricas y calificaciones del vendedor. Haz preguntas si es necesario." },
+        "step3": { "title": "Ofertar o Comprar Ahora", "description": "Para subastas, haz ofertas competitivas. Para precio fijo, haz clic en Comprar Ahora." },
+        "step4": { "title": "Pago Seguro y Deposito", "description": "Los fondos se mantienen en deposito blockchain hasta que confirmes la recepcion de todos los activos." },
+        "step5": { "title": "Recibir Activos y Confirmar", "description": "El vendedor transfiere el repo de GitHub, credenciales, dominio, etc. Verifica y libera el deposito." }
+      },
       "dueDiligence": "Lista de Verificacion",
+      "checklist": {
+        "item1": "Verifica que el repo de GitHub existe y el codigo coincide con la descripcion",
+        "item2": "Revisa el historial de commits para actividad reciente y calidad",
+        "item3": "Revisa la compatibilidad del stack tecnologico con tus necesidades",
+        "item4": "Valida las metricas reclamadas (usuarios, ingresos) si es posible",
+        "item5": "Investiga la reputacion del vendedor y ventas pasadas",
+        "item6": "Prueba la demo/version en vivo a fondo",
+        "item7": "Lee la calidad de la documentacion",
+        "item8": "Confirma que todos los activos prometidos estan listados",
+        "item9": "Busca problemas o bugs pendientes",
+        "item10": "Verifica la propiedad del dominio si esta incluido"
+      },
+      "tip": {
+        "label": "Consejo:",
+        "text": "No te apresures! Toma tiempo para evaluar a fondo. Haz preguntas al vendedor antes de comprometerte."
+      },
       "redFlags": "Senales de Alerta",
+      "flags": {
+        "flag1": { "title": "Descripciones vagas", "description": "Falta de detalle sobre caracteristicas, tecnologia o metricas" },
+        "flag2": { "title": "Sin demo o capturas", "description": "Renuencia a mostrar el producto real" },
+        "flag3": { "title": "Metricas no verificadas", "description": "Afirmaciones que no se pueden verificar o parecen demasiado buenas" },
+        "flag4": { "title": "Codigo de mala calidad", "description": "Codigo desordenado, sin documentar o desactualizado" }
+      },
       "paymentOptions": "Opciones de Pago",
+      "payment": {
+        "crypto": { "title": "Solana (SOL/USDC/$APP)", "description": "Paga directamente con crypto. Comisiones bajas y liquidacion instantanea en Solana.", "fee": "Comision: ~0.00001 SOL" }
+      },
       "cta": {
         "title": "Listo para Encontrar tu Proximo Proyecto?",
         "subtitle": "Explora miles de proyectos verificados listos para adquisicion",
