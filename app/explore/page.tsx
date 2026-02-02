@@ -94,7 +94,25 @@ function ExploreContent() {
   const [selectedPrice, setSelectedPrice] = useState("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
+  const [watchlistedIds, setWatchlistedIds] = useState<Set<string>>(new Set());
   const isInitialMount = useRef(true);
+
+  // Fetch user's watchlist to show correct heart states
+  useEffect(() => {
+    const fetchWatchlist = async () => {
+      try {
+        const response = await fetch("/api/watchlist");
+        if (response.ok) {
+          const data = await response.json();
+          const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
+          setWatchlistedIds(ids);
+        }
+      } catch (err) {
+        // Silently fail - user might not be logged in
+      }
+    };
+    fetchWatchlist();
+  }, []);
 
   // Read URL params on mount
   useEffect(() => {
@@ -417,7 +435,12 @@ function ExploreContent() {
             }
           >
             {listings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} index={index} />
+              <ListingCard
+                key={listing.id}
+                listing={listing}
+                index={index}
+                initialWatchlisted={watchlistedIds.has(listing.id)}
+              />
             ))}
           </div>
         )}

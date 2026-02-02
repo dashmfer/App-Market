@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { ListingStatus } from "@prisma/client";
 
 // GET /api/categories - Get category counts
 export async function GET(request: NextRequest) {
   try {
-    // Get all active listings with their categories
+    // Get all publicly visible listings (ACTIVE only, not expired)
+    // Must match the same criteria as /api/listings public view
     const listings = await prisma.listing.findMany({
       where: {
-        status: "ACTIVE",
+        status: ListingStatus.ACTIVE,
         endTime: { gt: new Date() },
       },
       select: {
