@@ -1178,133 +1178,106 @@ export default function CreateListingPage() {
 
                   <div className="space-y-4">
                     {/* Hosting */}
-                    <div className={`p-4 rounded-xl border transition-all ${formData.hasHosting ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasHosting} onChange={(e) => updateFormData("hasHosting", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting</span>
-                          </div>
-                          <p className="text-sm text-zinc-500 mt-1">Server, cloud, or platform hosting</p>
-                        </div>
-                      </label>
-                      {formData.hasHosting && (
-                        <div className="mt-4 ml-8 space-y-3">
-                          <ProviderDropdown
-                            options={hostingProviders}
-                            value={formData.hostingProvider}
-                            onChange={(value) => {
-                              updateFormData("hostingProvider", value);
-                              updateFormData("hostingProjectUrl", "");
-                            }}
-                            placeholder="Select hosting provider..."
+                    <div className={`p-4 rounded-xl border transition-all ${formData.hostingProvider ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Globe className="w-5 h-5 text-zinc-600" />
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">Hosting</span>
+                      </div>
+                      <ProviderDropdown
+                        options={hostingProviders}
+                        value={formData.hostingProvider}
+                        onChange={(value) => {
+                          updateFormData("hostingProvider", value);
+                          updateFormData("hostingProjectUrl", "");
+                          updateFormData("hasHosting", !!value);
+                        }}
+                        placeholder="Select hosting provider..."
+                      />
+                      {formData.hostingProvider && (
+                        <div className="mt-3 space-y-3">
+                          <input
+                            type="text"
+                            value={formData.hostingProjectUrl}
+                            onChange={(e) => updateFormData("hostingProjectUrl", e.target.value)}
+                            placeholder={hostingProviders.find(p => p.value === formData.hostingProvider)?.placeholder || "Project URL or identifier"}
+                            className="input-field"
                           />
-                          {formData.hostingProvider && (
-                            <>
-                              <input
-                                type="text"
-                                value={formData.hostingProjectUrl}
-                                onChange={(e) => updateFormData("hostingProjectUrl", e.target.value)}
-                                placeholder={hostingProviders.find(p => p.value === formData.hostingProvider)?.placeholder || "Project URL or identifier"}
-                                className="input-field"
-                              />
-                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-zinc-500">
-                                  Transfer method: {hostingProviders.find(p => p.value === formData.hostingProvider)?.transferMethod}
-                                </p>
-                              </div>
-                            </>
-                          )}
+                          <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                            <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500">
+                              Transfer method: {hostingProviders.find(p => p.value === formData.hostingProvider)?.transferMethod}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Domain */}
-                    <div className={`p-4 rounded-xl border transition-all ${formData.hasDomain ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasDomain} onChange={(e) => updateFormData("hasDomain", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Name</span>
-                          </div>
-                          <p className="text-sm text-zinc-500 mt-1">Transfer domain ownership to buyer</p>
-                        </div>
-                      </label>
-                      {formData.hasDomain && (
-                        <div className="mt-4 ml-8 space-y-3">
-                          <ProviderDropdown
-                            options={domainRegistrars}
-                            value={formData.domainRegistrar}
-                            onChange={(value) => {
-                              updateFormData("domainRegistrar", value);
-                              updateFormData("domain", "");
-                            }}
-                            placeholder="Select registrar..."
+                    <div className={`p-4 rounded-xl border transition-all ${formData.domainRegistrar ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Globe className="w-5 h-5 text-zinc-600" />
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">Domain Name</span>
+                      </div>
+                      <ProviderDropdown
+                        options={domainRegistrars}
+                        value={formData.domainRegistrar}
+                        onChange={(value) => {
+                          updateFormData("domainRegistrar", value);
+                          updateFormData("domain", "");
+                          updateFormData("hasDomain", !!value);
+                        }}
+                        placeholder="Select registrar..."
+                      />
+                      {formData.domainRegistrar && (
+                        <div className="mt-3 space-y-3">
+                          <input
+                            type="text"
+                            value={formData.domain}
+                            onChange={(e) => updateFormData("domain", e.target.value)}
+                            placeholder={domainRegistrars.find(p => p.value === formData.domainRegistrar)?.placeholder || "domain.com"}
+                            className="input-field"
                           />
-                          {formData.domainRegistrar && (
-                            <>
-                              <input
-                                type="text"
-                                value={formData.domain}
-                                onChange={(e) => updateFormData("domain", e.target.value)}
-                                placeholder={domainRegistrars.find(p => p.value === formData.domainRegistrar)?.placeholder || "domain.com"}
-                                className="input-field"
-                              />
-                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-zinc-500">
-                                  Transfer method: {domainRegistrars.find(p => p.value === formData.domainRegistrar)?.transferMethod}
-                                </p>
-                              </div>
-                            </>
-                          )}
+                          <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                            <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500">
+                              Transfer method: {domainRegistrars.find(p => p.value === formData.domainRegistrar)?.transferMethod}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Database */}
-                    <div className={`p-4 rounded-xl border transition-all ${formData.hasDatabase ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input type="checkbox" checked={formData.hasDatabase} onChange={(e) => updateFormData("hasDatabase", e.target.checked)} className="w-5 h-5 mt-0.5 rounded" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Database className="w-5 h-5 text-zinc-600" />
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">Database</span>
-                          </div>
-                          <p className="text-sm text-zinc-500 mt-1">Database access and credentials</p>
-                        </div>
-                      </label>
-                      {formData.hasDatabase && (
-                        <div className="mt-4 ml-8 space-y-3">
-                          <ProviderDropdown
-                            options={databaseProviders}
-                            value={formData.databaseProvider}
-                            onChange={(value) => {
-                              updateFormData("databaseProvider", value);
-                              updateFormData("databaseName", "");
-                            }}
-                            placeholder="Select database provider..."
+                    <div className={`p-4 rounded-xl border transition-all ${formData.databaseProvider ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-zinc-200 dark:border-zinc-800"}`}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Database className="w-5 h-5 text-zinc-600" />
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">Database</span>
+                      </div>
+                      <ProviderDropdown
+                        options={databaseProviders}
+                        value={formData.databaseProvider}
+                        onChange={(value) => {
+                          updateFormData("databaseProvider", value);
+                          updateFormData("databaseName", "");
+                          updateFormData("hasDatabase", !!value);
+                        }}
+                        placeholder="Select database provider..."
+                      />
+                      {formData.databaseProvider && (
+                        <div className="mt-3 space-y-3">
+                          <input
+                            type="text"
+                            value={formData.databaseName}
+                            onChange={(e) => updateFormData("databaseName", e.target.value)}
+                            placeholder={databaseProviders.find(p => p.value === formData.databaseProvider)?.placeholder || "Database name or URL"}
+                            className="input-field"
                           />
-                          {formData.databaseProvider && (
-                            <>
-                              <input
-                                type="text"
-                                value={formData.databaseName}
-                                onChange={(e) => updateFormData("databaseName", e.target.value)}
-                                placeholder={databaseProviders.find(p => p.value === formData.databaseProvider)?.placeholder || "Database name or URL"}
-                                className="input-field"
-                              />
-                              <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
-                                <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
-                                <p className="text-xs text-zinc-500">
-                                  Transfer method: {databaseProviders.find(p => p.value === formData.databaseProvider)?.transferMethod}
-                                </p>
-                              </div>
-                            </>
-                          )}
+                          <div className="flex items-start gap-2 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                            <Info className="w-4 h-4 text-zinc-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-zinc-500">
+                              Transfer method: {databaseProviders.find(p => p.value === formData.databaseProvider)?.transferMethod}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
