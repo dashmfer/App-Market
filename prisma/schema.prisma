@@ -123,6 +123,10 @@ model User {
   reviewReportsResolved  ReviewReport[] @relation("ReviewReportResolver")
   reviewResponses        ReviewResponse[]
 
+  // Agent API
+  apiKeys         ApiKey[]
+  webhooks        Webhook[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -1332,4 +1336,160 @@ enum CollaboratorRoleDescription {
   COMMUNITY_MANAGER
   // Generic
   OTHER
+}
+
+// ============================================
+// AGENT API (API Keys & Webhooks)
+// ============================================
+
+model ApiKey {
+  id            String    @id @default(cuid())
+
+  // Owner
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Key details
+  name          String    // "My Trading Bot", "Analytics Dashboard"
+  keyHash       String    @unique // Hashed key (we never store plaintext)
+  keyPrefix     String    // First 8 chars for identification: "ak_live_7xKX..."
+
+  // Permissions
+  permissions   ApiKeyPermission[] @default([READ, WRITE])
+
+  // Rate limiting
+  rateLimit     Int       @default(100) // Requests per minute
+
+  // Usage tracking
+  lastUsedAt    DateTime?
+  totalRequests Int       @default(0)
+
+  // Status
+  isActive      Boolean   @default(true)
+  expiresAt     DateTime?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([keyHash])
+  @@index([keyPrefix])
+}
+
+enum ApiKeyPermission {
+  READ        // Read listings, bids, user profile
+  WRITE       // Create listings, place bids, make offers
+  TRANSACTION // Execute purchases, sign agreements
+  ADMIN       // Manage API keys, webhooks
+}
+
+model Webhook {
+  id            String    @id @default(cuid())
+
+  // Owner
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Webhook config
+  name          String    // "My Bot Notifications"
+  url           String    // https://mybot.com/webhook
+  secret        String    // HMAC secret for signature verification
+
+  // Events to subscribe to
+  events        WebhookEventType[]
+
+  // Status
+  isActive      Boolean   @default(true)
+
+  // Delivery stats
+  totalDeliveries    Int  @default(0)
+  successfulDeliveries Int @default(0)
+  failedDeliveries   Int  @default(0)
+  lastDeliveryAt     DateTime?
+  lastDeliveryStatus WebhookDeliveryStatus?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Related events
+  deliveries    WebhookDelivery[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+
+  // Webhook
+  webhookId     String
+  webhook       Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  // Event details
+  eventType     WebhookEventType
+  payload       Json      // The event payload sent
+
+  // Delivery status
+  status        WebhookDeliveryStatus @default(PENDING)
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+
+  // Response info
+  responseStatus Int?     // HTTP status code
+  responseBody  String?   @db.Text
+  errorMessage  String?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  deliveredAt   DateTime?
+  nextRetryAt   DateTime?
+
+  @@index([webhookId])
+  @@index([status])
+  @@index([eventType])
+  @@index([nextRetryAt])
+}
+
+enum WebhookEventType {
+  // Listings
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_ENDED
+  LISTING_ENDING_SOON
+
+  // Bids
+  BID_PLACED
+  BID_OUTBID
+  BID_WON
+
+  // Transactions
+  TRANSACTION_INITIATED
+  TRANSACTION_COMPLETED
+  TRANSACTION_CANCELLED
+
+  // Agreements
+  AGREEMENT_REQUESTED
+  AGREEMENT_SIGNED
+
+  // Offers
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  OFFER_REJECTED
+  OFFER_COUNTERED
+
+  // Messages
+  MESSAGE_RECEIVED
+
+  // Watchlist
+  WATCHLIST_LISTING_UPDATED
+  WATCHLIST_LISTING_ENDING_SOON
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
 }
