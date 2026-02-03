@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-// Note: Prisma types used directly instead of importing from @prisma/client
-type JsonObject = Record<string, unknown>;
-type InputJsonValue = JsonObject | JsonObject[] | string | number | boolean | null;
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
@@ -211,13 +208,15 @@ export async function POST(
       })),
     };
 
+    // Update transaction with payment distribution
+    const existingMethods = (transaction.transferMethods as Record<string, unknown>) || {};
     await prisma.transaction.update({
       where: { id: params.id },
       data: {
         transferMethods: {
-          ...(transaction.transferMethods as JsonObject || {}),
+          ...existingMethods,
           paymentDistribution,
-        } as InputJsonValue,
+        },
       },
     });
 
