@@ -699,7 +699,6 @@ Verify signatures using the \`X-Webhook-Signature\` header.
 export async function GET(request: NextRequest) {
   return NextResponse.json(openApiSpec, {
     headers: {
-      "Access-Control-Allow-Origin": "*",
       "Content-Type": "application/json",
     },
   });
