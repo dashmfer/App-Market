@@ -73,15 +73,16 @@ export async function verifyWebhookSignature(
     const messageData = encoder.encode(payload);
 
     // Use SubtleCrypto for HMAC verification
+    // Cast to Uint8Array<ArrayBuffer> to satisfy strict TypeScript types
     const key = await crypto.subtle.importKey(
       "raw",
-      keyData.buffer as ArrayBuffer,
+      keyData as Uint8Array<ArrayBuffer>,
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"]
     );
 
-    const signatureBytes = await crypto.subtle.sign("HMAC", key, messageData.buffer as ArrayBuffer);
+    const signatureBytes = await crypto.subtle.sign("HMAC", key, messageData as Uint8Array<ArrayBuffer>);
     const expectedSignature = Array.from(new Uint8Array(signatureBytes))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
