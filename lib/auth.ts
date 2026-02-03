@@ -96,9 +96,12 @@ export function revokeAllUserSessions(userId: string): number {
 }
 
 /**
- * Check if a session is valid (not revoked)
+ * Check if a session has been revoked.
+ * NOTE: This only checks the revocation blacklist - it does NOT validate
+ * that a session ID was ever created. For JWT-based auth, session validity
+ * is determined by the JWT itself; this function only checks revocation.
  */
-export function isSessionValid(sessionId: string): boolean {
+export function isSessionNotRevoked(sessionId: string): boolean {
   return !revokedSessions.has(sessionId);
 }
 
@@ -115,7 +118,7 @@ export async function getAuthToken(req: NextRequest) {
   });
 
   // SECURITY: Check if session has been revoked
-  if (token?.sessionId && !isSessionValid(token.sessionId as string)) {
+  if (token?.sessionId && !isSessionNotRevoked(token.sessionId as string)) {
     return null;
   }
 
