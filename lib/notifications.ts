@@ -102,6 +102,12 @@ function generateNotificationContent(
         message: `The auction for "${displayTitle}" ends in less than 1 hour!`,
       };
 
+    case 'AUCTION_EXTENDED':
+      return {
+        title: 'Auction Extended',
+        message: `The auction deadline for "${displayTitle}" has been extended`,
+      };
+
     case 'TRANSFER_STARTED':
       return {
         title: 'Transfer Started',
@@ -118,6 +124,36 @@ function generateNotificationContent(
       return {
         title: 'Payment Received',
         message: `You received ${displayAmount} for "${displayTitle}"`,
+      };
+
+    case 'PAYMENT_FAILED':
+      return {
+        title: 'Payment Failed',
+        message: `Payment of ${displayAmount} for "${displayTitle}" has failed. Please try again.`,
+      };
+
+    case 'REFUND_PROCESSED':
+      return {
+        title: 'Refund Processed',
+        message: `Your refund of ${displayAmount} for "${displayTitle}" has been processed`,
+      };
+
+    case 'PAYOUT_INITIATED':
+      return {
+        title: 'Payout Initiated',
+        message: `Your payout of ${displayAmount} for "${displayTitle}" has been initiated`,
+      };
+
+    case 'PAYOUT_COMPLETED':
+      return {
+        title: 'Payout Completed',
+        message: `Your payout of ${displayAmount} for "${displayTitle}" has been completed`,
+      };
+
+    case 'SALE_CANCELLED':
+      return {
+        title: 'Sale Cancelled',
+        message: `The sale of "${displayTitle}" has been cancelled`,
       };
 
     case 'DISPUTE_OPENED':
@@ -142,6 +178,129 @@ function generateNotificationContent(
       return {
         title: 'Watchlist Alert',
         message: `"${displayTitle}" from your watchlist is ending soon!`,
+      };
+
+    case 'WATCHLIST_PRICE_DROP':
+      return {
+        title: 'Price Drop Alert',
+        message: `"${displayTitle}" from your watchlist has dropped to ${displayAmount}`,
+      };
+
+    case 'WATCHLIST_NEW_BID':
+      return {
+        title: 'New Bid on Watched Listing',
+        message: `Someone placed a bid of ${displayAmount} on "${displayTitle}" from your watchlist`,
+      };
+
+    case 'WATCHLIST_UPDATED':
+      return {
+        title: 'Watchlist Listing Updated',
+        message: `"${displayTitle}" from your watchlist has been updated`,
+      };
+
+    case 'MESSAGE_RECEIVED':
+      return {
+        title: 'New Message',
+        message: `You have a new message about "${displayTitle}"`,
+      };
+
+    // Buyer info notifications
+    case 'BUYER_INFO_REQUIRED':
+      return {
+        title: 'Buyer Information Required',
+        message: `Please submit your information for "${displayTitle}" to complete the purchase`,
+      };
+
+    case 'BUYER_INFO_REMINDER':
+      return {
+        title: 'Reminder: Submit Buyer Information',
+        message: `Don't forget to submit your information for "${displayTitle}"`,
+      };
+
+    case 'BUYER_INFO_SUBMITTED':
+      return {
+        title: 'Buyer Information Received',
+        message: `The buyer has submitted their information for "${displayTitle}"`,
+      };
+
+    case 'BUYER_INFO_DEADLINE':
+      return {
+        title: 'Buyer Information Deadline Passed',
+        message: `The deadline for buyer information on "${displayTitle}" has passed`,
+      };
+
+    case 'FALLBACK_TRANSFER_ACTIVE':
+      return {
+        title: 'Fallback Transfer Active',
+        message: `The fallback transfer process has started for "${displayTitle}"`,
+      };
+
+    // Listing notifications
+    case 'LISTING_CREATED':
+      return {
+        title: 'Listing Created',
+        message: `Your listing "${displayTitle}" has been created successfully`,
+      };
+
+    case 'LISTING_RESERVED':
+      return {
+        title: 'Listing Reserved',
+        message: `"${displayTitle}" has been reserved for you`,
+      };
+
+    case 'LISTING_APPROVED':
+      return {
+        title: 'Listing Approved',
+        message: `Your listing "${displayTitle}" has been approved and is now live`,
+      };
+
+    case 'LISTING_REJECTED':
+      return {
+        title: 'Listing Rejected',
+        message: `Your listing "${displayTitle}" was not approved. ${data?.reason || 'Please review and resubmit.'}`,
+      };
+
+    case 'LISTING_EXPIRED':
+      return {
+        title: 'Listing Expired',
+        message: `Your listing "${displayTitle}" has expired`,
+      };
+
+    case 'LISTING_UPDATED':
+      return {
+        title: 'Listing Updated',
+        message: `"${displayTitle}" has been updated`,
+      };
+
+    // Offer notifications
+    case 'OFFER_RECEIVED':
+      return {
+        title: 'New Offer Received',
+        message: `You received an offer of ${displayAmount} for "${displayTitle}"`,
+      };
+
+    case 'OFFER_ACCEPTED':
+      return {
+        title: 'Offer Accepted',
+        message: `Your offer of ${displayAmount} for "${displayTitle}" has been accepted`,
+      };
+
+    case 'OFFER_REJECTED':
+      return {
+        title: 'Offer Rejected',
+        message: `Your offer for "${displayTitle}" was not accepted`,
+      };
+
+    case 'OFFER_COUNTERED':
+      return {
+        title: 'Counter Offer Received',
+        message: `The seller has countered your offer with ${displayAmount} for "${displayTitle}"`,
+      };
+
+    case 'OFFER_EXPIRED':
+      return {
+        title: 'Offer Expired',
+        message: `The offer for "${displayTitle}" has expired`,
       };
 
     // Collaboration notifications
@@ -198,6 +357,70 @@ function generateNotificationContent(
       return {
         title: 'Lead Buyer Status Transferred',
         message: `You are now the lead buyer for "${displayTitle}"`,
+      };
+
+    // Referral notifications
+    case 'REFERRAL_EARNED':
+      return {
+        title: 'Referral Commission Earned',
+        message: `You earned ${displayAmount} in referral commission`,
+      };
+
+    // Agreement notifications
+    case 'AGREEMENT_REQUESTED':
+      return {
+        title: 'Agreement Requested',
+        message: `The buyer has requested an agreement for "${displayTitle}"`,
+      };
+
+    case 'AGREEMENT_SIGNED':
+      return {
+        title: 'Agreement Signed',
+        message: `The agreement for "${displayTitle}" has been signed`,
+      };
+
+    // Account notifications
+    case 'VERIFICATION_REQUIRED':
+      return {
+        title: 'Verification Required',
+        message: 'Please verify your account to continue using all features',
+      };
+
+    case 'VERIFICATION_COMPLETED':
+      return {
+        title: 'Account Verified',
+        message: 'Your account has been successfully verified',
+      };
+
+    case 'ACCOUNT_SUSPENDED':
+      return {
+        title: 'Account Suspended',
+        message: `Your account has been suspended. ${data?.reason || 'Please contact support for more information.'}`,
+      };
+
+    case 'ACCOUNT_REACTIVATED':
+      return {
+        title: 'Account Reactivated',
+        message: 'Your account has been reactivated. Welcome back!',
+      };
+
+    // Security notifications
+    case 'LOGIN_NEW_DEVICE':
+      return {
+        title: 'New Device Login',
+        message: `A new login was detected from ${data?.device || 'an unknown device'}${data?.location ? ` in ${data.location}` : ''}`,
+      };
+
+    case 'PASSWORD_CHANGED':
+      return {
+        title: 'Password Changed',
+        message: 'Your password has been changed successfully',
+      };
+
+    case 'SECURITY_ALERT':
+      return {
+        title: 'Security Alert',
+        message: data?.message || 'Suspicious activity was detected on your account',
       };
 
     case 'SYSTEM':
