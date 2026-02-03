@@ -159,23 +159,15 @@ export const WebhookDeliveryStatus = {
 
 export type AuthMethod =
   | "WALLET"
-  | "TWITTER"
-  | "DISCORD"
-  | "GOOGLE"
-  | "GITHUB"
-  | "EMAIL"
   | "PRIVY_EMAIL"
-  | "PRIVY_TWITTER";
+  | "PRIVY_TWITTER"
+  | "PRIVY_WALLET";
 
 export const AuthMethod = {
   WALLET: "WALLET" as const,
-  TWITTER: "TWITTER" as const,
-  DISCORD: "DISCORD" as const,
-  GOOGLE: "GOOGLE" as const,
-  GITHUB: "GITHUB" as const,
-  EMAIL: "EMAIL" as const,
   PRIVY_EMAIL: "PRIVY_EMAIL" as const,
   PRIVY_TWITTER: "PRIVY_TWITTER" as const,
+  PRIVY_WALLET: "PRIVY_WALLET" as const,
 };
 
 export type NotificationType =
