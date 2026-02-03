@@ -29,73 +29,50 @@ export const ListingStatus = {
   REJECTED: "REJECTED" as const,
 };
 
-export type CollaboratorRole =
-  | "DEVELOPER"
-  | "DESIGNER"
-  | "MARKETER"
-  | "CONTENT_CREATOR"
-  | "ADVISOR"
-  | "CO_FOUNDER"
-  | "INVESTOR"
-  | "OTHER";
+export type CollaboratorRole = "PARTNER" | "COLLABORATOR";
 
 export const CollaboratorRole = {
-  DEVELOPER: "DEVELOPER" as const,
-  DESIGNER: "DESIGNER" as const,
-  MARKETER: "MARKETER" as const,
-  CONTENT_CREATOR: "CONTENT_CREATOR" as const,
-  ADVISOR: "ADVISOR" as const,
-  CO_FOUNDER: "CO_FOUNDER" as const,
-  INVESTOR: "INVESTOR" as const,
-  OTHER: "OTHER" as const,
+  PARTNER: "PARTNER" as const,
+  COLLABORATOR: "COLLABORATOR" as const,
 };
 
 export type CollaboratorRoleDescription =
-  | "LEAD_DEVELOPER"
-  | "FRONTEND_DEVELOPER"
-  | "BACKEND_DEVELOPER"
-  | "FULLSTACK_DEVELOPER"
-  | "UI_DESIGNER"
-  | "UX_DESIGNER"
-  | "GRAPHIC_DESIGNER"
-  | "PRODUCT_MANAGER"
-  | "PROJECT_MANAGER"
-  | "MARKETING_LEAD"
-  | "GROWTH_HACKER"
-  | "CONTENT_WRITER"
-  | "COMMUNITY_MANAGER"
-  | "ADVISOR"
-  | "INVESTOR"
   | "CO_FOUNDER"
+  | "DEVELOPER"
+  | "TECHNICAL_LEAD"
+  | "CTO"
+  | "DESIGNER"
+  | "MARKETING"
+  | "VIDEO_EDITOR"
+  | "CONSULTANT"
+  | "ADVISOR"
+  | "BRANDING"
+  | "COPYWRITER"
+  | "COMMUNITY_MANAGER"
   | "OTHER";
 
 export const CollaboratorRoleDescription = {
-  LEAD_DEVELOPER: "LEAD_DEVELOPER" as const,
-  FRONTEND_DEVELOPER: "FRONTEND_DEVELOPER" as const,
-  BACKEND_DEVELOPER: "BACKEND_DEVELOPER" as const,
-  FULLSTACK_DEVELOPER: "FULLSTACK_DEVELOPER" as const,
-  UI_DESIGNER: "UI_DESIGNER" as const,
-  UX_DESIGNER: "UX_DESIGNER" as const,
-  GRAPHIC_DESIGNER: "GRAPHIC_DESIGNER" as const,
-  PRODUCT_MANAGER: "PRODUCT_MANAGER" as const,
-  PROJECT_MANAGER: "PROJECT_MANAGER" as const,
-  MARKETING_LEAD: "MARKETING_LEAD" as const,
-  GROWTH_HACKER: "GROWTH_HACKER" as const,
-  CONTENT_WRITER: "CONTENT_WRITER" as const,
-  COMMUNITY_MANAGER: "COMMUNITY_MANAGER" as const,
-  ADVISOR: "ADVISOR" as const,
-  INVESTOR: "INVESTOR" as const,
   CO_FOUNDER: "CO_FOUNDER" as const,
+  DEVELOPER: "DEVELOPER" as const,
+  TECHNICAL_LEAD: "TECHNICAL_LEAD" as const,
+  CTO: "CTO" as const,
+  DESIGNER: "DESIGNER" as const,
+  MARKETING: "MARKETING" as const,
+  VIDEO_EDITOR: "VIDEO_EDITOR" as const,
+  CONSULTANT: "CONSULTANT" as const,
+  ADVISOR: "ADVISOR" as const,
+  BRANDING: "BRANDING" as const,
+  COPYWRITER: "COPYWRITER" as const,
+  COMMUNITY_MANAGER: "COMMUNITY_MANAGER" as const,
   OTHER: "OTHER" as const,
 };
 
-export type CollaboratorStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "REMOVED";
+export type CollaboratorStatus = "PENDING" | "ACCEPTED" | "DECLINED";
 
 export const CollaboratorStatus = {
   PENDING: "PENDING" as const,
   ACCEPTED: "ACCEPTED" as const,
-  REJECTED: "REJECTED" as const,
-  REMOVED: "REMOVED" as const,
+  DECLINED: "DECLINED" as const,
 };
 
 export type ReviewReportReason =
