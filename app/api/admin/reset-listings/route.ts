@@ -6,20 +6,37 @@ import { authOptions } from "@/lib/auth";
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
+/**
+ * Validate admin secret from Authorization header
+ * Expected format: "Bearer <admin_secret>"
+ */
+function validateAdminSecret(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !ADMIN_SECRET) {
+    return false;
+  }
+
+  // Support both "Bearer <secret>" and raw "<secret>" formats
+  const secret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
+
+  return secret === ADMIN_SECRET;
+}
+
 // DELETE /api/admin/reset-listings
-// Delete all listings: DELETE /api/admin/reset-listings?secret=YOUR_SECRET&all=true
-// Delete specific listing: DELETE /api/admin/reset-listings?secret=YOUR_SECRET&id=LISTING_ID
+// Delete all listings: DELETE /api/admin/reset-listings?all=true (with Authorization: Bearer <secret>)
+// Delete specific listing: DELETE /api/admin/reset-listings?id=LISTING_ID (with Authorization: Bearer <secret>)
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const secret = searchParams.get("secret");
-    const listingId = searchParams.get("id");
-    const deleteAll = searchParams.get("all") === "true";
-
-    // Verify admin secret is configured and matches
-    if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+    // SECURITY: Validate admin secret from Authorization header (not query params)
+    if (!validateAdminSecret(request)) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
     }
+
+    const { searchParams } = new URL(request.url);
+    const listingId = searchParams.get("id");
+    const deleteAll = searchParams.get("all") === "true";
 
     // Also require authentication
     const session = await getServerSession(authOptions);

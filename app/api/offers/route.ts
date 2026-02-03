@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 const createOfferSchema = z.object({
   listingId: z.string(),
@@ -16,6 +17,12 @@ const createOfferSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

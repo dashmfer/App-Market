@@ -4,6 +4,7 @@ import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, Collabora
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -247,6 +248,12 @@ export async function GET(request: NextRequest) {
 // POST /api/listings - Create a new listing
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(request);
 

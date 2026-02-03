@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { decrypt } from "@/lib/encryption";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -47,7 +48,9 @@ export async function GET(request: NextRequest) {
 
     let oauthData: { codeVerifier: string; state: string; userId: string };
     try {
-      oauthData = JSON.parse(Buffer.from(oauthCookie.value, "base64").toString());
+      // SECURITY: Decrypt OAuth data with AES-256-GCM
+      const decryptedData = decrypt(oauthCookie.value);
+      oauthData = JSON.parse(decryptedData);
     } catch {
       return NextResponse.redirect(
         `${SITE_URL}/dashboard/settings?twitter_error=invalid_session`
