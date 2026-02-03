@@ -2689,8 +2689,11 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
-    /// CHECK: Treasury to receive fees
-    #[account(mut)]
+    /// CHECK: Treasury to receive fees - SECURITY: validated against config
+    #[account(
+        mut,
+        constraint = treasury.key() == config.treasury @ AppMarketError::InvalidTreasury
+    )]
     pub treasury: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
@@ -3630,4 +3633,6 @@ pub enum AppMarketError {
     AlreadyContested,
     #[msg("Invalid offer seed: counter mismatch")]
     InvalidOfferSeed,
+    #[msg("Invalid withdrawal ID: counter mismatch")]
+    InvalidWithdrawalId,
 }

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       allWallets.push(user.walletAddress.toLowerCase());
     }
     if (user?.wallets) {
-      user.wallets.forEach(w => {
+      user.wallets.forEach((w: { walletAddress: string }) => {
         const normalized = w.walletAddress.toLowerCase();
         if (!allWallets.includes(normalized)) {
           allWallets.push(normalized);

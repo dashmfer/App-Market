@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     // 2. Are in a state waiting for buyer confirmation
     // 3. Transfer deadline has passed
     // 4. No dispute has been opened
-    const eligibleTransactions = await withRetry(() => prisma.transaction.findMany({
+    const eligibleTransactions = await withRetry(async () => prisma.transaction.findMany({
       where: {
         status: {
           in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"],

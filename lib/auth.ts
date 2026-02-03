@@ -7,7 +7,7 @@ import { NextRequest } from "next/server";
 import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
 import { validateWalletSignatureMessage } from "@/lib/validation";
-import { AuthMethod } from "@prisma/client";
+import { AuthMethod } from "@/lib/prisma-enums";
 
 /**
  * Map auth method string to Prisma enum
@@ -402,12 +402,12 @@ export const authOptions: NextAuthOptions = {
               if (walletAddress?.startsWith("0x")) {
                 // First, look for a Solana wallet in UserWallet that's marked as primary
                 const primarySolanaWallet = user.wallets.find(
-                  (w) => w.isPrimary && !w.walletAddress.startsWith("0x")
+                  (w: { isPrimary: boolean; walletAddress: string }) => w.isPrimary && !w.walletAddress.startsWith("0x")
                 );
 
                 // Otherwise, look for any Solana wallet in UserWallet
                 const anySolanaWallet = user.wallets.find(
-                  (w) => !w.walletAddress.startsWith("0x")
+                  (w: { walletAddress: string }) => !w.walletAddress.startsWith("0x")
                 );
 
                 if (primarySolanaWallet) {

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       allWallets.push(user.walletAddress.toLowerCase());
     }
     if (user?.wallets) {
-      user.wallets.forEach(w => {
+      user.wallets.forEach((w: { walletAddress: string }) => {
         const normalized = w.walletAddress.toLowerCase();
         if (!allWallets.includes(normalized)) {
           allWallets.push(normalized);
@@ -95,13 +95,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Format invites with additional info
-    const formattedInvites = invites.map(invite => {
+    const formattedInvites = invites.map((invite: typeof invites[number]) => {
       const depositedCount = invite.transaction.partners.filter(
-        p => p.depositStatus === "DEPOSITED"
+        (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
       ).length;
       const totalPercentageDeposited = invite.transaction.partners
-        .filter(p => p.depositStatus === "DEPOSITED")
-        .reduce((sum, p) => sum + p.percentage, 0);
+        .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
+        .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
 
       const timeRemaining = invite.transaction.partnerDepositDeadline
         ? Math.max(0, new Date(invite.transaction.partnerDepositDeadline).getTime() - Date.now())
@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
         listing: invite.transaction.listing,
         seller: invite.transaction.seller,
         salePrice: invite.transaction.salePrice,
-        leadBuyer: invite.transaction.partners.find(p => p.isLead),
+        leadBuyer: invite.transaction.partners.find((p: { isLead: boolean }) => p.isLead),
         partnersCount: invite.transaction.partners.length,
         depositedCount,
         totalPercentageDeposited,

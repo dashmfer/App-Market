@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to include the "other" participant and unread count
-    const transformedConversations = conversations.map((conv) => {
+    const transformedConversations = conversations.map((conv: typeof conversations[number]) => {
       const otherParticipant =
         conv.participant1Id === userId ? conv.participant2 : conv.participant1;
 

@@ -59,7 +59,7 @@ export async function POST(
 
     // Check if user is buyer or a purchase partner
     const isMainBuyer = transaction.buyerId === session.user.id;
-    const userPartner = transaction.partners.find(p => p.userId === session.user.id);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
     const isPartner = !!userPartner;
 
     if (!isMainBuyer && !isPartner) {
@@ -155,7 +155,7 @@ export async function POST(
     await prisma.transaction.update({
       where: { id: params.id },
       data: {
-        transferChecklist: checklist as unknown as Parameters<typeof prisma.transaction.update>[0]["data"]["transferChecklist"],
+        transferChecklist: checklist as any,
         uploadsVerified: allRequiredConfirmed,
       },
     });

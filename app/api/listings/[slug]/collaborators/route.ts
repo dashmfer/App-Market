@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@prisma/client";
+import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
 import { createNotification } from "@/lib/notifications";
 
 // GET /api/listings/[slug]/collaborators - Get all collaborators for a listing
@@ -58,7 +58,7 @@ export async function GET(
 
     // Calculate seller's percentage (100% minus all collaborators)
     const collaboratorTotalPercentage = listing.collaborators.reduce(
-      (sum, c) => sum + c.percentage,
+      (sum: number, c: { percentage: number }) => sum + c.percentage,
       0
     );
     const sellerPercentage = 100 - collaboratorTotalPercentage;
@@ -72,7 +72,7 @@ export async function GET(
       },
       totalPercentage: 100,
       collaboratorCount: listing.collaborators.length,
-      pendingCount: listing.collaborators.filter(c => c.status === "PENDING").length,
+      pendingCount: listing.collaborators.filter((c: { status: string }) => c.status === "PENDING").length,
     });
   } catch (error) {
     console.error("Error fetching collaborators:", error);
@@ -148,7 +148,7 @@ export async function POST(
     // Check if user is the owner or a partner with edit rights
     const isOwner = listing.sellerId === userId;
     const isPartnerWithEditRights = listing.collaborators.some(
-      c => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
+      (c: { userId: string | null; canEdit: boolean; status: string }) => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
     );
 
     if (!isOwner && !isPartnerWithEditRights) {
@@ -168,7 +168,7 @@ export async function POST(
 
     // Check if wallet is already a collaborator
     const existingCollaborator = listing.collaborators.find(
-      c => c.walletAddress.toLowerCase() === walletAddress.toLowerCase()
+      (c: { walletAddress: string }) => c.walletAddress.toLowerCase() === walletAddress.toLowerCase()
     );
     if (existingCollaborator) {
       return NextResponse.json(
@@ -187,7 +187,7 @@ export async function POST(
 
     // Calculate current total percentage
     const currentTotalPercentage = listing.collaborators.reduce(
-      (sum, c) => sum + c.percentage,
+      (sum: number, c: { percentage: number }) => sum + c.percentage,
       0
     );
 
@@ -330,7 +330,7 @@ export async function DELETE(
     }
 
     // Find the collaborator
-    const collaborator = listing.collaborators.find(c => c.id === collaboratorId);
+    const collaborator = listing.collaborators.find((c: { id: string }) => c.id === collaboratorId);
     if (!collaborator) {
       return NextResponse.json(
         { error: "Collaborator not found on this listing" },
@@ -428,7 +428,7 @@ export async function PATCH(
     // Check permissions
     const isOwner = listing.sellerId === userId;
     const isPartnerWithEditRights = listing.collaborators.some(
-      c => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
+      (c: { userId: string | null; canEdit: boolean; status: string }) => c.userId === userId && c.canEdit && c.status === "ACCEPTED"
     );
 
     if (!isOwner && !isPartnerWithEditRights) {
@@ -439,7 +439,7 @@ export async function PATCH(
     }
 
     // Find the collaborator
-    const collaborator = listing.collaborators.find(c => c.id === collaboratorId);
+    const collaborator = listing.collaborators.find((c: { id: string }) => c.id === collaboratorId);
     if (!collaborator) {
       return NextResponse.json(
         { error: "Collaborator not found on this listing" },
@@ -460,8 +460,8 @@ export async function PATCH(
 
       // Calculate other collaborators' total
       const otherCollaboratorsTotal = listing.collaborators
-        .filter(c => c.id !== collaboratorId)
-        .reduce((sum, c) => sum + c.percentage, 0);
+        .filter((c: { id: string }) => c.id !== collaboratorId)
+        .reduce((sum: number, c: { percentage: number }) => sum + c.percentage, 0);
 
       if (otherCollaboratorsTotal + percentage > 99) {
         return NextResponse.json(

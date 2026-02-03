@@ -42,22 +42,22 @@ export async function GET() {
     // Calculate stats
     const totalReferrals = user.referralsGiven.length;
     const activeReferrals = user.referralsGiven.filter(
-      (r) => r.status === "ACTIVE"
+      (r: { status: string }) => r.status === "ACTIVE"
     ).length;
     const pendingEarnings = user.referralsGiven.reduce(
-      (sum, r) =>
+      (sum: number, r: { earnings: Array<{ status: string; earnedAmount: number }> }) =>
         sum +
         r.earnings
-          .filter((e) => e.status === "PENDING")
-          .reduce((s, e) => s + e.earnedAmount, 0),
+          .filter((e: { status: string }) => e.status === "PENDING")
+          .reduce((s: number, e: { earnedAmount: number }) => s + e.earnedAmount, 0),
       0
     );
     const availableEarnings = user.referralsGiven.reduce(
-      (sum, r) =>
+      (sum: number, r: { earnings: Array<{ status: string; earnedAmount: number }> }) =>
         sum +
         r.earnings
-          .filter((e) => e.status === "AVAILABLE")
-          .reduce((s, e) => s + e.earnedAmount, 0),
+          .filter((e: { status: string }) => e.status === "AVAILABLE")
+          .reduce((s: number, e: { earnedAmount: number }) => s + e.earnedAmount, 0),
       0
     );
 
@@ -69,7 +69,7 @@ export async function GET() {
       availableEarnings,
       totalReferrals,
       activeReferrals,
-      referrals: user.referralsGiven.map((r) => ({
+      referrals: user.referralsGiven.map((r: typeof user.referralsGiven[number]) => ({
         id: r.id,
         user:
           r.referredUser.username ||

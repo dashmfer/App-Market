@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const transformedBids = bids.map((bid) => ({
+    const transformedBids = bids.map((bid: typeof bids[number]) => ({
       id: bid.id,
       amount: bid.amount,
       currency: bid.currency,
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
       });
 
       await Promise.all(
-        allBidders.map((b) =>
+        allBidders.map((b: { bidderId: string }) =>
           prisma.notification.create({
             data: {
               type: "AUCTION_EXTENDED",

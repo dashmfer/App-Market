@@ -32,7 +32,7 @@ export async function POST(
     }
 
     // Find current lead
-    const currentLead = transaction.partners.find(p => p.isLead);
+    const currentLead = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     if (!currentLead) {
       return NextResponse.json({ error: "No current lead found" }, { status: 400 });
     }
@@ -43,7 +43,7 @@ export async function POST(
     }
 
     // Find new lead
-    const newLead = transaction.partners.find(p => p.id === params.partnerId);
+    const newLead = transaction.partners.find((p: { id: string }) => p.id === params.partnerId);
     if (!newLead) {
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@prisma/client";
+import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform listings for response
-    const transformedListings = listings.map((listing) => {
+    const transformedListings = listings.map((listing: typeof listings[number]) => {
       // Check if this is a Buy Now only listing (no valid starting price)
       const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
 

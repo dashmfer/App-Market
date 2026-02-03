@@ -46,7 +46,7 @@ export async function GET(
     const isParticipant =
       transaction.buyerId === session.user.id ||
       transaction.sellerId === session.user.id ||
-      transaction.partners.some(p => p.userId === session.user.id);
+      transaction.partners.some((p: { userId: string | null }) => p.userId === session.user.id);
 
     if (!isParticipant) {
       return NextResponse.json({ error: "Not authorized to view this transaction" }, { status: 403 });
@@ -94,7 +94,7 @@ export async function POST(
     }
 
     // Only lead buyer can add partners
-    const leadPartner = transaction.partners.find(p => p.isLead);
+    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     const isLeadBuyer = leadPartner
       ? leadPartner.userId === session.user.id
       : transaction.buyerId === session.user.id;
@@ -110,14 +110,14 @@ export async function POST(
 
     // Check if wallet already added
     const existingPartner = transaction.partners.find(
-      p => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
+      (p: { walletAddress: string }) => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
     );
     if (existingPartner) {
       return NextResponse.json({ error: "This wallet is already a partner" }, { status: 400 });
     }
 
     // Calculate total percentage including new partner
-    const currentTotal = transaction.partners.reduce((sum, p) => sum + p.percentage, 0);
+    const currentTotal = transaction.partners.reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
     if (currentTotal + percentage > 100) {
       return NextResponse.json({
         error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`
@@ -212,13 +212,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    const partnerToRemove = transaction.partners.find(p => p.id === partnerId);
+    const partnerToRemove = transaction.partners.find((p: { id: string }) => p.id === partnerId);
     if (!partnerToRemove) {
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }
 
     // Only lead buyer can remove partners (or partner can remove themselves)
-    const leadPartner = transaction.partners.find(p => p.isLead);
+    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     const isLeadBuyer = leadPartner
       ? leadPartner.userId === session.user.id
       : transaction.buyerId === session.user.id;
@@ -251,7 +251,7 @@ export async function DELETE(
     });
 
     // Check if there are any remaining partners
-    const remainingPartners = transaction.partners.filter(p => p.id !== partnerId);
+    const remainingPartners = transaction.partners.filter((p: { id: string }) => p.id !== partnerId);
     if (remainingPartners.length === 1 && remainingPartners[0].isLead) {
       // Only lead buyer left, revert to single buyer mode
       await prisma.transaction.update({
@@ -303,7 +303,7 @@ export async function PATCH(
     }
 
     // Only lead buyer can update percentages
-    const leadPartner = transaction.partners.find(p => p.isLead);
+    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     const isLeadBuyer = leadPartner
       ? leadPartner.userId === session.user.id
       : transaction.buyerId === session.user.id;
@@ -317,7 +317,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Cannot update percentages after deposit phase" }, { status: 400 });
     }
 
-    const partnerToUpdate = transaction.partners.find(p => p.id === partnerId);
+    const partnerToUpdate = transaction.partners.find((p: { id: string }) => p.id === partnerId);
     if (!partnerToUpdate) {
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }
@@ -329,8 +329,8 @@ export async function PATCH(
 
     // Calculate total percentage excluding this partner
     const otherTotal = transaction.partners
-      .filter(p => p.id !== partnerId)
-      .reduce((sum, p) => sum + p.percentage, 0);
+      .filter((p: { id: string }) => p.id !== partnerId)
+      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
 
     if (otherTotal + percentage > 100) {
       return NextResponse.json({
