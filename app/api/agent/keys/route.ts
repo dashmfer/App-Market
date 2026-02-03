@@ -105,8 +105,8 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("Maximum 10 API keys allowed per account", 400);
     }
 
-    // Generate new key
-    const { key, hash, prefix } = generateApiKey();
+    // Generate new key (async for bcrypt hashing)
+    const { key, hash, prefix } = await generateApiKey();
 
     // Create key in database
     const apiKey = await prisma.apiKey.create({

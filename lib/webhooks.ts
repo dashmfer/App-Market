@@ -1,6 +1,18 @@
 import prisma from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { WebhookEventType, WebhookDeliveryStatus } from "@/lib/prisma-enums";
+import { decrypt, isEncrypted } from "@/lib/encryption";
+
+/**
+ * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
+ */
+function decryptSecret(secret: string): string {
+  if (isEncrypted(secret)) {
+    return decrypt(secret);
+  }
+  // Legacy plaintext secret (for backwards compatibility during migration)
+  return secret;
+}
 
 // ============================================
 // TYPES
@@ -65,9 +77,9 @@ export async function dispatchWebhookEvent(
       data,
     };
 
-    // Dispatch to all webhooks in parallel
+    // Dispatch to all webhooks in parallel (decrypt secrets before use)
     const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
-      deliverWebhook(webhook.id, webhook.url, webhook.secret, payload)
+      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret), payload)
     );
 
     // Fire and forget - don't await
@@ -223,7 +235,8 @@ async function retryDelivery(deliveryId: string): Promise<void> {
 
     const payload = delivery.payload as unknown as WebhookPayload;
     const payloadString = JSON.stringify(payload);
-    const signature = signWebhookPayload(payloadString, delivery.webhook.secret);
+    const decryptedSecret = decryptSecret(delivery.webhook.secret);
+    const signature = signWebhookPayload(payloadString, decryptedSecret);
 
     const result = await attemptDelivery(
       delivery.webhook.url,

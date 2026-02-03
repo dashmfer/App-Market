@@ -9,6 +9,7 @@ import {
   agentSuccessResponse,
 } from "@/lib/agent-auth";
 import { ApiKeyPermission, WebhookEventType } from "@/lib/prisma-enums";
+import { encrypt } from "@/lib/encryption";
 
 // GET /api/agent/webhooks - List user's webhooks
 export async function GET(request: NextRequest) {
@@ -114,7 +115,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate webhook secret
-    const secret = generateWebhookSecret();
+    const plaintextSecret = generateWebhookSecret();
+    // SECURITY: Encrypt secret before storing in database
+    const encryptedSecret = encrypt(plaintextSecret);
 
     // Create webhook
     const webhook = await prisma.webhook.create({
@@ -122,7 +125,7 @@ export async function POST(request: NextRequest) {
         userId,
         name: name.trim(),
         url: url.trim(),
-        secret,
+        secret: encryptedSecret,
         events: requestedEvents,
       },
       select: {
@@ -135,11 +138,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Return with secret (only shown on creation)
+    // Return with plaintext secret (only shown on creation)
     return agentSuccessResponse({
       webhook: {
         ...webhook,
-        secret, // Only returned on creation
+        secret: plaintextSecret, // Only returned on creation, never stored in plaintext
       },
       message: "Webhook created. Save the secret for signature verification.",
     }, 201);

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import bcrypt from "bcryptjs";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
+
+// Bcrypt cost factor for API key hashing (higher = slower but more secure)
+const BCRYPT_ROUNDS = 12;
 
 // ============================================
 // TYPES
@@ -48,14 +52,14 @@ const rateLimitStore = new Map<string, { count: number; resetAt: Date }>();
  * Generate a new API key
  * Returns the plaintext key (only shown once) and the hash to store
  */
-export function generateApiKey(): { key: string; hash: string; prefix: string } {
+export async function generateApiKey(): Promise<{ key: string; hash: string; prefix: string }> {
   // Generate 32 random bytes, encode as base58
   const randomBytes = nacl.randomBytes(32);
   const keyBody = bs58.encode(randomBytes);
   const key = `${API_KEY_PREFIX}${keyBody}`;
 
-  // Hash the key for storage
-  const hash = hashApiKey(key);
+  // Hash the key for storage using bcrypt (secure against brute force)
+  const hash = await hashApiKey(key);
 
   // Prefix for identification
   const prefix = key.substring(0, 12);
@@ -64,24 +68,35 @@ export function generateApiKey(): { key: string; hash: string; prefix: string } 
 }
 
 /**
- * Hash an API key for storage
+ * Hash an API key for storage using bcrypt
+ * SECURITY: bcrypt is slow by design, making brute-force attacks impractical
  */
-export function hashApiKey(key: string): string {
-  return createHash("sha256").update(key).digest("hex");
+export async function hashApiKey(key: string): Promise<string> {
+  return bcrypt.hash(key, BCRYPT_ROUNDS);
+}
+
+/**
+ * Verify an API key against its bcrypt hash
+ */
+export async function verifyApiKeyHash(key: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(key, hash);
 }
 
 /**
  * Verify an API key and return the associated user
+ * SECURITY: Uses bcrypt for hash comparison (resistant to brute force)
  */
 async function verifyApiKey(key: string): Promise<AgentAuthResult> {
   if (!key.startsWith(API_KEY_PREFIX)) {
     return { success: false, error: "Invalid API key format", statusCode: 401 };
   }
 
-  const keyHash = hashApiKey(key);
+  // Extract prefix for fast database lookup
+  const keyPrefix = key.substring(0, 12);
 
-  const apiKey = await prisma.apiKey.findUnique({
-    where: { keyHash },
+  // Find API keys matching this prefix
+  const apiKeys = await prisma.apiKey.findMany({
+    where: { keyPrefix },
     include: {
       user: {
         select: {
@@ -94,21 +109,35 @@ async function verifyApiKey(key: string): Promise<AgentAuthResult> {
     },
   });
 
-  if (!apiKey) {
+  if (apiKeys.length === 0) {
     return { success: false, error: "Invalid API key", statusCode: 401 };
   }
 
-  if (!apiKey.isActive) {
+  // Verify against bcrypt hash (check each matching key)
+  let matchedKey = null;
+  for (const apiKey of apiKeys) {
+    const isValid = await verifyApiKeyHash(key, apiKey.keyHash);
+    if (isValid) {
+      matchedKey = apiKey;
+      break;
+    }
+  }
+
+  if (!matchedKey) {
+    return { success: false, error: "Invalid API key", statusCode: 401 };
+  }
+
+  if (!matchedKey.isActive) {
     return { success: false, error: "API key is disabled", statusCode: 401 };
   }
 
-  if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
+  if (matchedKey.expiresAt && matchedKey.expiresAt < new Date()) {
     return { success: false, error: "API key has expired", statusCode: 401 };
   }
 
   // Update last used timestamp (fire and forget)
   prisma.apiKey.update({
-    where: { id: apiKey.id },
+    where: { id: matchedKey.id },
     data: {
       lastUsedAt: new Date(),
       totalRequests: { increment: 1 },
@@ -117,10 +146,10 @@ async function verifyApiKey(key: string): Promise<AgentAuthResult> {
 
   return {
     success: true,
-    userId: apiKey.userId,
-    user: apiKey.user,
+    userId: matchedKey.userId,
+    user: matchedKey.user,
     authMethod: "api_key",
-    permissions: apiKey.permissions,
+    permissions: matchedKey.permissions,
   };
 }
 

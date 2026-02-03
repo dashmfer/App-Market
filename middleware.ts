@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { timingSafeEqual } from "crypto";
 
 /**
  * Middleware for route protection and security
@@ -85,7 +86,22 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    // SECURITY: Use constant-time comparison to prevent timing attacks
+    const expectedHeader = `Bearer ${cronSecret}`;
+    let isValid = false;
+
+    if (authHeader && authHeader.length === expectedHeader.length) {
+      try {
+        isValid = timingSafeEqual(
+          Buffer.from(authHeader),
+          Buffer.from(expectedHeader)
+        );
+      } catch {
+        isValid = false;
+      }
+    }
+
+    if (!isValid) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
