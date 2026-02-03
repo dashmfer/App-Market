@@ -1,13 +1,13 @@
 import prisma from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { WebhookEventType, WebhookDeliveryStatus } from "@/lib/prisma-enums";
-import { decrypt, isEncrypted } from "@/lib/encryption";
+import { decrypt, looksEncrypted } from "@/lib/encryption";
 
 /**
  * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
  */
 function decryptSecret(secret: string): string {
-  if (isEncrypted(secret)) {
+  if (looksEncrypted(secret)) {
     return decrypt(secret);
   }
   // Legacy plaintext secret (for backwards compatibility during migration)
