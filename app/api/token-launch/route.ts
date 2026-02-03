@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedLaunches = tokenLaunches.map((launch) => ({
+    const formattedLaunches = tokenLaunches.map((launch: typeof tokenLaunches[number]) => ({
       ...launch,
       totalSupply: launch.totalSupply.toString(),
       platformTokens: launch.platformTokens?.toString(),

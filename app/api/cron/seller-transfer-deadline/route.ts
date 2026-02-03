@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     // 3. Transaction was created more than X days ago
     // 4. No dispute has been opened
     const expiredTransactions = await withRetry(
-      () => prisma.transaction.findMany({
+      async () => prisma.transaction.findMany({
         where: {
           status: {
             in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED"],

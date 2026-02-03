@@ -8,7 +8,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
-import { ApiKeyPermission, WebhookEventType } from "@prisma/client";
+import { ApiKeyPermission, WebhookEventType } from "@/lib/prisma-enums";
 
 // GET /api/agent/webhooks - List user's webhooks
 export async function GET(request: NextRequest) {

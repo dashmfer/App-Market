@@ -55,7 +55,7 @@ export async function POST(
     // Check authorization - include partners for group purchases
     const isBuyer = transaction.buyerId === session.user.id;
     const isSeller = transaction.sellerId === session.user.id;
-    const userPartner = transaction.partners.find(p => p.userId === session.user.id);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
     const isPartner = !!userPartner;
 
     if (!isBuyer && !isSeller && !isPartner) {
@@ -155,7 +155,7 @@ export async function POST(
         });
 
         const totalVoters = updatedPartners.length + 1; // Partners + lead buyer
-        const confirmedCount = updatedPartners.filter(p => p.hasConfirmedTransfer).length +
+        const confirmedCount = updatedPartners.filter((p: { hasConfirmedTransfer: boolean }) => p.hasConfirmedTransfer).length +
           (item.partnerConfirmations?.leadBuyer?.confirmed ? 1 : 0);
         const majorityNeeded = Math.floor(totalVoters / 2) + 1;
 

@@ -75,11 +75,11 @@ export async function GET(
 
     // Calculate stats
     const depositedCount = partner.transaction.partners.filter(
-      p => p.depositStatus === "DEPOSITED"
+      (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
     ).length;
     const totalPercentageDeposited = partner.transaction.partners
-      .filter(p => p.depositStatus === "DEPOSITED")
-      .reduce((sum, p) => sum + p.percentage, 0);
+      .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
+      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
 
     // Calculate time remaining
     const timeRemaining = partner.transaction.partnerDepositDeadline
@@ -106,7 +106,7 @@ export async function GET(
       },
       listing: partner.transaction.listing,
       seller: partner.transaction.seller,
-      partners: partner.transaction.partners.map(p => ({
+      partners: partner.transaction.partners.map((p: typeof partner.transaction.partners[number]) => ({
         id: p.id,
         walletAddress: `${p.walletAddress.slice(0, 4)}...${p.walletAddress.slice(-4)}`,
         percentage: p.percentage,

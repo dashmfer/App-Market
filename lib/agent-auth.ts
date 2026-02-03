@@ -3,7 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "crypto";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
-import { ApiKeyPermission } from "@prisma/client";
+import { ApiKeyPermission } from "@/lib/prisma-enums";
 
 // ============================================
 // TYPES

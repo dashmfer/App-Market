@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { ListingStatus } from "@prisma/client";
+import { ListingStatus } from "@/lib/prisma-enums";
 
 // GET /api/categories - Get category counts
 export async function GET(request: NextRequest) {
@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
 
     // Count occurrences of each category
     const counts: Record<string, number> = {};
-    listings.forEach((listing) => {
-      listing.categories.forEach((category) => {
+    listings.forEach((listing: { categories: string[] }) => {
+      listing.categories.forEach((category: string) => {
         counts[category] = (counts[category] || 0) + 1;
       });
     });

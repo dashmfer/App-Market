@@ -75,13 +75,13 @@ export async function verifyWebhookSignature(
     // Use SubtleCrypto for HMAC verification
     const key = await crypto.subtle.importKey(
       "raw",
-      keyData,
+      keyData.buffer as ArrayBuffer,
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"]
     );
 
-    const signatureBytes = await crypto.subtle.sign("HMAC", key, messageData);
+    const signatureBytes = await crypto.subtle.sign("HMAC", key, messageData.buffer as ArrayBuffer);
     const expectedSignature = Array.from(new Uint8Array(signatureBytes))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");

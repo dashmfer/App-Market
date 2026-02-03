@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    const partner = transaction.partners.find(p => p.id === params.partnerId);
+    const partner = transaction.partners.find((p: { id: string }) => p.id === params.partnerId);
     if (!partner) {
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }
@@ -71,7 +71,7 @@ export async function POST(
     });
 
     // Notify lead buyer
-    const leadPartner = transaction.partners.find(p => p.isLead);
+    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     if (leadPartner?.userId && leadPartner.userId !== session.user.id) {
       await createNotification({
         userId: leadPartner.userId,
@@ -87,11 +87,11 @@ export async function POST(
 
     // Check if all partners have deposited
     const allDeposited = transaction.partners.every(
-      p => p.id === params.partnerId || p.depositStatus === "DEPOSITED"
+      (p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED"
     );
 
     // Check if total is 100%
-    const totalPercentage = transaction.partners.reduce((sum, p) => sum + p.percentage, 0);
+    const totalPercentage = transaction.partners.reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
 
     if (allDeposited && totalPercentage === 100) {
       // All deposits complete! Move to next phase
@@ -104,7 +104,7 @@ export async function POST(
       });
 
       // Notify all partners
-      for (const p of transaction.partners) {
+      for (const p of transaction.partners as Array<{ userId: string | null; id: string; percentage: number; depositStatus: string; isLead: boolean }>) {
         if (p.userId) {
           await createNotification({
             userId: p.userId,
@@ -128,13 +128,13 @@ export async function POST(
     return NextResponse.json({
       success: true,
       allDeposited: false,
-      deposited: transaction.partners.filter(p =>
+      deposited: transaction.partners.filter((p: { id: string; depositStatus: string }) =>
         p.id === params.partnerId || p.depositStatus === "DEPOSITED"
       ).length,
       total: transaction.partners.length,
       percentageDeposited: transaction.partners
-        .filter(p => p.id === params.partnerId || p.depositStatus === "DEPOSITED")
-        .reduce((sum, p) => sum + p.percentage, 0),
+        .filter((p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED")
+        .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0),
     });
   } catch (error) {
     console.error("Error processing deposit:", error);

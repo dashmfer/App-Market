@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate totals
-    const unclaimed = withdrawals.filter(w => !w.claimed);
-    const claimed = withdrawals.filter(w => w.claimed);
-    const totalUnclaimed = unclaimed.reduce((sum, w) => sum + w.amount, 0);
-    const totalClaimed = claimed.reduce((sum, w) => sum + w.amount, 0);
+    const unclaimed = withdrawals.filter((w: { claimed: boolean }) => !w.claimed);
+    const claimed = withdrawals.filter((w: { claimed: boolean }) => w.claimed);
+    const totalUnclaimed = unclaimed.reduce((sum: number, w: { amount: number }) => sum + w.amount, 0);
+    const totalClaimed = claimed.reduce((sum: number, w: { amount: number }) => sum + w.amount, 0);
 
     return NextResponse.json({
       withdrawals,

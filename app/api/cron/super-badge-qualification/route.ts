@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
     // Find users who qualify for Super Seller but don't have it yet
     const potentialSuperSellers = await withRetry(
-      () => prisma.user.findMany({
+      async () => prisma.user.findMany({
         where: {
           isSuperSeller: false,
           totalSales: { gte: SUPER_SELLER_MIN_SALES },
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     for (const user of potentialSuperSellers) {
       try {
         const recentDisputesLost = await withRetry(
-          () => prisma.dispute.count({
+          async () => prisma.dispute.count({
             where: {
               respondentId: user.id,
               status: "RESOLVED",
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
           `Check disputes for user ${user.id}`
         );
 
-        if (recentDisputesLost === 0) {
+        if ((recentDisputesLost as number) === 0) {
           // Qualify as Super Seller
           await withRetry(
             () => prisma.user.update({
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
 
     // Check if any existing Super Sellers should lose status
     const existingSuperSellers = await withRetry(
-      () => prisma.user.findMany({
+      async () => prisma.user.findMany({
         where: {
           isSuperSeller: true,
         },
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
       try {
         // Check for recent lost disputes
         const recentDisputesLost = await withRetry(
-          () => prisma.dispute.count({
+          async () => prisma.dispute.count({
             where: {
               respondentId: user.id,
               status: "RESOLVED",
@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Revoke if rating dropped below threshold or lost disputes
-        const shouldRevoke = recentDisputesLost > 0 ||
+        const shouldRevoke = (recentDisputesLost as number) > 0 ||
           (user.ratingCount >= SUPER_SELLER_MIN_REVIEWS && user.rating < SUPER_SELLER_MIN_RATING);
 
         if (shouldRevoke) {
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
 
     // Find users who qualify for Super Buyer but don't have it yet
     const potentialSuperBuyers = await withRetry(
-      () => prisma.user.findMany({
+      async () => prisma.user.findMany({
         where: {
           isSuperBuyer: false,
           totalPurchases: { gte: SUPER_BUYER_MIN_PURCHASES },
@@ -297,7 +297,7 @@ export async function GET(request: NextRequest) {
 
     // Check existing Super Buyers for revocation
     const existingSuperBuyers = await withRetry(
-      () => prisma.user.findMany({
+      async () => prisma.user.findMany({
         where: {
           isSuperBuyer: true,
         },
@@ -313,7 +313,7 @@ export async function GET(request: NextRequest) {
       try {
         // Check for recent disputes lost as buyer
         const recentDisputesLost = await withRetry(
-          () => prisma.dispute.count({
+          async () => prisma.dispute.count({
             where: {
               initiatorId: user.id,
               status: "RESOLVED",
@@ -324,7 +324,7 @@ export async function GET(request: NextRequest) {
           `Check recent disputes for super buyer ${user.id}`
         );
 
-        if (recentDisputesLost > 0) {
+        if ((recentDisputesLost as number) > 0) {
           await withRetry(
             () => prisma.user.update({
               where: { id: user.id },

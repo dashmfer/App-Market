@@ -88,8 +88,8 @@ export async function GET(
     const agreements = transaction.agreements;
 
     // Check if APA exists
-    const hasAPA = agreements.some((a) => a.type === "ASSET_PURCHASE");
-    const hasNonCompete = agreements.some((a) => a.type === "NON_COMPETE");
+    const hasAPA = agreements.some((a: { type: string }) => a.type === "ASSET_PURCHASE");
+    const hasNonCompete = agreements.some((a: { type: string }) => a.type === "NON_COMPETE");
 
     // Generate APA content if needed (for preview)
     const apaContent = generateAPAContent(

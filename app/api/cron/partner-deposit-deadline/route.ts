@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     // 1. Has partners
     // 2. Status is AWAITING_PARTNER_DEPOSITS
     // 3. Deposit deadline has passed
-    const expiredTransactions = await withRetry(() => prisma.transaction.findMany({
+    const expiredTransactions = await withRetry(async () => prisma.transaction.findMany({
       where: {
         hasPartners: true,
         status: "AWAITING_PARTNER_DEPOSITS",
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       try {
         // Check if all partners deposited
         const allDeposited = transaction.partners.every(
-          (p) => p.depositStatus === "DEPOSITED"
+          (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
         );
 
         if (allDeposited) {
@@ -133,12 +133,12 @@ export async function GET(request: NextRequest) {
 
         // Find partners who deposited (need refund)
         const depositedPartners = transaction.partners.filter(
-          (p) => p.depositStatus === "DEPOSITED"
+          (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
         );
 
         // Find partners who didn't deposit
         const pendingPartners = transaction.partners.filter(
-          (p) => p.depositStatus === "PENDING"
+          (p: { depositStatus: string }) => p.depositStatus === "PENDING"
         );
 
         // Mark deposited partners as REFUNDED

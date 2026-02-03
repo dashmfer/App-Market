@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to return just listings with watchlist info
-    const listings = watchlist.map((w) => ({
+    const listings = watchlist.map((w: typeof watchlist[number]) => ({
       ...w.listing,
       watchlistId: w.id,
       watchlistedAt: w.createdAt,

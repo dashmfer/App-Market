@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { NotificationType } from '@prisma/client';
+import { NotificationType } from '@/lib/prisma-enums';
 
 interface CreateNotificationParams {
   userId: string;

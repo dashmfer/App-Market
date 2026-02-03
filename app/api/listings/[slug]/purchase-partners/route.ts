@@ -64,7 +64,7 @@ export async function GET(
     }
 
     // Format partners for response with deposit status
-    const partners = listing.transaction.partners.map(p => ({
+    const partners = listing.transaction.partners.map((p: typeof listing.transaction.partners[number]) => ({
       id: p.id,
       walletAddress: `${p.walletAddress.slice(0, 4)}...${p.walletAddress.slice(-4)}`,
       percentage: p.percentage,
@@ -82,11 +82,11 @@ export async function GET(
     }));
 
     // Calculate stats
-    const depositedCount = partners.filter(p => p.depositStatus === "DEPOSITED").length;
-    const pendingCount = partners.filter(p => p.depositStatus === "PENDING").length;
+    const depositedCount = partners.filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED").length;
+    const pendingCount = partners.filter((p: { depositStatus: string }) => p.depositStatus === "PENDING").length;
     const totalPercentageDeposited = partners
-      .filter(p => p.depositStatus === "DEPOSITED")
-      .reduce((sum, p) => sum + p.percentage, 0);
+      .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
+      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
 
     return NextResponse.json({
       partners,

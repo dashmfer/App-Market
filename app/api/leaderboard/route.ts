@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         type: "sellers",
-        leaderboard: topSellers.map((user, index) => ({
+        leaderboard: topSellers.map((user: typeof topSellers[number], index: number) => ({
           rank: index + 1,
           id: user.id,
           username: user.username,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         type: "buyers",
-        leaderboard: topBuyers.map((user, index) => ({
+        leaderboard: topBuyers.map((user: typeof topBuyers[number], index: number) => ({
           rank: index + 1,
           id: user.id,
           username: user.username,
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         type: "rated",
-        leaderboard: topRated.map((user, index) => ({
+        leaderboard: topRated.map((user: typeof topRated[number], index: number) => ({
           rank: index + 1,
           id: user.id,
           username: user.username,

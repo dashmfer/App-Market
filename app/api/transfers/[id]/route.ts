@@ -149,7 +149,7 @@ export async function GET(
     }
 
     // Check if user is a purchase partner
-    const userPartner = transaction.partners.find(p => p.userId === session.user.id);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
     const isPartner = !!userPartner;
 
     // Only buyer, seller, or partners can view
@@ -185,7 +185,7 @@ export async function GET(
       // Save initialized checklist
       await prisma.transaction.update({
         where: { id: params.id },
-        data: { transferChecklist: checklist as unknown as Parameters<typeof prisma.transaction.update>[0]["data"]["transferChecklist"] },
+        data: { transferChecklist: checklist as any },
       });
     }
 
@@ -226,7 +226,7 @@ export async function GET(
       isPartner,
       // Partner information for majority vote UI
       hasPartners: transaction.hasPartners,
-      partners: transaction.hasPartners ? transaction.partners.map(p => ({
+      partners: transaction.hasPartners ? transaction.partners.map((p: typeof transaction.partners[number]) => ({
         id: p.id,
         userId: p.userId,
         walletAddress: `${p.walletAddress.slice(0, 4)}...${p.walletAddress.slice(-4)}`,

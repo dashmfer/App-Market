@@ -152,7 +152,7 @@ export async function GET() {
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const listings = activeListingsData.map((listing) => {
+    const listings = activeListingsData.map((listing: typeof activeListingsData[number]) => {
       const endTime = new Date(listing.endTime);
       let status = "active";
 
@@ -174,7 +174,7 @@ export async function GET() {
     });
 
     // Transform activity
-    const activity = recentActivity.map((notif) => {
+    const activity = recentActivity.map((notif: typeof recentActivity[number]) => {
       let type = "system";
       if (notif.type.includes("BID")) type = "bid";
       else if (notif.type.includes("SALE") || notif.type.includes("COMPLETED")) type = "sale";

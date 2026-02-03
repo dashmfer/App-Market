@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       const deleteResult = await prisma.offer.deleteMany({
         where: {
           id: {
-            in: offersToDelete.map((o) => o.id),
+            in: offersToDelete.map((o: { id: string }) => o.id),
           },
         },
       });
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       const deleteResult = await prisma.offer.deleteMany({
         where: {
           id: {
-            in: cancelledToDelete.map((o) => o.id),
+            in: cancelledToDelete.map((o: { id: string }) => o.id),
           },
         },
       });

@@ -184,7 +184,7 @@ export async function POST(
         where: { listingId: collaborator.listing.id },
       });
 
-      const allAccepted = allCollaborators.every(c => c.status === "ACCEPTED");
+      const allAccepted = allCollaborators.every((c: { status: string }) => c.status === "ACCEPTED");
 
       if (allAccepted && collaborator.listing.status === "PENDING_COLLABORATORS") {
         // All collaborators accepted - move listing to the next status

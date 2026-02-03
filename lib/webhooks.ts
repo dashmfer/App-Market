@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/agent-auth";
-import { WebhookEventType, WebhookDeliveryStatus } from "@prisma/client";
+import { WebhookEventType, WebhookDeliveryStatus } from "@/lib/prisma-enums";
 
 // ============================================
 // TYPES
@@ -66,7 +66,7 @@ export async function dispatchWebhookEvent(
     };
 
     // Dispatch to all webhooks in parallel
-    const deliveryPromises = webhooks.map((webhook) =>
+    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
       deliverWebhook(webhook.id, webhook.url, webhook.secret, payload)
     );
 

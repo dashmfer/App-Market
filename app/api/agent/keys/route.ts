@@ -9,7 +9,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
-import { ApiKeyPermission } from "@prisma/client";
+import { ApiKeyPermission } from "@/lib/prisma-enums";
 
 // GET /api/agent/keys - List user's API keys
 export async function GET(request: NextRequest) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { ReviewReportReason } from "@prisma/client";
+import { ReviewReportReason } from "@/lib/prisma-enums";
 
 // POST /api/reviews/[id]/report - Report a review
 export async function POST(
@@ -111,7 +111,7 @@ export async function POST(
       });
 
       await Promise.all(
-        admins.map((admin) =>
+        admins.map((admin: { id: string }) =>
           prisma.notification.create({
             data: {
               type: "SYSTEM",
