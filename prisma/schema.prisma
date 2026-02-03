@@ -952,45 +952,97 @@ enum DisputeResolution {
 }
 
 enum NotificationType {
+  // Bid/Auction notifications
   BID_PLACED
   BID_OUTBID
   AUCTION_WON
   AUCTION_LOST
   AUCTION_ENDING_SOON
   AUCTION_EXTENDED          // Notify when auction deadline is extended
+
+  // Transfer notifications
   TRANSFER_STARTED
   TRANSFER_COMPLETED
+
+  // Payment notifications
   PAYMENT_RECEIVED
+  PAYMENT_FAILED            // Notify when payment fails
   REFUND_PROCESSED          // Notify when refund is processed
+  PAYOUT_INITIATED          // Notify seller when payout is started
+  PAYOUT_COMPLETED          // Notify seller when payout completes
+
+  // Sale notifications
   SALE_CANCELLED            // Notify when sale is cancelled
+
+  // Dispute notifications
   DISPUTE_OPENED
   DISPUTE_RESOLVED
+
+  // Review notifications
   REVIEW_RECEIVED
+
+  // Watchlist notifications
   WATCHLIST_ENDING
+  WATCHLIST_PRICE_DROP      // Notify when watched listing price drops
+  WATCHLIST_NEW_BID         // Notify when someone bids on watched listing
+  WATCHLIST_UPDATED         // Notify when watched listing is updated
+
+  // Message notifications
   MESSAGE_RECEIVED
-  BUYER_INFO_REQUIRED      // Notify buyer to submit required info
-  BUYER_INFO_REMINDER      // Reminder at 24h and 6h remaining
-  BUYER_INFO_SUBMITTED     // Notify seller that buyer submitted info
-  BUYER_INFO_DEADLINE      // Notify both when deadline passes
-  FALLBACK_TRANSFER_ACTIVE // Notify when fallback process starts
-  LISTING_RESERVED         // Notify buyer when a listing is reserved for them
-  OFFER_ACCEPTED           // Notify buyer when their offer is accepted
+
+  // Buyer info notifications
+  BUYER_INFO_REQUIRED       // Notify buyer to submit required info
+  BUYER_INFO_REMINDER       // Reminder at 24h and 6h remaining
+  BUYER_INFO_SUBMITTED      // Notify seller that buyer submitted info
+  BUYER_INFO_DEADLINE       // Notify both when deadline passes
+  FALLBACK_TRANSFER_ACTIVE  // Notify when fallback process starts
+
+  // Listing notifications
+  LISTING_CREATED           // Confirm listing is published
+  LISTING_RESERVED          // Notify buyer when a listing is reserved for them
+  LISTING_APPROVED          // Notify seller when admin approves listing
+  LISTING_REJECTED          // Notify seller when admin rejects listing
+  LISTING_EXPIRED           // Notify when listing expires
+  LISTING_UPDATED           // Notify watchers when listing is updated
+
+  // Offer notifications
+  OFFER_RECEIVED            // Notify seller when they receive an offer
+  OFFER_ACCEPTED            // Notify buyer when their offer is accepted
+  OFFER_REJECTED            // Notify buyer when their offer is rejected
+  OFFER_COUNTERED           // Notify buyer when seller counters their offer
+  OFFER_EXPIRED             // Notify both when offer expires
+
   // Collaboration notifications
-  COLLABORATION_INVITE     // Notify user when invited to collaborate on a listing
-  COLLABORATION_ACCEPTED   // Notify listing owner when collaborator accepts
-  COLLABORATION_DECLINED   // Notify listing owner when collaborator declines
-  COLLABORATION_REMOVED    // Notify collaborator when removed from listing
+  COLLABORATION_INVITE      // Notify user when invited to collaborate on a listing
+  COLLABORATION_ACCEPTED    // Notify listing owner when collaborator accepts
+  COLLABORATION_DECLINED    // Notify listing owner when collaborator declines
+  COLLABORATION_REMOVED     // Notify collaborator when removed from listing
+
   // Purchase partner notifications
-  PURCHASE_PARTNER_INVITE      // Notify user when invited to be a purchase partner
-  PURCHASE_PARTNER_DEPOSITED   // Notify lead buyer when a partner deposits
-  PURCHASE_PARTNER_ALL_READY   // Notify all partners when 100% deposited
-  PURCHASE_PARTNER_TIMEOUT     // Notify all partners when deposit window expires
+  PURCHASE_PARTNER_INVITE           // Notify user when invited to be a purchase partner
+  PURCHASE_PARTNER_DEPOSITED        // Notify lead buyer when a partner deposits
+  PURCHASE_PARTNER_ALL_READY        // Notify all partners when 100% deposited
+  PURCHASE_PARTNER_TIMEOUT          // Notify all partners when deposit window expires
   PURCHASE_PARTNER_LEAD_TRANSFERRED // Notify when lead status transferred
+
   // Referral notifications
-  REFERRAL_EARNED          // Notify referrer when they earn commission
+  REFERRAL_EARNED           // Notify referrer when they earn commission
+
   // Agreement notifications
-  AGREEMENT_REQUESTED      // Buyer requested APA or Non-Compete
-  AGREEMENT_SIGNED         // Seller signed APA or Non-Compete
+  AGREEMENT_REQUESTED       // Buyer requested APA or Non-Compete
+  AGREEMENT_SIGNED          // Seller signed APA or Non-Compete
+
+  // Account notifications
+  VERIFICATION_REQUIRED     // Notify when account verification is needed
+  VERIFICATION_COMPLETED    // Notify when account is verified
+  ACCOUNT_SUSPENDED         // Notify when account is suspended
+  ACCOUNT_REACTIVATED       // Notify when account is reactivated
+
+  // Security notifications
+  LOGIN_NEW_DEVICE          // Notify when login from new device
+  PASSWORD_CHANGED          // Notify when password is changed
+  SECURITY_ALERT            // Notify on suspicious activity
+
   SYSTEM
 }
 
