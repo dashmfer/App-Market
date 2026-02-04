@@ -133,6 +133,134 @@ export function validateMimeType(mimeType: string, allowedTypes: string[]): bool
 }
 
 /**
+ * Magic bytes (file signatures) for common file types
+ * Used to verify actual file content matches claimed extension
+ */
+const MAGIC_BYTES: Record<string, number[][]> = {
+  // Images
+  '.jpg': [[0xFF, 0xD8, 0xFF]],
+  '.jpeg': [[0xFF, 0xD8, 0xFF]],
+  '.png': [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]],
+  '.gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]],
+  '.webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF header (WebP uses RIFF container)
+  '.bmp': [[0x42, 0x4D]],
+  '.ico': [[0x00, 0x00, 0x01, 0x00], [0x00, 0x00, 0x02, 0x00]],
+  // Documents
+  '.pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
+  // Archives
+  '.zip': [[0x50, 0x4B, 0x03, 0x04], [0x50, 0x4B, 0x05, 0x06], [0x50, 0x4B, 0x07, 0x08]],
+  '.rar': [[0x52, 0x61, 0x72, 0x21, 0x1A, 0x07]],
+  '.7z': [[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C]],
+  '.gz': [[0x1F, 0x8B]],
+  '.tar': [[0x75, 0x73, 0x74, 0x61, 0x72]], // "ustar" at offset 257
+  // Office documents (OOXML)
+  '.docx': [[0x50, 0x4B, 0x03, 0x04]], // ZIP-based
+  '.xlsx': [[0x50, 0x4B, 0x03, 0x04]], // ZIP-based
+  '.pptx': [[0x50, 0x4B, 0x03, 0x04]], // ZIP-based
+  // Old Office format (OLE compound)
+  '.doc': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  '.xls': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+  '.ppt': [[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]],
+};
+
+export interface MagicByteValidationResult {
+  valid: boolean;
+  message: string;
+  expectedSignature?: string;
+  actualSignature?: string;
+}
+
+/**
+ * Validate file content against magic bytes
+ * Prevents extension spoofing (e.g., .exe renamed to .jpg)
+ *
+ * @param buffer First 16+ bytes of the file
+ * @param extension Claimed file extension
+ * @returns Validation result
+ */
+export function validateMagicBytes(buffer: Buffer | Uint8Array, extension: string): MagicByteValidationResult {
+  const ext = extension.toLowerCase();
+  const signatures = MAGIC_BYTES[ext];
+
+  // If we don't have signatures for this extension, allow it
+  // (text files, code files, etc. don't have magic bytes)
+  if (!signatures) {
+    return {
+      valid: true,
+      message: 'No magic byte signature defined for this file type',
+    };
+  }
+
+  // Check each possible signature for this extension
+  for (const signature of signatures) {
+    let matches = true;
+    for (let i = 0; i < signature.length; i++) {
+      if (buffer[i] !== signature[i]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      return {
+        valid: true,
+        message: 'File content matches expected signature',
+      };
+    }
+  }
+
+  // Convert bytes to hex string for debugging
+  const actualHex = Array.from(buffer.slice(0, 8))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join(' ');
+  const expectedHex = signatures[0]
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join(' ');
+
+  return {
+    valid: false,
+    message: `File content does not match expected ${ext} signature. Possible extension spoofing detected.`,
+    expectedSignature: expectedHex,
+    actualSignature: actualHex,
+  };
+}
+
+/**
+ * Comprehensive file validation including magic bytes
+ */
+export async function validateFileComprehensive(
+  file: File | { name: string; buffer: Buffer | Uint8Array }
+): Promise<FileValidationResult & { magicByteCheck?: MagicByteValidationResult }> {
+  // First check extension
+  const filename = 'name' in file ? file.name : '';
+  const extensionResult = validateFile(filename);
+
+  if (!extensionResult.allowed) {
+    return extensionResult;
+  }
+
+  // Then check magic bytes if we have the buffer
+  const ext = getExtension(filename).toLowerCase();
+  if (MAGIC_BYTES[ext] && 'buffer' in file) {
+    const magicResult = validateMagicBytes(file.buffer, ext);
+    if (!magicResult.valid) {
+      return {
+        ...extensionResult,
+        allowed: false,
+        warning: false,
+        message: magicResult.message,
+        magicByteCheck: magicResult,
+      };
+    }
+    return {
+      ...extensionResult,
+      magicByteCheck: magicResult,
+    };
+  }
+
+  return extensionResult;
+}
+
+/**
  * Security warning message for file transfers
  */
 export const FILE_TRANSFER_WARNING = `

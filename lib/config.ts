@@ -243,8 +243,9 @@ export const PLATFORM_CONFIG = {
     minStartingPrice: 0.1,
     
     // Anti-snipe: extend auction if bid placed in last X minutes
-    antiSnipeMinutes: 5,
-    antiSnipeExtension: 10, // minutes to extend
+    // NOTE: Must match contract constants ANTI_SNIPE_WINDOW and ANTI_SNIPE_EXTENSION (15 min each)
+    antiSnipeMinutes: 15,
+    antiSnipeExtension: 15, // minutes to extend
   },
 };
 

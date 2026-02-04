@@ -7,12 +7,14 @@ import { authOptions } from "@/lib/auth";
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 // DELETE /api/admin/reset-listings
-// Delete all listings: DELETE /api/admin/reset-listings?secret=YOUR_SECRET&all=true
-// Delete specific listing: DELETE /api/admin/reset-listings?secret=YOUR_SECRET&id=LISTING_ID
+// Delete all listings: DELETE /api/admin/reset-listings?all=true (with X-Admin-Secret header)
+// Delete specific listing: DELETE /api/admin/reset-listings?id=LISTING_ID (with X-Admin-Secret header)
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const secret = searchParams.get("secret");
+    // SECURITY: Read admin secret from header instead of query string
+    // This prevents the secret from being logged in server access logs
+    const secret = request.headers.get("X-Admin-Secret");
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 

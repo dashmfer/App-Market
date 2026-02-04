@@ -141,7 +141,7 @@ export const calculateSellerProceeds = (salePrice: number, currency?: string): {
   };
 };
 
-// Listing status enum (matches on-chain)
+// Listing status enum (matches on-chain - 9 statuses)
 export enum ListingStatus {
   Active = 0,
   Ended = 1,
@@ -154,18 +154,18 @@ export enum ListingStatus {
   Refunded = 8,
 }
 
-// Transaction status enum
+// Transaction status enum (matches on-chain - 10 statuses)
 export enum TransactionStatus {
-  Pending = "PENDING",
-  Paid = "PAID",
-  InEscrow = "IN_ESCROW",
-  TransferPending = "TRANSFER_PENDING",
-  TransferInProgress = "TRANSFER_IN_PROGRESS",
-  AwaitingConfirmation = "AWAITING_CONFIRMATION",
-  Disputed = "DISPUTED",
-  Completed = "COMPLETED",
-  Refunded = "REFUNDED",
-  Cancelled = "CANCELLED",
+  Pending = 0,
+  Paid = 1,
+  InEscrow = 2,
+  TransferPending = 3,
+  TransferInProgress = 4,
+  AwaitingConfirmation = 5,
+  Disputed = 6,
+  Completed = 7,
+  Refunded = 8,
+  Cancelled = 9,
 }
 
 // Types for on-chain data

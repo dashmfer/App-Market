@@ -38,24 +38,6 @@ if (!secret) {
   throw new Error("NEXTAUTH_SECRET must be set in environment variables");
 }
 
-// Session revocation - in-memory store (use Redis in production for multi-instance)
-// Maps sessionId -> userId for active sessions
-const activeSessions = new Map<string, { userId: string; createdAt: Date }>();
-
-// Revoked session IDs (blacklist)
-const revokedSessions = new Set<string>();
-
-// Clean up old sessions periodically (every hour)
-setInterval(() => {
-  const now = Date.now();
-  const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-  activeSessions.forEach((data, sessionId) => {
-    if (now - data.createdAt.getTime() > maxAge) {
-      activeSessions.delete(sessionId);
-    }
-  });
-}, 60 * 60 * 1000);
-
 /**
  * Generate a unique session ID
  */
@@ -64,45 +46,92 @@ function generateSessionId(): string {
 }
 
 /**
- * Revoke a specific session
+ * Revoke a specific session (database-backed for multi-instance/serverless support)
+ * Session revocations persist in the database to work across serverless function instances
  */
-export function revokeSession(sessionId: string): void {
-  revokedSessions.add(sessionId);
-  activeSessions.delete(sessionId);
+export async function revokeSession(sessionId: string, reason?: string): Promise<void> {
+  // Session revocations expire after 7 days (max JWT lifetime)
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.revokedSession.upsert({
+    where: { sessionId },
+    create: {
+      sessionId,
+      reason,
+      expiresAt,
+    },
+    update: {
+      reason,
+      revokedAt: new Date(),
+    },
+  });
 }
 
 /**
- * Revoke all sessions for a user
+ * Revoke all sessions for a user (database-backed)
+ * Creates revocation records for all active sessions belonging to the user
  */
-export function revokeAllUserSessions(userId: string): number {
-  let count = 0;
-  const sessionsToRevoke: string[] = [];
-
-  // Collect sessions to revoke (can't delete during forEach)
-  activeSessions.forEach((data, sessionId) => {
-    if (data.userId === userId) {
-      sessionsToRevoke.push(sessionId);
-    }
+export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
+  // Get all active JWT sessions for this user from the Session table
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    select: { sessionToken: true },
   });
 
-  // Now revoke them
-  sessionsToRevoke.forEach(sessionId => {
-    revokedSessions.add(sessionId);
-    activeSessions.delete(sessionId);
-    count++;
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  // Revoke each session
+  const revocations = sessions.map(session =>
+    prisma.revokedSession.upsert({
+      where: { sessionId: session.sessionToken },
+      create: {
+        sessionId: session.sessionToken,
+        userId,
+        reason: reason || 'revoke_all_sessions',
+        expiresAt,
+      },
+      update: {
+        reason: reason || 'revoke_all_sessions',
+        revokedAt: new Date(),
+      },
+    })
+  );
+
+  await Promise.all(revocations);
+
+  // Also delete from Session table to prevent re-use
+  await prisma.session.deleteMany({
+    where: { userId },
   });
 
-  return count;
+  return sessions.length;
 }
 
 /**
- * Check if a session has been revoked.
+ * Check if a session has been revoked (database-backed)
  * NOTE: This only checks the revocation blacklist - it does NOT validate
  * that a session ID was ever created. For JWT-based auth, session validity
  * is determined by the JWT itself; this function only checks revocation.
  */
-export function isSessionNotRevoked(sessionId: string): boolean {
-  return !revokedSessions.has(sessionId);
+export async function isSessionNotRevoked(sessionId: string): Promise<boolean> {
+  const revoked = await prisma.revokedSession.findUnique({
+    where: { sessionId },
+    select: { id: true },
+  });
+  return !revoked;
+}
+
+/**
+ * Clean up expired revocation records (call from cron job or scheduled task)
+ * Should be run periodically to prevent the revocation table from growing indefinitely
+ */
+export async function cleanupExpiredRevocations(): Promise<number> {
+  const result = await prisma.revokedSession.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+  return result.count;
 }
 
 // Helper function to get token from request with proper secret
@@ -117,8 +146,8 @@ export async function getAuthToken(req: NextRequest) {
     cookieName,
   });
 
-  // SECURITY: Check if session has been revoked
-  if (token?.sessionId && !isSessionNotRevoked(token.sessionId as string)) {
+  // SECURITY: Check if session has been revoked (database lookup)
+  if (token?.sessionId && !(await isSessionNotRevoked(token.sessionId as string))) {
     return null;
   }
 
@@ -168,11 +197,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Generate session ID for revocation support
+        // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
-        activeSessions.set(sessionId, {
-          userId: result.user.id,
-          createdAt: new Date(),
-        });
 
         return {
           id: result.user.id,
@@ -322,11 +348,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Generate session ID for revocation support
+        // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
-        activeSessions.set(sessionId, {
-          userId: user.id,
-          createdAt: new Date(),
-        });
 
         return {
           id: user.id,

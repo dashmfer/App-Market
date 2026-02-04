@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Octokit } from '@octokit/rest';
+import { PublicKey, Keypair, Connection } from '@solana/web3.js';
+import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
+import { verifyUploads } from '@/lib/solana-contract';
+import { getConnection } from '@/lib/solana';
 
 // Types for upload validation
 interface UploadData {
@@ -107,8 +111,52 @@ export async function POST(
     const verificationHash = generateVerificationHash(uploads, validationResults);
 
     // 9. Call smart contract verify_uploads instruction
-    // TODO: Implement Solana transaction
-    // await verifyUploadsOnChain(transactionId, verificationHash);
+    // This marks the transaction as verified on-chain, enabling finalization
+    const listing = await prisma.listing.findUnique({
+      where: { id: transaction.listingId },
+      select: { onChainAddress: true },
+    });
+
+    if (listing?.onChainAddress) {
+      try {
+        // Backend authority keypair from environment
+        const backendSecretKey = process.env.BACKEND_AUTHORITY_SECRET_KEY;
+        if (!backendSecretKey) {
+          console.error('BACKEND_AUTHORITY_SECRET_KEY not configured');
+          // Continue without on-chain verification - will need manual verification
+        } else {
+          const keypairBytes = JSON.parse(backendSecretKey);
+          const backendKeypair = Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
+          const connection = getConnection();
+
+          const wallet: Wallet = {
+            publicKey: backendKeypair.publicKey,
+            signTransaction: async (tx) => {
+              tx.partialSign(backendKeypair);
+              return tx;
+            },
+            signAllTransactions: async (txs) => {
+              txs.forEach(tx => tx.partialSign(backendKeypair));
+              return txs;
+            },
+          };
+
+          const provider = new AnchorProvider(connection, wallet, {
+            commitment: 'confirmed',
+          });
+
+          await verifyUploads({
+            provider,
+            listing: new PublicKey(listing.onChainAddress),
+            verificationHash,
+          });
+        }
+      } catch (onChainError) {
+        console.error('On-chain verification failed:', onChainError);
+        // Don't fail the request - uploads are stored, just not verified on-chain
+        // Admin can manually verify later or buyer can use emergency verification after 30 days
+      }
+    }
 
     // 10. Update transaction in database
     await prisma.transaction.update({

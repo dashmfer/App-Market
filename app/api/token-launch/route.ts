@@ -121,9 +121,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/token-launch - Get token launches
+// GET /api/token-launch - Get token launches (authenticated)
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication to view token launches
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
