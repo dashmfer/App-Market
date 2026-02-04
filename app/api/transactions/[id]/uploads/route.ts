@@ -131,6 +131,7 @@ export async function POST(
 
           const wallet: Wallet = {
             publicKey: backendKeypair.publicKey,
+            payer: backendKeypair,
             signTransaction: async (tx) => {
               tx.partialSign(backendKeypair);
               return tx;
