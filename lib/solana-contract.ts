@@ -36,6 +36,7 @@ export interface CreateListingParams {
   durationSeconds: number;
   requiresGithub: boolean;
   requiredGithubUsername: string;
+  paymentMint?: PublicKey; // Optional: APP token mint for 3% fee discount, null for SOL (5%)
 }
 
 export async function createListing(params: CreateListingParams): Promise<string> {
@@ -59,7 +60,8 @@ export async function createListing(params: CreateListingParams): Promise<string
       params.buyNowPrice ? solToLamports(params.buyNowPrice) : null,
       new BN(params.durationSeconds),
       params.requiresGithub,
-      params.requiredGithubUsername
+      params.requiredGithubUsername,
+      params.paymentMint || null // Pass payment mint for fee calculation (APP = 3%, SOL = 5%)
     )
     .accounts({
       listing,
@@ -585,6 +587,322 @@ export async function adminEmergencyVerify(params: AdminEmergencyVerifyParams): 
     .adminEmergencyVerify()
     .accounts({
       transaction,
+      config,
+      admin,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// CANCEL AUCTION (Seller - no bids only)
+// ============================================
+
+export interface CancelAuctionParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+}
+
+export async function cancelAuction(params: CancelAuctionParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const seller = params.provider.wallet.publicKey;
+
+  const [escrow] = getEscrowPDA(params.listing);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .cancelAuction()
+    .accounts({
+      listing: params.listing,
+      escrow,
+      seller,
+      config,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// EXPIRE LISTING (Anyone can call after deadline)
+// ============================================
+
+export interface ExpireListingParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+}
+
+export async function expireListing(params: ExpireListingParams): Promise<string> {
+  const program = getProgram(params.provider);
+
+  const [escrow] = getEscrowPDA(params.listing);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .expireListing()
+    .accounts({
+      listing: params.listing,
+      escrow,
+      config,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// EXPIRE OFFER (Anyone can call after deadline)
+// ============================================
+
+export interface ExpireOfferParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+  buyer: PublicKey;
+  offerSeed: number;
+}
+
+export async function expireOffer(params: ExpireOfferParams): Promise<string> {
+  const program = getProgram(params.provider);
+
+  const [offer] = getOfferPDA(params.listing, params.buyer, params.offerSeed);
+  const [offerEscrow] = getOfferEscrowPDA(offer);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .expireOffer()
+    .accounts({
+      offer,
+      offerEscrow,
+      listing: params.listing,
+      buyer: params.buyer,
+      config,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// VERIFY UPLOADS (Backend authority only)
+// ============================================
+
+export interface VerifyUploadsParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+  verificationHash: string;
+}
+
+export async function verifyUploads(params: VerifyUploadsParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const backendAuthority = params.provider.wallet.publicKey;
+
+  const [transaction] = getTransactionPDA(params.listing);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .verifyUploads(params.verificationHash)
+    .accounts({
+      transaction,
+      config,
+      backendAuthority,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// FINALIZE TRANSACTION (Seller - after verification)
+// ============================================
+
+export interface FinalizeTransactionParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+  buyer: PublicKey;
+  treasury: PublicKey;
+}
+
+export async function finalizeTransaction(params: FinalizeTransactionParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const seller = params.provider.wallet.publicKey;
+
+  const [transaction] = getTransactionPDA(params.listing);
+  const [escrow] = getEscrowPDA(params.listing);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .finalizeTransaction()
+    .accounts({
+      transaction,
+      escrow,
+      listing: params.listing,
+      seller,
+      buyer: params.buyer,
+      treasury: params.treasury,
+      config,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// EMERGENCY REFUND (Anyone - after 30 days of no activity)
+// ============================================
+
+export interface EmergencyRefundParams {
+  provider: AnchorProvider;
+  listing: PublicKey;
+  buyer: PublicKey;
+}
+
+export async function emergencyRefund(params: EmergencyRefundParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const caller = params.provider.wallet.publicKey;
+
+  const [transaction] = getTransactionPDA(params.listing);
+  const [escrow] = getEscrowPDA(params.listing);
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .emergencyRefund()
+    .accounts({
+      transaction,
+      escrow,
+      listing: params.listing,
+      buyer: params.buyer,
+      config,
+      caller,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// ADMIN: SET PAUSED
+// ============================================
+
+export interface SetPausedParams {
+  provider: AnchorProvider;
+  paused: boolean;
+}
+
+export async function setPaused(params: SetPausedParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const admin = params.provider.wallet.publicKey;
+
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .setPaused(params.paused)
+    .accounts({
+      config,
+      admin,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// ADMIN: PROPOSE TREASURY CHANGE
+// ============================================
+
+export interface ProposeTreasuryChangeParams {
+  provider: AnchorProvider;
+  newTreasury: PublicKey;
+}
+
+export async function proposeTreasuryChange(params: ProposeTreasuryChangeParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const admin = params.provider.wallet.publicKey;
+
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .proposeTreasuryChange(params.newTreasury)
+    .accounts({
+      config,
+      admin,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// ADMIN: EXECUTE TREASURY CHANGE (after 48h timelock)
+// ============================================
+
+export interface ExecuteTreasuryChangeParams {
+  provider: AnchorProvider;
+}
+
+export async function executeTreasuryChange(params: ExecuteTreasuryChangeParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const admin = params.provider.wallet.publicKey;
+
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .executeTreasuryChange()
+    .accounts({
+      config,
+      admin,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// ADMIN: PROPOSE ADMIN CHANGE
+// ============================================
+
+export interface ProposeAdminChangeParams {
+  provider: AnchorProvider;
+  newAdmin: PublicKey;
+}
+
+export async function proposeAdminChange(params: ProposeAdminChangeParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const admin = params.provider.wallet.publicKey;
+
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .proposeAdminChange(params.newAdmin)
+    .accounts({
+      config,
+      admin,
+    })
+    .rpc();
+
+  return tx;
+}
+
+// ============================================
+// ADMIN: EXECUTE ADMIN CHANGE (after 48h timelock)
+// ============================================
+
+export interface ExecuteAdminChangeParams {
+  provider: AnchorProvider;
+}
+
+export async function executeAdminChange(params: ExecuteAdminChangeParams): Promise<string> {
+  const program = getProgram(params.provider);
+  const admin = params.provider.wallet.publicKey;
+
+  const [config] = getConfigPDA();
+
+  const tx = await program.methods
+    .executeAdminChange()
+    .accounts({
       config,
       admin,
     })

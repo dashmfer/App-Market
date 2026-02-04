@@ -697,9 +697,19 @@ Verify signatures using the \`X-Webhook-Signature\` header.
 };
 
 export async function GET(request: NextRequest) {
+  // Only allow same-origin requests to access OpenAPI spec
+  const origin = request.headers.get("origin");
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    "http://localhost:3000",
+    "https://localhost:3000",
+  ].filter(Boolean);
+
+  const corsOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0] || "";
+
   return NextResponse.json(openApiSpec, {
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": corsOrigin,
       "Content-Type": "application/json",
     },
   });

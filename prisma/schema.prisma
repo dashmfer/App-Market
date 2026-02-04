@@ -162,6 +162,21 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Revoked sessions for immediate invalidation
+// Used for logout, security incidents, password changes, etc.
+model RevokedSession {
+  id        String   @id @default(cuid())
+  sessionId String   @unique // The JWT session ID to revoke
+  userId    String?  // Optional: which user's session was revoked
+  reason    String?  // Optional: why it was revoked (logout, security, etc.)
+  revokedAt DateTime @default(now())
+  expiresAt DateTime // When this revocation record can be cleaned up
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 // User's linked wallets (supports multiple wallets per account)
 model UserWallet {
   id            String     @id @default(cuid())

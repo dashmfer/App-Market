@@ -3243,18 +3243,28 @@ pub enum ListingType {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum ListingStatus {
     Active,
+    Ended,
     Sold,
     Cancelled,
-    Expired,
+    InEscrow,
+    TransferPending,
+    Disputed,
+    Completed,
+    Refunded,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum TransactionStatus {
     Pending,
+    Paid,
     InEscrow,
-    Completed,
+    TransferPending,
+    TransferInProgress,
+    AwaitingConfirmation,
     Disputed,
+    Completed,
     Refunded,
+    Cancelled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
