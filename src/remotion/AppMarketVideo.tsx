@@ -23,8 +23,8 @@ const COLORS = {
 };
 
 // ============================================
-// EXACT BEAT FRAMES FROM USER'S AUDIO
-// Seconds: 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21, 22, 24, 26, 27, 29
+// USER'S DESIRED POP TIMES (seconds):
+// 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21, 22, 24, 26, 27, 29
 // ============================================
 
 // Snappy pop-in animation - very fast (4 frames)
@@ -42,24 +42,24 @@ const snapIn = (frame: number, startFrame: number) => {
 };
 
 // ============================================
-// SCENE 1: Title (0-5s, frames 0-150)
-// Beats: 0s (frame 0), 2s (frame 60), 3s (frame 90)
+// SCENE 1: Title (0-4s, frames 0-120)
+// Pops at: 0s (frame 0), 2s (frame 60), 3s (frame 90)
 // ============================================
 const TitleScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Beat at 0s (frame 0): Title
+  // Pop at 0s (frame 0): Title
   const title = snapIn(frame, 0);
   const titleSpring = spring({ frame, fps, config: { damping: 8, stiffness: 200 } });
 
-  // Beat at 2s (frame 60): Line
+  // Pop at 2s (frame 60): Line
   const lineWidth = interpolate(frame, [60, 64], [0, 200], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  // Beat at 3s (frame 90): Subtitle
+  // Pop at 3s (frame 90): Subtitle
   const subtitle = snapIn(frame, 90);
 
   return (
@@ -107,17 +107,17 @@ const TitleScene: React.FC = () => {
 };
 
 // ============================================
-// SCENE 2: Problem (5-8s, frames 150-240)
-// Beats: 5s (frame 0 relative), 7s (frame 60 relative)
+// SCENE 2: Problem (4-8s, frames 120-240)
+// Scene starts at 4s. Pops at: 5s (frame 30), 7s (frame 90)
 // ============================================
 const ProblemScene: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Beat at 5s (relative frame 0): Line 1
-  const line1 = snapIn(frame, 0);
-  // Beat at 7s (relative frame 60): Lines 2 & 3 together
-  const line2 = snapIn(frame, 60);
-  const line3 = snapIn(frame, 60);
+  // Pop at 5s (frame 30 relative - scene starts at 4s): Line 1
+  const line1 = snapIn(frame, 30);
+  // Pop at 7s (frame 90 relative): Lines 2 & 3
+  const line2 = snapIn(frame, 90);
+  const line3 = snapIn(frame, 90);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -171,16 +171,16 @@ const ProblemScene: React.FC = () => {
 
 // ============================================
 // SCENE 3: For Sellers (8-12s, frames 240-360)
-// Beats: 8s (frame 0 relative), 10s (frame 60 relative)
+// Scene starts at 8s. Pops at: 8s (frame 0), 10s (frame 60)
 // ============================================
 const SellerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Beat at 8s (relative frame 0): Title
+  // Pop at 8s (frame 0): Title
   const titleAnim = snapIn(frame, 0);
 
-  // Beat at 10s (relative frame 60): ALL icons pop together
+  // Pop at 10s (frame 60): ALL icons
   const steps = [
     { icon: "📝", text: "List your project" },
     { icon: "✓", text: "Verify GitHub" },
@@ -222,7 +222,6 @@ const SellerScene: React.FC = () => {
         </h2>
         <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
           {steps.map((step, i) => {
-            // All icons pop at frame 60 (10s beat)
             const anim = snapIn(frame, 60);
             const popSpring = spring({
               frame: frame - 60,
@@ -276,17 +275,16 @@ const SellerScene: React.FC = () => {
 };
 
 // ============================================
-// SCENE 4: For Buyers (12-17s, frames 360-510)
-// Beats: 12s (frame 0), 14s (frame 60), 15s (frame 90)
+// SCENE 4: For Buyers (12-16s, frames 360-480)
+// Scene starts at 12s. Pops at: 12s (frame 0), 14s (frame 60), 15s (frame 90)
 // ============================================
 const BuyerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Beat at 12s (relative frame 0): Title
+  // Pop at 12s (frame 0): Title
   const titleAnim = snapIn(frame, 0);
 
-  // Features with beat assignments
   const features = [
     { title: "Skip months of dev", desc: "Buy working products", beatFrame: 60 },
     { title: "Verified sellers", desc: "GitHub ownership proven", beatFrame: 60 },
@@ -376,20 +374,20 @@ const BuyerScene: React.FC = () => {
 };
 
 // ============================================
-// SCENE 5: Trust/Escrow (17-21s, frames 510-630)
-// Beats: 17s (frame 0), 19s (frame 60)
+// SCENE 5: Trust/Escrow (16-21s, frames 480-630)
+// Scene starts at 16s. Pops at: 17s (frame 30), 19s (frame 90)
 // ============================================
 const TrustScene: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Beat at 17s (relative frame 0): Title
-  const titleAnim = snapIn(frame, 0);
+  // Pop at 17s (frame 30 - scene starts at 16s): Title
+  const titleAnim = snapIn(frame, 30);
 
-  // Beat at 19s (relative frame 60): Entire escrow diagram
-  const diagramAnim = snapIn(frame, 60);
+  // Pop at 19s (frame 90): Entire escrow diagram
+  const diagramAnim = snapIn(frame, 90);
 
   // Escrow pulse
-  const escrowPulse = frame > 60 ? 1 + Math.sin((frame - 60) * 0.15) * 0.03 : 1;
+  const escrowPulse = frame > 90 ? 1 + Math.sin((frame - 90) * 0.15) * 0.03 : 1;
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -419,7 +417,7 @@ const TrustScene: React.FC = () => {
           Smart contracts hold funds. No middleman.
         </p>
 
-        {/* Escrow Flow Diagram - all pops at frame 60 */}
+        {/* Escrow Flow Diagram */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, opacity: diagramAnim.opacity, transform: `scale(${diagramAnim.scale})` }}>
           {/* Seller */}
           <div style={{ textAlign: "center" }}>
@@ -516,19 +514,18 @@ const TrustScene: React.FC = () => {
 };
 
 // ============================================
-// SCENE 6: Stats (21-26s, frames 630-780)
-// Beats: 21s (frame 0), 22s (frame 30), 24s (frame 90)
+// SCENE 6: Stats (21-25s, frames 630-750)
+// Scene starts at 21s. Pops at: 21s (frame 0), 22s (frame 30), 24s (frame 90)
 // ============================================
 const StatsScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Stats with their beat frames
   const stats = [
     { value: "3-5%", label: "Platform fee", beatFrame: 0 },
     { value: "2s", label: "Settlement", beatFrame: 0 },
     { value: "100%", label: "Trustless escrow", beatFrame: 30 },
-    { value: "24/7", label: "Always live", beatFrame: 30 },
+    { value: "24/7", label: "Always live", beatFrame: 90 },
   ];
 
   return (
@@ -583,23 +580,23 @@ const StatsScene: React.FC = () => {
 };
 
 // ============================================
-// SCENE 7: CTA (26-30s, frames 780-900)
-// Beats: 26s (frame 0), 27s (frame 30), 29s (frame 90)
+// SCENE 7: CTA (25-30s, frames 750-900)
+// Scene starts at 25s. Pops at: 26s (frame 30), 27s (frame 60), 29s (frame 120)
 // ============================================
 const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Beat at 26s (frame 0): Logo
-  const logoAnim = snapIn(frame, 0);
-  const logoSpring = spring({ frame, fps, config: { damping: 8, stiffness: 200 } });
+  // Pop at 26s (frame 30 - scene starts at 25s): Logo
+  const logoAnim = snapIn(frame, 30);
+  const logoSpring = spring({ frame: frame - 30, fps, config: { damping: 8, stiffness: 200 } });
 
-  // Beat at 27s (frame 30): CTA text + URL button
-  const ctaAnim = snapIn(frame, 30);
-  const urlSpring = spring({ frame: frame - 30, fps, config: { damping: 8, stiffness: 200 } });
+  // Pop at 27s (frame 60): CTA text + URL button
+  const ctaAnim = snapIn(frame, 60);
+  const urlSpring = spring({ frame: frame - 60, fps, config: { damping: 8, stiffness: 200 } });
 
-  // Beat at 29s (frame 90): Mainnet + more info
-  const mainnetAnim = snapIn(frame, 90);
+  // Pop at 29s (frame 120): Mainnet + more info
+  const mainnetAnim = snapIn(frame, 120);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -688,7 +685,7 @@ const CTAScene: React.FC = () => {
 
 // ============================================
 // MAIN VIDEO COMPOSITION - 30 seconds total
-// Scene transitions aligned to beat frames
+// Original scene structure restored
 // ============================================
 export const AppMarketVideo: React.FC = () => {
   return (
@@ -696,38 +693,38 @@ export const AppMarketVideo: React.FC = () => {
       {/* Background Music */}
       <Audio src={staticFile("audio/background.mp3")} volume={1} />
 
-      {/* Scene 1: Title - 0-5s (frames 0-150) | Beats: 0, 2, 3 */}
-      <Sequence from={0} durationInFrames={150}>
+      {/* Scene 1: Title - 0-4s | Pops at 0, 2, 3 */}
+      <Sequence from={0} durationInFrames={120}>
         <TitleScene />
       </Sequence>
 
-      {/* Scene 2: Problem - 5-8s (frames 150-240) | Beats: 5, 7 */}
-      <Sequence from={150} durationInFrames={90}>
+      {/* Scene 2: Problem - 4-8s | Pops at 5, 7 */}
+      <Sequence from={120} durationInFrames={120}>
         <ProblemScene />
       </Sequence>
 
-      {/* Scene 3: Sellers - 8-12s (frames 240-360) | Beats: 8, 10 */}
+      {/* Scene 3: Sellers - 8-12s | Pops at 8, 10 */}
       <Sequence from={240} durationInFrames={120}>
         <SellerScene />
       </Sequence>
 
-      {/* Scene 4: Buyers - 12-17s (frames 360-510) | Beats: 12, 14, 15 */}
-      <Sequence from={360} durationInFrames={150}>
+      {/* Scene 4: Buyers - 12-16s | Pops at 12, 14, 15 */}
+      <Sequence from={360} durationInFrames={120}>
         <BuyerScene />
       </Sequence>
 
-      {/* Scene 5: Trust/Escrow - 17-21s (frames 510-630) | Beats: 17, 19 */}
-      <Sequence from={510} durationInFrames={120}>
+      {/* Scene 5: Trust/Escrow - 16-21s | Pops at 17, 19 */}
+      <Sequence from={480} durationInFrames={150}>
         <TrustScene />
       </Sequence>
 
-      {/* Scene 6: Stats - 21-26s (frames 630-780) | Beats: 21, 22, 24 */}
-      <Sequence from={630} durationInFrames={150}>
+      {/* Scene 6: Stats - 21-25s | Pops at 21, 22, 24 */}
+      <Sequence from={630} durationInFrames={120}>
         <StatsScene />
       </Sequence>
 
-      {/* Scene 7: CTA - 26-30s (frames 780-900) | Beats: 26, 27, 29 */}
-      <Sequence from={780} durationInFrames={120}>
+      {/* Scene 7: CTA - 25-30s | Pops at 26, 27, 29 */}
+      <Sequence from={750} durationInFrames={150}>
         <CTAScene />
       </Sequence>
     </AbsoluteFill>
