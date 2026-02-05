@@ -301,7 +301,6 @@ export async function POST(request: NextRequest) {
       monthlyRevenue,
       githubStars,
       startingPrice,
-      reservePrice,
       buyNowEnabled,
       buyNowPrice,
       currency,
@@ -344,17 +343,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate reserve price equals starting price (per business rule)
-    // If reserve price is set, it must equal starting price - auctions start at reserve
     const parsedStartingPrice = startingPrice ? parseFloat(startingPrice) : 0;
-    const parsedReservePrice = reservePrice ? parseFloat(reservePrice) : null;
-
-    if (parsedReservePrice !== null && parsedReservePrice !== parsedStartingPrice) {
-      return NextResponse.json(
-        { error: "Reserve price must equal starting price. Auctions start at the reserve price." },
-        { status: 400 }
-      );
-    }
 
     // SECURITY: Validate buy now price
     const parsedBuyNowPrice = buyNowPrice ? parseFloat(buyNowPrice) : null;
@@ -492,7 +481,6 @@ export async function POST(request: NextRequest) {
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
         githubStars: githubStars ? parseInt(githubStars) : null,
         startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
-        reservePrice: reservePrice ? parseFloat(reservePrice) : null,
         buyNowEnabled,
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,
         currency,

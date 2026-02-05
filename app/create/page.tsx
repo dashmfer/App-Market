@@ -363,7 +363,6 @@ export default function CreateListingPage() {
     // Step 3: Pricing
     enableAuction: true,
     startingPrice: "",
-    reservePrice: "",
     duration: "7",
     enableBuyNow: false,
     buyNowPrice: "",
@@ -640,7 +639,6 @@ export default function CreateListingPage() {
             : null,
           // Pricing
           startingPrice: formData.startingPrice,
-          reservePrice: formData.reservePrice || null,
           buyNowEnabled: formData.enableBuyNow,
           buyNowPrice: formData.buyNowPrice || null,
           currency: formData.currency,
@@ -1794,15 +1792,11 @@ export default function CreateListingPage() {
                       </label>
 
                       {formData.enableAuction && (
-                        <div className="grid md:grid-cols-3 gap-4 ml-8">
+                        <div className="grid md:grid-cols-2 gap-4 ml-8 max-w-lg">
                           <div>
                             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Starting Price ({formData.currency})</label>
                             <input type="number" value={formData.startingPrice} onChange={(e) => updateFormData("startingPrice", e.target.value)} placeholder="0.00" step="0.01" className={`input-field ${errors.startingPrice ? "border-red-500" : ""}`} />
                             {errors.startingPrice && <p className="mt-1 text-sm text-red-500">{errors.startingPrice}</p>}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Reserve Price (Optional)</label>
-                            <input type="number" value={formData.reservePrice} onChange={(e) => updateFormData("reservePrice", e.target.value)} placeholder="0.00" step="0.01" className="input-field" />
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Duration</label>

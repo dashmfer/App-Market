@@ -64,14 +64,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Buyer deposit reasons - claims that require additional deposit from buyer
-const BUYER_DEPOSIT_REASONS = [
-  "GITHUB_NOT_TRANSFERRED",
-  "DOMAIN_NOT_TRANSFERRED",
-  "CREDENTIALS_NOT_RECEIVED",
-  "MISSING_ASSETS",
-];
-
 // POST /api/disputes - Open a dispute
 export async function POST(request: NextRequest) {
   try {
@@ -85,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { transactionId, reason, description, evidence, buyerDepositConfirmed } = body;
+    const { transactionId, reason, description, evidence } = body;
 
     // Validate
     if (!transactionId || !reason || !description) {
@@ -141,37 +133,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate dispute fee (2% of sale price, held from both parties)
+    // Calculate dispute fee (2% of sale price)
     const disputeFee = calculateDisputeFee(transaction.salePrice);
 
-    // SECURITY: If buyer claims non-receipt (asset not transferred), require 10% deposit
-    // This prevents fraudulent denial claims where buyer received assets but disputes anyway
-    let buyerDepositRequired: number | null = null;
-    let buyerDepositHeld = false;
-
-    if (isBuyer && BUYER_DEPOSIT_REASONS.includes(reason)) {
-      // Calculate 10% deposit (minimum 0.5 SOL as per config)
-      const BUYER_DENIAL_DEPOSIT_PERCENT = 10;
-      const MINIMUM_DEPOSIT = 0.5;
-      buyerDepositRequired = Math.max(
-        transaction.salePrice * (BUYER_DENIAL_DEPOSIT_PERCENT / 100),
-        MINIMUM_DEPOSIT
-      );
-
-      // Buyer must confirm they understand and accept the deposit requirement
-      if (!buyerDepositConfirmed) {
-        return NextResponse.json({
-          error: "Buyer deposit required",
-          requiresDeposit: true,
-          depositAmount: buyerDepositRequired,
-          message: `To dispute a claim of non-receipt, you must deposit ${buyerDepositRequired.toFixed(4)} SOL (10% of purchase price). This deposit will be forfeited to the treasury if the dispute is resolved in the seller's favor.`,
-        }, { status: 402 }); // 402 Payment Required
-      }
-
-      buyerDepositHeld = true;
-    }
-
-    // Create dispute with buyer deposit tracking
+    // Create dispute with standard 2% fee
     const dispute = await prisma.dispute.create({
       data: {
         reason,
@@ -179,9 +144,6 @@ export async function POST(request: NextRequest) {
         initiatorEvidence: evidence ? { items: evidence } : undefined,
         status: "OPEN",
         disputeFee,
-        buyerDepositRequired,
-        buyerDepositAmount: buyerDepositRequired || 0,
-        buyerDepositHeld,
         transactionId,
         initiatorId: session.user.id,
         respondentId: isBuyer ? transaction.sellerId : transaction.buyerId,

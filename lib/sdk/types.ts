@@ -206,7 +206,6 @@ export interface Listing {
   status: ListingStatus;
   listingType: ListingType;
   startingPrice: number;
-  reservePrice: number | null;
   buyNowPrice: number | null;
   currentBid: number | null;
   bidCount: number;
