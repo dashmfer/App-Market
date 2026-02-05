@@ -6,6 +6,8 @@ import {
   spring,
   Sequence,
   Easing,
+  Audio,
+  staticFile,
 } from "remotion";
 import React from "react";
 
@@ -663,6 +665,9 @@ const CTAScene: React.FC = () => {
 export const AppMarketVideo: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white }}>
+      {/* Background Music - place your audio file in public/audio/background.mp3 */}
+      {/* Uncomment below when you have an audio file */}
+      {/* <Audio src={staticFile("audio/background.mp3")} volume={0.5} /> */}
       {/* Scene 1: Title - 0 to 120 frames (4 seconds) */}
       <Sequence from={0} durationInFrames={120}>
         <TitleScene />
