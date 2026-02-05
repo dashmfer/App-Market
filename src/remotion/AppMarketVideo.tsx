@@ -667,40 +667,41 @@ export const AppMarketVideo: React.FC = () => {
     <AbsoluteFill style={{ backgroundColor: COLORS.white }}>
       {/* Background Music */}
       <Audio src={staticFile("audio/background.mp3")} volume={1} />
-      {/* Scene timings synced to music beats (92.3 BPM, first beat at 8s) */}
+      {/* Scene timings synced to music beats (92.3 BPM, first beat at 0s) */}
+      {/* 4 beats = 78 frames (2.6s), 8 beats = 156 frames (5.2s) */}
 
-      {/* Scene 1: Title - during intro before beats drop */}
-      <Sequence from={0} durationInFrames={239}>
+      {/* Scene 1: Title - beats 1-8 */}
+      <Sequence from={0} durationInFrames={156}>
         <TitleScene />
       </Sequence>
 
-      {/* Scene 2: Problem - beats 1-4 */}
-      <Sequence from={239} durationInFrames={77}>
+      {/* Scene 2: Problem - beats 9-12 */}
+      <Sequence from={156} durationInFrames={78}>
         <ProblemScene />
       </Sequence>
 
-      {/* Scene 3: Sellers - beats 5-8 */}
-      <Sequence from={316} durationInFrames={78}>
+      {/* Scene 3: Sellers - beats 13-20 */}
+      <Sequence from={234} durationInFrames={156}>
         <SellerScene />
       </Sequence>
 
-      {/* Scene 4: Buyers - beats 9-12 */}
-      <Sequence from={394} durationInFrames={76}>
+      {/* Scene 4: Buyers - beats 21-24 */}
+      <Sequence from={390} durationInFrames={78}>
         <BuyerScene />
       </Sequence>
 
-      {/* Scene 5: Trust/Escrow - beats 13-16 */}
-      <Sequence from={470} durationInFrames={78}>
+      {/* Scene 5: Trust/Escrow - beats 25-32 */}
+      <Sequence from={468} durationInFrames={156}>
         <TrustScene />
       </Sequence>
 
-      {/* Scene 6: Stats - beats 17-20 */}
-      <Sequence from={548} durationInFrames={77}>
+      {/* Scene 6: Stats - beats 33-36 */}
+      <Sequence from={624} durationInFrames={78}>
         <StatsScene />
       </Sequence>
 
-      {/* Scene 7: CTA - beats 21+ to end */}
-      <Sequence from={625} durationInFrames={275}>
+      {/* Scene 7: CTA - beats 37+ to end */}
+      <Sequence from={702} durationInFrames={198}>
         <CTAScene />
       </Sequence>
     </AbsoluteFill>
