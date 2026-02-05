@@ -1,7 +1,7 @@
-import { Composition } from "remotion";
+import { Composition, registerRoot } from "remotion";
 import { AppMarketVideo } from "./AppMarketVideo";
 
-export const RemotionRoot: React.FC = () => {
+const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition
@@ -15,3 +15,5 @@ export const RemotionRoot: React.FC = () => {
     </>
   );
 };
+
+registerRoot(RemotionRoot);
