@@ -5,7 +5,6 @@ import {
   useVideoConfig,
   spring,
   Sequence,
-  Easing,
   Audio,
   staticFile,
 } from "remotion";
@@ -24,8 +23,29 @@ const COLORS = {
 };
 
 // ============================================
-// BEAT TIMING: Main beat every 2s (60 frames), secondary every 1s (30 frames)
+// BEAT TIMING CONSTANTS
+// Main beat: 60 frames (2s) | Secondary: 30 frames (1s) | Sub-beat: 15 frames (0.5s)
 // ============================================
+const MAIN_BEAT = 60;
+const SEC_BEAT = 30;
+const SUB_BEAT = 15;
+
+// Snappy pop-in animation helper
+const snapIn = (frame: number, startFrame: number, duration = 5) => {
+  const opacity = interpolate(frame, [startFrame, startFrame + duration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const scale = interpolate(frame, [startFrame, startFrame + duration], [0.7, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const y = interpolate(frame, [startFrame, startFrame + duration], [20, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  return { opacity, scale, y };
+};
 
 // ============================================
 // SCENE 1: Title Reveal
@@ -34,22 +54,18 @@ const TitleScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const titleProgress = spring({
-    frame,
-    fps,
-    config: { damping: 50, stiffness: 100, mass: 0.5 },
+  // Beat 0: Title pops in
+  const title = snapIn(frame, 0, 8);
+  const titleSpring = spring({ frame, fps, config: { damping: 8, stiffness: 150 } });
+
+  // Sub-beat 15: Line expands
+  const lineWidth = interpolate(frame, [SUB_BEAT, SUB_BEAT + 10], [0, 200], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
   });
 
-  const titleY = interpolate(titleProgress, [0, 1], [80, 0]);
-  // Title on beat 0
-  const titleOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-
-  // Line on secondary beat (30 frames = 1s)
-  const lineWidth = interpolate(frame, [30, 45], [0, 200], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
-  // Subtitle on main beat 2 (60 frames = 2s)
-  const subtitleOpacity = interpolate(frame, [60, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const subtitleY = interpolate(frame, [60, 75], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Secondary beat 30: Subtitle pops
+  const subtitle = snapIn(frame, SEC_BEAT, 6);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -62,8 +78,8 @@ const TitleScene: React.FC = () => {
             margin: 0,
             fontFamily: "SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif",
             letterSpacing: "-0.03em",
-            opacity: titleOpacity,
-            transform: `translateY(${titleY}px)`,
+            opacity: title.opacity,
+            transform: `scale(${interpolate(titleSpring, [0, 1], [0.8, 1])})`,
           }}
         >
           App Market
@@ -84,8 +100,8 @@ const TitleScene: React.FC = () => {
             margin: 0,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 400,
-            opacity: subtitleOpacity,
-            transform: `translateY(${subtitleY}px)`,
+            opacity: subtitle.opacity,
+            transform: `translateY(${subtitle.y}px) scale(${subtitle.scale})`,
           }}
         >
           Buy & Sell Apps. Secured by Solana.
@@ -101,17 +117,12 @@ const TitleScene: React.FC = () => {
 const ProblemScene: React.FC = () => {
   const frame = useCurrentFrame();
 
-  // Line 1 on scene start (beat)
-  const line1Opacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
-  const line1Y = interpolate(frame, [0, 12], [40, 0], { extrapolateRight: "clamp" });
-
-  // Line 2 on secondary beat (30 frames = 1s)
-  const line2Opacity = interpolate(frame, [30, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const line2Y = interpolate(frame, [30, 42], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-
-  // Line 3 on main beat (60 frames = 2s)
-  const line3Opacity = interpolate(frame, [60, 72], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const line3Y = interpolate(frame, [60, 72], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Beat 0: Line 1 snaps in
+  const line1 = snapIn(frame, 0, 5);
+  // Sub-beat 15: Line 2 snaps in
+  const line2 = snapIn(frame, SUB_BEAT, 5);
+  // Secondary beat 30: Line 3 snaps in (the hook)
+  const line3 = snapIn(frame, SEC_BEAT, 5);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -124,8 +135,8 @@ const ProblemScene: React.FC = () => {
             fontWeight: 600,
             lineHeight: 1.3,
             margin: 0,
-            opacity: line1Opacity,
-            transform: `translateY(${line1Y}px)`,
+            opacity: line1.opacity,
+            transform: `translateY(${line1.y}px) scale(${line1.scale})`,
           }}
         >
           You built something great.
@@ -138,8 +149,8 @@ const ProblemScene: React.FC = () => {
             fontWeight: 600,
             lineHeight: 1.3,
             margin: "20px 0 0 0",
-            opacity: line2Opacity,
-            transform: `translateY(${line2Y}px)`,
+            opacity: line2.opacity,
+            transform: `translateY(${line2.y}px) scale(${line2.scale})`,
           }}
         >
           But you don't have time to maintain it.
@@ -152,8 +163,8 @@ const ProblemScene: React.FC = () => {
             fontWeight: 600,
             lineHeight: 1.3,
             margin: "20px 0 0 0",
-            opacity: line3Opacity,
-            transform: `translateY(${line3Y}px)`,
+            opacity: line3.opacity,
+            transform: `translateY(${line3.y}px) scale(${line3.scale})`,
           }}
         >
           What if you could sell it today?
@@ -170,16 +181,16 @@ const SellerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Title on scene start
-  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+  // Beat 0: Title snaps in
+  const titleAnim = snapIn(frame, 0, 5);
 
-  // Steps appear on secondary beats (every 20 frames to fit 5 steps in ~100 frames)
+  // Steps on sub-beats: 10, 20, 30, 40, 50
   const steps = [
-    { icon: "📝", text: "List your project", delay: 15 },
-    { icon: "✓", text: "Verify GitHub ownership", delay: 30 },
-    { icon: "💰", text: "Receive bids", delay: 45 },
-    { icon: "🔒", text: "Funds held in escrow", delay: 60 },
-    { icon: "⚡", text: "Get paid instantly", delay: 75 },
+    { icon: "📝", text: "List your project", delay: 10 },
+    { icon: "✓", text: "Verify GitHub ownership", delay: 20 },
+    { icon: "💰", text: "Receive bids", delay: 30 },
+    { icon: "🔒", text: "Funds held in escrow", delay: 40 },
+    { icon: "⚡", text: "Get paid instantly", delay: 50 },
   ];
 
   return (
@@ -194,7 +205,8 @@ const SellerScene: React.FC = () => {
             letterSpacing: "0.1em",
             textTransform: "uppercase",
             margin: 0,
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: `scale(${titleAnim.scale})`,
           }}
         >
           For Sellers
@@ -206,33 +218,27 @@ const SellerScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "20px 0 60px 0",
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: `scale(${titleAnim.scale})`,
           }}
         >
           Turn side projects into cash
         </h2>
         <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
           {steps.map((step, i) => {
-            const stepOpacity = interpolate(frame, [step.delay, step.delay + 15], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            });
-            const stepY = interpolate(frame, [step.delay, step.delay + 15], [30, 0], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            });
-            const stepScale = spring({
+            const anim = snapIn(frame, step.delay, 4);
+            const popSpring = spring({
               frame: frame - step.delay,
               fps,
-              config: { damping: 12, stiffness: 200 },
+              config: { damping: 8, stiffness: 200 },
             });
 
             return (
               <div
                 key={i}
                 style={{
-                  opacity: stepOpacity,
-                  transform: `translateY(${stepY}px) scale(${interpolate(stepScale, [0, 1], [0.8, 1])})`,
+                  opacity: anim.opacity,
+                  transform: `scale(${interpolate(popSpring, [0, 1], [0.5, 1])})`,
                   textAlign: "center",
                 }}
               >
@@ -279,14 +285,14 @@ const BuyerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Title on scene start
-  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+  // Beat 0: Title snaps in
+  const titleAnim = snapIn(frame, 0, 5);
 
   const features = [
-    { title: "Skip months of dev", desc: "Buy working products" },
-    { title: "Verified sellers", desc: "GitHub ownership proven" },
-    { title: "Protected funds", desc: "Blockchain escrow" },
-    { title: "Global access", desc: "No borders, no limits" },
+    { title: "Skip months of dev", desc: "Buy working products", delay: 10 },
+    { title: "Verified sellers", desc: "GitHub ownership proven", delay: 20 },
+    { title: "Protected funds", desc: "Blockchain escrow", delay: 30 },
+    { title: "Global access", desc: "No borders, no limits", delay: 40 },
   ];
 
   return (
@@ -301,7 +307,8 @@ const BuyerScene: React.FC = () => {
             letterSpacing: "0.1em",
             textTransform: "uppercase",
             margin: 0,
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: `scale(${titleAnim.scale})`,
           }}
         >
           For Buyers
@@ -313,30 +320,27 @@ const BuyerScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "20px 0 60px 0",
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: `scale(${titleAnim.scale})`,
           }}
         >
           Find your next project
         </h2>
         <div style={{ display: "flex", gap: 60, justifyContent: "center" }}>
           {features.map((feature, i) => {
-            // Features on beats: 15, 30, 45, 60
-            const delay = 15 + i * 15;
-            const opacity = interpolate(frame, [delay, delay + 10], [0, 1], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            });
-            const y = interpolate(frame, [delay, delay + 10], [40, 0], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
+            const anim = snapIn(frame, feature.delay, 4);
+            const popSpring = spring({
+              frame: frame - feature.delay,
+              fps,
+              config: { damping: 8, stiffness: 200 },
             });
 
             return (
               <div
                 key={i}
                 style={{
-                  opacity,
-                  transform: `translateY(${y}px)`,
+                  opacity: anim.opacity,
+                  transform: `scale(${interpolate(popSpring, [0, 1], [0.5, 1])})`,
                   textAlign: "center",
                   maxWidth: 200,
                 }}
@@ -379,17 +383,18 @@ const TrustScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Title on scene start
-  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+  // Beat 0: Title snaps
+  const titleAnim = snapIn(frame, 0, 5);
 
-  // Animated escrow flow - aligned to beats
-  const sellerOpacity = interpolate(frame, [20, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const arrow1 = interpolate(frame, [35, 45], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const escrowOpacity = interpolate(frame, [50, 60], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const arrow2 = interpolate(frame, [65, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const buyerOpacity = interpolate(frame, [80, 90], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Sub-beat sequence for escrow flow
+  const sellerAnim = snapIn(frame, 12, 4);
+  const arrow1Anim = snapIn(frame, 20, 3);
+  const escrowAnim = snapIn(frame, 28, 4);
+  const arrow2Anim = snapIn(frame, 36, 3);
+  const buyerAnim = snapIn(frame, 44, 4);
 
-  const escrowPulse = Math.sin(frame * 0.1) * 0.05 + 1;
+  // Escrow pulse on beats
+  const escrowPulse = frame > 28 ? 1 + Math.sin((frame - 28) * 0.15) * 0.03 : 1;
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -401,7 +406,8 @@ const TrustScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "0 0 20px 0",
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
+            transform: `scale(${titleAnim.scale})`,
           }}
         >
           Trustless by design
@@ -412,7 +418,7 @@ const TrustScene: React.FC = () => {
             color: COLORS.gray,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             margin: "0 0 80px 0",
-            opacity: titleOpacity,
+            opacity: titleAnim.opacity,
           }}
         >
           Smart contracts hold funds. No middleman. No risk.
@@ -421,7 +427,7 @@ const TrustScene: React.FC = () => {
         {/* Escrow Flow Diagram */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40 }}>
           {/* Seller */}
-          <div style={{ opacity: sellerOpacity, textAlign: "center" }}>
+          <div style={{ opacity: sellerAnim.opacity, textAlign: "center", transform: `scale(${sellerAnim.scale})` }}>
             <div
               style={{
                 width: 120,
@@ -441,7 +447,7 @@ const TrustScene: React.FC = () => {
           </div>
 
           {/* Arrow 1 */}
-          <div style={{ opacity: arrow1, display: "flex", alignItems: "center" }}>
+          <div style={{ opacity: arrow1Anim.opacity, display: "flex", alignItems: "center", transform: `scaleX(${arrow1Anim.scale})` }}>
             <div style={{ width: 80, height: 4, backgroundColor: COLORS.green, borderRadius: 2 }} />
             <div
               style={{
@@ -455,7 +461,7 @@ const TrustScene: React.FC = () => {
           </div>
 
           {/* Escrow */}
-          <div style={{ opacity: escrowOpacity, textAlign: "center", transform: `scale(${escrowPulse})` }}>
+          <div style={{ opacity: escrowAnim.opacity, textAlign: "center", transform: `scale(${escrowAnim.scale * escrowPulse})` }}>
             <div
               style={{
                 width: 140,
@@ -476,7 +482,7 @@ const TrustScene: React.FC = () => {
           </div>
 
           {/* Arrow 2 */}
-          <div style={{ opacity: arrow2, display: "flex", alignItems: "center" }}>
+          <div style={{ opacity: arrow2Anim.opacity, display: "flex", alignItems: "center", transform: `scaleX(${arrow2Anim.scale})` }}>
             <div style={{ width: 80, height: 4, backgroundColor: COLORS.green, borderRadius: 2 }} />
             <div
               style={{
@@ -490,7 +496,7 @@ const TrustScene: React.FC = () => {
           </div>
 
           {/* Buyer */}
-          <div style={{ opacity: buyerOpacity, textAlign: "center" }}>
+          <div style={{ opacity: buyerAnim.opacity, textAlign: "center", transform: `scale(${buyerAnim.scale})` }}>
             <div
               style={{
                 width: 120,
@@ -519,30 +525,36 @@ const TrustScene: React.FC = () => {
 // ============================================
 const StatsScene: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
 
-  // Stats appear on beats: 0, 15, 30, 45
+  // Stats pop on rapid sub-beats: 0, 8, 16, 24
   const stats = [
     { value: "3-5%", label: "Platform fee", delay: 0 },
-    { value: "2s", label: "Settlement", delay: 15 },
-    { value: "100%", label: "Trustless escrow", delay: 30 },
-    { value: "24/7", label: "Always live", delay: 45 },
+    { value: "2s", label: "Settlement", delay: 8 },
+    { value: "100%", label: "Trustless escrow", delay: 16 },
+    { value: "24/7", label: "Always live", delay: 24 },
   ];
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
       <div style={{ display: "flex", gap: 100, justifyContent: "center" }}>
         {stats.map((stat, i) => {
-          const opacity = interpolate(frame, [stat.delay, stat.delay + 10], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
+          const popSpring = spring({
+            frame: frame - stat.delay,
+            fps,
+            config: { damping: 8, stiffness: 180 },
           });
-          const scale = interpolate(frame, [stat.delay, stat.delay + 10], [0.5, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          });
+          const anim = snapIn(frame, stat.delay, 4);
 
           return (
-            <div key={i} style={{ textAlign: "center", opacity, transform: `scale(${scale})` }}>
+            <div
+              key={i}
+              style={{
+                textAlign: "center",
+                opacity: anim.opacity,
+                transform: `scale(${interpolate(popSpring, [0, 1], [0.3, 1])})`,
+              }}
+            >
               <p
                 style={{
                   fontSize: 96,
@@ -581,21 +593,22 @@ const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // Logo on scene start
-  const logoOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
-  const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 100 } });
+  // Beat 0: Logo pops
+  const logoSpring = spring({ frame, fps, config: { damping: 8, stiffness: 150 } });
+  const logoAnim = snapIn(frame, 0, 5);
 
-  // CTA text on secondary beat (30 frames)
-  const ctaOpacity = interpolate(frame, [30, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const ctaY = interpolate(frame, [30, 42], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Sub-beat 15: CTA text
+  const ctaAnim = snapIn(frame, SUB_BEAT, 5);
 
-  // URL on main beat (60 frames)
-  const urlOpacity = interpolate(frame, [60, 72], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Secondary beat 30: URL button pops
+  const urlAnim = snapIn(frame, SEC_BEAT, 5);
+  const urlSpring = spring({ frame: frame - SEC_BEAT, fps, config: { damping: 8, stiffness: 150 } });
 
-  // Mainnet on secondary beat (90 frames)
-  const mainnetOpacity = interpolate(frame, [90, 102], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  // More info shortly after (105 frames)
-  const moreInfoOpacity = interpolate(frame, [105, 115], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Sub-beat 45: Mainnet text
+  const mainnetAnim = snapIn(frame, 45, 5);
+
+  // Sub-beat 55: More info
+  const moreInfoAnim = snapIn(frame, 55, 5);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -608,8 +621,8 @@ const CTAScene: React.FC = () => {
             margin: 0,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             letterSpacing: "-0.03em",
-            opacity: logoOpacity,
-            transform: `scale(${interpolate(logoScale, [0, 1], [0.8, 1])})`,
+            opacity: logoAnim.opacity,
+            transform: `scale(${interpolate(logoSpring, [0, 1], [0.5, 1])})`,
           }}
         >
           App Market
@@ -621,8 +634,8 @@ const CTAScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 500,
             margin: "40px 0",
-            opacity: ctaOpacity,
-            transform: `translateY(${ctaY}px)`,
+            opacity: ctaAnim.opacity,
+            transform: `translateY(${ctaAnim.y}px) scale(${ctaAnim.scale})`,
           }}
         >
           Start building your future.
@@ -633,7 +646,8 @@ const CTAScene: React.FC = () => {
             padding: "20px 60px",
             background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`,
             borderRadius: 100,
-            opacity: urlOpacity,
+            opacity: urlAnim.opacity,
+            transform: `scale(${interpolate(urlSpring, [0, 1], [0.5, 1])})`,
             boxShadow: `0 20px 60px ${COLORS.green}40`,
           }}
         >
@@ -658,7 +672,8 @@ const CTAScene: React.FC = () => {
             letterSpacing: "0.15em",
             textTransform: "uppercase",
             margin: "40px 0 0 0",
-            opacity: mainnetOpacity,
+            opacity: mainnetAnim.opacity,
+            transform: `scale(${mainnetAnim.scale})`,
           }}
         >
           mainnet prepared
@@ -670,7 +685,7 @@ const CTAScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 400,
             margin: "12px 0 0 0",
-            opacity: moreInfoOpacity,
+            opacity: moreInfoAnim.opacity,
           }}
         >
           more information soon
@@ -688,40 +703,42 @@ export const AppMarketVideo: React.FC = () => {
     <AbsoluteFill style={{ backgroundColor: COLORS.white }}>
       {/* Background Music */}
       <Audio src={staticFile("audio/background.mp3")} volume={1} />
-      {/* Scene timings: Main beat every 2s (60 frames), transitions on main beats */}
 
-      {/* Scene 1: Title - 0-4s */}
+      {/* Scene timings: Main beat every 2s (60 frames) */}
+      {/* Transitions happen ON the beat */}
+
+      {/* Scene 1: Title - 0-4s (frames 0-120) */}
       <Sequence from={0} durationInFrames={120}>
         <TitleScene />
       </Sequence>
 
-      {/* Scene 2: Problem - 4-8s */}
-      <Sequence from={120} durationInFrames={120}>
+      {/* Scene 2: Problem - 4-6s (frames 120-180) - shorter, punchier */}
+      <Sequence from={120} durationInFrames={60}>
         <ProblemScene />
       </Sequence>
 
-      {/* Scene 3: Sellers - 8-12s */}
-      <Sequence from={240} durationInFrames={120}>
+      {/* Scene 3: Sellers - 6-10s (frames 180-300) */}
+      <Sequence from={180} durationInFrames={120}>
         <SellerScene />
       </Sequence>
 
-      {/* Scene 4: Buyers - 12-16s */}
-      <Sequence from={360} durationInFrames={120}>
+      {/* Scene 4: Buyers - 10-14s (frames 300-420) */}
+      <Sequence from={300} durationInFrames={120}>
         <BuyerScene />
       </Sequence>
 
-      {/* Scene 5: Trust/Escrow - 16-20s */}
-      <Sequence from={480} durationInFrames={120}>
+      {/* Scene 5: Trust/Escrow - 14-18s (frames 420-540) */}
+      <Sequence from={420} durationInFrames={120}>
         <TrustScene />
       </Sequence>
 
-      {/* Scene 6: Stats - 20-24s */}
-      <Sequence from={600} durationInFrames={120}>
+      {/* Scene 6: Stats - 18-20s (frames 540-600) - quick impact */}
+      <Sequence from={540} durationInFrames={60}>
         <StatsScene />
       </Sequence>
 
-      {/* Scene 7: CTA - 24-30s */}
-      <Sequence from={720} durationInFrames={180}>
+      {/* Scene 7: CTA - 20-30s (frames 600-900) - longer ending */}
+      <Sequence from={600} durationInFrames={300}>
         <CTAScene />
       </Sequence>
     </AbsoluteFill>
