@@ -300,23 +300,6 @@ You earn 2% of 5 SOL = 0.1 SOL
 
 ---
 
-## Enterprise & High Volume
-
-### Volume Discounts
-
-For high-volume sellers:
-
-| Monthly Volume | Standard Fee | Discounted Fee | Savings |
-|----------------|-------------|----------------|---------|
-| < 1000 SOL | 5% | 5% | - |
-| 1000-5000 SOL | 5% | 4.5% | 10% |
-| 5000-10000 SOL | 5% | 4% | 20% |
-| > 10000 SOL | 5% | 3.5% | 30% |
-
-**Contact us:** enterprise@yourplatform.com
-
----
-
 ## Tax Reporting
 
 ### What We Provide
@@ -338,7 +321,7 @@ For high-volume sellers:
 ## Fee FAQs
 
 **Q: Can I negotiate the platform fee?**
-A: Standard fee is 5%. Volume discounts available for > 1000 SOL/month.
+A: The platform fee is a flat 5% on all transactions.
 
 **Q: Do I pay fees on cancelled listings?**
 A: No, only on successful sales.

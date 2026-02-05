@@ -158,7 +158,6 @@ interface Listing {
   githubStars?: number;
   listingType: string;
   startingPrice: number;
-  reservePrice?: number;
   buyNowPrice?: number;
   buyNowEnabled: boolean;
   currency: string;

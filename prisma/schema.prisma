@@ -28,7 +28,6 @@ model User {
   // Verification & Trust
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
-  kycStatus       KycStatus @default(NONE)
   isAdmin         Boolean   @default(false)
   
   // Stats
@@ -313,7 +312,6 @@ model Listing {
   // Auction Settings
   listingType       ListingType   @default(AUCTION)
   startingPrice     Float
-  reservePrice      Float?
   buyNowPrice       Float?
   buyNowEnabled     Boolean       @default(false)
   currency          Currency      @default(APP)
@@ -652,15 +650,7 @@ model Dispute {
   // Fees
   disputeFee        Float         // 2% fee charged to losing party
   feeCharged        Boolean       @default(false)
-  
-  // Buyer Escrow Deposit (for denial claims)
-  // When buyer claims they didn't receive, they must deposit additional funds into escrow
-  buyerDepositRequired Float?     // 10% of purchase price
-  buyerDepositAmount   Float?     @default(0)
-  buyerDepositHeld     Boolean    @default(false)
-  // If buyer loses dispute, deposit goes to treasury
-  depositForfeited     Boolean    @default(false)
-  
+
   // Relations
   transactionId     String        @unique
   transaction       Transaction   @relation(fields: [transactionId], references: [id])
@@ -863,13 +853,6 @@ model TokenLaunch {
 // ============================================
 // ENUMS
 // ============================================
-
-enum KycStatus {
-  NONE
-  PENDING
-  VERIFIED
-  REJECTED
-}
 
 enum Category {
   SAAS
