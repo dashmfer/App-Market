@@ -299,9 +299,8 @@ const CTAScene: React.FC = () => {
   const { fps } = useVideoConfig();
 
   const logoAnim = popIn(frame, 0, fps);
-  const ctaAnim = popIn(frame, 20, fps);
-  const buttonAnim = popIn(frame, 35, fps);
-  const mainnetAnim = popIn(frame, 50, fps);
+  const buttonAnim = popIn(frame, 20, fps);
+  const mainnetAnim = popIn(frame, 35, fps);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -309,10 +308,7 @@ const CTAScene: React.FC = () => {
         <h1 style={{ fontSize: 120, fontWeight: 700, color: COLORS.green, margin: 0, fontFamily: "SF Pro Display, -apple-system, sans-serif", letterSpacing: "-0.03em", opacity: logoAnim.opacity, transform: `scale(${logoAnim.scale})` }}>
           App Market
         </h1>
-        <p style={{ fontSize: 48, color: COLORS.black, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 500, margin: "40px 0", opacity: ctaAnim.opacity, transform: `scale(${ctaAnim.scale})` }}>
-          The future of software ownership.
-        </p>
-        <div style={{ display: "inline-block", padding: "20px 60px", background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`, borderRadius: 100, opacity: buttonAnim.opacity, transform: `scale(${buttonAnim.scale})`, boxShadow: `0 20px 60px ${COLORS.green}40` }}>
+        <div style={{ display: "inline-block", padding: "20px 60px", background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`, borderRadius: 100, marginTop: 40, opacity: buttonAnim.opacity, transform: `scale(${buttonAnim.scale})`, boxShadow: `0 20px 60px ${COLORS.green}40` }}>
           <p style={{ fontSize: 32, color: COLORS.white, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, margin: 0 }}>appmrkt.xyz</p>
         </div>
         <p style={{ fontSize: 18, color: COLORS.gray, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 500, letterSpacing: "0.15em", textTransform: "uppercase", margin: "40px 0 0 0", opacity: mainnetAnim.opacity, transform: `scale(${mainnetAnim.scale})` }}>
