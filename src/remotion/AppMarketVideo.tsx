@@ -22,6 +22,52 @@ const COLORS = {
   lightGray: "#f3f4f6",
 };
 
+// Outline Icons (green stroke, no fill)
+const IconDocument: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+);
+
+const IconCheck: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="9 12 11.5 14.5 16 9" />
+  </svg>
+);
+
+const IconMoney: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v12" />
+    <path d="M15 9.5c0-1.5-1.5-2.5-3-2.5s-3 1-3 2.5 1.5 2 3 2.5 3 1 3 2.5-1.5 2.5-3 2.5-3-1-3-2.5" />
+  </svg>
+);
+
+const IconLock: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    <circle cx="12" cy="16" r="1" />
+  </svg>
+);
+
+const IconBolt: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const IconPerson: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={COLORS.green} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="7" r="4" />
+    <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+  </svg>
+);
+
 // Smooth pop-in animation
 const popIn = (frame: number, delay: number, fps: number) => {
   const springValue = spring({
@@ -128,11 +174,11 @@ const SellerScene: React.FC = () => {
   const titleAnim = popIn(frame, 0, fps);
 
   const steps = [
-    { icon: "📝", text: "List Your Product" },
-    { icon: "✓", text: "Verify Ownership" },
-    { icon: "💰", text: "Receive Offers" },
-    { icon: "🔒", text: "Secure Escrow" },
-    { icon: "⚡", text: "Instant Settlement" },
+    { icon: <IconDocument size={48} />, text: "List Your Product" },
+    { icon: <IconCheck size={48} />, text: "Verify Ownership" },
+    { icon: <IconMoney size={48} />, text: "Receive Offers" },
+    { icon: <IconLock size={48} />, text: "Secure Escrow" },
+    { icon: <IconBolt size={48} />, text: "Instant Settlement" },
   ];
 
   return (
@@ -149,7 +195,7 @@ const SellerScene: React.FC = () => {
             const anim = popIn(frame, 20 + i * 10, fps);
             return (
               <div key={i} style={{ opacity: anim.opacity, transform: `scale(${anim.scale})`, textAlign: "center" }}>
-                <div style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: COLORS.lightGray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 16 }}>
+                <div style={{ width: 100, height: 100, borderRadius: 24, backgroundColor: COLORS.white, border: `2px solid ${COLORS.lightGray}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                   {step.icon}
                 </div>
                 <p style={{ fontSize: 18, color: COLORS.black, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 500, margin: 0, maxWidth: 100 }}>
@@ -231,7 +277,9 @@ const TrustScene: React.FC = () => {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, opacity: diagramAnim.opacity, transform: `scale(${diagramAnim.scale})` }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.lightGray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>👤</div>
+            <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.white, border: `2px solid ${COLORS.lightGray}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+              <IconPerson size={56} />
+            </div>
             <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Buyer</p>
           </div>
 
@@ -241,7 +289,9 @@ const TrustScene: React.FC = () => {
           </div>
 
           <div style={{ textAlign: "center" }}>
-            <div style={{ width: 140, height: 140, borderRadius: 28, background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 56, marginBottom: 12, boxShadow: `0 20px 60px ${COLORS.green}40` }}>🔒</div>
+            <div style={{ width: 140, height: 140, borderRadius: 28, backgroundColor: COLORS.white, border: `3px solid ${COLORS.green}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, boxShadow: `0 20px 60px ${COLORS.green}20` }}>
+              <IconLock size={64} />
+            </div>
             <p style={{ fontSize: 24, color: COLORS.green, fontFamily: "SF Pro Display, sans-serif", fontWeight: 600, margin: 0 }}>Escrow</p>
           </div>
 
@@ -251,7 +301,9 @@ const TrustScene: React.FC = () => {
           </div>
 
           <div style={{ textAlign: "center" }}>
-            <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.lightGray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>👤</div>
+            <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.white, border: `2px solid ${COLORS.lightGray}`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+              <IconPerson size={56} />
+            </div>
             <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Seller</p>
           </div>
         </div>
