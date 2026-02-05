@@ -83,7 +83,7 @@ const TitleScene: React.FC = () => {
             transform: `scale(${subtitle.scale})`,
           }}
         >
-          The Marketplace for Digital Products
+          Where Software Changes Hands
         </p>
       </div>
     </AbsoluteFill>
