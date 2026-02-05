@@ -26,6 +26,12 @@ y, sr = librosa.load(audio_path)
 # Get tempo and beat frames
 tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
 
+# Handle tempo as array (newer librosa versions)
+if hasattr(tempo, '__len__'):
+    tempo = float(tempo[0]) if len(tempo) > 0 else float(tempo)
+else:
+    tempo = float(tempo)
+
 # Convert beat frames to timestamps (in seconds)
 beat_times = librosa.frames_to_time(beat_frames, sr=sr)
 
