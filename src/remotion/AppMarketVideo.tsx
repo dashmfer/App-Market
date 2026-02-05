@@ -1,9 +1,6 @@
 import {
   AbsoluteFill,
-  interpolate,
   useCurrentFrame,
-  useVideoConfig,
-  spring,
   Sequence,
   Audio,
   staticFile,
@@ -27,17 +24,11 @@ const COLORS = {
 // 0, 2, 3, 5, 7, 8, 10, 12, 14, 15, 17, 19, 21, 22, 24, 26, 27, 29
 // ============================================
 
-// Snappy pop-in animation - very fast (4 frames)
+// INSTANT pop-in animation - hits exactly on the beat frame
 const snapIn = (frame: number, startFrame: number) => {
-  const duration = 4;
-  const opacity = interpolate(frame, [startFrame, startFrame + duration], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const scale = interpolate(frame, [startFrame, startFrame + duration], [0.5, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // Instant appearance on the exact frame
+  const opacity = frame >= startFrame ? 1 : 0;
+  const scale = frame >= startFrame ? 1 : 0.5;
   return { opacity, scale };
 };
 
@@ -47,17 +38,12 @@ const snapIn = (frame: number, startFrame: number) => {
 // ============================================
 const TitleScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   // Pop at 0s (frame 0): Title
   const title = snapIn(frame, 0);
-  const titleSpring = spring({ frame, fps, config: { damping: 8, stiffness: 200 } });
 
-  // Pop at 2s (frame 60): Line
-  const lineWidth = interpolate(frame, [60, 64], [0, 200], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // Pop at 2s (frame 60): Line - instant
+  const lineWidth = frame >= 60 ? 200 : 0;
 
   // Pop at 3s (frame 90): Subtitle
   const subtitle = snapIn(frame, 90);
@@ -74,7 +60,7 @@ const TitleScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif",
             letterSpacing: "-0.03em",
             opacity: title.opacity,
-            transform: `scale(${interpolate(titleSpring, [0, 1], [0.5, 1])})`,
+            transform: `scale(${title.scale})`,
           }}
         >
           App Market
@@ -175,12 +161,13 @@ const ProblemScene: React.FC = () => {
 // ============================================
 const SellerScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   // Pop at 8s (frame 0): Title
   const titleAnim = snapIn(frame, 0);
 
-  // Pop at 10s (frame 60): ALL icons
+  // Pop at 10s (frame 60): ALL icons - instant
+  const iconsAnim = snapIn(frame, 60);
+
   const steps = [
     { icon: "📝", text: "List your project" },
     { icon: "✓", text: "Verify GitHub" },
@@ -222,19 +209,12 @@ const SellerScene: React.FC = () => {
         </h2>
         <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
           {steps.map((step, i) => {
-            const anim = snapIn(frame, 60);
-            const popSpring = spring({
-              frame: frame - 60,
-              fps,
-              config: { damping: 8, stiffness: 200 },
-            });
-
             return (
               <div
                 key={i}
                 style={{
-                  opacity: anim.opacity,
-                  transform: `scale(${interpolate(popSpring, [0, 1], [0.3, 1])})`,
+                  opacity: iconsAnim.opacity,
+                  transform: `scale(${iconsAnim.scale})`,
                   textAlign: "center",
                 }}
               >
@@ -280,16 +260,20 @@ const SellerScene: React.FC = () => {
 // ============================================
 const BuyerScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   // Pop at 12s (frame 0): Title
   const titleAnim = snapIn(frame, 0);
 
+  // Pop at 14s (frame 60): Features 1 & 2
+  const features12 = snapIn(frame, 60);
+  // Pop at 15s (frame 90): Features 3 & 4
+  const features34 = snapIn(frame, 90);
+
   const features = [
-    { title: "Skip months of dev", desc: "Buy working products", beatFrame: 60 },
-    { title: "Verified sellers", desc: "GitHub ownership proven", beatFrame: 60 },
-    { title: "Protected funds", desc: "Blockchain escrow", beatFrame: 90 },
-    { title: "Global access", desc: "No borders, no limits", beatFrame: 90 },
+    { title: "Skip months of dev", desc: "Buy working products", anim: features12 },
+    { title: "Verified sellers", desc: "GitHub ownership proven", anim: features12 },
+    { title: "Protected funds", desc: "Blockchain escrow", anim: features34 },
+    { title: "Global access", desc: "No borders, no limits", anim: features34 },
   ];
 
   return (
@@ -325,19 +309,12 @@ const BuyerScene: React.FC = () => {
         </h2>
         <div style={{ display: "flex", gap: 60, justifyContent: "center" }}>
           {features.map((feature, i) => {
-            const anim = snapIn(frame, feature.beatFrame);
-            const popSpring = spring({
-              frame: frame - feature.beatFrame,
-              fps,
-              config: { damping: 8, stiffness: 200 },
-            });
-
             return (
               <div
                 key={i}
                 style={{
-                  opacity: anim.opacity,
-                  transform: `scale(${interpolate(popSpring, [0, 1], [0.3, 1])})`,
+                  opacity: feature.anim.opacity,
+                  transform: `scale(${feature.anim.scale})`,
                   textAlign: "center",
                   maxWidth: 200,
                 }}
@@ -519,33 +496,32 @@ const TrustScene: React.FC = () => {
 // ============================================
 const StatsScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+
+  // Pop at 21s (frame 0): Stats 1 & 2
+  const stats12 = snapIn(frame, 0);
+  // Pop at 22s (frame 30): Stat 3
+  const stat3 = snapIn(frame, 30);
+  // Pop at 24s (frame 90): Stat 4
+  const stat4 = snapIn(frame, 90);
 
   const stats = [
-    { value: "3-5%", label: "Platform fee", beatFrame: 0 },
-    { value: "2s", label: "Settlement", beatFrame: 0 },
-    { value: "100%", label: "Trustless escrow", beatFrame: 30 },
-    { value: "24/7", label: "Always live", beatFrame: 90 },
+    { value: "3-5%", label: "Platform fee", anim: stats12 },
+    { value: "2s", label: "Settlement", anim: stats12 },
+    { value: "100%", label: "Trustless escrow", anim: stat3 },
+    { value: "24/7", label: "Always live", anim: stat4 },
   ];
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
       <div style={{ display: "flex", gap: 100, justifyContent: "center" }}>
         {stats.map((stat, i) => {
-          const popSpring = spring({
-            frame: frame - stat.beatFrame,
-            fps,
-            config: { damping: 8, stiffness: 180 },
-          });
-          const anim = snapIn(frame, stat.beatFrame);
-
           return (
             <div
               key={i}
               style={{
                 textAlign: "center",
-                opacity: anim.opacity,
-                transform: `scale(${interpolate(popSpring, [0, 1], [0.3, 1])})`,
+                opacity: stat.anim.opacity,
+                transform: `scale(${stat.anim.scale})`,
               }}
             >
               <p
@@ -585,15 +561,12 @@ const StatsScene: React.FC = () => {
 // ============================================
 const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   // Pop at 26s (frame 30 - scene starts at 25s): Logo
   const logoAnim = snapIn(frame, 30);
-  const logoSpring = spring({ frame: frame - 30, fps, config: { damping: 8, stiffness: 200 } });
 
   // Pop at 27s (frame 60): CTA text + URL button
   const ctaAnim = snapIn(frame, 60);
-  const urlSpring = spring({ frame: frame - 60, fps, config: { damping: 8, stiffness: 200 } });
 
   // Pop at 29s (frame 120): Mainnet + more info
   const mainnetAnim = snapIn(frame, 120);
@@ -610,7 +583,7 @@ const CTAScene: React.FC = () => {
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             letterSpacing: "-0.03em",
             opacity: logoAnim.opacity,
-            transform: `scale(${interpolate(logoSpring, [0, 1], [0.3, 1])})`,
+            transform: `scale(${logoAnim.scale})`,
           }}
         >
           App Market
@@ -635,7 +608,7 @@ const CTAScene: React.FC = () => {
             background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`,
             borderRadius: 100,
             opacity: ctaAnim.opacity,
-            transform: `scale(${interpolate(urlSpring, [0, 1], [0.3, 1])})`,
+            transform: `scale(${ctaAnim.scale})`,
             boxShadow: `0 20px 60px ${COLORS.green}40`,
           }}
         >
