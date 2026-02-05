@@ -24,6 +24,10 @@ const COLORS = {
 };
 
 // ============================================
+// BEAT TIMING: Main beat every 2s (60 frames), secondary every 1s (30 frames)
+// ============================================
+
+// ============================================
 // SCENE 1: Title Reveal
 // ============================================
 const TitleScene: React.FC = () => {
@@ -37,12 +41,15 @@ const TitleScene: React.FC = () => {
   });
 
   const titleY = interpolate(titleProgress, [0, 1], [80, 0]);
-  const titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  // Title on beat 0
+  const titleOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
 
-  const subtitleOpacity = interpolate(frame, [25, 45], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const subtitleY = interpolate(frame, [25, 45], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Line on secondary beat (30 frames = 1s)
+  const lineWidth = interpolate(frame, [30, 45], [0, 200], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-  const lineWidth = interpolate(frame, [50, 80], [0, 200], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Subtitle on main beat 2 (60 frames = 2s)
+  const subtitleOpacity = interpolate(frame, [60, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const subtitleY = interpolate(frame, [60, 75], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -94,14 +101,17 @@ const TitleScene: React.FC = () => {
 const ProblemScene: React.FC = () => {
   const frame = useCurrentFrame();
 
-  const line1Opacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
-  const line1Y = interpolate(frame, [0, 20], [40, 0], { extrapolateRight: "clamp" });
+  // Line 1 on scene start (beat)
+  const line1Opacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+  const line1Y = interpolate(frame, [0, 12], [40, 0], { extrapolateRight: "clamp" });
 
-  const line2Opacity = interpolate(frame, [30, 50], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const line2Y = interpolate(frame, [30, 50], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Line 2 on secondary beat (30 frames = 1s)
+  const line2Opacity = interpolate(frame, [30, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const line2Y = interpolate(frame, [30, 42], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-  const line3Opacity = interpolate(frame, [60, 80], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const line3Y = interpolate(frame, [60, 80], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Line 3 on main beat (60 frames = 2s)
+  const line3Opacity = interpolate(frame, [60, 72], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const line3Y = interpolate(frame, [60, 72], [40, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -160,14 +170,16 @@ const SellerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const titleOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+  // Title on scene start
+  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
 
+  // Steps appear on secondary beats (every 20 frames to fit 5 steps in ~100 frames)
   const steps = [
-    { icon: "📝", text: "List your project", delay: 20 },
-    { icon: "✓", text: "Verify GitHub ownership", delay: 40 },
-    { icon: "💰", text: "Receive bids", delay: 60 },
-    { icon: "🔒", text: "Funds held in escrow", delay: 80 },
-    { icon: "⚡", text: "Get paid instantly", delay: 100 },
+    { icon: "📝", text: "List your project", delay: 15 },
+    { icon: "✓", text: "Verify GitHub ownership", delay: 30 },
+    { icon: "💰", text: "Receive bids", delay: 45 },
+    { icon: "🔒", text: "Funds held in escrow", delay: 60 },
+    { icon: "⚡", text: "Get paid instantly", delay: 75 },
   ];
 
   return (
@@ -267,7 +279,8 @@ const BuyerScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const titleOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
+  // Title on scene start
+  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
 
   const features = [
     { title: "Skip months of dev", desc: "Buy working products" },
@@ -307,12 +320,13 @@ const BuyerScene: React.FC = () => {
         </h2>
         <div style={{ display: "flex", gap: 60, justifyContent: "center" }}>
           {features.map((feature, i) => {
-            const delay = 20 + i * 20;
-            const opacity = interpolate(frame, [delay, delay + 15], [0, 1], {
+            // Features on beats: 15, 30, 45, 60
+            const delay = 15 + i * 15;
+            const opacity = interpolate(frame, [delay, delay + 10], [0, 1], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             });
-            const y = interpolate(frame, [delay, delay + 15], [40, 0], {
+            const y = interpolate(frame, [delay, delay + 10], [40, 0], {
               extrapolateLeft: "clamp",
               extrapolateRight: "clamp",
             });
@@ -365,14 +379,15 @@ const TrustScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const titleOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  // Title on scene start
+  const titleOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
 
-  // Animated escrow flow
-  const sellerOpacity = interpolate(frame, [30, 45], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const arrow1 = interpolate(frame, [50, 70], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const escrowOpacity = interpolate(frame, [60, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const arrow2 = interpolate(frame, [80, 100], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const buyerOpacity = interpolate(frame, [90, 105], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Animated escrow flow - aligned to beats
+  const sellerOpacity = interpolate(frame, [20, 30], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const arrow1 = interpolate(frame, [35, 45], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const escrowOpacity = interpolate(frame, [50, 60], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const arrow2 = interpolate(frame, [65, 75], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const buyerOpacity = interpolate(frame, [80, 90], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   const escrowPulse = Math.sin(frame * 0.1) * 0.05 + 1;
 
@@ -505,22 +520,23 @@ const TrustScene: React.FC = () => {
 const StatsScene: React.FC = () => {
   const frame = useCurrentFrame();
 
+  // Stats appear on beats: 0, 15, 30, 45
   const stats = [
     { value: "3-5%", label: "Platform fee", delay: 0 },
-    { value: "2s", label: "Settlement", delay: 20 },
-    { value: "100%", label: "Trustless escrow", delay: 40 },
-    { value: "24/7", label: "Always live", delay: 60 },
+    { value: "2s", label: "Settlement", delay: 15 },
+    { value: "100%", label: "Trustless escrow", delay: 30 },
+    { value: "24/7", label: "Always live", delay: 45 },
   ];
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
       <div style={{ display: "flex", gap: 100, justifyContent: "center" }}>
         {stats.map((stat, i) => {
-          const opacity = interpolate(frame, [stat.delay, stat.delay + 20], [0, 1], {
+          const opacity = interpolate(frame, [stat.delay, stat.delay + 10], [0, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
-          const scale = interpolate(frame, [stat.delay, stat.delay + 20], [0.5, 1], {
+          const scale = interpolate(frame, [stat.delay, stat.delay + 10], [0.5, 1], {
             extrapolateLeft: "clamp",
             extrapolateRight: "clamp",
           });
@@ -565,16 +581,21 @@ const CTAScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const logoOpacity = interpolate(frame, [0, 20], [0, 1], { extrapolateRight: "clamp" });
+  // Logo on scene start
+  const logoOpacity = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
   const logoScale = spring({ frame, fps, config: { damping: 12, stiffness: 100 } });
 
-  const ctaOpacity = interpolate(frame, [30, 50], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const ctaY = interpolate(frame, [30, 50], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // CTA text on secondary beat (30 frames)
+  const ctaOpacity = interpolate(frame, [30, 42], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const ctaY = interpolate(frame, [30, 42], [30, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-  const urlOpacity = interpolate(frame, [60, 80], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // URL on main beat (60 frames)
+  const urlOpacity = interpolate(frame, [60, 72], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
-  const mainnetOpacity = interpolate(frame, [90, 110], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const moreInfoOpacity = interpolate(frame, [100, 115], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Mainnet on secondary beat (90 frames)
+  const mainnetOpacity = interpolate(frame, [90, 102], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // More info shortly after (105 frames)
+  const moreInfoOpacity = interpolate(frame, [105, 115], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
@@ -667,41 +688,40 @@ export const AppMarketVideo: React.FC = () => {
     <AbsoluteFill style={{ backgroundColor: COLORS.white }}>
       {/* Background Music */}
       <Audio src={staticFile("audio/background.mp3")} volume={1} />
-      {/* Scene timings synced to music beats (92.3 BPM, first beat at 0s) */}
-      {/* 4 beats = 78 frames (2.6s), 8 beats = 156 frames (5.2s) */}
+      {/* Scene timings: Main beat every 2s (60 frames), transitions on main beats */}
 
-      {/* Scene 1: Title - beats 1-8 */}
-      <Sequence from={0} durationInFrames={156}>
+      {/* Scene 1: Title - 0-4s */}
+      <Sequence from={0} durationInFrames={120}>
         <TitleScene />
       </Sequence>
 
-      {/* Scene 2: Problem - beats 9-12 */}
-      <Sequence from={156} durationInFrames={78}>
+      {/* Scene 2: Problem - 4-8s */}
+      <Sequence from={120} durationInFrames={120}>
         <ProblemScene />
       </Sequence>
 
-      {/* Scene 3: Sellers - beats 13-20 */}
-      <Sequence from={234} durationInFrames={156}>
+      {/* Scene 3: Sellers - 8-12s */}
+      <Sequence from={240} durationInFrames={120}>
         <SellerScene />
       </Sequence>
 
-      {/* Scene 4: Buyers - beats 21-24 */}
-      <Sequence from={390} durationInFrames={78}>
+      {/* Scene 4: Buyers - 12-16s */}
+      <Sequence from={360} durationInFrames={120}>
         <BuyerScene />
       </Sequence>
 
-      {/* Scene 5: Trust/Escrow - beats 25-32 */}
-      <Sequence from={468} durationInFrames={156}>
+      {/* Scene 5: Trust/Escrow - 16-20s */}
+      <Sequence from={480} durationInFrames={120}>
         <TrustScene />
       </Sequence>
 
-      {/* Scene 6: Stats - beats 33-36 */}
-      <Sequence from={624} durationInFrames={78}>
+      {/* Scene 6: Stats - 20-24s */}
+      <Sequence from={600} durationInFrames={120}>
         <StatsScene />
       </Sequence>
 
-      {/* Scene 7: CTA - beats 37+ to end */}
-      <Sequence from={702} durationInFrames={198}>
+      {/* Scene 7: CTA - 24-30s */}
+      <Sequence from={720} durationInFrames={180}>
         <CTAScene />
       </Sequence>
     </AbsoluteFill>
