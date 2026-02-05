@@ -107,7 +107,7 @@ const ProblemScene: React.FC = () => {
         <p
           style={{
             fontSize: 64,
-            color: COLORS.black,
+            color: COLORS.green,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             lineHeight: 1.3,
@@ -188,7 +188,7 @@ const SellerScene: React.FC = () => {
         <h2
           style={{
             fontSize: 72,
-            color: COLORS.black,
+            color: COLORS.green,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "20px 0 60px 0",
@@ -240,7 +240,7 @@ const SellerScene: React.FC = () => {
                 <p
                   style={{
                     fontSize: 20,
-                    color: COLORS.black,
+                    color: COLORS.green,
                     fontFamily: "SF Pro Display, -apple-system, sans-serif",
                     fontWeight: 500,
                     margin: 0,
@@ -294,7 +294,7 @@ const BuyerScene: React.FC = () => {
         <h2
           style={{
             fontSize: 72,
-            color: COLORS.black,
+            color: COLORS.green,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "20px 0 60px 0",
@@ -328,7 +328,7 @@ const BuyerScene: React.FC = () => {
                 <h3
                   style={{
                     fontSize: 28,
-                    color: COLORS.black,
+                    color: COLORS.green,
                     fontFamily: "SF Pro Display, -apple-system, sans-serif",
                     fontWeight: 600,
                     margin: 0,
@@ -380,7 +380,7 @@ const TrustScene: React.FC = () => {
         <h2
           style={{
             fontSize: 72,
-            color: COLORS.black,
+            color: COLORS.green,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 600,
             margin: "0 0 20px 0",
@@ -420,7 +420,7 @@ const TrustScene: React.FC = () => {
             >
               👤
             </div>
-            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Seller</p>
+            <p style={{ fontSize: 24, color: COLORS.green, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Seller</p>
           </div>
 
           {/* Arrow 1 */}
@@ -489,7 +489,7 @@ const TrustScene: React.FC = () => {
             >
               👤
             </div>
-            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Buyer</p>
+            <p style={{ fontSize: 24, color: COLORS.green, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Buyer</p>
           </div>
         </div>
       </div>
@@ -571,6 +571,8 @@ const CTAScene: React.FC = () => {
 
   const urlOpacity = interpolate(frame, [60, 80], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
 
+  const mainnetOpacity = interpolate(frame, [90, 110], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
       <div style={{ textAlign: "center" }}>
@@ -591,7 +593,7 @@ const CTAScene: React.FC = () => {
         <p
           style={{
             fontSize: 48,
-            color: COLORS.black,
+            color: COLORS.green,
             fontFamily: "SF Pro Display, -apple-system, sans-serif",
             fontWeight: 500,
             margin: "40px 0",
@@ -623,6 +625,20 @@ const CTAScene: React.FC = () => {
             app-market.xyz
           </p>
         </div>
+        <p
+          style={{
+            fontSize: 18,
+            color: COLORS.gray,
+            fontFamily: "SF Pro Display, -apple-system, sans-serif",
+            fontWeight: 500,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            margin: "40px 0 0 0",
+            opacity: mainnetOpacity,
+          }}
+        >
+          mainnet prepared
+        </p>
       </div>
     </AbsoluteFill>
   );
