@@ -504,10 +504,10 @@ const StatsScene: React.FC = () => {
   const frame = useCurrentFrame();
 
   const stats = [
-    { value: "3%", label: "Platform fee", delay: 0 },
+    { value: "3-5%", label: "Platform fee", delay: 0 },
     { value: "2s", label: "Settlement", delay: 20 },
-    { value: "0", label: "Middlemen", delay: 40 },
-    { value: "∞", label: "Global reach", delay: 60 },
+    { value: "100%", label: "On-chain", delay: 40 },
+    { value: "24/7", label: "Always live", delay: 60 },
   ];
 
   return (
