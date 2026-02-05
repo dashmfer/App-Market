@@ -83,7 +83,7 @@ const TitleScene: React.FC = () => {
             transform: `scale(${subtitle.scale})`,
           }}
         >
-          Buy & Sell Apps. Secured by Solana.
+          The Marketplace for Digital Products
         </p>
       </div>
     </AbsoluteFill>
@@ -105,13 +105,13 @@ const ProblemScene: React.FC = () => {
     <AbsoluteFill style={{ backgroundColor: COLORS.white, justifyContent: "center", alignItems: "center" }}>
       <div style={{ textAlign: "center", maxWidth: 1200, padding: "0 60px" }}>
         <p style={{ fontSize: 64, color: COLORS.black, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, lineHeight: 1.3, margin: 0, opacity: line1.opacity, transform: `scale(${line1.scale})` }}>
-          You built something great.
+          Every great product
         </p>
         <p style={{ fontSize: 64, color: COLORS.black, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, lineHeight: 1.3, margin: "20px 0 0 0", opacity: line2.opacity, transform: `scale(${line2.scale})` }}>
-          But you don't have time to maintain it.
+          deserves its next chapter.
         </p>
         <p style={{ fontSize: 64, color: COLORS.green, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, lineHeight: 1.3, margin: "20px 0 0 0", opacity: line3.opacity, transform: `scale(${line3.scale})` }}>
-          What if you could sell it today?
+          We make that possible.
         </p>
       </div>
     </AbsoluteFill>
@@ -128,11 +128,11 @@ const SellerScene: React.FC = () => {
   const titleAnim = popIn(frame, 0, fps);
 
   const steps = [
-    { icon: "📝", text: "List your project" },
-    { icon: "✓", text: "Verify GitHub" },
-    { icon: "💰", text: "Receive bids" },
-    { icon: "🔒", text: "Funds in escrow" },
-    { icon: "⚡", text: "Get paid instantly" },
+    { icon: "📝", text: "List Your Product" },
+    { icon: "✓", text: "Verify Ownership" },
+    { icon: "💰", text: "Receive Offers" },
+    { icon: "🔒", text: "Secure Escrow" },
+    { icon: "⚡", text: "Instant Settlement" },
   ];
 
   return (
@@ -142,7 +142,7 @@ const SellerScene: React.FC = () => {
           For Sellers
         </p>
         <h2 style={{ fontSize: 72, color: COLORS.green, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, margin: "20px 0 60px 0", opacity: titleAnim.opacity, transform: `scale(${titleAnim.scale})` }}>
-          Turn side projects into cash
+          Realize the Value You've Created
         </h2>
         <div style={{ display: "flex", gap: 40, justifyContent: "center" }}>
           {steps.map((step, i) => {
@@ -174,10 +174,10 @@ const BuyerScene: React.FC = () => {
   const titleAnim = popIn(frame, 0, fps);
 
   const features = [
-    { title: "Skip months of dev", desc: "Buy working products" },
-    { title: "Verified sellers", desc: "GitHub ownership proven" },
-    { title: "Protected funds", desc: "Blockchain escrow" },
-    { title: "Global access", desc: "No borders, no limits" },
+    { title: "Skip Months of R&D", desc: "Acquire production-ready products" },
+    { title: "Verified Ownership", desc: "Authenticated via GitHub" },
+    { title: "Secure Transactions", desc: "Protected by smart contracts" },
+    { title: "Borderless Access", desc: "Available worldwide" },
   ];
 
   return (
@@ -187,7 +187,7 @@ const BuyerScene: React.FC = () => {
           For Buyers
         </p>
         <h2 style={{ fontSize: 72, color: COLORS.green, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, margin: "20px 0 60px 0", opacity: titleAnim.opacity, transform: `scale(${titleAnim.scale})` }}>
-          Find your next project
+          Acquire. Launch. Lead.
         </h2>
         <div style={{ display: "flex", gap: 60, justifyContent: "center" }}>
           {features.map((feature, i) => {
@@ -232,7 +232,7 @@ const TrustScene: React.FC = () => {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, opacity: diagramAnim.opacity, transform: `scale(${diagramAnim.scale})` }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.lightGray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>👤</div>
-            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Seller</p>
+            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Buyer</p>
           </div>
 
           <div style={{ display: "flex", alignItems: "center" }}>
@@ -252,7 +252,7 @@ const TrustScene: React.FC = () => {
 
           <div style={{ textAlign: "center" }}>
             <div style={{ width: 120, height: 120, borderRadius: "50%", backgroundColor: COLORS.lightGray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, marginBottom: 12 }}>👤</div>
-            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Buyer</p>
+            <p style={{ fontSize: 24, color: COLORS.black, fontFamily: "SF Pro Display, sans-serif", fontWeight: 500, margin: 0 }}>Seller</p>
           </div>
         </div>
       </div>
@@ -268,10 +268,10 @@ const StatsScene: React.FC = () => {
   const { fps } = useVideoConfig();
 
   const stats = [
-    { value: "3-5%", label: "Platform fee" },
-    { value: "2s", label: "Settlement" },
-    { value: "100%", label: "Trustless escrow" },
-    { value: "24/7", label: "Always live" },
+    { value: "3-5%", label: "Platform Fee" },
+    { value: "2s", label: "Settlement Time" },
+    { value: "100%", label: "Non-Custodial" },
+    { value: "24/7", label: "Always Available" },
   ];
 
   return (
@@ -310,7 +310,7 @@ const CTAScene: React.FC = () => {
           App Market
         </h1>
         <p style={{ fontSize: 48, color: COLORS.black, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 500, margin: "40px 0", opacity: ctaAnim.opacity, transform: `scale(${ctaAnim.scale})` }}>
-          Start building your future.
+          The future of software ownership.
         </p>
         <div style={{ display: "inline-block", padding: "20px 60px", background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`, borderRadius: 100, opacity: buttonAnim.opacity, transform: `scale(${buttonAnim.scale})`, boxShadow: `0 20px 60px ${COLORS.green}40` }}>
           <p style={{ fontSize: 32, color: COLORS.white, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 600, margin: 0 }}>appmrkt.xyz</p>
@@ -319,7 +319,7 @@ const CTAScene: React.FC = () => {
           mainnet prepared
         </p>
         <p style={{ fontSize: 16, color: COLORS.gray, fontFamily: "SF Pro Display, -apple-system, sans-serif", fontWeight: 400, margin: "12px 0 0 0", opacity: mainnetAnim.opacity }}>
-          more information soon
+          More Information Soon
         </p>
       </div>
     </AbsoluteFill>
