@@ -704,41 +704,40 @@ export const AppMarketVideo: React.FC = () => {
       {/* Background Music */}
       <Audio src={staticFile("audio/background.mp3")} volume={1} />
 
-      {/* Scene timings: Main beat every 2s (60 frames) */}
-      {/* Transitions happen ON the beat */}
+      {/* Scene timings based on waveform analysis */}
 
-      {/* Scene 1: Title - 0-4s (frames 0-120) */}
+      {/* Scene 1: Title - 0-4s */}
       <Sequence from={0} durationInFrames={120}>
         <TitleScene />
       </Sequence>
 
-      {/* Scene 2: Problem - 4-6s (frames 120-180) - shorter, punchier */}
-      <Sequence from={120} durationInFrames={60}>
+      {/* Scene 2: Problem - 4-8s */}
+      <Sequence from={120} durationInFrames={120}>
         <ProblemScene />
       </Sequence>
 
-      {/* Scene 3: Sellers - 6-10s (frames 180-300) */}
-      <Sequence from={180} durationInFrames={120}>
+      {/* Scene 3: Sellers - 8-12s */}
+      <Sequence from={240} durationInFrames={120}>
         <SellerScene />
       </Sequence>
 
-      {/* Scene 4: Buyers - 10-14s (frames 300-420) */}
-      <Sequence from={300} durationInFrames={120}>
+      {/* Scene 4: Buyers - 12-16s */}
+      <Sequence from={360} durationInFrames={120}>
         <BuyerScene />
       </Sequence>
 
-      {/* Scene 5: Trust/Escrow - 14-18s (frames 420-540) */}
-      <Sequence from={420} durationInFrames={120}>
+      {/* Scene 5: Trust/Escrow - 16-22s */}
+      <Sequence from={480} durationInFrames={180}>
         <TrustScene />
       </Sequence>
 
-      {/* Scene 6: Stats - 18-20s (frames 540-600) - quick impact */}
-      <Sequence from={540} durationInFrames={60}>
+      {/* Scene 6: Stats - 22-26s */}
+      <Sequence from={660} durationInFrames={120}>
         <StatsScene />
       </Sequence>
 
-      {/* Scene 7: CTA - 20-30s (frames 600-900) - longer ending */}
-      <Sequence from={600} durationInFrames={300}>
+      {/* Scene 7: CTA - 26-30s */}
+      <Sequence from={780} durationInFrames={120}>
         <CTAScene />
       </Sequence>
     </AbsoluteFill>
