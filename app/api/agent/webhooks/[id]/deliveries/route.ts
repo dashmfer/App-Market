@@ -8,10 +8,10 @@ import {
 } from "@/lib/agent-auth";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 
-// GET /api/agent/webhooks/[webhookId]/deliveries - Get webhook delivery history
+// GET /api/agent/webhooks/[id]/deliveries - Get webhook delivery history
 export async function GET(
   request: NextRequest,
-  { params }: { params: { webhookId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const auth = await authenticateAgent(request);
@@ -21,7 +21,7 @@ export async function GET(
 
     // Verify webhook ownership
     const webhook = await prisma.webhook.findUnique({
-      where: { id: params.webhookId },
+      where: { id: params.id },
       select: { userId: true },
     });
 
@@ -38,11 +38,11 @@ export async function GET(
     const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20", 10), 100);
 
     const total = await prisma.webhookDelivery.count({
-      where: { webhookId: params.webhookId },
+      where: { webhookId: params.id },
     });
 
     const deliveries = await prisma.webhookDelivery.findMany({
-      where: { webhookId: params.webhookId },
+      where: { webhookId: params.id },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
