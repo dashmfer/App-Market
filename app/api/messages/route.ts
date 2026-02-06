@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent } from "@/lib/validation";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/messages - Get all conversations for the user
 export async function GET(request: NextRequest) {
@@ -82,6 +83,15 @@ export async function GET(request: NextRequest) {
 // POST /api/messages - Send a new message (creates conversation if needed)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'messages'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {

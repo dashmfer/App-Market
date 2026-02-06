@@ -10,7 +10,7 @@ export interface WalletVerificationResult {
     id: string;
     walletAddress: string;
     username: string;
-    email: string;
+    email: string | null;
   };
   error?: string;
 }
@@ -89,7 +89,7 @@ export async function verifyWalletSignature(
   referralCode?: string
 ): Promise<WalletVerificationResult> {
   try {
-    console.log("[Wallet Verification] Verifying signature for wallet:", publicKey);
+    console.log("[Wallet Verification] Verification attempt");
 
     if (!publicKey || !signature || !message) {
       console.error("[Wallet Verification] Missing required fields");
@@ -108,14 +108,14 @@ export async function verifyWalletSignature(
       publicKeyUint8
     );
 
-    console.log("[Wallet Verification] Signature verification result:", verified);
+    console.log("[Wallet Verification] Signature verified:", verified);
 
     if (!verified) {
       console.error("[Wallet Verification] Invalid signature");
       return { success: false, error: "Invalid signature" };
     }
 
-    console.log("[Wallet Verification] Checking if user exists...");
+    console.log("[Wallet Verification] Looking up user");
 
     // Check if user exists with this wallet
     let user = await prisma.user.findUnique({
@@ -124,7 +124,7 @@ export async function verifyWalletSignature(
 
     // If user doesn't exist, create one
     if (!user) {
-      console.log("[Wallet Verification] User not found, creating new user...");
+      console.log("[Wallet Verification] Creating new user");
 
       // Generate a unique username from wallet address
       const baseUsername = `user_${publicKey.slice(0, 8).toLowerCase()}`;
@@ -161,9 +161,9 @@ export async function verifyWalletSignature(
         });
         if (referrer) {
           referrerId = referrer.id;
-          console.log("[Wallet Verification] Found referrer:", referrerId);
+          console.log("[Wallet Verification] Referrer found");
         } else {
-          console.log("[Wallet Verification] Referral code not found:", referralCode);
+          console.log("[Wallet Verification] Referral code not found");
         }
       }
 
@@ -172,19 +172,14 @@ export async function verifyWalletSignature(
         data: {
           walletAddress: publicKey,
           username,
-          email: `${publicKey.toLowerCase()}@wallet.placeholder`,
+          email: null,
           isVerified: true,
           referralCode: newUserReferralCode,
           referredBy: referrerId,
         },
       });
 
-      console.log("[Wallet Verification] New user created:", {
-        id: user.id,
-        username: user.username,
-        referralCode: newUserReferralCode,
-        referredBy: referrerId,
-      });
+      console.log("[Wallet Verification] New user created");
 
       // If user was referred, create the Referral record
       if (referrerId) {
@@ -203,7 +198,7 @@ export async function verifyWalletSignature(
         }
       }
     } else {
-      console.log("[Wallet Verification] Existing user found:", { id: user.id, username: user.username });
+      console.log("[Wallet Verification] Existing user found");
 
       // If existing user doesn't have a referral code, generate one
       if (!user.referralCode) {
@@ -222,7 +217,7 @@ export async function verifyWalletSignature(
           where: { id: user.id },
           data: { referralCode: newReferralCode },
         });
-        console.log("[Wallet Verification] Generated referral code for existing user:", newReferralCode);
+        console.log("[Wallet Verification] Generated referral code for existing user");
       }
     }
 
@@ -234,7 +229,7 @@ export async function verifyWalletSignature(
         id: user.id,
         walletAddress: user.walletAddress!,
         username: user.username!,
-        email: user.email!,
+        email: user.email ?? null,
       },
     };
   } catch (error) {

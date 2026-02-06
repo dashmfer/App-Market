@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee } from "@/lib/solana";
+import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'purchases'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication
     const token = await getAuthToken(request);
 
@@ -87,7 +97,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For Buy Now, verify the price matches
+    // SECURITY: Validate purchase amount matches listing price
     if (purchaseType === "buyNow") {
       if (!listing.buyNowEnabled || !listing.buyNowPrice) {
         return NextResponse.json(
@@ -102,12 +112,23 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+    } else {
+      // For auction purchases, verify the amount matches the current highest bid
+      const highestBid = await prisma.bid.findFirst({
+        where: { listingId, isWinning: true },
+        orderBy: { amount: 'desc' },
+      });
+      if (highestBid && amount < highestBid.amount) {
+        return NextResponse.json(
+          { error: "Amount does not match winning bid" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Calculate fees
-    const platformFeeRate = 0.05; // 5%
-    const platformFee = amount * platformFeeRate;
-    const sellerProceeds = amount - platformFee;
+    // Calculate fees using configurable rate from solana.ts
+    const platformFee = calculatePlatformFee(amount, currency);
+    const { proceeds: sellerProceeds } = calculateSellerProceeds(amount, currency);
 
     // Check if a transaction already exists for this listing
     const existingTransaction = await prisma.transaction.findUnique({

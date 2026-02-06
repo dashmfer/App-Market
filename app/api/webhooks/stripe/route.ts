@@ -260,7 +260,9 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     });
   }
 
-  // Update user stats
+  // NOTE: Stats are incremented at payment time. Ideally these would be incremented
+  // after transfer completion, but for simplicity they are tracked here. If a refund
+  // occurs, stats should be decremented in the refund handler.
   await prisma.user.update({
     where: { id: sellerId },
     data: {

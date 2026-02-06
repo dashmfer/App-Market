@@ -1,7 +1,9 @@
 "use client";
 
 import { ReactNode, useMemo } from "react";
-import { ConnectionProvider } from "@solana/wallet-adapter-react";
+import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 import { clusterApiUrl } from "@solana/web3.js";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
@@ -13,10 +15,14 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
-  // Solana RPC endpoint for transactions
   const endpoint = useMemo(() => {
     return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
   }, []);
+
+  const wallets = useMemo(() => [
+    new PhantomWalletAdapter(),
+    new SolflareWalletAdapter(),
+  ], []);
 
   return (
     <ThemeProvider
@@ -31,11 +37,15 @@ export function Providers({ children }: ProvidersProps) {
         basePath="/api/auth"
       >
         <ConnectionProvider endpoint={endpoint}>
-          <PrivyAuthProvider>
-            <LocaleProvider>
-              {children}
-            </LocaleProvider>
-          </PrivyAuthProvider>
+          <WalletProvider wallets={wallets} autoConnect>
+            <WalletModalProvider>
+              <PrivyAuthProvider>
+                <LocaleProvider>
+                  {children}
+                </LocaleProvider>
+              </PrivyAuthProvider>
+            </WalletModalProvider>
+          </WalletProvider>
         </ConnectionProvider>
       </SessionProvider>
     </ThemeProvider>

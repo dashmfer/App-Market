@@ -8,6 +8,11 @@ import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
 import { validateWalletSignatureMessage } from "@/lib/validation";
 import { AuthMethod } from "@/lib/prisma-enums";
+import { PrivyClient } from "@privy-io/server-auth";
+
+const privyClient = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+  ? new PrivyClient(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET)
+  : null;
 
 /**
  * Map auth method string to Prisma enum
@@ -216,6 +221,7 @@ export const authOptions: NextAuthOptions = {
       name: "Privy",
       credentials: {
         privyUserId: { label: "Privy User ID", type: "text" },
+        privyToken: { label: "Privy Token", type: "text" },
         walletAddress: { label: "Wallet Address", type: "text" },
         email: { label: "Email", type: "text" },
         twitterUsername: { label: "Twitter Username", type: "text" },
@@ -225,6 +231,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.privyUserId) {
           throw new Error("Missing Privy user ID");
+        }
+
+        // SECURITY: Verify the Privy auth token server-side
+        if (!privyClient) {
+          throw new Error("Privy is not configured on the server");
+        }
+
+        // The client should send the Privy auth token for verification
+        const privyToken = credentials.privyToken;
+        if (!privyToken) {
+          throw new Error("Missing Privy authentication token");
+        }
+
+        try {
+          const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
+          // Ensure the verified Privy user ID matches the claimed one
+          if (verifiedClaims.userId !== credentials.privyUserId) {
+            throw new Error("Privy user ID mismatch");
+          }
+        } catch (verifyError: any) {
+          console.error("[Privy Auth] Token verification failed:", verifyError.message);
+          throw new Error("Invalid Privy authentication token");
         }
 
         // Find or create user by Privy ID
@@ -390,6 +418,17 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.walletAddress = (user as any).walletAddress;
         token.sessionId = (user as any).sessionId; // For session revocation
+
+        // Fetch admin status from database
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { isAdmin: true },
+          });
+          token.isAdmin = dbUser?.isAdmin || false;
+        } catch {
+          token.isAdmin = false;
+        }
       }
       return token;
     },
@@ -485,5 +524,6 @@ declare module "next-auth/jwt" {
     id: string;
     walletAddress?: string;
     sessionId?: string;
+    isAdmin?: boolean;
   }
 }

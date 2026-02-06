@@ -7,6 +7,18 @@ import { PublicKey, Keypair, Connection, Transaction, VersionedTransaction } fro
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { verifyUploads } from '@/lib/solana-contract';
 import { getConnection } from '@/lib/solana';
+import { z } from "zod";
+
+const uploadSchema = z.object({
+  type: z.string().min(1),
+  url: z.string().url().optional().nullable(),
+  fileKey: z.string().optional().nullable(),
+  fileName: z.string().max(500).optional().nullable(),
+  fileSize: z.number().int().positive().max(100_000_000).optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+});
+
+const uploadsArraySchema = z.array(uploadSchema).min(1).max(20);
 
 // Types for upload validation
 interface UploadData {
@@ -42,7 +54,15 @@ export async function POST(
     }
 
     const transactionId = params.id;
-    const uploads: UploadData[] = await req.json();
+    const body = await req.json();
+    const parseResult = uploadsArraySchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid upload data", details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
+    const uploads: UploadData[] = parseResult.data as UploadData[];
 
     // 1. Get transaction and listing details
     const transaction = await prisma.transaction.findUnique({

@@ -3,6 +3,22 @@
  */
 import crypto from 'crypto';
 
+// SECURITY: Track used wallet signature timestamps to prevent replay attacks
+// In production, this should use Redis/Upstash for multi-instance support
+const usedSignatureNonces = new Map<string, number>();
+
+// Clean up expired nonces every 10 minutes
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const cutoff = Date.now() - 10 * 60 * 1000; // 10 min
+    for (const [key, timestamp] of usedSignatureNonces.entries()) {
+      if (timestamp < cutoff) {
+        usedSignatureNonces.delete(key);
+      }
+    }
+  }, 10 * 60 * 1000);
+}
+
 // Maximum limits for pagination and content
 export const MAX_PAGINATION_LIMIT = 100;
 export const MAX_SEARCH_QUERY_LENGTH = 200;
@@ -203,6 +219,13 @@ export function validateWalletSignatureMessage(
   if (ageMs > maxAgeSeconds * 1000) {
     return { valid: false, error: 'Signature has expired' };
   }
+
+  // SECURITY: Check for replay attacks - each signature can only be used once
+  const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
+  if (usedSignatureNonces.has(nonceKey)) {
+    return { valid: false, error: 'Signature has already been used' };
+  }
+  usedSignatureNonces.set(nonceKey, Date.now());
 
   return { valid: true };
 }

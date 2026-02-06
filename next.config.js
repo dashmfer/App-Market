@@ -74,7 +74,7 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               // Allow scripts from self and inline (needed for Next.js)
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline'",
               // Allow styles from self and inline
               "style-src 'self' 'unsafe-inline'",
               // Allow images from approved sources

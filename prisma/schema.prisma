@@ -33,11 +33,11 @@ model User {
   // Stats
   totalSales      Int       @default(0)
   totalPurchases  Int       @default(0)
-  totalVolume     Float     @default(0)
-  rating          Float     @default(0)
+  totalVolume     Decimal   @default(0) @db.Decimal(18, 8)
+  rating          Decimal   @default(0) @db.Decimal(3, 2)
   ratingCount     Int       @default(0)
   sellerLevel     Int       @default(1)
-  successRate     Float     @default(100)
+  successRate     Decimal   @default(100) @db.Decimal(5, 2)
 
   // Dispute Stats
   totalDisputes   Int       @default(0)
@@ -59,7 +59,7 @@ model User {
   referralCode       String?   @unique  // Unique code like "alex123" or auto-generated
   referralCodeCustomized Boolean @default(false)  // Can only customize once
   referredBy         String?   // User ID of who referred them
-  referralEarnings   Float     @default(0)  // Total earnings from referrals
+  referralEarnings   Decimal   @default(0) @db.Decimal(18, 8)  // Total earnings from referrals
   
   // Profile Fields (optional)
   displayName     String?
@@ -227,7 +227,8 @@ model ListingCollaborator {
   customRoleDescription String?         // Free-form text when roleDescription is OTHER
 
   // Payment split
-  percentage        Float               // Their cut of the sale (e.g., 25.5 for 25.5%)
+  percentage        Decimal             @db.Decimal(5, 2) // Their cut of the sale (e.g., 25.5 for 25.5%)
+  // Application enforces 0-100 range
 
   // Permissions
   canEdit           Boolean             @default(false) // Partners can edit, collaborators cannot
@@ -306,13 +307,13 @@ model Listing {
   
   // Metrics (if deployed)
   monthlyUsers      Int?
-  monthlyRevenue    Float?
+  monthlyRevenue    Decimal?  @db.Decimal(18, 8)
   githubStars       Int?
   
   // Auction Settings
   listingType       ListingType   @default(AUCTION)
-  startingPrice     Float
-  buyNowPrice       Float?
+  startingPrice     Decimal   @db.Decimal(18, 8)
+  buyNowPrice       Decimal?  @db.Decimal(18, 8)
   buyNowEnabled     Boolean       @default(false)
   currency          Currency      @default(APP)
   
@@ -364,9 +365,9 @@ model Listing {
 
 model Bid {
   id            String    @id @default(cuid())
-  amount        Float
+  amount        Decimal   @db.Decimal(18, 8)
   currency      Currency  @default(SOL)
-  maxBid        Float?    // For auto-bidding
+  maxBid        Decimal?  @db.Decimal(18, 8)    // For auto-bidding
   
   // On-chain
   onChainTx     String?
@@ -377,9 +378,9 @@ model Bid {
   
   // Relations
   listingId     String
-  listing       Listing   @relation(fields: [listingId], references: [id])
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
   bidderId      String
-  bidder        User      @relation(fields: [bidderId], references: [id])
+  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Cascade)
   
   // Timestamps
   createdAt     DateTime  @default(now())
@@ -387,6 +388,7 @@ model Bid {
   @@index([listingId])
   @@index([bidderId])
   @@index([isWinning])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -395,7 +397,7 @@ model Bid {
 
 model Offer {
   id            String      @id @default(cuid())
-  amount        Float
+  amount        Decimal   @db.Decimal(18, 8)
   deadline      DateTime
   currency      Currency    @default(SOL)
 
@@ -408,9 +410,9 @@ model Offer {
 
   // Relations
   listingId     String
-  listing       Listing     @relation(fields: [listingId], references: [id])
+  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyerId       String
-  buyer         User        @relation(fields: [buyerId], references: [id])
+  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -423,11 +425,12 @@ model Offer {
   @@index([buyerId])
   @@index([status])
   @@index([deadline])
+  @@index([createdAt])
 }
 
 model PendingWithdrawal {
   id            String   @id @default(cuid())
-  amount        Float
+  amount        Decimal  @db.Decimal(18, 8)
   currency      Currency @default(SOL)
   claimed       Boolean  @default(false)
 
@@ -436,9 +439,9 @@ model PendingWithdrawal {
 
   // Relations
   userId        String
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId     String
-  listing       Listing  @relation(fields: [listingId], references: [id])
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime @default(now())
@@ -493,9 +496,9 @@ model Transaction {
   id                  String            @id @default(cuid())
   
   // Amount
-  salePrice           Float
-  platformFee         Float
-  sellerProceeds      Float
+  salePrice           Decimal           @db.Decimal(18, 8)
+  platformFee         Decimal           @db.Decimal(18, 8)
+  sellerProceeds      Decimal           @db.Decimal(18, 8)
   currency            Currency          @default(SOL)
   
   // Payment
@@ -576,6 +579,7 @@ model Transaction {
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -595,8 +599,8 @@ model TransactionPartner {
   user              User?                 @relation(fields: [userId], references: [id])
 
   // Percentage & Amount
-  percentage        Float                 // Their share (e.g., 40 for 40%)
-  depositAmount     Float                 // Amount they need to deposit (calculated)
+  percentage        Decimal               @db.Decimal(5, 2) // Their share (e.g., 40 for 40%)
+  depositAmount     Decimal               @db.Decimal(18, 8) // Amount they need to deposit (calculated)
 
   // Lead buyer status
   isLead            Boolean               @default(false)
@@ -648,7 +652,7 @@ model Dispute {
   resolutionNotes   String?       @db.Text
   
   // Fees
-  disputeFee        Float         // 2% fee charged to losing party
+  disputeFee        Decimal       @db.Decimal(18, 8) // 2% fee charged to losing party
   feeCharged        Boolean       @default(false)
 
   // Relations
@@ -681,6 +685,7 @@ model Review {
 
   // Overall Rating (1-5)
   rating        Int         // Overall rating 1-5
+  // Application enforces 1-5 range
 
   // Multi-Criteria Ratings (1-5, optional)
   communicationRating Int?  // How responsive and clear
@@ -736,9 +741,9 @@ enum ReviewerRole {
 model Watchlist {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id])
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, listingId])
@@ -752,11 +757,12 @@ model Notification {
   data      Json?
   read      Boolean          @default(false)
   userId    String
-  user      User             @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime         @default(now())
 
   @@index([userId])
   @@index([read])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -814,6 +820,7 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([read])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -831,8 +838,8 @@ model TokenLaunch {
   
   // Launch Config
   launchType      TokenLaunchType
-  presalePrice    Float?
-  listingPrice    Float?
+  presalePrice    Decimal?  @db.Decimal(18, 8)
+  listingPrice    Decimal?  @db.Decimal(18, 8)
   
   // Platform Fee (1% of supply)
   platformTokens  BigInt?
@@ -1072,7 +1079,7 @@ model Referral {
 
   // Who referred whom
   referrerId      String
-  referrer        User      @relation("Referrer", fields: [referrerId], references: [id])
+  referrer        User      @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
   referredUserId  String    @unique
   referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
@@ -1084,7 +1091,7 @@ model Referral {
   firstTransactionPaid Boolean @default(false)
 
   // Earnings from this referral
-  totalEarnings   Float     @default(0)
+  totalEarnings   Decimal   @default(0) @db.Decimal(18, 8)
 
   // Timestamps
   createdAt       DateTime  @default(now())
@@ -1101,15 +1108,15 @@ model ReferralEarning {
   id              String    @id @default(cuid())
   
   referralId      String
-  referral        Referral  @relation(fields: [referralId], references: [id])
+  referral        Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
   
   // What transaction generated this earning
   transactionId   String
   
   // Amounts
-  saleAmount      Float     // Total sale amount
-  commissionRate  Float     // e.g., 0.02 for 2%
-  earnedAmount    Float     // saleAmount * commissionRate
+  saleAmount      Decimal   @db.Decimal(18, 8) // Total sale amount
+  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2%
+  earnedAmount    Decimal   @db.Decimal(18, 8) // saleAmount * commissionRate
   
   // Status
   status          EarningStatus @default(PENDING)
@@ -1258,10 +1265,10 @@ model ListingSimilarity {
   similarListing  Listing   @relation("SimilarListings", fields: [similarListingId], references: [id], onDelete: Cascade)
 
   // Similarity scores (0-100)
-  titleSimilarity       Float   @default(0)
-  descriptionSimilarity Float   @default(0)
-  screenshotSimilarity  Float   @default(0)
-  overallSimilarity     Float   @default(0)
+  titleSimilarity       Decimal @default(0) @db.Decimal(5, 2)
+  descriptionSimilarity Decimal @default(0) @db.Decimal(5, 2)
+  screenshotSimilarity  Decimal @default(0) @db.Decimal(5, 2)
+  overallSimilarity     Decimal @default(0) @db.Decimal(5, 2)
 
   // Flags
   flagType        SimilarityFlagType @default(INFO)

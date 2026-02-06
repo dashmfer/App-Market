@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 const createOfferSchema = z.object({
   listingId: z.string(),
@@ -16,6 +17,15 @@ const createOfferSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'offers'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -61,8 +71,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // TODO: Call Solana contract place_offer instruction here
-    // This will throw MaxConsecutiveOffersExceeded if buyer has 10 consecutive offers
+    // TODO: Call Solana contract place_offer instruction to create on-chain escrow.
+    // Without this, offers are database-only and not backed by locked funds.
+    // Requires: Complete IDL, offer escrow PDA creation, buyer signature.
 
     // Create offer in database
     const offer = await prisma.offer.create({
