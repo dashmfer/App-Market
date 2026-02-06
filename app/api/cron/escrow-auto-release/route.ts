@@ -128,6 +128,12 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of eligibleTransactions) {
       try {
+        // TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. Requires:
+        // 1. Backend authority keypair to sign refund transactions
+        // 2. Complete IDL for refund_escrow instruction
+        // 3. Error handling for failed on-chain refunds
+
         // Update transaction to COMPLETED
         await withRetry(() => prisma.transaction.update({
           where: { id: transaction.id },
