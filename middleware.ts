@@ -28,7 +28,7 @@ const PROTECTED_ROUTES = [
 
 // API routes that require authentication
 const PROTECTED_API_ROUTES = [
-  "/api/listings", // POST, PUT, DELETE
+  "/api/listings",       // POST, PUT, DELETE
   "/api/messages",
   "/api/notifications",
   "/api/transactions",
@@ -38,6 +38,18 @@ const PROTECTED_API_ROUTES = [
   "/api/bids",
   "/api/user",
   "/api/uploads",
+  "/api/purchases",
+  "/api/payments",
+  "/api/transfers",
+  "/api/withdrawals",
+  "/api/referrals",
+  "/api/token-launch",
+  "/api/watchlist",
+  "/api/agent",
+  "/api/profile",
+  "/api/purchase-partners",
+  "/api/github",
+  "/api/reviews",        // POST/PUT/DELETE need auth
 ];
 
 // Admin-only routes
@@ -54,12 +66,21 @@ const CRON_ROUTES = [
 // Public API routes (no auth needed)
 const PUBLIC_API_ROUTES = [
   "/api/auth",
-  "/api/listings", // GET only
+  "/api/listings",    // GET only
   "/api/search",
   "/api/categories",
   "/api/health",
+  "/api/stats",       // Public statistics
+  "/api/leaderboard", // Public leaderboard
+  "/api/users",       // Public user profiles
+  "/api/openapi",     // API docs
+  "/api/reviews",     // GET only (public reviews)
 ];
 
+// NOTE: CSRF protection is provided by:
+// 1. SameSite=Lax cookies (prevents cross-site cookie submission)
+// 2. JSON Content-Type requirement (simple forms can't send JSON)
+// 3. Origin/Referer checking by Next.js
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
@@ -117,6 +138,11 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
+  // NOTE: Session revocation is checked in API route handlers via getAuthToken().
+  // Middleware uses getToken() which does not check revocation because Prisma
+  // is not available in Edge Runtime. This is defense-in-depth - routes should
+  // always use getAuthToken() for the authoritative session check.
+
   // Admin route protection
   if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
     if (!token) {
@@ -155,10 +181,14 @@ export async function middleware(request: NextRequest) {
 
   // Protected API routes
   if (PROTECTED_API_ROUTES.some(route => pathname.startsWith(route))) {
-    // Allow GET requests to some routes without auth (public reads)
+    // Allow GET requests to public-read routes without auth
     const isPublicRead =
-      method === "GET" &&
-      (pathname.startsWith("/api/listings") && !pathname.includes("/my-listings"));
+      (method === "GET" && pathname.startsWith("/api/listings") && !pathname.includes("/my-listings")) ||
+      (method === "GET" && pathname.startsWith("/api/reviews")) ||
+      (method === "GET" && pathname.startsWith("/api/stats")) ||
+      (method === "GET" && pathname.startsWith("/api/leaderboard")) ||
+      (method === "GET" && pathname.startsWith("/api/users")) ||
+      (method === "GET" && pathname.startsWith("/api/profile/") && !pathname.includes("/upload"));
 
     if (!isPublicRead && !token) {
       return NextResponse.json(

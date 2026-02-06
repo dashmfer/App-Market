@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
@@ -55,6 +56,15 @@ export async function GET(request: NextRequest) {
 // POST /api/bids - Place a bid
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'bids'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(request);
 
@@ -133,7 +143,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // No bids yet - bid must be at least the starting price
-      if (amount < listing.startingPrice) {
+      if (amount < Number(listing.startingPrice)) {
         return NextResponse.json(
           { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
           { status: 400 }

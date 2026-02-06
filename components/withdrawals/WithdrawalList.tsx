@@ -117,7 +117,7 @@ export default function WithdrawalList() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Unclaimed</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data.stats.totalUnclaimed.toFixed(4)} SOL
+                {Number(data.stats.totalUnclaimed).toFixed(4)} SOL
               </p>
             </div>
             <div className="bg-blue-100 dark:bg-blue-900/30 rounded-full p-3">
@@ -131,7 +131,7 @@ export default function WithdrawalList() {
             <div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Claimed</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data.stats.totalClaimed.toFixed(4)} SOL
+                {Number(data.stats.totalClaimed).toFixed(4)} SOL
               </p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/30 rounded-full p-3">
@@ -234,10 +234,10 @@ export default function WithdrawalList() {
               <div className="flex flex-col items-end gap-3">
                 <div className="text-right">
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {withdrawal.amount.toFixed(4)} {withdrawal.currency}
+                    {Number(withdrawal.amount).toFixed(4)} {withdrawal.currency}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    ≈ ${(withdrawal.amount * 100).toFixed(2)} USD
+                    ≈ ${(Number(withdrawal.amount) * 100).toFixed(2)} USD
                   </p>
                 </div>
 

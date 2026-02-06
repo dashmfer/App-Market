@@ -31,6 +31,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatSol, formatCurrency } from "@/lib/utils";
+import { TREASURY_WALLET } from "@/lib/solana";
 
 interface BidModalProps {
   open: boolean;
@@ -114,7 +115,7 @@ export function BidModal({
         // In production, this should be a PDA from the smart contract
         const escrowPubkey = listing.escrowAddress
           ? new PublicKey(listing.escrowAddress)
-          : new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB"); // Platform escrow
+          : TREASURY_WALLET;
 
         // Create transfer transaction
         const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);

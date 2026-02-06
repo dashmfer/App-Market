@@ -196,9 +196,9 @@ export async function GET(
     const response = {
       id: transaction.id,
       listing: transaction.listing,
-      salePrice: transaction.salePrice,
-      platformFee: transaction.platformFee,
-      sellerProceeds: transaction.sellerProceeds,
+      salePrice: Number(transaction.salePrice),
+      platformFee: Number(transaction.platformFee),
+      sellerProceeds: Number(transaction.sellerProceeds),
       currency: transaction.currency,
       status: transaction.status,
       buyer: {

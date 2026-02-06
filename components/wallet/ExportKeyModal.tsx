@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -30,19 +30,22 @@ export function ExportKeyModal({
 }: ExportKeyModalProps) {
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [privateKey, setPrivateKey] = useState<string | null>(initialPrivateKey);
+  // Don't store the private key in React state - it persists in React DevTools
+  // Use a ref instead so it doesn't appear in component inspection
+  const privateKeyRef = useRef<string | null>(initialPrivateKey);
+  const [hasKey, setHasKey] = useState(!!initialPrivateKey);
   const [loading, setLoading] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
 
   const handleCopy = async () => {
-    if (!privateKey) return;
-    await navigator.clipboard.writeText(privateKey);
+    if (!privateKeyRef.current) return;
+    await navigator.clipboard.writeText(privateKeyRef.current);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleReveal = async () => {
-    if (privateKey) {
+    if (privateKeyRef.current) {
       setShowKey(true);
       return;
     }
@@ -51,7 +54,8 @@ export function ExportKeyModal({
     try {
       const key = await onRequestKey();
       if (key) {
-        setPrivateKey(key);
+        privateKeyRef.current = key;
+        setHasKey(true);
         setShowKey(true);
       }
     } catch (error) {
@@ -61,14 +65,17 @@ export function ExportKeyModal({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setShowKey(false);
     setAcknowledged(false);
+    // Clear the private key from the ref when the modal closes
+    privateKeyRef.current = null;
+    setHasKey(false);
     onClose();
-  };
+  }, [onClose]);
 
-  const maskedKey = privateKey
-    ? privateKey.slice(0, 8) + "•".repeat(40) + privateKey.slice(-8)
+  const maskedKey = hasKey && privateKeyRef.current
+    ? privateKeyRef.current.slice(0, 8) + "\u2022".repeat(40) + privateKeyRef.current.slice(-8)
     : "";
 
   return (
@@ -155,14 +162,14 @@ export function ExportKeyModal({
               )}
 
               {/* Private Key Display */}
-              {showKey && privateKey && (
+              {showKey && privateKeyRef.current && (
                 <div className="bg-zinc-900 dark:bg-black rounded-xl p-4">
                   <label className="block text-xs text-zinc-500 mb-2">
                     Private Key
                   </label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-sm font-mono text-green-400 break-all">
-                      {privateKey}
+                      {privateKeyRef.current}
                     </code>
                     <button
                       onClick={handleCopy}

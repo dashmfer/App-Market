@@ -50,7 +50,7 @@ export default function HomePage() {
 
   const stats = [
     { label: t("stats.projectsSold"), value: platformStats.projectsSold, suffix: "" },
-    { label: t("stats.totalVolume"), value: Math.round(platformStats.totalVolume * 100) / 100, prefix: "", suffix: " SOL" },
+    { label: t("stats.totalVolume"), value: Math.round(Number(platformStats.totalVolume) * 100) / 100, prefix: "", suffix: " SOL" },
     { label: t("stats.activeSellers"), value: platformStats.activeSellers, suffix: "" },
     { label: t("stats.avgSaleTime"), value: platformStats.avgSaleTime, suffix: ` ${t("stats.days")}` },
   ];
@@ -117,7 +117,7 @@ export default function HomePage() {
           const data = await response.json();
           setPlatformStats({
             projectsSold: data.projectsSold || 0,
-            totalVolume: data.totalVolume || 0,
+            totalVolume: Number(data.totalVolume) || 0,
             activeSellers: data.activeSellers || 0,
             avgSaleTime: data.avgSaleTime || 7,
           });

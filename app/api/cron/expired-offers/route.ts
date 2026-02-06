@@ -98,6 +98,12 @@ export async function GET(request: NextRequest) {
     // Process offers to mark as expired
     for (const offer of expiredOffers) {
       try {
+        // TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. Requires:
+        // 1. Backend authority keypair to sign refund transactions
+        // 2. Complete IDL for refund_escrow instruction
+        // 3. Error handling for failed on-chain refunds
+
         // Update offer status to EXPIRED
         await prisma.offer.update({
           where: { id: offer.id },
@@ -106,18 +112,15 @@ export async function GET(request: NextRequest) {
             expiredAt: now,
           },
         });
-
-        // In production, would trigger on-chain refund of escrowed funds
-        // For now, just notify the buyer
         await prisma.notification.create({
           data: {
             type: "SYSTEM",
             title: "Offer Expired",
-            message: `Your offer of ${offer.amount} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
+            message: `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
             data: {
               offerId: offer.id,
               listingId: offer.listingId,
-              amount: offer.amount,
+              amount: Number(offer.amount),
             },
             userId: offer.buyerId,
           },

@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      amountInSol = listing.buyNowPrice;
+      amountInSol = Number(listing.buyNowPrice);
     } else {
       // For bids, the user specifies the amount
       const { bidAmount } = body;
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      const minBid = listing.bids[0]?.amount || listing.startingPrice;
+      const minBid = Number(listing.bids[0]?.amount || listing.startingPrice);
       if (bidAmount <= minBid) {
         return NextResponse.json(
           { error: `Bid must be higher than ${minBid} SOL` },

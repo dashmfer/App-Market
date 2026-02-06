@@ -91,7 +91,7 @@ export async function POST(
     );
 
     // Check if total is 100%
-    const totalPercentage = transaction.partners.reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+    const totalPercentage = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
     if (allDeposited && totalPercentage === 100) {
       // All deposits complete! Move to next phase
@@ -104,7 +104,7 @@ export async function POST(
       });
 
       // Notify all partners
-      for (const p of transaction.partners as Array<{ userId: string | null; id: string; percentage: number; depositStatus: string; isLead: boolean }>) {
+      for (const p of transaction.partners as Array<{ userId: string | null; id: string; depositStatus: string; isLead: boolean }>) {
         if (p.userId) {
           await createNotification({
             userId: p.userId,
@@ -134,7 +134,7 @@ export async function POST(
       total: transaction.partners.length,
       percentageDeposited: transaction.partners
         .filter((p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED")
-        .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0),
+        .reduce((sum: number, p: any) => sum + Number(p.percentage), 0),
     });
   } catch (error) {
     console.error("Error processing deposit:", error);

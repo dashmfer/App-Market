@@ -86,7 +86,7 @@ export async function GET(
     const pendingCount = partners.filter((p: { depositStatus: string }) => p.depositStatus === "PENDING").length;
     const totalPercentageDeposited = partners
       .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
-      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+      .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
     return NextResponse.json({
       partners,

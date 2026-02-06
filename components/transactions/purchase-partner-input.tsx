@@ -300,7 +300,7 @@ export function PurchasePartnerInput({
                 />
                 <Percent className="w-4 h-4 text-zinc-400" />
                 <span className="text-sm font-medium text-blue-600 dark:text-blue-400 min-w-[70px]">
-                  {partner.depositAmount.toFixed(2)} SOL
+                  {Number(partner.depositAmount).toFixed(2)} SOL
                 </span>
               </div>
 

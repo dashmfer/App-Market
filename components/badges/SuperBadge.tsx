@@ -31,7 +31,7 @@ export function SuperBadge({
     lg: "text-sm px-2.5 py-1",
   };
 
-  const tooltipContent = `Super ${type === "seller" ? "Seller" : "Buyer"}: ${totalTransactions || "5+"}+ completed ${type === "seller" ? "sales" : "purchases"}${rating ? ` with ${rating.toFixed(1)}+ rating` : ""}`;
+  const tooltipContent = `Super ${type === "seller" ? "Seller" : "Buyer"}: ${totalTransactions || "5+"}+ completed ${type === "seller" ? "sales" : "purchases"}${rating ? ` with ${Number(rating).toFixed(1)}+ rating` : ""}`;
 
   if (type === "seller") {
     return (

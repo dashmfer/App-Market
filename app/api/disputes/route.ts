@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
@@ -67,6 +68,15 @@ export async function GET(request: NextRequest) {
 // POST /api/disputes - Open a dispute
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'disputes'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -134,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate dispute fee (2% of sale price)
-    const disputeFee = calculateDisputeFee(transaction.salePrice);
+    const disputeFee = calculateDisputeFee(Number(transaction.salePrice));
 
     // Create dispute with standard 2% fee
     const dispute = await prisma.dispute.create({

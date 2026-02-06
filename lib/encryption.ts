@@ -20,12 +20,14 @@ function deriveKey(secret: string, salt: Buffer): Buffer {
 
 /**
  * Get the encryption secret from environment
- * Falls back to NEXTAUTH_SECRET if ENCRYPTION_SECRET not set
  */
 function getEncryptionSecret(): string {
-  const secret = process.env.ENCRYPTION_SECRET || process.env.NEXTAUTH_SECRET;
+  const secret = process.env.ENCRYPTION_SECRET;
   if (!secret) {
-    throw new Error("ENCRYPTION_SECRET or NEXTAUTH_SECRET must be set");
+    throw new Error(
+      "ENCRYPTION_SECRET must be set in environment variables. " +
+      "Generate one with: openssl rand -hex 32"
+    );
   }
   return secret;
 }

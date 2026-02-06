@@ -143,9 +143,9 @@ async function deliverWebhook(
     },
   });
 
-  // Schedule retry if failed
+  // Schedule retry if failed (database-driven, picked up by cron job)
   if (!result.success) {
-    scheduleRetry(delivery.id);
+    await scheduleRetry(delivery.id, 1);
   }
 }
 
@@ -188,107 +188,27 @@ async function attemptDelivery(
 }
 
 /**
- * Schedule a retry for a failed webhook delivery
+ * Schedule a retry for a failed webhook delivery.
+ * In serverless environments, setTimeout won't survive function termination.
+ * Instead, schedule the retry by updating nextRetryAt in the database.
+ * A cron job should poll for deliveries where nextRetryAt <= now and status = 'RETRYING'.
  */
-function scheduleRetry(deliveryId: string): void {
-  // In production, use a job queue (Bull, etc.)
-  // For now, use setTimeout
-  setTimeout(async () => {
-    await retryDelivery(deliveryId);
-  }, 60000); // Retry after 1 minute
-}
+async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<void> {
+  const backoffMs = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+  const nextRetryAt = new Date(Date.now() + backoffMs);
 
-/**
- * Retry a failed webhook delivery
- */
-async function retryDelivery(deliveryId: string): Promise<void> {
   try {
-    const delivery = await prisma.webhookDelivery.findUnique({
-      where: { id: deliveryId },
-      include: {
-        webhook: {
-          select: {
-            id: true,
-            url: true,
-            secret: true,
-            isActive: true,
-          },
-        },
-      },
-    });
-
-    if (!delivery || !delivery.webhook.isActive) {
-      return;
-    }
-
-    if (delivery.attempts >= delivery.maxAttempts) {
-      // Max retries reached
-      await prisma.webhookDelivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: WebhookDeliveryStatus.FAILED,
-          nextRetryAt: null,
-        },
-      });
-      return;
-    }
-
-    const payload = delivery.payload as unknown as WebhookPayload;
-    const payloadString = JSON.stringify(payload);
-    const decryptedSecret = decryptSecret(delivery.webhook.secret);
-    const signature = signWebhookPayload(payloadString, decryptedSecret);
-
-    const result = await attemptDelivery(
-      delivery.webhook.url,
-      payloadString,
-      signature
-    );
-
-    const newAttempts = delivery.attempts + 1;
-    const shouldRetry = !result.success && newAttempts < delivery.maxAttempts;
-
     await prisma.webhookDelivery.update({
       where: { id: deliveryId },
       data: {
-        status: result.success
-          ? WebhookDeliveryStatus.SUCCESS
-          : shouldRetry
-          ? WebhookDeliveryStatus.RETRYING
-          : WebhookDeliveryStatus.FAILED,
-        attempts: newAttempts,
-        responseStatus: result.statusCode,
-        errorMessage: result.error,
-        deliveredAt: result.success ? new Date() : null,
-        nextRetryAt: shouldRetry
-          ? new Date(Date.now() + getRetryDelay(newAttempts))
-          : null,
+        status: "RETRYING" as WebhookDeliveryStatus,
+        nextRetryAt,
+        attempts: attempt,
       },
     });
-
-    // Update webhook stats
-    if (result.success) {
-      await prisma.webhook.update({
-        where: { id: delivery.webhook.id },
-        data: {
-          successfulDeliveries: { increment: 1 },
-          failedDeliveries: { decrement: 1 },
-          lastDeliveryStatus: WebhookDeliveryStatus.SUCCESS,
-        },
-      });
-    } else if (shouldRetry) {
-      scheduleRetry(deliveryId);
-    }
   } catch (error) {
-    console.error("Error retrying webhook delivery:", error);
+    console.error("[Webhook] Failed to schedule retry:", error);
   }
-}
-
-/**
- * Get retry delay with exponential backoff
- */
-function getRetryDelay(attempt: number): number {
-  // 1 min, 2 min, 4 min (exponential backoff)
-  return Math.min(60000 * Math.pow(2, attempt - 1), 240000);
 }
 
 /**

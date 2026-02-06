@@ -61,11 +61,14 @@ export default function ReferralsPage() {
             isCustomized: data.isCustomized || false,
             totalReferrals: data.totalReferrals || 0,
             activeReferrals: data.activeReferrals || 0,
-            totalEarnings: data.totalEarnings || 0,
-            pendingEarnings: data.pendingEarnings || 0,
-            availableEarnings: data.availableEarnings || 0,
-            commissionRate: data.commissionRate || 2,
-            referrals: data.referrals || [],
+            totalEarnings: Number(data.totalEarnings) || 0,
+            pendingEarnings: Number(data.pendingEarnings) || 0,
+            availableEarnings: Number(data.availableEarnings) || 0,
+            commissionRate: Number(data.commissionRate) || 2,
+            referrals: (data.referrals || []).map((r: any) => ({
+              ...r,
+              earnings: Number(r.earnings) || 0,
+            })),
           });
           setNewCode(data.code || "");
         }
@@ -341,7 +344,7 @@ export default function ReferralsPage() {
                           {ref.status === "ACTIVE" ? "Active" : ref.status === "REGISTERED" ? "Registered" : "Pending"}
                         </div>
                         <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                          {ref.earnings > 0 ? `${ref.earnings.toFixed(4)} SOL` : "-"}
+                          {Number(ref.earnings) > 0 ? `${Number(ref.earnings).toFixed(4)} SOL` : "-"}
                         </div>
                       </div>
                     </div>
@@ -365,19 +368,19 @@ export default function ReferralsPage() {
                 <span className="text-sm font-medium">Total Earnings</span>
               </div>
               <div className="text-4xl font-display font-bold">
-                {referralData.totalEarnings.toFixed(4)} SOL
+                {Number(referralData.totalEarnings).toFixed(4)} SOL
               </div>
               <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-green-100">Available</div>
                   <div className="text-xl font-semibold">
-                    {referralData.availableEarnings.toFixed(4)} SOL
+                    {Number(referralData.availableEarnings).toFixed(4)} SOL
                   </div>
                 </div>
                 <div>
                   <div className="text-sm text-green-100">Pending</div>
                   <div className="text-xl font-semibold">
-                    {referralData.pendingEarnings.toFixed(4)} SOL
+                    {Number(referralData.pendingEarnings).toFixed(4)} SOL
                   </div>
                 </div>
               </div>

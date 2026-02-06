@@ -361,6 +361,9 @@ pub mod app_market {
 
         // SECURITY: Lock fees at listing creation time
         // Use discounted 3% fee for APP token payments, standard 5% for others
+        // SECURITY: APP token fee discount is only valid when payment is actually
+        // made in APP tokens via SPL token transfer. The buy_now and place_bid
+        // instructions must verify the payment mint matches the actual transfer.
         listing.platform_fee_bps = if payment_mint == Some(APP_TOKEN_MINT) {
             APP_FEE_BPS
         } else {
@@ -611,6 +614,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
+                    expires_at: clock.unix_timestamp + 7 * 24 * 60 * 60, // 7 days
                     bump,
                 };
 
@@ -705,6 +709,16 @@ pub mod app_market {
 
         let buy_now_price = listing.buy_now_price.unwrap();
 
+        // SECURITY: Validate payment mint matches actual payment method
+        // buy_now uses SOL transfer via SystemProgram - APP token fee discount
+        // requires actual SPL token transfer which is not supported in this path
+        if listing.payment_mint == Some(APP_TOKEN_MINT) {
+            // When APP token is claimed, verify we're actually using the token transfer path
+            // and not a raw SOL transfer. Since buy_now only supports SOL transfers,
+            // listings with APP token payment mint cannot use this instruction.
+            return Err(AppMarketError::InvalidPaymentMint.into());
+        }
+
         // SECURITY: Pre-check buyer has sufficient balance
         require!(
             ctx.accounts.buyer.lamports() >= buy_now_price,
@@ -787,6 +801,7 @@ pub mod app_market {
                 withdrawal.amount = old_bid;
                 withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
+                withdrawal.expires_at = clock.unix_timestamp + 7 * 24 * 60 * 60; // 7 days
                 withdrawal.bump = bump;
 
                 withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
@@ -930,6 +945,8 @@ pub mod app_market {
 
     /// Cancel auction (when no bids received, closes escrow and refunds rent)
     pub fn cancel_auction(ctx: Context<CancelAuction>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
@@ -975,6 +992,8 @@ pub mod app_market {
 
     /// Expire listing (for buy-now listings that reached deadline)
     pub fn expire_listing(ctx: Context<ExpireListing>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
@@ -1522,6 +1541,12 @@ pub mod app_market {
         let offer = &mut ctx.accounts.offer;
         let clock = Clock::get()?;
 
+        // SECURITY: Verify offer belongs to this listing
+        require!(
+            offer.listing == ctx.accounts.listing.key(),
+            AppMarketError::InvalidOffer
+        );
+
         // Validations
         require!(
             ctx.accounts.buyer.key() == offer.buyer,
@@ -1587,6 +1612,12 @@ pub mod app_market {
     pub fn expire_offer(ctx: Context<ExpireOffer>) -> Result<()> {
         let offer = &mut ctx.accounts.offer;
         let clock = Clock::get()?;
+
+        // SECURITY: Verify offer belongs to this listing
+        require!(
+            offer.listing == ctx.accounts.listing.key(),
+            AppMarketError::InvalidOffer
+        );
 
         // Validations
         require!(
@@ -1778,6 +1809,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
+                    expires_at: clock.unix_timestamp + 7 * 24 * 60 * 60, // 7 days
                     bump,
                 };
 
@@ -1838,6 +1870,8 @@ pub mod app_market {
         ctx: Context<OpenDispute>,
         reason: String,
     ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let clock = Clock::get()?;
 
         // Validations
@@ -1862,8 +1896,10 @@ pub mod app_market {
         }
 
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
+        // Use the locked dispute fee from listing creation time, not the live config
+        // which could be changed by admin after the transaction was created
         let dispute_fee = ctx.accounts.transaction.sale_price
-            .checked_mul(ctx.accounts.config.dispute_fee_bps)
+            .checked_mul(ctx.accounts.listing.dispute_fee_bps)
             .ok_or(AppMarketError::MathOverflow)?
             .checked_div(BASIS_POINTS_DIVISOR)
             .ok_or(AppMarketError::MathOverflow)?;
@@ -2018,6 +2054,12 @@ pub mod app_market {
     /// SECURITY: If contested, admin must re-propose new resolution
     pub fn execute_dispute_resolution(ctx: Context<ExecuteDisputeResolution>) -> Result<()> {
         let clock = Clock::get()?;
+
+        // SECURITY: Only admin can resolve disputes
+        require!(
+            ctx.accounts.caller.key() == ctx.accounts.config.admin,
+            AppMarketError::Unauthorized
+        );
 
         // Must have pending resolution
         require!(
@@ -2571,6 +2613,9 @@ pub struct SettleAuction<'info> {
 
 #[derive(Accounts)]
 pub struct CancelAuction<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
@@ -2591,6 +2636,9 @@ pub struct CancelAuction<'info> {
 
 #[derive(Accounts)]
 pub struct ExpireListing<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
@@ -3207,8 +3255,16 @@ pub struct PendingWithdrawal {
     pub amount: u64,
     pub withdrawal_id: u64,  // Unique ID from listing.withdrawal_count
     pub created_at: i64,
+    pub expires_at: i64,  // Auto-expire after 7 days
     pub bump: u8,
 }
+
+// TODO: Add an `expire_withdrawal` instruction that allows anyone to clean up expired
+// PendingWithdrawals (where Clock::get()?.unix_timestamp > expires_at). This instruction
+// should transfer the withdrawal amount back to the original user (withdrawal.user) from
+// the escrow, update escrow.amount, and close the PendingWithdrawal account. This prevents
+// unclaimed withdrawals from blocking new transactions due to the escrow.amount == sale_price
+// check in finalize_transaction, confirm_receipt, and emergency_refund.
 
 #[account]
 #[derive(InitSpace)]
@@ -3595,7 +3651,7 @@ pub enum AppMarketError {
     NotAnAuction,
     #[msg("Seller has not confirmed transfer yet")]
     SellerNotConfirmed,
-    #[msg("Grace period has not expired: must wait 72 hours after seller confirmation")]
+    #[msg("Grace period has not expired: must wait 7 days after seller confirmation")]
     GracePeriodNotExpired,
     #[msg("Starting price must equal reserve price for reserve auctions")]
     StartingPriceMustEqualReserve,
@@ -3645,4 +3701,12 @@ pub enum AppMarketError {
     InvalidOfferSeed,
     #[msg("Invalid withdrawal ID: counter mismatch")]
     InvalidWithdrawalId,
+    #[msg("Invalid payment mint: APP token fee discount requires actual SPL token transfer")]
+    InvalidPaymentMint,
+    #[msg("Invalid offer: offer does not belong to this listing")]
+    InvalidOffer,
+    #[msg("Unauthorized: only admin can perform this action")]
+    Unauthorized,
+    #[msg("Platform is paused")]
+    PlatformPaused,
 }

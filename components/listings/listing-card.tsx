@@ -126,12 +126,12 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
   const { timeLeft, isExpired, isEndingSoon } = useCountdown(listing.endTime);
 
   // Check if this is a Buy Now only listing
-  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || Number(listing.startingPrice) <= 0);
 
   // Get current bid or starting price (for Buy Now only, show the buy now price)
   const displayPrice = isBuyNowOnly
-    ? (listing.buyNowPrice || 0)
-    : (listing.currentBid || listing.startingPrice || 0);
+    ? (Number(listing.buyNowPrice) || 0)
+    : (Number(listing.currentBid) || Number(listing.startingPrice) || 0);
   const bidCount = listing.bidCount || listing._count?.bids || 0;
 
   // Get seller display name

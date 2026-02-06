@@ -141,8 +141,13 @@ export async function GET(request: NextRequest) {
           (p: { depositStatus: string }) => p.depositStatus === "PENDING"
         );
 
+        // TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. Requires:
+        // 1. Backend authority keypair to sign refund transactions
+        // 2. Complete IDL for refund_escrow instruction
+        // 3. Error handling for failed on-chain refunds
+
         // Mark deposited partners as REFUNDED
-        // In production, this would trigger actual on-chain refunds
         for (const partner of depositedPartners) {
           await prisma.transactionPartner.update({
             where: { id: partner.id },
@@ -157,10 +162,10 @@ export async function GET(request: NextRequest) {
               data: {
                 type: "PURCHASE_PARTNER_TIMEOUT",
                 title: "Partner Deposit Expired - Refund Issued",
-                message: `The purchase of "${transaction.listing.title}" was cancelled because not all partners deposited in time. Your deposit of ${partner.depositAmount} SOL has been refunded.`,
+                message: `The purchase of "${transaction.listing.title}" was cancelled because not all partners deposited in time. Your deposit of ${Number(partner.depositAmount)} SOL has been refunded.`,
                 data: {
                   transactionId: transaction.id,
-                  refundAmount: partner.depositAmount,
+                  refundAmount: Number(partner.depositAmount),
                 },
                 userId: partner.userId,
               },

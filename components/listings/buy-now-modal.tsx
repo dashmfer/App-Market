@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PurchasePartnerInput, PurchasePartner } from "@/components/transactions/purchase-partner-input";
+import { TREASURY_WALLET } from "@/lib/solana";
 
 interface BuyNowModalProps {
   isOpen: boolean;
@@ -68,7 +69,9 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
     setError(null);
 
     try {
-      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+      // TODO: Replace with PDA-based escrow from smart contract once IDL is complete
+      // const [escrowPda] = getEscrowPDA(listingPDA);
+      const escrowPubkey = TREASURY_WALLET;
       const lamports = Math.floor(totalPrice * LAMPORTS_PER_SOL);
 
       const transaction = new Transaction().add(
@@ -142,7 +145,9 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
 
     try {
       // First, deposit my share to escrow
-      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+      // TODO: Replace with PDA-based escrow from smart contract once IDL is complete
+      // const [escrowPda] = getEscrowPDA(listingPDA);
+      const escrowPubkey = TREASURY_WALLET;
       const lamports = Math.floor(myDepositAmount * LAMPORTS_PER_SOL);
 
       const transaction = new Transaction().add(
@@ -401,7 +406,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
                                 {p.user?.displayName || p.user?.username || p.walletAddress.slice(0, 8)} ({p.percentage}%)
                               </span>
                               <span className="font-medium text-blue-600">
-                                {p.depositAmount.toFixed(4)} {formatCurrency(listing.currency)}
+                                {Number(p.depositAmount).toFixed(4)} {formatCurrency(listing.currency)}
                               </span>
                             </div>
                           ))}

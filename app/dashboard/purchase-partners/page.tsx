@@ -128,7 +128,7 @@ export default function PurchasePartnersPage() {
 
     try {
       const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
-      const lamports = Math.floor(invite.depositAmount * LAMPORTS_PER_SOL);
+      const lamports = Math.floor(Number(invite.depositAmount) * LAMPORTS_PER_SOL);
 
       const transaction = new Transaction().add(
         SystemProgram.transfer({
@@ -324,7 +324,7 @@ export default function PurchasePartnersPage() {
                   <div>
                     <p className="text-xs text-zinc-500 mb-1">Deposit Required</p>
                     <p className="font-semibold text-green-600">
-                      {invite.depositAmount.toFixed(4)} SOL
+                      {Number(invite.depositAmount).toFixed(4)} SOL
                     </p>
                   </div>
                   <div>
@@ -375,7 +375,7 @@ export default function PurchasePartnersPage() {
                         ) : (
                           <>
                             <Wallet className="w-4 h-4" />
-                            Deposit {invite.depositAmount.toFixed(4)} SOL
+                            Deposit {Number(invite.depositAmount).toFixed(4)} SOL
                           </>
                         )}
                       </Button>

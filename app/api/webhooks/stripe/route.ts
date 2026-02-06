@@ -57,6 +57,15 @@ export async function POST(request: NextRequest) {
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   const { listingId, buyerId, sellerId, amountSol, paymentType } = paymentIntent.metadata;
 
+  // SECURITY: Idempotency check - prevent duplicate processing from Stripe retries
+  const existingTransaction = await prisma.transaction.findFirst({
+    where: { stripePaymentId: paymentIntent.id },
+  });
+  if (existingTransaction) {
+    console.log("[Stripe Webhook] Already processed payment:", paymentIntent.id);
+    return NextResponse.json({ received: true, status: "already_processed" });
+  }
+
   const salePrice = parseFloat(amountSol);
   const platformFee = calculatePlatformFee(salePrice);
   const sellerProceeds = salePrice - platformFee;
@@ -190,30 +199,35 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       },
     ];
 
-    await prisma.transaction.create({
-      data: {
-        salePrice,
-        platformFee,
-        sellerProceeds,
-        currency: "SOL",
-        paymentMethod: "STRIPE",
-        stripePaymentId: paymentIntent.id,
-        status: "IN_ESCROW",
-        transferChecklist,
-        listingId,
-        buyerId,
-        sellerId,
-        paidAt: new Date(),
-      },
+    // Wrap critical DB operations in a transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      // Create transaction record
+      await tx.transaction.create({
+        data: {
+          salePrice,
+          platformFee,
+          sellerProceeds,
+          currency: "SOL",
+          paymentMethod: "STRIPE",
+          stripePaymentId: paymentIntent.id,
+          status: "IN_ESCROW",
+          transferChecklist,
+          listingId,
+          buyerId,
+          sellerId,
+          paidAt: new Date(),
+        },
+      });
+
+      // Update listing status
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { status: "SOLD" },
+      });
     });
 
-    // Update listing status
-    await prisma.listing.update({
-      where: { id: listingId },
-      data: { status: "SOLD" },
-    });
-
-    // Notify parties
+    // Notifications are sent outside the transaction since they are non-critical
+    // and should not cause a rollback of the payment processing
     await prisma.notification.create({
       data: {
         type: "PAYMENT_RECEIVED",
@@ -232,24 +246,27 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       },
     });
   } else {
-    // Create bid
-    // Mark previous winning bid as outbid
-    await prisma.bid.updateMany({
-      where: { listingId, isWinning: true },
-      data: { isWinning: false, isOutbid: true },
+    // Wrap bid operations in a transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      // Mark previous winning bid as outbid
+      await tx.bid.updateMany({
+        where: { listingId, isWinning: true },
+        data: { isWinning: false, isOutbid: true },
+      });
+
+      // Create bid
+      await tx.bid.create({
+        data: {
+          amount: salePrice,
+          currency: "SOL",
+          isWinning: true,
+          listingId,
+          bidderId: buyerId,
+        },
+      });
     });
 
-    await prisma.bid.create({
-      data: {
-        amount: salePrice,
-        currency: "SOL",
-        isWinning: true,
-        listingId,
-        bidderId: buyerId,
-      },
-    });
-
-    // Notify seller
+    // Notify seller (non-critical, outside transaction)
     await prisma.notification.create({
       data: {
         type: "BID_PLACED",
@@ -260,7 +277,8 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     });
   }
 
-  // Update user stats
+  // NOTE: Stats are updated at payment time for simplicity.
+  // Ideally, they should update after transfer completion.
   await prisma.user.update({
     where: { id: sellerId },
     data: {

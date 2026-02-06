@@ -81,7 +81,7 @@ export function PurchasePartnersDisplay({
     // Deposited before pending
     if (a.depositStatus === "DEPOSITED" && b.depositStatus === "PENDING") return -1;
     if (a.depositStatus === "PENDING" && b.depositStatus === "DEPOSITED") return 1;
-    return b.percentage - a.percentage;
+    return Number(b.percentage) - Number(a.percentage);
   });
 
   const depositedPartners = sortedPartners.filter(p => p.depositStatus === "DEPOSITED" || !p.depositStatus);

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateWalletSignatureMessage } from "@/lib/validation";
 
 /**
  * Wallet signature verification endpoint
@@ -7,27 +9,39 @@ import { verifyWalletSignature } from "@/lib/wallet-verification";
  */
 export async function POST(req: NextRequest) {
   try {
-    console.log("[Wallet Verify API] Request received");
+    // SECURITY: Rate limit verification attempts
+    const identifier = getClientIp(req.headers);
+    const rateLimit = await (withRateLimitAsync('auth', 'wallet-verify'))(req, identifier);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: 429, headers: rateLimit.headers }
+      );
+    }
+
     const { publicKey, signature, message } = await req.json();
 
-    console.log("[Wallet Verify API] Payload:", {
-      publicKey,
-      signatureLength: signature?.length,
-      messageLength: message?.length
-    });
+    // SECURITY: Validate message format and timestamp (replay protection)
+    if (publicKey && message) {
+      const messageValidation = validateWalletSignatureMessage(message, publicKey, 300);
+      if (!messageValidation.valid) {
+        return NextResponse.json(
+          { error: messageValidation.error || "Invalid signature message" },
+          { status: 400 }
+        );
+      }
+    }
 
     // Use shared verification logic
     const result = await verifyWalletSignature(publicKey, signature, message);
 
     if (!result.success) {
-      console.error("[Wallet Verify API] Verification failed:", result.error);
       return NextResponse.json(
         { error: result.error || "Verification failed" },
         { status: 401 }
       );
     }
 
-    console.log("[Wallet Verify API] Verification successful");
     return NextResponse.json({
       success: true,
       user: result.user,

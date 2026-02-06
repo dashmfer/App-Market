@@ -96,8 +96,8 @@ export async function POST(
     }
 
     // Calculate fees (3% for APP token, 5% for others)
-    const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
-    const sellerProceeds = offer.amount - platformFee;
+    const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
+    const sellerProceeds = Number(offer.amount) - platformFee;
 
     // Get buyer's wallet address for reservation tracking
     const buyerWithWallet = await prisma.user.findUnique({
@@ -121,7 +121,7 @@ export async function POST(
           listingId: offer.listingId,
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
-          salePrice: offer.amount,
+          salePrice: Number(offer.amount),
           platformFee,
           sellerProceeds,
           currency: offer.listing.currency,

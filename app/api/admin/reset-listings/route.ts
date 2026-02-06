@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -18,15 +19,39 @@ export async function DELETE(request: NextRequest) {
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 
-    // Verify admin secret is configured and matches
-    if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
-      return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
+    // SECURITY: Use constant-time comparison to prevent timing attacks
+    if (!ADMIN_SECRET || !secret || secret.length !== ADMIN_SECRET.length) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Also require authentication
+    let isValidSecret = false;
+    try {
+      isValidSecret = timingSafeEqual(
+        Buffer.from(secret),
+        Buffer.from(ADMIN_SECRET)
+      );
+    } catch {
+      isValidSecret = false;
+    }
+
+    if (!isValidSecret) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Also require authentication AND admin role
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // SECURITY: Verify user is an admin in the database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
+    if (!user?.isAdmin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
     }
 
     // Delete specific listing

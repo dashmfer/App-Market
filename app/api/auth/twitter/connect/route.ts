@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
+import { encrypt } from "@/lib/encryption";
 import crypto from "crypto";
 
 // Force dynamic rendering for this route
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(authUrl);
 
     // Set cookie with OAuth data (expires in 10 minutes)
-    response.cookies.set("twitter_oauth_data", Buffer.from(oauthData).toString("base64"), {
+    response.cookies.set("twitter_oauth_data", encrypt(oauthData), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

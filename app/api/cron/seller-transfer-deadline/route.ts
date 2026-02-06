@@ -127,6 +127,12 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
+        // TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. Requires:
+        // 1. Backend authority keypair to sign refund transactions
+        // 2. Complete IDL for refund_escrow instruction
+        // 3. Error handling for failed on-chain refunds
+
         // Update transaction to REFUNDED status
         await withRetry(
           () => prisma.transaction.update({
@@ -164,7 +170,7 @@ export async function GET(request: NextRequest) {
               data: {
                 transactionId: transaction.id,
                 listingSlug: transaction.listing.slug,
-                refundAmount: transaction.salePrice,
+                refundAmount: Number(transaction.salePrice),
                 reason: "seller_transfer_deadline_expired",
               },
               userId: transaction.buyerId,
