@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (amount < listing.buyNowPrice) {
+      if (amount < Number(listing.buyNowPrice)) {
         return NextResponse.json(
           { error: `Payment amount must be at least ${listing.buyNowPrice} ${listing.currency}` },
           { status: 400 }
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         where: { listingId, isWinning: true },
         orderBy: { amount: 'desc' },
       });
-      if (highestBid && amount < highestBid.amount) {
+      if (highestBid && amount < Number(highestBid.amount)) {
         return NextResponse.json(
           { error: "Amount does not match winning bid" },
           { status: 400 }

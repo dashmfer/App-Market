@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      salePrice = listing.buyNowPrice;
+      salePrice = Number(listing.buyNowPrice);
     } else {
       // Auction win
       if (listing.status !== "ENDED" && new Date() < listing.endTime) {
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      salePrice = winningBid.amount;
+      salePrice = Number(winningBid.amount);
     }
 
     // Calculate fees (3% for APP token, 5% for others)

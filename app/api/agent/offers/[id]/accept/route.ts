@@ -59,7 +59,7 @@ export async function POST(
       return agentErrorResponse("Offer has expired", 400);
     }
 
-    const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
+    const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
     const sellerProceeds = Number(offer.amount) - platformFee;
 
     const [updatedOffer, transaction] = await prisma.$transaction([

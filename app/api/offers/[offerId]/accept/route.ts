@@ -96,7 +96,7 @@ export async function POST(
     }
 
     // Calculate fees (3% for APP token, 5% for others)
-    const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
+    const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
     const sellerProceeds = Number(offer.amount) - platformFee;
 
     // Get buyer's wallet address for reservation tracking
