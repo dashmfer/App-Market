@@ -11,7 +11,7 @@ const TOKEN_FIELDS = ["refresh_token", "access_token", "id_token"] as const;
  * Encrypt OAuth tokens before storing in the database
  */
 export function encryptAccountTokens<T extends Record<string, any>>(data: T): T {
-  const encrypted = { ...data };
+  const encrypted: Record<string, any> = { ...data };
   for (const field of TOKEN_FIELDS) {
     if (encrypted[field] && typeof encrypted[field] === "string") {
       try {
@@ -25,14 +25,14 @@ export function encryptAccountTokens<T extends Record<string, any>>(data: T): T 
       }
     }
   }
-  return encrypted;
+  return encrypted as T;
 }
 
 /**
  * Decrypt OAuth tokens after reading from the database
  */
 export function decryptAccountTokens<T extends Record<string, any>>(data: T): T {
-  const decrypted = { ...data };
+  const decrypted: Record<string, any> = { ...data };
   for (const field of TOKEN_FIELDS) {
     if (decrypted[field] && typeof decrypted[field] === "string") {
       try {
@@ -45,5 +45,5 @@ export function decryptAccountTokens<T extends Record<string, any>>(data: T): T 
       }
     }
   }
-  return decrypted;
+  return decrypted as T;
 }
