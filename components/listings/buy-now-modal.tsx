@@ -406,7 +406,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
                                 {p.user?.displayName || p.user?.username || p.walletAddress.slice(0, 8)} ({p.percentage}%)
                               </span>
                               <span className="font-medium text-blue-600">
-                                {p.depositAmount.toFixed(4)} {formatCurrency(listing.currency)}
+                                {Number(p.depositAmount).toFixed(4)} {formatCurrency(listing.currency)}
                               </span>
                             </div>
                           ))}

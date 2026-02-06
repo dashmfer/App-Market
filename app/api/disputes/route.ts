@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate dispute fee (2% of sale price)
-    const disputeFee = calculateDisputeFee(transaction.salePrice);
+    const disputeFee = calculateDisputeFee(Number(transaction.salePrice));
 
     // Create dispute with standard 2% fee
     const dispute = await prisma.dispute.create({

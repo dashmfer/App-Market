@@ -193,7 +193,7 @@ export async function GET(request: NextRequest) {
     // Transform listings for response
     const transformedListings = listings.map((listing: typeof listings[number]) => {
       // Check if this is a Buy Now only listing (no valid starting price)
-      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || Number(listing.startingPrice) <= 0);
 
       return {
         id: listing.id,

@@ -61,11 +61,14 @@ export default function ReferralsPage() {
             isCustomized: data.isCustomized || false,
             totalReferrals: data.totalReferrals || 0,
             activeReferrals: data.activeReferrals || 0,
-            totalEarnings: data.totalEarnings || 0,
-            pendingEarnings: data.pendingEarnings || 0,
-            availableEarnings: data.availableEarnings || 0,
-            commissionRate: data.commissionRate || 2,
-            referrals: data.referrals || [],
+            totalEarnings: Number(data.totalEarnings) || 0,
+            pendingEarnings: Number(data.pendingEarnings) || 0,
+            availableEarnings: Number(data.availableEarnings) || 0,
+            commissionRate: Number(data.commissionRate) || 2,
+            referrals: (data.referrals || []).map((r: any) => ({
+              ...r,
+              earnings: Number(r.earnings) || 0,
+            })),
           });
           setNewCode(data.code || "");
         }

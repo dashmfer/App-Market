@@ -191,7 +191,7 @@ export default function LeaderboardPage() {
                           {type === "rated" && (
                             <div className="flex items-center justify-center gap-1 mt-1">
                               <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                              <span className="text-sm font-medium">{entry.rating.toFixed(1)}</span>
+                              <span className="text-sm font-medium">{Number(entry.rating).toFixed(1)}</span>
                               <span className="text-xs text-zinc-500">({entry.ratingCount})</span>
                             </div>
                           )}
@@ -239,7 +239,7 @@ export default function LeaderboardPage() {
                     {entry.ratingCount > 0 && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
-                        <span className="text-sm text-zinc-500">{entry.rating.toFixed(1)} ({entry.ratingCount})</span>
+                        <span className="text-sm text-zinc-500">{Number(entry.rating).toFixed(1)} ({entry.ratingCount})</span>
                       </div>
                     )}
                   </div>
@@ -265,7 +265,7 @@ export default function LeaderboardPage() {
                             <Star
                               key={star}
                               className={`w-4 h-4 ${
-                                star <= Math.round(entry.rating)
+                                star <= Math.round(Number(entry.rating))
                                   ? "text-yellow-400 fill-yellow-400"
                                   : "text-zinc-300 dark:text-zinc-600"
                               }`}
@@ -274,7 +274,7 @@ export default function LeaderboardPage() {
                         </div>
                       </div>
                     )}
-                    {entry.successRate !== undefined && entry.successRate > 0 && (
+                    {entry.successRate !== undefined && Number(entry.successRate) > 0 && (
                       <div className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 mt-1 justify-end">
                         <TrendingUp className="w-3 h-3" />
                         <span>{entry.successRate}% success</span>

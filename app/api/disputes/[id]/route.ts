@@ -87,7 +87,7 @@ export async function POST(
     switch (resolution) {
       case "FULL_REFUND":
         // Buyer gets full refund, seller gets nothing
-        buyerRefund = transaction.salePrice;
+        buyerRefund = Number(transaction.salePrice);
         sellerPayout = 0;
         newTransactionStatus = "REFUNDED";
         // Charge dispute fee to seller (loser)
@@ -96,8 +96,8 @@ export async function POST(
 
       case "PARTIAL_REFUND":
         // Split based on circumstances (default 50/50 for now)
-        buyerRefund = transaction.salePrice * 0.5;
-        sellerPayout = transaction.salePrice * 0.5 - transaction.platformFee * 0.5;
+        buyerRefund = Number(transaction.salePrice) * 0.5;
+        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5;
         newTransactionStatus = "COMPLETED";
         // No dispute fee charged on partial resolution
         break;

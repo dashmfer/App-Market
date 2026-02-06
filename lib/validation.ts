@@ -144,7 +144,7 @@ export function calculatePartnerPayments(
     const isLast = index === partners.length - 1;
     const amountLamports = isLast
       ? totalLamports - distributedLamports
-      : (totalLamports * BigInt(Math.round(partner.percentage * 100))) / BigInt(10000);
+      : (totalLamports * BigInt(Math.round(Number(partner.percentage) * 100))) / BigInt(10000);
 
     distributedLamports += amountLamports;
 

@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     });
 
     const transformedListings = listings.map((listing: typeof listings[number]) => {
-      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || Number(listing.startingPrice) <= 0);
       return {
         id: listing.id,
         slug: listing.slug,

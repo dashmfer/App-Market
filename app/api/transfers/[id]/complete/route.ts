@@ -153,7 +153,7 @@ export async function POST(
     try {
       const referralResult = await processReferralEarnings(
         transaction.id,
-        transaction.salePrice,
+        Number(transaction.salePrice),
         transaction.buyerId,
         transaction.sellerId
       );
@@ -248,7 +248,7 @@ export async function POST(
             userId: payment.userId,
             type: "PAYMENT_RECEIVED",
             title: "Payment Released!",
-            message: `Your share (${payment.percentage}%) of the sale of "${transaction.listing.title}" has been released: ${payment.amount.toFixed(2)} ${transaction.currency}`,
+            message: `Your share (${payment.percentage}%) of the sale of "${transaction.listing.title}" has been released: ${Number(payment.amount).toFixed(2)} ${transaction.currency}`,
             data: {
               transactionId: transaction.id,
               listingId: transaction.listingId,

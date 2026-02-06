@@ -178,7 +178,7 @@ export default function UserProfilePage() {
                       <Star
                         key={star}
                         className={`w-5 h-5 ${
-                          star <= Math.round(profile.rating)
+                          star <= Math.round(Number(profile.rating))
                             ? "text-yellow-400 fill-yellow-400"
                             : "text-zinc-300 dark:text-zinc-600"
                         }`}
@@ -186,7 +186,7 @@ export default function UserProfilePage() {
                     ))}
                   </div>
                   <span className="text-sm text-zinc-500">
-                    {profile.rating.toFixed(1)} ({profile.ratingCount} {profile.ratingCount === 1 ? "review" : "reviews"})
+                    {Number(profile.rating).toFixed(1)} ({profile.ratingCount} {profile.ratingCount === 1 ? "review" : "reviews"})
                   </span>
                 </div>
               )}
@@ -226,7 +226,7 @@ export default function UserProfilePage() {
                     <span>{profile.totalPurchases} purchases</span>
                   </div>
                 )}
-                {profile.successRate !== undefined && profile.successRate > 0 && (
+                {profile.successRate !== undefined && Number(profile.successRate) > 0 && (
                   <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
                     <TrendingUp className="w-4 h-4" />
                     <span>{profile.successRate}% success rate</span>

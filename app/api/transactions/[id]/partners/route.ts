@@ -125,7 +125,7 @@ export async function POST(
     }
 
     // Calculate deposit amount based on percentage
-    const depositAmount = (transaction.salePrice * percentage) / 100;
+    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
     // Create the partner
     const partner = await prisma.transactionPartner.create({
@@ -339,7 +339,7 @@ export async function PATCH(
     }
 
     // Calculate new deposit amount
-    const depositAmount = (transaction.salePrice * percentage) / 100;
+    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
     // Update the partner
     const updatedPartner = await prisma.transactionPartner.update({

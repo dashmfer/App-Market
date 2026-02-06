@@ -88,9 +88,9 @@ export default function DisputeResolutionPanel({
     setIsSubmitting(true);
     try {
       const buyer = resolution === 'PartialRefund' ? parseFloat(buyerAmount) :
-                    resolution === 'FullRefund' ? transaction.salePrice : 0;
+                    resolution === 'FullRefund' ? Number(transaction.salePrice) : 0;
       const seller = resolution === 'PartialRefund' ? parseFloat(sellerAmount) :
-                     resolution === 'ReleaseToSeller' ? transaction.salePrice : 0;
+                     resolution === 'ReleaseToSeller' ? Number(transaction.salePrice) : 0;
       await onPropose(resolution, buyer, seller, notes);
     } finally {
       setIsSubmitting(false);
@@ -334,7 +334,7 @@ export default function DisputeResolutionPanel({
                     onChange={(e) => {
                       setBuyerAmount(e.target.value);
                       const buyer = parseFloat(e.target.value) || 0;
-                      setSellerAmount((transaction.salePrice - buyer).toFixed(2));
+                      setSellerAmount((Number(transaction.salePrice) - buyer).toFixed(2));
                     }}
                     placeholder="0.00"
                     className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -351,7 +351,7 @@ export default function DisputeResolutionPanel({
                     onChange={(e) => {
                       setSellerAmount(e.target.value);
                       const seller = parseFloat(e.target.value) || 0;
-                      setBuyerAmount((transaction.salePrice - seller).toFixed(2));
+                      setBuyerAmount((Number(transaction.salePrice) - seller).toFixed(2));
                     }}
                     placeholder="0.00"
                     className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"

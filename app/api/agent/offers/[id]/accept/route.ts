@@ -60,7 +60,7 @@ export async function POST(
     }
 
     const platformFee = calculatePlatformFee(offer.amount, offer.listing.currency);
-    const sellerProceeds = offer.amount - platformFee;
+    const sellerProceeds = Number(offer.amount) - platformFee;
 
     const [updatedOffer, transaction] = await prisma.$transaction([
       prisma.offer.update({
