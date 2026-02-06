@@ -58,7 +58,7 @@ export async function GET(
 
     // Calculate seller's percentage (100% minus all collaborators)
     const collaboratorTotalPercentage = listing.collaborators.reduce(
-      (sum: number, c: { percentage: number }) => sum + c.percentage,
+      (sum: number, c: any) => sum + Number(c.percentage),
       0
     );
     const sellerPercentage = 100 - collaboratorTotalPercentage;
@@ -187,7 +187,7 @@ export async function POST(
 
     // Calculate current total percentage
     const currentTotalPercentage = listing.collaborators.reduce(
-      (sum: number, c: { percentage: number }) => sum + c.percentage,
+      (sum: number, c: any) => sum + Number(c.percentage),
       0
     );
 

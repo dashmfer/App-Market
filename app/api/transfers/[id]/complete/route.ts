@@ -165,15 +165,16 @@ export async function POST(
 
     // Calculate payment distribution for collaborators
     const collaborators = transaction.listing.collaborators || [];
-    const sellerProceeds = transaction.sellerProceeds;
+    const sellerProceeds = Number(transaction.sellerProceeds);
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
     let collaboratorTotalPercentage = 0;
 
     for (const collab of collaborators) {
-      const collaboratorAmount = (sellerProceeds * collab.percentage) / 100;
-      collaboratorTotalPercentage += collab.percentage;
+      const collabPct = Number(collab.percentage);
+      const collaboratorAmount = (sellerProceeds * collabPct) / 100;
+      collaboratorTotalPercentage += collabPct;
 
       collaboratorPayments.push({
         collaboratorId: collab.id,
