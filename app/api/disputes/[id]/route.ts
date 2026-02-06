@@ -105,7 +105,7 @@ export async function POST(
       case "RELEASE_TO_SELLER":
         // Seller gets full payment minus platform fee
         buyerRefund = 0;
-        sellerPayout = transaction.sellerProceeds;
+        sellerPayout = Number(transaction.sellerProceeds);
         newTransactionStatus = "COMPLETED";
         // Charge dispute fee to buyer (loser)
         feeCharged = true;
