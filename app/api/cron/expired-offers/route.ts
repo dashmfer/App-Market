@@ -116,11 +116,11 @@ export async function GET(request: NextRequest) {
           data: {
             type: "SYSTEM",
             title: "Offer Expired",
-            message: `Your offer of ${offer.amount} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
+            message: `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
             data: {
               offerId: offer.id,
               listingId: offer.listingId,
-              amount: offer.amount,
+              amount: Number(offer.amount),
             },
             userId: offer.buyerId,
           },

@@ -194,7 +194,7 @@ export async function GET() {
       stats: {
         totalSales: user.totalSales,
         totalPurchases: user.totalPurchases,
-        totalVolume: user.totalVolume,
+        totalVolume: Number(user.totalVolume),
         activeListings,
         pendingTransfers,
         rating: user.rating,

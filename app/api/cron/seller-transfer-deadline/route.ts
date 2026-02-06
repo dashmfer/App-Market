@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
               data: {
                 transactionId: transaction.id,
                 listingSlug: transaction.listing.slug,
-                refundAmount: transaction.salePrice,
+                refundAmount: Number(transaction.salePrice),
                 reason: "seller_transfer_deadline_expired",
               },
               userId: transaction.buyerId,

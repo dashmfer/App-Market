@@ -1044,7 +1044,7 @@ export default function CreateListingPage() {
                   <CollaboratorInput
                     collaborators={formData.collaborators}
                     onChange={(collaborators) => updateFormData("collaborators", collaborators)}
-                    ownerPercentage={100 - formData.collaborators.reduce((sum, c) => sum + c.percentage, 0)}
+                    ownerPercentage={100 - formData.collaborators.reduce((sum, c) => sum + Number(c.percentage), 0)}
                     disabled={false}
                   />
 

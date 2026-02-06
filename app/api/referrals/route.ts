@@ -64,7 +64,7 @@ export async function GET() {
     return NextResponse.json({
       code: user.referralCode,
       isCustomized: user.referralCodeCustomized,
-      totalEarnings: user.referralEarnings,
+      totalEarnings: Number(user.referralEarnings),
       pendingEarnings,
       availableEarnings,
       totalReferrals,

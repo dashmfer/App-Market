@@ -87,11 +87,11 @@ export async function POST(request: NextRequest) {
     // Check minimum bid
     const currentHighBid = listing.bids[0]?.amount || null;
     if (currentHighBid !== null) {
-      if (amount <= currentHighBid) {
+      if (amount <= Number(currentHighBid)) {
         return agentErrorResponse(`Bid must be higher than ${currentHighBid} ${listing.currency}`, 400);
       }
     } else {
-      if (amount < listing.startingPrice) {
+      if (amount < Number(listing.startingPrice)) {
         return agentErrorResponse(`Bid must be at least ${listing.startingPrice} ${listing.currency}`, 400);
       }
     }

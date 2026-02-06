@@ -106,7 +106,7 @@ export async function GET(
       {
         title: transaction.listing.title,
         description: transaction.listing.description,
-        price: transaction.salePrice,
+        price: Number(transaction.salePrice),
         currency: transaction.currency,
         assets: getAssetsList(transaction.listing),
       },
@@ -121,7 +121,7 @@ export async function GET(
       transaction: {
         id: transaction.id,
         status: transaction.status,
-        amount: transaction.salePrice,
+        amount: Number(transaction.salePrice),
         currency: transaction.currency,
       },
     });
@@ -322,7 +322,7 @@ export async function POST(
     const listingDetails = {
       title: transaction.listing.title,
       description: transaction.listing.description,
-      price: transaction.salePrice,
+      price: Number(transaction.salePrice),
       currency: transaction.currency,
       assets: getAssetsList(transaction.listing),
     };

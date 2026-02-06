@@ -241,13 +241,13 @@ export async function POST(request: NextRequest) {
             data: {
               type: "PURCHASE_PARTNER_INVITE",
               title: "Purchase Partner Invite",
-              message: `You've been invited to co-purchase "${listing.title}" with ${partner.percentage}% share (${partner.depositAmount} SOL)`,
+              message: `You've been invited to co-purchase "${listing.title}" with ${Number(partner.percentage)}% share (${Number(partner.depositAmount)} SOL)`,
               data: {
                 listingId,
                 listingSlug: listing.slug,
                 transactionId: transaction.id,
-                percentage: partner.percentage,
-                depositAmount: partner.depositAmount,
+                percentage: Number(partner.percentage),
+                depositAmount: Number(partner.depositAmount),
                 deadline: partnerDepositDeadline?.toISOString(),
               },
               userId: partner.userId,

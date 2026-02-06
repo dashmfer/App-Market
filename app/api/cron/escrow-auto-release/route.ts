@@ -170,7 +170,7 @@ export async function GET(request: NextRequest) {
             data: {
               transactionId: transaction.id,
               autoRelease: true,
-              amount: transaction.sellerProceeds,
+              amount: Number(transaction.sellerProceeds),
             },
             userId: transaction.sellerId,
           },

@@ -121,7 +121,7 @@ export async function POST(
           listingId: offer.listingId,
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
-          salePrice: offer.amount,
+          salePrice: Number(offer.amount),
           platformFee,
           sellerProceeds,
           currency: offer.listing.currency,

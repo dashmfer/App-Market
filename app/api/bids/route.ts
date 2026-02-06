@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // No bids yet - bid must be at least the starting price
-      if (amount < listing.startingPrice) {
+      if (amount < Number(listing.startingPrice)) {
         return NextResponse.json(
           { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
           { status: 400 }

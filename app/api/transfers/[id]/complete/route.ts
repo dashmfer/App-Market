@@ -230,10 +230,10 @@ export async function POST(
         title: "Payment Released!",
         message: collaborators.length > 0
           ? `Congratulations! The transfer is complete. Your share (${sellerPercentage}%) of ${sellerFinalAmount.toFixed(2)} ${transaction.currency} has been released.`
-          : `Congratulations! The buyer has completed the transfer. ${transaction.sellerProceeds} ${transaction.currency} has been released to your wallet.`,
+          : `Congratulations! The buyer has completed the transfer. ${Number(transaction.sellerProceeds)} ${transaction.currency} has been released to your wallet.`,
         data: {
           transactionId: transaction.id,
-          amount: collaborators.length > 0 ? sellerFinalAmount : transaction.sellerProceeds,
+          amount: collaborators.length > 0 ? sellerFinalAmount : Number(transaction.sellerProceeds),
           percentage: sellerPercentage,
           currency: transaction.currency,
           hasCollaborators: collaborators.length > 0,
