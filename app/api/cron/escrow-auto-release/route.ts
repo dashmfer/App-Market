@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
           where: { id: transaction.sellerId },
           data: {
             totalSales: { increment: 1 },
-            totalVolume: { increment: transaction.salePrice },
+            totalVolume: { increment: Number(transaction.salePrice) },
           },
         }), `Update seller stats ${transaction.sellerId}`);
 

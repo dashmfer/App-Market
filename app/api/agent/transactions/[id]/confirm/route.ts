@@ -121,7 +121,7 @@ export async function POST(
         where: { id: transaction.sellerId },
         data: {
           totalSales: { increment: 1 },
-          totalVolume: { increment: transaction.salePrice },
+          totalVolume: { increment: Number(transaction.salePrice) },
         },
       });
 

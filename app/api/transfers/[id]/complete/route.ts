@@ -137,7 +137,7 @@ export async function POST(
       where: { id: transaction.sellerId },
       data: {
         totalSales: { increment: 1 },
-        totalVolume: { increment: transaction.salePrice },
+        totalVolume: { increment: Number(transaction.salePrice) },
       },
     });
 
@@ -181,7 +181,7 @@ export async function POST(
         walletAddress: collab.walletAddress,
         userId: collab.userId,
         role: collab.role,
-        percentage: collab.percentage,
+        percentage: collabPct,
         amount: collaboratorAmount,
       });
     }

@@ -79,7 +79,7 @@ export async function GET(
     ).length;
     const totalPercentageDeposited = partner.transaction.partners
       .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
-      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+      .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
     // Calculate time remaining
     const timeRemaining = partner.transaction.partnerDepositDeadline

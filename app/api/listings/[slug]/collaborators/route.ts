@@ -461,7 +461,7 @@ export async function PATCH(
       // Calculate other collaborators' total
       const otherCollaboratorsTotal = listing.collaborators
         .filter((c: { id: string }) => c.id !== collaboratorId)
-        .reduce((sum: number, c: { percentage: number }) => sum + c.percentage, 0);
+        .reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
 
       if (otherCollaboratorsTotal + percentage > 99) {
         return NextResponse.json(
