@@ -104,7 +104,7 @@ export async function POST(
       });
 
       // Notify all partners
-      for (const p of transaction.partners as Array<{ userId: string | null; id: string; percentage: number; depositStatus: string; isLead: boolean }>) {
+      for (const p of transaction.partners as Array<{ userId: string | null; id: string; depositStatus: string; isLead: boolean }>) {
         if (p.userId) {
           await createNotification({
             userId: p.userId,
