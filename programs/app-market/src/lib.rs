@@ -694,6 +694,63 @@ pub mod app_market {
         Ok(())
     }
 
+    /// Expire unclaimed withdrawal (anyone can call after expiry)
+    /// Returns funds to the original user and unblocks the escrow.
+    /// This prevents auctions from stalling when outbid users don't claim.
+    pub fn expire_withdrawal(ctx: Context<ExpireWithdrawal>) -> Result<()> {
+        let withdrawal = &ctx.accounts.pending_withdrawal;
+        let clock = Clock::get()?;
+
+        // CHECKS: Withdrawal must be expired
+        require!(
+            clock.unix_timestamp > withdrawal.expires_at,
+            AppMarketError::WithdrawalNotExpired
+        );
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.escrow.to_account_info().data_len()
+        );
+        require!(
+            escrow_balance >= withdrawal.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // INTERACTIONS: Transfer funds back to the original user
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.listing.to_account_info().key.as_ref(),
+            &[ctx.accounts.escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.recipient.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, withdrawal.amount)?;
+
+        // Update escrow tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(withdrawal.amount)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        emit!(WithdrawalExpired {
+            user: withdrawal.user,
+            listing: ctx.accounts.listing.key(),
+            amount: withdrawal.amount,
+            expired_by: ctx.accounts.caller.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Buy now (instant purchase)
     pub fn buy_now(ctx: Context<BuyNow>) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
@@ -2542,6 +2599,45 @@ pub struct WithdrawFunds<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ExpireWithdrawal<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    // Close the expired withdrawal account, return rent to the caller as incentive
+    #[account(
+        mut,
+        close = caller,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            &pending_withdrawal.withdrawal_id.to_le_bytes()
+        ],
+        bump = pending_withdrawal.bump,
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
+    /// The original user who was outbid — funds go back to them
+    /// CHECK: Validated against pending_withdrawal.user
+    #[account(
+        mut,
+        constraint = recipient.key() == pending_withdrawal.user @ AppMarketError::NotWithdrawalOwner
+    )]
+    pub recipient: AccountInfo<'info>,
+
+    /// Anyone can call this (incentivized by receiving rent back)
+    #[account(mut)]
+    pub caller: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct BuyNow<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -3259,12 +3355,6 @@ pub struct PendingWithdrawal {
     pub bump: u8,
 }
 
-// TODO: Add an `expire_withdrawal` instruction that allows anyone to clean up expired
-// PendingWithdrawals (where Clock::get()?.unix_timestamp > expires_at). This instruction
-// should transfer the withdrawal amount back to the original user (withdrawal.user) from
-// the escrow, update escrow.amount, and close the PendingWithdrawal account. This prevents
-// unclaimed withdrawals from blocking new transactions due to the escrow.amount == sale_price
-// check in finalize_transaction, confirm_receipt, and emergency_refund.
 
 #[account]
 #[derive(InitSpace)]
@@ -3517,6 +3607,15 @@ pub struct WithdrawalClaimed {
 }
 
 #[event]
+pub struct WithdrawalExpired {
+    pub user: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub expired_by: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
 pub struct OfferCreated {
     pub offer: Pubkey,
     pub listing: Pubkey,
@@ -3709,4 +3808,6 @@ pub enum AppMarketError {
     Unauthorized,
     #[msg("Platform is paused")]
     PlatformPaused,
+    #[msg("Withdrawal has not expired yet")]
+    WithdrawalNotExpired,
 }
