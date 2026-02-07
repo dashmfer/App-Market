@@ -27,7 +27,7 @@ import {
  * 2. Reduce escrow.amount so transactions can complete
  * 3. Close the PendingWithdrawal PDA (rent goes to caller)
  *
- * Runs every hour. Requires BACKEND_AUTHORITY_KEYPAIR env var.
+ * Runs every hour. Requires BACKEND_AUTHORITY_SECRET_KEY env var.
  */
 
 // Verify cron secret
@@ -43,19 +43,18 @@ function verifyCronSecret(request: NextRequest): boolean {
   return authHeader === `Bearer ${cronSecret}`;
 }
 
-// Load backend authority keypair from env
+// Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
 function getBackendAuthority(): Keypair | null {
-  const keypairBase64 = process.env.BACKEND_AUTHORITY_KEYPAIR;
-  if (!keypairBase64) {
+  const secretKeyJson = process.env.BACKEND_AUTHORITY_SECRET_KEY;
+  if (!secretKeyJson) {
     return null;
   }
 
   try {
-    const keypairBytes = Buffer.from(keypairBase64, "base64");
-    const secretKey = new Uint8Array(JSON.parse(keypairBytes.toString()));
-    return Keypair.fromSecretKey(secretKey);
+    const keypairBytes = JSON.parse(secretKeyJson);
+    return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
   } catch (error) {
-    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_KEYPAIR:", error);
+    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY:", error);
     return null;
   }
 }
@@ -98,7 +97,7 @@ export async function GET(request: NextRequest) {
   try {
     const authority = getBackendAuthority();
     if (!authority) {
-      console.warn("[Cron] BACKEND_AUTHORITY_KEYPAIR not set — skipping on-chain expiry. DB update only.");
+      console.warn("[Cron] BACKEND_AUTHORITY_SECRET_KEY not set — skipping on-chain expiry. DB update only.");
     }
 
     // Find unclaimed withdrawals older than 1 hour

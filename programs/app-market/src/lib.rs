@@ -751,6 +751,30 @@ pub mod app_market {
         Ok(())
     }
 
+    /// Close escrow after all pending withdrawals are cleared
+    /// Permissionless — anyone can call once escrow.amount == 0 and transaction is terminal
+    /// Caller receives PDA rent as incentive for cleanup
+    pub fn close_escrow(ctx: Context<CloseEscrow>) -> Result<()> {
+        let status = ctx.accounts.transaction.status;
+        require!(
+            status == TransactionStatus::Completed || status == TransactionStatus::Refunded,
+            AppMarketError::TransactionNotComplete
+        );
+
+        require!(
+            ctx.accounts.escrow.amount == 0,
+            AppMarketError::PendingWithdrawalsExist
+        );
+
+        emit!(EscrowClosed {
+            listing: ctx.accounts.listing.key(),
+            closed_by: ctx.accounts.caller.key(),
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Buy now (instant purchase)
     pub fn buy_now(ctx: Context<BuyNow>) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
@@ -1302,10 +1326,12 @@ pub mod app_market {
             AppMarketError::InsufficientEscrowBalance
         );
 
-        // SECURITY: Verify tracked amount matches what we're distributing (prevents theft of pending withdrawals)
+        // Allow finalization even with pending withdrawals — escrow stays open for cleanup
+        // The >= check ensures enough SOL exists for the sale; excess is pending withdrawal SOL
+        // that will be returned via expire_withdrawal/withdraw_funds + close_escrow
         require!(
-            ctx.accounts.escrow.amount == required_balance,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= required_balance,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Transfer funds
@@ -1416,10 +1442,10 @@ pub mod app_market {
             AppMarketError::EscrowBalanceMismatch
         );
 
-        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        // Allow confirmation even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == required_balance,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= required_balance,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Transfer funds
@@ -2166,12 +2192,10 @@ pub mod app_market {
             ctx.accounts.escrow.to_account_info().data_len()
         );
 
-        // SECURITY FIX M-4: Check for pending withdrawals before draining escrow
-        // If escrow.amount > sale_price, there are pending withdrawals that must be claimed first
-        // This prevents dispute resolution from draining funds owed to previous bidders
+        // Allow dispute resolution even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == sale_price,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= sale_price,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         let seeds = &[
@@ -2390,10 +2414,10 @@ pub mod app_market {
             AppMarketError::EscrowBalanceMismatch
         );
 
-        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        // Allow refund even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == transaction.sale_price,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= transaction.sale_price,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Refund full amount to buyer
@@ -2638,6 +2662,30 @@ pub struct ExpireWithdrawal<'info> {
 }
 
 #[derive(Accounts)]
+pub struct CloseEscrow<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump,
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    // Close escrow — rent goes to caller as incentive for cleanup
+    #[account(
+        mut,
+        close = caller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump,
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    /// Anyone can call this (incentivized by receiving rent back)
+    #[account(mut)]
+    pub caller: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct BuyNow<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -2824,10 +2872,9 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2867,10 +2914,9 @@ pub struct ConfirmReceipt<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -3141,10 +3187,9 @@ pub struct ExecuteDisputeResolution<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -3175,10 +3220,9 @@ pub struct ExecuteDisputeResolution<'info> {
 pub struct EmergencyRefund<'info> {
     pub listing: Account<'info, Listing>,
 
-    // SECURITY: Close escrow and transaction, return rent
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = buyer,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -3616,6 +3660,13 @@ pub struct WithdrawalExpired {
 }
 
 #[event]
+pub struct EscrowClosed {
+    pub listing: Pubkey,
+    pub closed_by: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
 pub struct OfferCreated {
     pub offer: Pubkey,
     pub listing: Pubkey,
@@ -3774,6 +3825,8 @@ pub enum AppMarketError {
     CannotCancelWithBids,
     #[msg("Cannot close escrow: pending withdrawals exist")]
     PendingWithdrawalsExist,
+    #[msg("Transaction must be in Completed or Refunded state")]
+    TransactionNotComplete,
     #[msg("Invalid GitHub username: max 39 chars, alphanumeric/hyphens, no start/end/consecutive hyphens")]
     InvalidGithubUsername,
     #[msg("Dispute deadline expired: must dispute within grace period")]
