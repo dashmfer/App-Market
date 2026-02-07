@@ -614,7 +614,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
-                    expires_at: clock.unix_timestamp + 7 * 24 * 60 * 60, // 7 days
+                    expires_at: clock.unix_timestamp + 3600, // 1 hour
                     bump,
                 };
 
@@ -858,7 +858,7 @@ pub mod app_market {
                 withdrawal.amount = old_bid;
                 withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
-                withdrawal.expires_at = clock.unix_timestamp + 7 * 24 * 60 * 60; // 7 days
+                withdrawal.expires_at = clock.unix_timestamp + 3600; // 1 hour
                 withdrawal.bump = bump;
 
                 withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
@@ -1866,7 +1866,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
-                    expires_at: clock.unix_timestamp + 7 * 24 * 60 * 60, // 7 days
+                    expires_at: clock.unix_timestamp + 3600, // 1 hour
                     bump,
                 };
 
@@ -3351,7 +3351,7 @@ pub struct PendingWithdrawal {
     pub amount: u64,
     pub withdrawal_id: u64,  // Unique ID from listing.withdrawal_count
     pub created_at: i64,
-    pub expires_at: i64,  // Auto-expire after 7 days
+    pub expires_at: i64,  // Auto-expire after 1 hour
     pub bump: u8,
 }
 

@@ -19,7 +19,7 @@ import {
  * Cron Job: Expire Unclaimed Withdrawals
  *
  * When a bidder gets outbid, their SOL goes into a PendingWithdrawal PDA.
- * If they don't claim it within 7 days, the escrow.amount check blocks
+ * If they don't claim it within 1 hour, the escrow.amount check blocks
  * the entire transaction from completing.
  *
  * This cron calls expire_withdrawal on-chain to:
@@ -101,13 +101,13 @@ export async function GET(request: NextRequest) {
       console.warn("[Cron] BACKEND_AUTHORITY_KEYPAIR not set — skipping on-chain expiry. DB update only.");
     }
 
-    // Find unclaimed withdrawals older than 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Find unclaimed withdrawals older than 1 hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     const expiredWithdrawals = await prisma.pendingWithdrawal.findMany({
       where: {
         claimed: false,
-        createdAt: { lt: sevenDaysAgo },
+        createdAt: { lt: oneHourAgo },
       },
       include: {
         user: { select: { walletAddress: true } },
