@@ -23,6 +23,14 @@
     {
       "path": "/api/cron/super-badge-qualification",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/webhook-retries",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-withdrawals",
+      "schedule": "0 * * * *"
     }
   ]
 }
