@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { calculatePlatformFee } from "@/lib/solana";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -200,7 +201,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     ];
 
     // Wrap critical DB operations in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create transaction record
       await tx.transaction.create({
         data: {
@@ -247,7 +248,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     });
   } else {
     // Wrap bid operations in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Mark previous winning bid as outbid
       await tx.bid.updateMany({
         where: { listingId, isWinning: true },
