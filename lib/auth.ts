@@ -86,7 +86,7 @@ export async function revokeAllUserSessions(userId: string, reason?: string): Pr
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   // Revoke each session
-  const revocations = sessions.map(session =>
+  const revocations = sessions.map((session: { sessionToken: string }) =>
     prisma.revokedSession.upsert({
       where: { sessionId: session.sessionToken },
       create: {
