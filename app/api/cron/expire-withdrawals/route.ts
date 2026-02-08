@@ -14,6 +14,7 @@ import {
   getEscrowPDA,
   getWithdrawalPDA,
 } from "@/lib/solana";
+import { audit } from "@/lib/audit";
 
 /**
  * Cron Job: Expire Unclaimed Withdrawals
@@ -209,6 +210,12 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[Cron] Expire withdrawals results:", results);
+
+    await audit({
+      action: "CRON_EXECUTION",
+      detail: `expire-withdrawals: ${results.processed} processed, ${results.onChainSuccess} on-chain, ${results.onChainFailed} failed`,
+      metadata: results,
+    });
 
     return NextResponse.json({
       message: `Processed ${results.processed} expired withdrawals`,

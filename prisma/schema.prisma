@@ -126,6 +126,9 @@ model User {
   apiKeys         ApiKey[]
   webhooks        Webhook[]
 
+  // Audit logs
+  auditLogs       AuditLog[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -1549,4 +1552,73 @@ enum WebhookDeliveryStatus {
   SUCCESS
   FAILED
   RETRYING
+}
+
+// ============================================
+// AUDIT LOGGING
+// ============================================
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  action    AuditAction
+  severity  AuditSeverity @default(INFO)
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  targetId  String?       // ID of the affected resource (listing, transaction, etc.)
+  targetType String?      // Type of resource ("listing", "transaction", "user", etc.)
+  detail    String?       // Human-readable description
+  metadata  Json?         // Structured data (old/new values, request info, etc.)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+
+  @@index([action])
+  @@index([severity])
+  @@index([userId])
+  @@index([targetId, targetType])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  // Auth
+  AUTH_LOGIN
+  AUTH_LOGOUT
+  AUTH_FAILED_LOGIN
+  AUTH_SESSION_REVOKED
+
+  // Admin
+  ADMIN_RESET_LISTINGS
+  ADMIN_SIMILARITY_SCAN
+  ADMIN_DISPUTE_RESOLUTION
+
+  // Financial
+  TRANSACTION_CREATED
+  TRANSACTION_COMPLETED
+  TRANSACTION_REFUNDED
+  ESCROW_DEPOSIT
+  ESCROW_RELEASE
+  WITHDRAWAL_CREATED
+  WITHDRAWAL_CLAIMED
+  WITHDRAWAL_EXPIRED
+
+  // Listing
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_CANCELLED
+
+  // User
+  USER_PROFILE_UPDATED
+  USER_WALLET_LINKED
+
+  // Security
+  RATE_LIMIT_EXCEEDED
+  CRON_EXECUTION
+  API_ERROR
+}
+
+enum AuditSeverity {
+  INFO
+  WARN
+  ERROR
+  CRITICAL
 }

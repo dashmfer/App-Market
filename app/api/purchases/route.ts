@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
@@ -312,6 +313,16 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+
+    await audit({
+      action: "TRANSACTION_CREATED",
+      userId,
+      targetId: transaction.id,
+      targetType: "transaction",
+      detail: `Purchase of ${Number(transaction.salePrice)} ${transaction.currency}`,
+      metadata: { listingId: transaction.listingId, salePrice: Number(transaction.salePrice) },
+      ...auditContext(request.headers),
+    });
 
     return NextResponse.json({
       transactionId: transaction.id,
