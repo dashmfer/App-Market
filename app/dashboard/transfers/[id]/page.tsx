@@ -1212,8 +1212,8 @@ export default function TransferPage() {
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/40 to-emerald-300/40 dark:from-green-800/20 dark:to-emerald-800/20 rounded-full -translate-y-8 translate-x-8" />
                 <div className="relative flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl border-2 border-green-500 dark:border-emerald-500 bg-green-50 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0">
-                    <Rocket className="w-6 h-6 text-green-600 dark:text-emerald-400" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                    <Rocket className="w-6 h-6 text-white stroke-[1.5] fill-none" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">

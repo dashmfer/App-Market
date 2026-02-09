@@ -280,8 +280,8 @@ export function PATOLaunchModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl border-2 border-green-500 dark:border-emerald-500 bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-green-600 dark:text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+              <Rocket className="w-5 h-5 text-white stroke-[1.5] fill-none" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
