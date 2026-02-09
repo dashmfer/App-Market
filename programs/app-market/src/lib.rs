@@ -755,7 +755,7 @@ pub mod app_market {
     /// Permissionless — anyone can call once escrow.amount == 0 and transaction is terminal
     /// Caller receives PDA rent as incentive for cleanup
     pub fn close_escrow(ctx: Context<CloseEscrow>) -> Result<()> {
-        let status = ctx.accounts.transaction.status;
+        let status = ctx.accounts.transaction.status.clone();
         require!(
             status == TransactionStatus::Completed || status == TransactionStatus::Refunded,
             AppMarketError::TransactionNotComplete
@@ -1092,7 +1092,7 @@ pub mod app_market {
             AppMarketError::HasBids
         );
 
-        listing.status = ListingStatus::Expired;
+        listing.status = ListingStatus::Ended;
 
         emit!(ListingExpired {
             listing: listing.key(),
