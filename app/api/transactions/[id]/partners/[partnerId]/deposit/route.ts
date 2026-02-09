@@ -93,7 +93,7 @@ export async function POST(
     // Check if total is 100%
     const totalPercentage = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
-    if (allDeposited && totalPercentage === 100) {
+    if (allDeposited && totalPercentage >= 100) {
       // All deposits complete! Move to next phase
       await prisma.transaction.update({
         where: { id: params.id },

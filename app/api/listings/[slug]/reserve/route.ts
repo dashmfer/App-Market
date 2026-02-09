@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { isValidSolanaAddress } from "@/lib/validation";
 
 /**
  * POST /api/listings/[slug]/reserve
@@ -33,8 +34,8 @@ export async function POST(
       );
     }
 
-    // Validate wallet address format (basic Solana address validation)
-    if (walletAddress.length < 32 || walletAddress.length > 44) {
+    // Validate wallet address format (Solana Base58 validation)
+    if (!isValidSolanaAddress(walletAddress)) {
       return NextResponse.json(
         { error: "Invalid wallet address format" },
         { status: 400 }

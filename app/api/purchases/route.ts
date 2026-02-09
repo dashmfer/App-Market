@@ -267,16 +267,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update buyer stats (only for solo purchases; partner purchases update after all deposits)
-    if (!withPartners) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          totalPurchases: { increment: 1 },
-          totalVolume: { increment: amount },
-        },
-      });
-    }
+    // NOTE: Buyer stats (totalPurchases, totalVolume) are updated on transaction
+    // completion in the confirm route, not here at purchase time, to avoid double-counting
 
     // Notify seller about the purchase (only if not partner purchase, or when partners complete)
     if (!withPartners) {

@@ -62,12 +62,22 @@ export async function POST(
     const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
     const sellerProceeds = Number(offer.amount) - platformFee;
 
-    const [updatedOffer, transaction] = await prisma.$transaction([
-      prisma.offer.update({
+    // SECURITY: Use interactive transaction to prevent race conditions
+    // Re-check listing status inside transaction to prevent concurrent acceptances
+    const { updatedOffer, transaction } = await prisma.$transaction(async (tx) => {
+      const freshListing = await tx.listing.findUnique({
+        where: { id: offer.listingId },
+        select: { status: true },
+      });
+      if (!freshListing || freshListing.status !== 'ACTIVE') {
+        throw new Error('LISTING_NO_LONGER_ACTIVE');
+      }
+
+      const updatedOffer = await tx.offer.update({
         where: { id: params.id },
         data: { status: "ACCEPTED", acceptedAt: new Date() },
-      }),
-      prisma.transaction.create({
+      });
+      const transaction = await tx.transaction.create({
         data: {
           listingId: offer.listingId,
           buyerId: offer.buyerId,
@@ -79,20 +89,26 @@ export async function POST(
           paymentMethod: "SOLANA",
           status: "IN_ESCROW",
         },
-      }),
-      prisma.listing.update({
+      });
+      await tx.listing.update({
         where: { id: offer.listingId },
         data: { status: "RESERVED" as any },
-      }),
-      prisma.offer.updateMany({
+      });
+      await tx.offer.updateMany({
         where: {
           listingId: offer.listingId,
           id: { not: params.id },
           status: "ACTIVE",
         },
         data: { status: "CANCELLED", cancelledAt: new Date() },
-      }),
-    ]);
+      });
+
+      return { updatedOffer, transaction };
+    });
+
+    if (!updatedOffer || !transaction) {
+      return agentErrorResponse("Failed to accept offer", 500);
+    }
 
     await prisma.notification.create({
       data: {
@@ -105,7 +121,10 @@ export async function POST(
     });
 
     return agentSuccessResponse({ offer: updatedOffer, transaction });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === 'LISTING_NO_LONGER_ACTIVE') {
+      return agentErrorResponse("Listing is no longer active", 409);
+    }
     console.error("[Agent] Error accepting offer:", error);
     return agentErrorResponse("Failed to accept offer", 500);
   }

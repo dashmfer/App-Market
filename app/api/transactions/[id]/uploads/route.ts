@@ -134,10 +134,10 @@ export async function POST(
     // This marks the transaction as verified on-chain, enabling finalization
     const listing = await prisma.listing.findUnique({
       where: { id: transaction.listingId },
-      select: { escrowAddress: true },
+      select: { onChainId: true },
     });
 
-    if (listing?.escrowAddress) {
+    if (listing?.onChainId) {
       try {
         // Backend authority keypair from environment
         const backendSecretKey = process.env.BACKEND_AUTHORITY_SECRET_KEY;
@@ -178,7 +178,7 @@ export async function POST(
 
           await verifyUploads({
             provider,
-            listing: new PublicKey(listing.escrowAddress),
+            listing: new PublicKey(listing.onChainId),
             verificationHash,
           });
         }

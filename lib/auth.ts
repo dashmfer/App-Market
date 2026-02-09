@@ -356,15 +356,35 @@ export const authOptions: NextAuthOptions = {
           // Update user with latest info from Privy
           const updateData: any = {};
 
+          // SECURITY: Check uniqueness before linking wallet/email/twitter
+          // Prevents one Privy account from claiming another user's identity
           if (credentials.walletAddress && !user.walletAddress) {
-            updateData.walletAddress = credentials.walletAddress;
+            const existing = await prisma.user.findUnique({
+              where: { walletAddress: credentials.walletAddress },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.walletAddress = credentials.walletAddress;
+            }
           }
           if (credentials.email && !user.email) {
-            updateData.email = credentials.email;
+            const existing = await prisma.user.findUnique({
+              where: { email: credentials.email },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.email = credentials.email;
+            }
           }
           if (credentials.twitterUsername && !user.twitterUsername) {
-            updateData.twitterUsername = credentials.twitterUsername;
-            updateData.twitterVerified = true;
+            const existing = await prisma.user.findFirst({
+              where: { twitterUsername: credentials.twitterUsername },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.twitterUsername = credentials.twitterUsername;
+              updateData.twitterVerified = true;
+            }
           }
 
           if (Object.keys(updateData).length > 0) {
