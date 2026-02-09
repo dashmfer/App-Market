@@ -351,7 +351,7 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          console.log("[Privy Auth] Created new user:", user.id);
+          console.log("[Privy Auth] Created new user");
         } else {
           // Update user with latest info from Privy
           const updateData: any = {};
@@ -418,11 +418,14 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.walletAddress = (user as any).walletAddress;
         token.sessionId = (user as any).sessionId; // For session revocation
+      }
 
-        // Fetch admin status from database
+      // Re-check isAdmin from database on every JWT refresh
+      // Prevents stale admin status if role is revoked between token refreshes
+      if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
+            where: { id: token.id as string },
             select: { isAdmin: true },
           });
           token.isAdmin = dbUser?.isAdmin || false;
@@ -477,10 +480,8 @@ export const authOptions: NextAuthOptions = {
 
                 if (primarySolanaWallet) {
                   walletAddress = primarySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using primary Solana wallet instead of ETH:", walletAddress);
                 } else if (anySolanaWallet) {
                   walletAddress = anySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using Solana wallet instead of ETH:", walletAddress);
                 }
               }
 

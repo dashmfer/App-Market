@@ -15,6 +15,7 @@ import {
   getWithdrawalPDA,
 } from "@/lib/solana";
 import { audit } from "@/lib/audit";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Expire Unclaimed Withdrawals
@@ -30,19 +31,6 @@ import { audit } from "@/lib/audit";
  *
  * Runs every hour. Requires BACKEND_AUTHORITY_SECRET_KEY env var.
  */
-
-// Verify cron secret
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET not configured");
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 // Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
 function getBackendAuthority(): Keypair | null {

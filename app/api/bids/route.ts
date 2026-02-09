@@ -4,6 +4,7 @@ import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { audit, auditContext } from "@/lib/audit";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
@@ -196,6 +197,17 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    await audit({
+      action: "ESCROW_DEPOSIT",
+      severity: "INFO",
+      userId,
+      targetId: bid.id,
+      targetType: "Bid",
+      detail: `Bid placed: ${amount} ${listing.currency} on listing ${listingId}`,
+      metadata: { listingId, amount, currency: listing.currency },
+      ...auditContext(request.headers),
     });
 
     // Notify seller

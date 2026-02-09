@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Seller Transfer Deadline Enforcement
@@ -15,19 +16,6 @@ import prisma from "@/lib/db";
 const SELLER_TRANSFER_DEADLINE_DAYS = 3; // Seller must start transfer within 3 days
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
-
-// Verify cron secret to prevent unauthorized access
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET not configured");
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 // Retry wrapper for database operations
 async function withRetry<T>(

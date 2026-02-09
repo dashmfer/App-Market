@@ -20,10 +20,10 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
     checks.database = { status: "ok", latencyMs: Date.now() - dbStart };
   } catch (error) {
+    console.error("[Health] Database check failed:", error);
     checks.database = {
       status: "error",
       latencyMs: Date.now() - dbStart,
-      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 
@@ -42,14 +42,15 @@ export async function GET() {
       if (resp.ok) {
         checks.redis = { status: "ok", latencyMs: Date.now() - redisStart };
       } else {
-        checks.redis = { status: "error", latencyMs: Date.now() - redisStart, error: `HTTP ${resp.status}` };
+        console.error("[Health] Redis check failed: HTTP", resp.status);
+        checks.redis = { status: "error", latencyMs: Date.now() - redisStart };
       }
     }
   } catch (error) {
+    console.error("[Health] Redis check failed:", error);
     checks.redis = {
       status: "error",
       latencyMs: Date.now() - redisStart,
-      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 
@@ -69,14 +70,15 @@ export async function GET() {
       if (data.result === "ok") {
         checks.solana = { status: "ok", latencyMs: Date.now() - rpcStart };
       } else {
-        checks.solana = { status: "degraded", latencyMs: Date.now() - rpcStart, error: data.result };
+        console.error("[Health] Solana RPC degraded:", data.result);
+        checks.solana = { status: "degraded", latencyMs: Date.now() - rpcStart };
       }
     }
   } catch (error) {
+    console.error("[Health] Solana RPC check failed:", error);
     checks.solana = {
       status: "error",
       latencyMs: Date.now() - rpcStart,
-      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 

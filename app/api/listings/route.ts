@@ -374,7 +374,12 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Validate URLs have safe protocols
-    const urlsToValidate = { demoUrl, videoUrl, githubRepo };
+    const urlsToValidate: Record<string, string | undefined> = { demoUrl, videoUrl, githubRepo, thumbnailUrl };
+    if (screenshotUrls && Array.isArray(screenshotUrls)) {
+      screenshotUrls.forEach((url: string, i: number) => {
+        urlsToValidate[`screenshotUrls[${i}]`] = url;
+      });
+    }
     for (const [field, url] of Object.entries(urlsToValidate)) {
       if (url && !isValidUrl(url)) {
         return NextResponse.json(
