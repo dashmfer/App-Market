@@ -1208,11 +1208,11 @@ export default function TransferPage() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-800/50 bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 dark:from-violet-900/20 dark:via-purple-900/20 dark:to-fuchsia-900/20 p-6"
+                className="relative overflow-hidden rounded-2xl border border-green-200 dark:border-green-800/50 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 p-6"
               >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-200/40 to-purple-300/40 dark:from-violet-800/20 dark:to-purple-800/20 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/40 to-emerald-300/40 dark:from-green-800/20 dark:to-emerald-800/20 rounded-full -translate-y-8 translate-x-8" />
                 <div className="relative flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
                     <Rocket className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
@@ -1228,7 +1228,7 @@ export default function TransferPage() {
                     </p>
                     <button
                       onClick={() => setShowPATOModal(true)}
-                      className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-full transition-all duration-300 hover:from-violet-700 hover:to-purple-700 hover:scale-105 active:scale-95 text-sm"
+                      className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-medium rounded-full transition-all duration-300 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 hover:scale-105 active:scale-95 text-sm"
                     >
                       <Rocket className="w-4 h-4" />
                       Launch Token

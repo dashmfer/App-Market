@@ -45,7 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
   PENDING: { label: "Pending", color: "text-zinc-600", bgColor: "bg-zinc-100 dark:bg-zinc-800" },
   LAUNCHING: { label: "Launching", color: "text-yellow-600", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
   LIVE: { label: "Live", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30" },
-  GRADUATED: { label: "Graduated", color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  GRADUATED: { label: "Graduated", color: "text-emerald-600", bgColor: "bg-emerald-100 dark:bg-emerald-900/30" },
   COMPLETED: { label: "Completed", color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
   FAILED: { label: "Failed", color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30" },
   CANCELLED: { label: "Cancelled", color: "text-zinc-500", bgColor: "bg-zinc-100 dark:bg-zinc-800" },
@@ -55,7 +55,7 @@ const CURVE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Not deployed", color: "text-zinc-500" },
   ACTIVE: { label: "Bonding curve active", color: "text-green-600" },
   GRADUATING: { label: "Graduating...", color: "text-yellow-600" },
-  GRADUATED: { label: "Graduated to AMM", color: "text-purple-600" },
+  GRADUATED: { label: "Graduated to AMM", color: "text-emerald-600" },
   FAILED: { label: "Failed", color: "text-red-600" },
 };
 
@@ -137,7 +137,7 @@ export function PATOStatusCard({ tokenLaunch, isBuyer }: PATOStatusCardProps) {
     <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <Rocket className="w-5 h-5 text-purple-500" />
+        <Rocket className="w-5 h-5 text-emerald-500" />
         <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">
           PATO
         </h3>
@@ -155,7 +155,7 @@ export function PATOStatusCard({ tokenLaunch, isBuyer }: PATOStatusCardProps) {
             className="w-10 h-10 rounded-xl object-cover"
           />
         ) : (
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
             <Coins className="w-5 h-5 text-white" />
           </div>
         )}
@@ -171,7 +171,7 @@ export function PATOStatusCard({ tokenLaunch, isBuyer }: PATOStatusCardProps) {
       {tokenLaunch.tokenMint && (
         <div className="mb-4">
           <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-3 py-2">
-            <Sparkles className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+            <Sparkles className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
             <span className="text-xs font-mono text-zinc-600 dark:text-zinc-400 truncate">
               {tokenLaunch.tokenMint}
             </span>

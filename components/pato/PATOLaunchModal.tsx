@@ -238,7 +238,7 @@ export function PATOLaunchModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
               <Rocket className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -454,7 +454,7 @@ export function PATOLaunchModal({
                         className="w-12 h-12 rounded-xl object-cover"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
                         <Coins className="w-6 h-6 text-white" />
                       </div>
                     )}
@@ -466,7 +466,7 @@ export function PATOLaunchModal({
                     </div>
                   </div>
                   <div className="text-xs font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
-                    <Sparkles className="w-3 h-3 text-purple-500 flex-shrink-0" />
+                    <Sparkles className="w-3 h-3 text-emerald-500 flex-shrink-0" />
                     <span className="truncate">{tokenLaunchData.tokenMint}</span>
                   </div>
                 </div>
@@ -528,11 +528,11 @@ export function PATOLaunchModal({
                       </p>
                       <p className="text-xs text-green-600/70 mt-0.5">Creator (You)</p>
                     </div>
-                    <div className="p-3 bg-violet-50 dark:bg-violet-900/20 rounded-lg text-center">
-                      <p className="text-2xl font-semibold text-violet-600">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg text-center">
+                      <p className="text-2xl font-semibold text-emerald-600">
                         {tokenLaunchData.lpDistribution.partnerPermanentLocked}%
                       </p>
-                      <p className="text-xs text-violet-600/70 mt-0.5">Platform</p>
+                      <p className="text-xs text-emerald-600/70 mt-0.5">Platform</p>
                     </div>
                   </div>
                 </div>
@@ -675,7 +675,7 @@ export function PATOLaunchModal({
                 <button
                   onClick={handleDeploy}
                   disabled={!connected || processing}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-full transition-all duration-300 hover:from-violet-700 hover:to-purple-700 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 text-sm"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-medium rounded-full transition-all duration-300 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 text-sm"
                 >
                   {processing ? (
                     <>
