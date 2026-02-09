@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, Keypair } from "@solana/web3.js";
@@ -27,6 +27,7 @@ interface PATOLaunchModalProps {
   isOpen: boolean;
   onClose: () => void;
   transactionId: string;
+  listingSlug: string;
   listingTitle: string;
   onSuccess?: (tokenLaunch: any) => void;
 }
@@ -37,6 +38,7 @@ export function PATOLaunchModal({
   isOpen,
   onClose,
   transactionId,
+  listingSlug,
   listingTitle,
   onSuccess,
 }: PATOLaunchModalProps) {
@@ -48,6 +50,7 @@ export function PATOLaunchModal({
   const [error, setError] = useState<string | null>(null);
   const [deploySuccess, setDeploySuccess] = useState(false);
   const [deployedMint, setDeployedMint] = useState<string | null>(null);
+  const [prefilled, setPrefilled] = useState(false);
 
   // Form state
   const [tokenName, setTokenName] = useState("");
@@ -62,6 +65,44 @@ export function PATOLaunchModal({
 
   // Created launch data
   const [tokenLaunchData, setTokenLaunchData] = useState<any>(null);
+
+  // Auto-populate from listing data
+  useEffect(() => {
+    if (!isOpen || prefilled || !listingSlug) return;
+
+    const fetchListing = async () => {
+      try {
+        const res = await fetch(`/api/listings/${listingSlug}`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const listing = data.listing || data;
+
+        // Pre-fill with listing data — user can edit all fields
+        if (listing.title && !tokenName) setTokenName(listing.title);
+        if (listing.description && !tokenDescription) setTokenDescription(listing.description);
+        if (listing.thumbnailUrl && !tokenImage) setTokenImage(listing.thumbnailUrl);
+        if (listing.websiteUrl && !website) setWebsite(listing.websiteUrl);
+        if (listing.twitterUrl && !twitter) setTwitter(listing.twitterUrl);
+        if (listing.telegramUrl && !telegram) setTelegram(listing.telegramUrl);
+        if (listing.discordUrl && !discord) setDiscord(listing.discordUrl);
+
+        // Generate a default symbol from the title (first word, uppercase, max 6 chars)
+        if (listing.title && !tokenSymbol) {
+          const words = listing.title.trim().split(/\s+/);
+          const symbol = words[0].replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 6);
+          if (symbol.length >= 2) setTokenSymbol(symbol);
+        }
+
+        setPrefilled(true);
+      } catch {
+        // Silent fail — user can still fill manually
+      }
+    };
+
+    fetchListing();
+  }, [isOpen, prefilled, listingSlug]);
 
   if (!isOpen) return null;
 
@@ -81,6 +122,7 @@ export function PATOLaunchModal({
     setDiscord("");
     setInitialBuySOL("");
     setTokenLaunchData(null);
+    setPrefilled(false);
   };
 
   const handleClose = () => {
@@ -238,8 +280,8 @@ export function PATOLaunchModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-              <Rocket className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl border-2 border-green-500 dark:border-emerald-500 bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+              <Rocket className="w-5 h-5 text-green-600 dark:text-emerald-400" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
