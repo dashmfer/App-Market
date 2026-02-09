@@ -210,7 +210,6 @@ export async function POST(
     console.error('Upload verification error:', error);
     return NextResponse.json({
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
@@ -493,6 +492,6 @@ function generateVerificationHash(
     timestamp: Date.now(),
   };
 
-  // Simple hash (in production, use crypto.createHash)
-  return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 64);
+  const { createHash } = require('crypto');
+  return createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }

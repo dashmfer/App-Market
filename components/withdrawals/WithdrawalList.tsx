@@ -37,9 +37,14 @@ export default function WithdrawalList() {
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'unclaimed' | 'claimed'>('all');
+  const [solPriceUsd, setSolPriceUsd] = useState<number | null>(null);
 
   useEffect(() => {
     fetchWithdrawals();
+    fetch("/api/sol-price")
+      .then(r => r.json())
+      .then(d => { if (d.price) setSolPriceUsd(d.price); })
+      .catch(() => {});
   }, []);
 
   const fetchWithdrawals = async () => {
@@ -237,7 +242,7 @@ export default function WithdrawalList() {
                     {Number(withdrawal.amount).toFixed(4)} {withdrawal.currency}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    ≈ ${(Number(withdrawal.amount) * 100).toFixed(2)} USD
+                    {solPriceUsd ? `≈ $${(Number(withdrawal.amount) * solPriceUsd).toFixed(2)} USD` : ""}
                   </p>
                 </div>
 

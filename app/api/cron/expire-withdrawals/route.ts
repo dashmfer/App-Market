@@ -180,7 +180,9 @@ export async function GET(request: NextRequest) {
             data: {
               type: "SYSTEM",
               title: "Expired Bid Refund",
-              message: `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`,
+              message: results.onChainSuccess > 0
+                ? `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`
+                : `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has expired. Please contact support if you need assistance.`,
               data: {
                 withdrawalId: withdrawal.id,
                 amount: Number(withdrawal.amount),

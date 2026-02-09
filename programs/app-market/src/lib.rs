@@ -3038,7 +3038,10 @@ pub struct AcceptOffer<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = offer.listing == listing.key() @ AppMarketError::InvalidListing
+    )]
     pub offer: Account<'info, Offer>,
 
     // Transfer funds from offer escrow to listing escrow

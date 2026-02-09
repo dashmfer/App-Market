@@ -105,18 +105,23 @@ export async function POST(
       select: { walletAddress: true },
     });
 
-    // Update offer and create transaction
-    const [updatedOffer, transaction] = await prisma.$transaction([
-      // Accept offer
-      prisma.offer.update({
+    // Use interactive transaction to prevent race conditions (double-acceptance)
+    const { updatedOffer, transaction } = await prisma.$transaction(async (tx) => {
+      // Re-check listing status atomically to prevent concurrent accepts
+      const freshListing = await tx.listing.findUnique({
+        where: { id: offer.listingId },
+        select: { status: true },
+      });
+      if (!freshListing || freshListing.status !== 'ACTIVE') {
+        throw new Error('LISTING_NO_LONGER_ACTIVE');
+      }
+
+      const updatedOffer = await tx.offer.update({
         where: { id: offerId },
-        data: {
-          status: 'ACCEPTED',
-          acceptedAt: new Date(),
-        },
-      }),
-      // Create transaction
-      prisma.transaction.create({
+        data: { status: 'ACCEPTED', acceptedAt: new Date() },
+      });
+
+      const transaction = await tx.transaction.create({
         data: {
           listingId: offer.listingId,
           buyerId: offer.buyerId,
@@ -128,9 +133,9 @@ export async function POST(
           paymentMethod: 'SOLANA',
           status: 'IN_ESCROW',
         },
-      }),
-      // Update listing status to RESERVED and set reserved buyer info
-      prisma.listing.update({
+      });
+
+      await tx.listing.update({
         where: { id: offer.listingId },
         data: {
           status: 'RESERVED' as any,
@@ -138,20 +143,19 @@ export async function POST(
           reservedBuyerWallet: buyerWithWallet?.walletAddress || null,
           reservedAt: new Date(),
         } as any,
-      }),
-      // Cancel all other active offers on this listing
-      prisma.offer.updateMany({
+      });
+
+      await tx.offer.updateMany({
         where: {
           listingId: offer.listingId,
           id: { not: offerId },
           status: 'ACTIVE',
         },
-        data: {
-          status: 'CANCELLED',
-          cancelledAt: new Date(),
-        },
-      }),
-    ]);
+        data: { status: 'CANCELLED', cancelledAt: new Date() },
+      });
+
+      return { updatedOffer, transaction };
+    });
 
     // Notify buyer that their offer was accepted
     await prisma.notification.create({

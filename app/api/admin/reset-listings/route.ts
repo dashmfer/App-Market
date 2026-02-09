@@ -115,6 +115,15 @@ export async function DELETE(request: NextRequest) {
         notifications: await prisma.notification.deleteMany({}),
       };
 
+      await audit({
+        action: "ADMIN_RESET_LISTINGS",
+        severity: "CRITICAL",
+        userId: session?.user?.id,
+        detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
+        metadata: { listings: results.listings.count, transactions: results.transactions.count },
+        ...auditContext(request.headers),
+      });
+
       return NextResponse.json({
         success: true,
         message: "All listings and related data deleted",
@@ -130,15 +139,6 @@ export async function DELETE(request: NextRequest) {
           listings: results.listings.count,
           notifications: results.notifications.count,
         },
-      });
-
-      await audit({
-        action: "ADMIN_RESET_LISTINGS",
-        severity: "CRITICAL",
-        userId: session?.user?.id,
-        detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
-        metadata: { listings: results.listings.count, transactions: results.transactions.count },
-        ...auditContext(request.headers),
       });
     }
 

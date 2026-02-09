@@ -80,6 +80,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate totalSupply
+    if (typeof totalSupply !== "number" || !isFinite(totalSupply) || totalSupply <= 0) {
+      return NextResponse.json(
+        { error: "totalSupply must be a positive number" },
+        { status: 400 }
+      );
+    }
+
     // Calculate platform token allocation (1% of supply)
     const platformAllocation = BigInt(Math.floor(totalSupply * 0.01));
 
@@ -136,8 +144,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
 
-    const where: any = {};
+    // Only show token launches the user owns (via completed transactions)
+    const userTransactions = await prisma.transaction.findMany({
+      where: { buyerId: session.user.id, status: "COMPLETED" },
+      select: { listingId: true },
+    });
+    const ownedProjectIds = userTransactions.map((t: { listingId: string }) => t.listingId);
+
+    const where: any = { projectId: { in: ownedProjectIds } };
     if (projectId) {
+      if (!ownedProjectIds.includes(projectId)) {
+        return NextResponse.json({ error: "Not authorized to view this project's token launches" }, { status: 403 });
+      }
       where.projectId = projectId;
     }
 

@@ -57,9 +57,18 @@ export async function POST(request: NextRequest) {
     } else {
       // For bids, the user specifies the amount
       const { bidAmount } = body;
-      if (!bidAmount) {
+      if (!bidAmount || typeof bidAmount !== "number" || !isFinite(bidAmount) || bidAmount <= 0) {
         return NextResponse.json(
-          { error: "Bid amount required" },
+          { error: "Bid amount must be a positive number" },
+          { status: 400 }
+        );
+      }
+
+      // Cap bid at reasonable maximum (10x buy now price or 10000 SOL)
+      const maxBid = listing.buyNowPrice ? Number(listing.buyNowPrice) * 10 : 10000;
+      if (bidAmount > maxBid) {
+        return NextResponse.json(
+          { error: `Bid amount exceeds maximum allowed (${maxBid} SOL)` },
           { status: 400 }
         );
       }

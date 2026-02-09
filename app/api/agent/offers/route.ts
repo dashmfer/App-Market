@@ -59,8 +59,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { listingId, amount, deadline } = body;
 
-    if (!listingId || !amount) {
+    if (!listingId || amount === undefined || amount === null) {
       return agentErrorResponse("listingId and amount are required", 400);
+    }
+
+    if (typeof amount !== "number" || !isFinite(amount) || amount <= 0) {
+      return agentErrorResponse("amount must be a positive number", 400);
     }
 
     // Check if listing exists and is active
