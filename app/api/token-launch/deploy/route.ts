@@ -9,6 +9,7 @@ import {
   buildCreatePoolWithFirstBuyTransaction,
   getPatoConfigKey,
 } from "@/lib/meteora-dbc";
+import { uploadTokenMetadata } from "@/lib/token-metadata";
 import { PublicKey } from "@solana/web3.js";
 
 /**
@@ -83,29 +84,18 @@ export async function POST(request: NextRequest) {
 
     const creatorWallet = new PublicKey(tokenLaunch.creatorWallet!);
 
-    // Build token metadata URI (Metaplex standard)
-    // In production, upload metadata JSON to Arweave/IPFS first
-    const tokenUri = JSON.stringify({
-      name: tokenLaunch.tokenName,
-      symbol: tokenLaunch.tokenSymbol,
-      description: tokenLaunch.tokenDescription || "",
-      image: tokenLaunch.tokenImage || "",
-      external_url: tokenLaunch.website || "",
-      properties: {
-        category: "token",
-        creators: [
-          {
-            address: tokenLaunch.creatorWallet,
-            share: 100,
-          },
-        ],
-      },
-      extensions: {
-        twitter: tokenLaunch.twitter || "",
-        telegram: tokenLaunch.telegram || "",
-        discord: tokenLaunch.discord || "",
-        website: tokenLaunch.website || "",
-      },
+    // Upload token metadata JSON (Metaplex standard) and get a public URI
+    const tokenUri = await uploadTokenMetadata({
+      tokenLaunchId: tokenLaunch.id,
+      tokenName: tokenLaunch.tokenName,
+      tokenSymbol: tokenLaunch.tokenSymbol,
+      tokenDescription: tokenLaunch.tokenDescription,
+      tokenImage: tokenLaunch.tokenImage,
+      creatorWallet: tokenLaunch.creatorWallet!,
+      website: tokenLaunch.website,
+      twitter: tokenLaunch.twitter,
+      telegram: tokenLaunch.telegram,
+      discord: tokenLaunch.discord,
     });
 
     let result;
