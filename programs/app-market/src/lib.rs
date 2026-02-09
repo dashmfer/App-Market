@@ -3040,7 +3040,7 @@ pub struct AcceptOffer<'info> {
 
     #[account(
         mut,
-        constraint = offer.listing == listing.key() @ AppMarketError::InvalidListing
+        constraint = offer.listing == listing.key() @ AppMarketError::InvalidOffer
     )]
     pub offer: Account<'info, Offer>,
 
