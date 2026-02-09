@@ -24,6 +24,7 @@
     "@coral-xyz/anchor": "^0.29.0",
     "@hookform/resolvers": "^3.3.4",
     "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
+    "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.2",
     "@octokit/rest": "^20.0.2",
     "@prisma/client": "^5.10.2",
     "@privy-io/react-auth": "^3.13.0",
