@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/cron/check-graduations",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }

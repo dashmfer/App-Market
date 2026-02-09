@@ -10,6 +10,7 @@ import {
   getPatoConfigKey,
 } from "@/lib/meteora-dbc";
 import { uploadTokenMetadata } from "@/lib/token-metadata";
+import { watchPoolForGraduation } from "@/lib/pool-watcher";
 import { PublicKey } from "@solana/web3.js";
 
 /**
@@ -137,6 +138,11 @@ export async function POST(request: NextRequest) {
         dbcPoolAddress: result.poolAddress.toBase58(),
       },
     });
+
+    // Register pool for real-time graduation detection
+    watchPoolForGraduation(result.poolAddress.toBase58()).catch((err) =>
+      console.error("[PATO Deploy] Failed to register pool watcher:", err)
+    );
 
     // Serialize transactions for client to sign
     const transactions = [];

@@ -5,9 +5,9 @@ import { PublicKey } from "@solana/web3.js";
 
 // GET /api/cron/check-graduations
 //
-// Vercel Cron Job that checks all active bonding curve pools for graduation.
-// When a pool graduates (migrates to DAMM v2), updates the DB and notifies the creator.
-// Configured in vercel.json to run every 10 minutes.
+// Hourly safety net that catches any graduations the real-time webhook missed.
+// Primary detection is via /api/webhooks/pool-graduation (instant, Helius).
+// This cron is a fallback — runs hourly to ensure nothing slips through.
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
   const authHeader = request.headers.get("authorization");
