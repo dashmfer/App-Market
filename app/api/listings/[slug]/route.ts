@@ -146,7 +146,12 @@ export async function PUT(
 ) {
   try {
     const rateLimitResult = await (withRateLimitAsync('write', 'listing-update'))(request);
-    if (rateLimitResult) return rateLimitResult;
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error || 'Rate limit exceeded' },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
 
     const token = await getAuthToken(request);
 
