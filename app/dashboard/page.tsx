@@ -26,6 +26,7 @@ import {
   Wallet,
   Copy,
   Check,
+  Rocket,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -36,6 +37,7 @@ const sidebarLinks = [
   { href: "/dashboard/purchase-partners", label: "Partner Invites", icon: UserPlus },
   { href: "/dashboard/watchlist", label: "Watchlist", icon: Heart },
   { href: "/dashboard/referrals", label: "Referrals", icon: Gift },
+  { href: "/dashboard/tokens", label: "Tokens", icon: Rocket },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
   { href: "/dashboard/settings?tab=wallet", label: "Wallet", icon: Wallet },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
