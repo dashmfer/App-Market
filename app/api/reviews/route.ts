@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -127,6 +128,12 @@ export async function GET(request: NextRequest) {
 // POST /api/reviews - Submit a review
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'reviews'))(request);
     if (!rateLimitResult.success) {

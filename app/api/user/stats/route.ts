@@ -1,19 +1,18 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/user/stats - Get current user's dashboard stats
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = token.id as string;
 
     // Fetch all stats in parallel
     const [

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculatePlatformFee } from '@/lib/solana';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/offers/[offerId]/accept
@@ -12,6 +13,12 @@ export async function POST(
   { params }: { params: { offerId: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(req);
 
     if (!token?.id) {

@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent, sanitizePagination, isValidUUID } from "@/lib/validation";
 import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 const DEFAULT_MESSAGE_LIMIT = 50;
 
@@ -157,6 +158,12 @@ export async function POST(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'messages'))(request);
     if (!rateLimitResult.success) {

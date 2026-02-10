@@ -4,6 +4,7 @@ import { getAuthToken } from "@/lib/auth";
 import { getPoolState, calculateFeeBreakdown } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * GET /api/token-launch/[id] — Get detailed info for a specific PATO
@@ -184,6 +185,12 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
@@ -67,6 +68,12 @@ export async function GET(request: NextRequest) {
 // POST /api/disputes - Open a dispute
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'disputes'))(request);
     if (!rateLimitResult.success) {

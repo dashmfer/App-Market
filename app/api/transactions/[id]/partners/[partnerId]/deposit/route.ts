@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
@@ -17,8 +16,8 @@ export async function POST(
       return csrfError(csrfValidation.error || 'CSRF validation failed');
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -49,13 +48,13 @@ export async function POST(
     // SECURITY: Only the partner themselves can mark as deposited.
     // If partner has a userId, they must match. If no userId, verify wallet address.
     if (partner.userId) {
-      if (partner.userId !== session.user.id) {
+      if (partner.userId !== token.id as string) {
         return NextResponse.json({ error: "Only the partner can confirm their deposit" }, { status: 403 });
       }
     } else {
       // No userId set — verify the session user's wallet matches the partner's wallet
       const currentUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: token.id as string },
         select: { walletAddress: true },
       });
       if (!currentUser?.walletAddress || currentUser.walletAddress !== partner.walletAddress) {
@@ -90,7 +89,7 @@ export async function POST(
 
     // Notify lead buyer
     const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
-    if (leadPartner?.userId && leadPartner.userId !== session.user.id) {
+    if (leadPartner?.userId && leadPartner.userId !== token.id as string) {
       await createNotification({
         userId: leadPartner.userId,
         type: "PURCHASE_PARTNER_DEPOSITED",

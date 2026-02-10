@@ -170,6 +170,15 @@ export async function POST(request: NextRequest) {
       const platformFee = calculatePlatformFee(amount, currency);
       const { proceeds: sellerProceeds } = calculateSellerProceeds(amount, currency);
 
+      // SECURITY [M25]: Deduplicate on-chain transaction signatures to prevent
+      // the same on-chain payment from being used for multiple purchases
+      const existingTx = await tx.transaction.findFirst({
+        where: { onChainTx },
+      });
+      if (existingTx) {
+        return { error: "This on-chain transaction has already been used", status: 400 } as const;
+      }
+
       // SECURITY: Atomic check — if transaction already exists, reject (prevents double-purchase)
       const existingTransaction = await tx.transaction.findUnique({
         where: { listingId },

@@ -169,7 +169,7 @@ export async function POST(
 
     // Update transaction with buyer info
     await prisma.transaction.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         buyerProvidedInfo: info,
         buyerInfoStatus: "PROVIDED",

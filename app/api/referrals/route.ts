@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/referrals - Get user's referral info
 export async function GET(request: NextRequest) {
@@ -91,6 +92,12 @@ export async function GET(request: NextRequest) {
 // PATCH /api/referrals - Update referral code (one time only)
 export async function PATCH(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
