@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // SECURITY: Validate transaction state allows confirmation
-    const allowedStates = ['FUNDED', 'IN_PROGRESS', 'TRANSFER_IN_PROGRESS', 'AWAITING_CONFIRMATION'];
+    const allowedStates = ['FUNDED', 'PAID', 'IN_ESCROW', 'TRANSFER_PENDING', 'TRANSFER_IN_PROGRESS', 'AWAITING_CONFIRMATION'];
     if (!allowedStates.includes(transaction.status)) {
       return NextResponse.json(
         { error: `Cannot confirm transfers in state: ${transaction.status}` },
@@ -227,6 +227,7 @@ export async function POST(
         where: { id: transaction.buyerId },
         data: {
           totalPurchases: { increment: 1 },
+          totalVolume: { increment: Number(transaction.salePrice) },
         },
       });
 

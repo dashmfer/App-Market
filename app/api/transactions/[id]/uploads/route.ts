@@ -134,10 +134,10 @@ export async function POST(
     // This marks the transaction as verified on-chain, enabling finalization
     const listing = await prisma.listing.findUnique({
       where: { id: transaction.listingId },
-      select: { escrowAddress: true },
+      select: { onChainId: true },
     });
 
-    if (listing?.escrowAddress) {
+    if (listing?.onChainId) {
       try {
         // Backend authority keypair from environment
         const backendSecretKey = process.env.BACKEND_AUTHORITY_SECRET_KEY;
@@ -178,7 +178,7 @@ export async function POST(
 
           await verifyUploads({
             provider,
-            listing: new PublicKey(listing.escrowAddress),
+            listing: new PublicKey(listing.onChainId),
             verificationHash,
           });
         }
@@ -210,7 +210,6 @@ export async function POST(
     console.error('Upload verification error:', error);
     return NextResponse.json({
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
@@ -493,6 +492,6 @@ function generateVerificationHash(
     timestamp: Date.now(),
   };
 
-  // Simple hash (in production, use crypto.createHash)
-  return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 64);
+  const { createHash } = require('crypto');
+  return createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }

@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Upload to Vercel Blob
-    const blob = await put(`profile-pictures/${session.user.id}/${file.name}`, file, {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${ext}`, file, {
       access: "public",
     });
 

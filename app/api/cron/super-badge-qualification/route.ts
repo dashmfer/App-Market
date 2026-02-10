@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Super Badge Qualification
@@ -30,19 +31,6 @@ const SUPER_SELLER_MIN_REVIEWS = 3;
 const SUPER_SELLER_MIN_VOLUME = 5000; // in base currency units
 const SUPER_BUYER_MIN_PURCHASES = 5;
 const SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS = 30;
-
-// Verify cron secret to prevent unauthorized access
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET not configured");
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 // Retry wrapper for database operations
 async function withRetry<T>(
@@ -157,7 +145,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperSellers++;
-          console.log(`[Cron] Granted Super Seller to user ${user.id} (${user.username})`);
+          console.log(`[Cron] Granted Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super seller for ${user.id}: ${error}`);
@@ -222,7 +210,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperSellers++;
-          console.log(`[Cron] Revoked Super Seller from user ${user.id} (${user.username})`);
+          console.log(`[Cron] Revoked Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super seller status for ${user.id}: ${error}`);
@@ -288,7 +276,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperBuyers++;
-          console.log(`[Cron] Granted Super Buyer to user ${user.id} (${user.username})`);
+          console.log(`[Cron] Granted Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super buyer for ${user.id}: ${error}`);
@@ -347,7 +335,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperBuyers++;
-          console.log(`[Cron] Revoked Super Buyer from user ${user.id} (${user.username})`);
+          console.log(`[Cron] Revoked Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super buyer status for ${user.id}: ${error}`);

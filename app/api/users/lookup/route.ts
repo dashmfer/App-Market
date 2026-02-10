@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/users/lookup?q=<wallet_or_username>
 // Lookup a user by wallet address or username for collaborator auto-population
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Rate limit to prevent user enumeration
+    const rateLimitResult = await (withRateLimitAsync('read', 'user-lookup'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("q")?.trim();
 
@@ -111,6 +121,15 @@ export async function GET(request: NextRequest) {
 // POST /api/users/lookup - Search multiple users at once
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit to prevent user enumeration
+    const rateLimitResult = await (withRateLimitAsync('write', 'user-lookup-batch'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const { queries } = await request.json();
 
     if (!Array.isArray(queries) || queries.length === 0) {

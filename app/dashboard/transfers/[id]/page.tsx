@@ -258,7 +258,7 @@ export default function TransferPage() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          router.push("/login");
+          router.push("/auth/signin");
           return;
         }
         if (res.status === 404) {

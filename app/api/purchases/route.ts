@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
@@ -266,16 +267,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update buyer stats (only for solo purchases; partner purchases update after all deposits)
-    if (!withPartners) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          totalPurchases: { increment: 1 },
-          totalVolume: { increment: amount },
-        },
-      });
-    }
+    // NOTE: Buyer stats (totalPurchases, totalVolume) are updated on transaction
+    // completion in the confirm route, not here at purchase time, to avoid double-counting
 
     // Notify seller about the purchase (only if not partner purchase, or when partners complete)
     if (!withPartners) {
@@ -312,6 +305,16 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+
+    await audit({
+      action: "TRANSACTION_CREATED",
+      userId,
+      targetId: transaction.id,
+      targetType: "transaction",
+      detail: `Purchase of ${Number(transaction.salePrice)} ${transaction.currency}`,
+      metadata: { listingId: transaction.listingId, salePrice: Number(transaction.salePrice) },
+      ...auditContext(request.headers),
+    });
 
     return NextResponse.json({
       transactionId: transaction.id,

@@ -97,6 +97,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (typeof description !== "string" || description.length > 5000) {
+      return NextResponse.json(
+        { error: "Description must be 5000 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    if (evidence && (!Array.isArray(evidence) || evidence.length > 20)) {
+      return NextResponse.json(
+        { error: "Evidence must be an array of at most 20 items" },
+        { status: 400 }
+      );
+    }
+
     // Get transaction
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },

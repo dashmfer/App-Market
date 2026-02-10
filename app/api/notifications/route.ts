@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const userId = token.id as string;
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unread") === "true";
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
 
     const notifications = await prisma.notification.findMany({
       where: {

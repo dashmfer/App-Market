@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { audit } from '@/lib/audit';
 
 /**
  * POST /api/withdrawals/[withdrawalId]/claim
@@ -70,6 +71,16 @@ export async function POST(
     // NOTE: The actual on-chain withdrawal should be handled by the smart contract
     // This endpoint just marks it as claimed in the database
     // The frontend should call the smart contract's withdraw_funds instruction
+
+    await audit({
+      action: "WITHDRAWAL_CLAIMED",
+      severity: "INFO",
+      userId: session.user.id,
+      targetId: withdrawalId,
+      targetType: "PendingWithdrawal",
+      detail: `Withdrawal claimed: ${Number(withdrawal.amount)} ${withdrawal.currency}`,
+      metadata: { amount: Number(withdrawal.amount), listingId: withdrawal.listingId },
+    });
 
     return NextResponse.json({
       success: true,

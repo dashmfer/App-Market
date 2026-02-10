@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useConnection } from "@solana/wallet-adapter-react";
@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Wallet,
-  CreditCard,
   Coins,
   AlertCircle,
   CheckCircle2,
@@ -49,7 +48,7 @@ interface BidModalProps {
   onBidSuccess?: (amount: number, method: string, txSignature?: string) => void;
 }
 
-type PaymentMethod = "SOL" | "USDC" | "APP" | "CARD";
+type PaymentMethod = "SOL" | "USDC" | "APP";
 
 export function BidModal({
   open,
@@ -68,8 +67,16 @@ export function BidModal({
   const { connection } = useConnection();
 
   const minimumBid = listing.currentBid + 1;
-  const solPriceUsd = 150; // Would fetch real price
-  const bidAmountUsd = bidAmount * solPriceUsd;
+  const [solPriceUsd, setSolPriceUsd] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/sol-price")
+      .then(r => r.json())
+      .then(d => { if (d.price) setSolPriceUsd(d.price); })
+      .catch(() => {});
+  }, []);
+
+  const bidAmountUsd = solPriceUsd ? bidAmount * solPriceUsd : null;
 
   const platformFee = bidAmount * 0.05;
   const totalWithFee = bidAmount; // Fee is deducted from seller, not buyer
@@ -161,24 +168,6 @@ export function BidModal({
           throw new Error(data.error || "Failed to record bid");
         }
 
-      } else if (paymentMethod === "CARD") {
-        // Handle Stripe payment
-        const response = await fetch("/api/payments/create-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: listing.id,
-            paymentType: "bid",
-            bidAmount,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create payment");
-        }
-
-        // Would redirect to Stripe checkout or use Elements
-        await new Promise((resolve) => setTimeout(resolve, 2000));
       } else if (paymentMethod === "APP") {
         // Handle APP token payment (SPL token transfer)
         if (!connected || !publicKey || !sendTransaction) {
@@ -270,13 +259,6 @@ export function BidModal({
       icon: Coins,
       enabled: true,
     },
-    {
-      id: "CARD" as PaymentMethod,
-      name: "Credit Card",
-      description: "Visa, Mastercard, etc.",
-      icon: CreditCard,
-      enabled: true,
-    },
   ];
 
   return (
@@ -316,7 +298,7 @@ export function BidModal({
                 </span>
               </div>
               <div className="flex items-center justify-between mt-2 text-sm text-zinc-500">
-                <span>≈ {formatCurrency(bidAmountUsd)}</span>
+                <span>{bidAmountUsd !== null ? `≈ ${formatCurrency(bidAmountUsd)}` : ""}</span>
                 <span>Min: {minimumBid} SOL</span>
               </div>
             </div>
@@ -392,7 +374,7 @@ export function BidModal({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-500">USD Equivalent</span>
-                <span>{formatCurrency(bidAmountUsd)}</span>
+                <span>{bidAmountUsd !== null ? formatCurrency(bidAmountUsd) : "Loading..."}</span>
               </div>
               <div className="border-t border-zinc-200 dark:border-zinc-700 pt-3 mt-3">
                 <div className="flex justify-between text-lg font-semibold">

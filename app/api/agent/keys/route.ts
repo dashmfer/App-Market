@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
       expiresAt,
     } = body;
 
-    if (!name || typeof name !== "string" || name.length < 1) {
-      return agentErrorResponse("Name is required", 400);
+    if (!name || typeof name !== "string" || name.length < 1 || name.length > 100) {
+      return agentErrorResponse("Name is required and must be 100 characters or less", 400);
     }
 
     // Validate permissions

@@ -755,7 +755,7 @@ pub mod app_market {
     /// Permissionless — anyone can call once escrow.amount == 0 and transaction is terminal
     /// Caller receives PDA rent as incentive for cleanup
     pub fn close_escrow(ctx: Context<CloseEscrow>) -> Result<()> {
-        let status = ctx.accounts.transaction.status;
+        let status = ctx.accounts.transaction.status.clone();
         require!(
             status == TransactionStatus::Completed || status == TransactionStatus::Refunded,
             AppMarketError::TransactionNotComplete
@@ -1092,7 +1092,7 @@ pub mod app_market {
             AppMarketError::HasBids
         );
 
-        listing.status = ListingStatus::Expired;
+        listing.status = ListingStatus::Ended;
 
         emit!(ListingExpired {
             listing: listing.key(),
@@ -2633,10 +2633,10 @@ pub struct ExpireWithdrawal<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
-    // Close the expired withdrawal account, return rent to the caller as incentive
+    // Close the expired withdrawal account, return rent to the original user (not caller)
     #[account(
         mut,
-        close = caller,
+        close = recipient,
         seeds = [
             b"withdrawal",
             listing.key().as_ref(),
@@ -2646,7 +2646,7 @@ pub struct ExpireWithdrawal<'info> {
     )]
     pub pending_withdrawal: Account<'info, PendingWithdrawal>,
 
-    /// The original user who was outbid — funds go back to them
+    /// The original user who was outbid — funds + PDA rent go back to them
     /// CHECK: Validated against pending_withdrawal.user
     #[account(
         mut,
@@ -2654,7 +2654,7 @@ pub struct ExpireWithdrawal<'info> {
     )]
     pub recipient: AccountInfo<'info>,
 
-    /// Anyone can call this (incentivized by receiving rent back)
+    /// Anyone can call this after expiry (permissionless cleanup)
     #[account(mut)]
     pub caller: Signer<'info>,
 
@@ -2663,6 +2663,9 @@ pub struct ExpireWithdrawal<'info> {
 
 #[derive(Accounts)]
 pub struct CloseEscrow<'info> {
+    #[account(
+        constraint = listing.seller == seller.key() @ AppMarketError::InvalidSeller
+    )]
     pub listing: Account<'info, Listing>,
 
     #[account(
@@ -2671,17 +2674,20 @@ pub struct CloseEscrow<'info> {
     )]
     pub transaction: Account<'info, Transaction>,
 
-    // Close escrow — rent goes to caller as incentive for cleanup
+    // Close escrow — rent returns to the seller (who originally created the listing)
     #[account(
         mut,
-        close = caller,
+        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump,
     )]
     pub escrow: Account<'info, Escrow>,
 
-    /// Anyone can call this (incentivized by receiving rent back)
+    /// CHECK: Seller receives escrow rent — validated against listing.seller
     #[account(mut)]
+    pub seller: AccountInfo<'info>,
+
+    /// Anyone can call this (permissionless cleanup)
     pub caller: Signer<'info>,
 }
 
@@ -3032,7 +3038,10 @@ pub struct AcceptOffer<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = offer.listing == listing.key() @ AppMarketError::InvalidOffer
+    )]
     pub offer: Account<'info, Offer>,
 
     // Transfer funds from offer escrow to listing escrow
@@ -3228,9 +3237,9 @@ pub struct EmergencyRefund<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
 
+    // Transaction stays open so close_escrow can verify terminal state later
     #[account(
         mut,
-        close = buyer,
         seeds = [b"transaction", listing.key().as_ref()],
         bump = transaction.bump
     )]

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { audit, auditContext } from "@/lib/audit";
 
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -82,6 +83,16 @@ export async function DELETE(request: NextRequest) {
 
       await prisma.listing.delete({ where: { id: listingId } });
 
+      await audit({
+        action: "ADMIN_RESET_LISTINGS",
+        severity: "WARN",
+        userId: session?.user?.id,
+        targetId: listingId,
+        targetType: "listing",
+        detail: `Admin deleted listing "${listing.title}"`,
+        ...auditContext(request.headers),
+      });
+
       return NextResponse.json({
         success: true,
         message: `Listing "${listing.title}" deleted`,
@@ -103,6 +114,15 @@ export async function DELETE(request: NextRequest) {
         listings: await prisma.listing.deleteMany({}),
         notifications: await prisma.notification.deleteMany({}),
       };
+
+      await audit({
+        action: "ADMIN_RESET_LISTINGS",
+        severity: "CRITICAL",
+        userId: session?.user?.id,
+        detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
+        metadata: { listings: results.listings.count, transactions: results.transactions.count },
+        ...auditContext(request.headers),
+      });
 
       return NextResponse.json({
         success: true,

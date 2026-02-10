@@ -14,6 +14,8 @@ import {
   getEscrowPDA,
   getWithdrawalPDA,
 } from "@/lib/solana";
+import { audit } from "@/lib/audit";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Expire Unclaimed Withdrawals
@@ -29,19 +31,6 @@ import {
  *
  * Runs every hour. Requires BACKEND_AUTHORITY_SECRET_KEY env var.
  */
-
-// Verify cron secret
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET not configured");
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 // Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
 function getBackendAuthority(): Keypair | null {
@@ -191,7 +180,9 @@ export async function GET(request: NextRequest) {
             data: {
               type: "SYSTEM",
               title: "Expired Bid Refund",
-              message: `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`,
+              message: results.onChainSuccess > 0
+                ? `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`
+                : `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has expired. Please contact support if you need assistance.`,
               data: {
                 withdrawalId: withdrawal.id,
                 amount: Number(withdrawal.amount),
@@ -209,6 +200,12 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[Cron] Expire withdrawals results:", results);
+
+    await audit({
+      action: "CRON_EXECUTION",
+      detail: `expire-withdrawals: ${results.processed} processed, ${results.onChainSuccess} on-chain, ${results.onChainFailed} failed`,
+      metadata: results,
+    });
 
     return NextResponse.json({
       message: `Processed ${results.processed} expired withdrawals`,

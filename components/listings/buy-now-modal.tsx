@@ -197,7 +197,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
         const data = await response.json();
         onSuccess?.();
         // Redirect to a page showing partner deposit status
-        router.push(`/dashboard/purchases/${data.transactionId}/partners`);
+        router.push(`/dashboard/purchases`);
       } else {
         const data = await response.json();
         setError(data.error || "Failed to initiate partner purchase");

@@ -8,7 +8,6 @@ This guide will help you set up and deploy App Market with all features includin
 - PostgreSQL database
 - GitHub OAuth App credentials
 - Vercel account (for Blob storage)
-- Stripe account (for payments)
 - Solana wallet
 
 ## Quick Start
@@ -66,11 +65,6 @@ NEXT_PUBLIC_SOLANA_NETWORK="devnet"
 #### Optional Variables
 
 ```bash
-# Stripe (for fiat payments)
-STRIPE_SECRET_KEY="sk_test_..."
-STRIPE_PUBLISHABLE_KEY="pk_test_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-
 # Google OAuth (optional)
 GOOGLE_ID="your-google-oauth-client-id"
 GOOGLE_SECRET="your-google-oauth-client-secret"
@@ -162,7 +156,6 @@ All footer links should now work:
      - `NEXTAUTH_SECRET` → generate new secure secret
      - `GITHUB_ID` & `GITHUB_SECRET` → create new OAuth app for production domain
      - `NEXT_PUBLIC_SOLANA_NETWORK` → `mainnet-beta` (when ready)
-     - Stripe keys → use live keys instead of test
 
 4. **Set up Production Database:**
    - Use Vercel Postgres or external PostgreSQL
@@ -232,7 +225,6 @@ Before going to production:
 
 - [ ] Change `NEXTAUTH_SECRET` to a strong, random value
 - [ ] Use production credentials for GitHub OAuth
-- [ ] Use Stripe live keys (not test keys)
 - [ ] Use mainnet-beta for Solana (not devnet)
 - [ ] Set up proper CORS policies
 - [ ] Enable HTTPS (Vercel does this automatically)

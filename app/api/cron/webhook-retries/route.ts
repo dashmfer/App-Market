@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,7 @@ export const dynamic = "force-dynamic";
  * Runs every 5 minutes
  */
 export async function GET(req: NextRequest) {
-  // Verify cron secret
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

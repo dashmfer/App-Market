@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hashEvidence, isValidUUID } from "@/lib/validation";
+import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
 export async function POST(
@@ -177,6 +178,17 @@ export async function POST(
         data: { disputeId, transactionId: transaction.id, resolution },
         userId: transaction.sellerId,
       },
+    });
+
+    await audit({
+      action: "ADMIN_DISPUTE_RESOLUTION",
+      severity: "WARN",
+      userId: session.user.id,
+      targetId: disputeId,
+      targetType: "dispute",
+      detail: `Dispute resolved: ${resolution}`,
+      metadata: { resolution, transactionId: transaction.id, feeCharged },
+      ...auditContext(request.headers),
     });
 
     return NextResponse.json({

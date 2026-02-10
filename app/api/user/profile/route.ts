@@ -64,7 +64,11 @@ export async function PUT(req: NextRequest) {
     }
 
     if (data.websiteUrl !== undefined) {
-      updateData.websiteUrl = data.websiteUrl.trim().slice(0, 200);
+      const url = data.websiteUrl.trim().slice(0, 200);
+      if (url && !/^https?:\/\//i.test(url)) {
+        return NextResponse.json({ error: "Website URL must start with http:// or https://" }, { status: 400 });
+      }
+      updateData.websiteUrl = url;
     }
 
     if (data.discordHandle !== undefined) {

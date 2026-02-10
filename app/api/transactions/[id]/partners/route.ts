@@ -71,7 +71,16 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { walletAddress, userId, percentage } = body;
+    const { walletAddress, percentage } = body;
+    // SECURITY: Look up userId by wallet instead of accepting from body
+    let userId: string | null = null;
+    if (walletAddress) {
+      const matchedUser = await prisma.user.findFirst({
+        where: { walletAddress: { equals: walletAddress, mode: "insensitive" as const } },
+        select: { id: true },
+      });
+      userId = matchedUser?.id || null;
+    }
 
     if (!walletAddress) {
       return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });

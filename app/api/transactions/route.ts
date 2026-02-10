@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     const userId = token.id as string;
 
     const body = await request.json();
-    const { listingId, paymentMethod, stripePaymentId, onChainTx } = body;
+    const { listingId, paymentMethod, onChainTx } = body;
 
     // Get listing
     const listing = await prisma.listing.findUnique({
@@ -255,8 +255,7 @@ export async function POST(request: NextRequest) {
         platformFee,
         sellerProceeds,
         currency: listing.currency,
-        paymentMethod: paymentMethod === "BUY_NOW" ? "STRIPE" : (onChainTx ? "SOLANA" : "STRIPE"),
-        stripePaymentId,
+        paymentMethod: paymentMethod === "USDC" ? "USDC" : "SOLANA",
         onChainTx,
         status: onChainTx ? "IN_ESCROW" : "PENDING",
         transferChecklist,

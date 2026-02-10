@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "received" or "given"
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
 
     if (!userId) {
       return NextResponse.json(

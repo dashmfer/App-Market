@@ -86,7 +86,7 @@ export async function revokeAllUserSessions(userId: string, reason?: string): Pr
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   // Revoke each session
-  const revocations = sessions.map(session =>
+  const revocations = sessions.map((session: { sessionToken: string }) =>
     prisma.revokedSession.upsert({
       where: { sessionId: session.sessionToken },
       create: {
@@ -351,20 +351,40 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          console.log("[Privy Auth] Created new user:", user.id);
+          console.log("[Privy Auth] Created new user");
         } else {
           // Update user with latest info from Privy
           const updateData: any = {};
 
+          // SECURITY: Check uniqueness before linking wallet/email/twitter
+          // Prevents one Privy account from claiming another user's identity
           if (credentials.walletAddress && !user.walletAddress) {
-            updateData.walletAddress = credentials.walletAddress;
+            const existing = await prisma.user.findUnique({
+              where: { walletAddress: credentials.walletAddress },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.walletAddress = credentials.walletAddress;
+            }
           }
           if (credentials.email && !user.email) {
-            updateData.email = credentials.email;
+            const existing = await prisma.user.findUnique({
+              where: { email: credentials.email },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.email = credentials.email;
+            }
           }
           if (credentials.twitterUsername && !user.twitterUsername) {
-            updateData.twitterUsername = credentials.twitterUsername;
-            updateData.twitterVerified = true;
+            const existing = await prisma.user.findFirst({
+              where: { twitterUsername: credentials.twitterUsername },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.twitterUsername = credentials.twitterUsername;
+              updateData.twitterVerified = true;
+            }
           }
 
           if (Object.keys(updateData).length > 0) {
@@ -418,11 +438,14 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.walletAddress = (user as any).walletAddress;
         token.sessionId = (user as any).sessionId; // For session revocation
+      }
 
-        // Fetch admin status from database
+      // Re-check isAdmin from database on every JWT refresh
+      // Prevents stale admin status if role is revoked between token refreshes
+      if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { id: user.id },
+            where: { id: token.id as string },
             select: { isAdmin: true },
           });
           token.isAdmin = dbUser?.isAdmin || false;
@@ -477,10 +500,8 @@ export const authOptions: NextAuthOptions = {
 
                 if (primarySolanaWallet) {
                   walletAddress = primarySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using primary Solana wallet instead of ETH:", walletAddress);
                 } else if (anySolanaWallet) {
                   walletAddress = anySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using Solana wallet instead of ETH:", walletAddress);
                 }
               }
 

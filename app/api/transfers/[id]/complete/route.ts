@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
+import { audit } from "@/lib/audit";
 
 interface ChecklistItem {
   id: string;
@@ -283,6 +284,16 @@ export async function POST(
           listingId: transaction.listingId,
         },
       },
+    });
+
+    await audit({
+      action: "TRANSACTION_COMPLETED",
+      severity: "INFO",
+      userId: session.user.id,
+      targetId: transaction.id,
+      targetType: "Transaction",
+      detail: `Transfer completed: ${Number(transaction.salePrice)} ${transaction.currency}`,
+      metadata: { listingId: transaction.listingId, salePrice: Number(transaction.salePrice) },
     });
 
     return NextResponse.json({
