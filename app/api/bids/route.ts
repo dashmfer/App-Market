@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bid, listing, previousBidderId } = txResult;
+    const { bid, listing, previousBidderId, newEndTime } = txResult;
 
     // Notifications outside transaction (non-critical)
     if (previousBidderId) {

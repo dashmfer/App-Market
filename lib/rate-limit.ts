@@ -128,11 +128,11 @@ export async function checkRateLimitAsync(
       "CRITICAL: Rate limiting falling back to in-memory in production! Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."
     );
     // SECURITY: Fail closed in production — deny all requests if Redis is unavailable
-    if (process.env.NODE_ENV === 'production') {
-      return {
-        check: async () => ({ isLimited: true, remaining: 0, resetAt: Date.now() + 60000 }),
-      };
-    }
+    return {
+      isLimited: true,
+      remaining: 0,
+      resetTime: Date.now() + 60000,
+    };
   } else {
     console.warn(
       "Rate limiting: Using in-memory fallback. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production."
