@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Wallet,
-  CreditCard,
   Coins,
   AlertCircle,
   CheckCircle2,
@@ -49,7 +48,7 @@ interface BidModalProps {
   onBidSuccess?: (amount: number, method: string, txSignature?: string) => void;
 }
 
-type PaymentMethod = "SOL" | "USDC" | "APP" | "CARD";
+type PaymentMethod = "SOL" | "USDC" | "APP";
 
 export function BidModal({
   open,
@@ -169,24 +168,6 @@ export function BidModal({
           throw new Error(data.error || "Failed to record bid");
         }
 
-      } else if (paymentMethod === "CARD") {
-        // Handle Stripe payment
-        const response = await fetch("/api/payments/create-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: listing.id,
-            paymentType: "bid",
-            bidAmount,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to create payment");
-        }
-
-        // Would redirect to Stripe checkout or use Elements
-        await new Promise((resolve) => setTimeout(resolve, 2000));
       } else if (paymentMethod === "APP") {
         // Handle APP token payment (SPL token transfer)
         if (!connected || !publicKey || !sendTransaction) {
@@ -276,13 +257,6 @@ export function BidModal({
       name: "USDC",
       description: "Stablecoin payment",
       icon: Coins,
-      enabled: true,
-    },
-    {
-      id: "CARD" as PaymentMethod,
-      name: "Credit Card",
-      description: "Visa, Mastercard, etc.",
-      icon: CreditCard,
       enabled: true,
     },
   ];

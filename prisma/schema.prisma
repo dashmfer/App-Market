@@ -507,7 +507,6 @@ model Transaction {
   
   // Payment
   paymentMethod       PaymentMethod
-  stripePaymentId     String?
   onChainTx           String?
   escrowAddress       String?
   
@@ -963,7 +962,6 @@ enum Currency {
 
 enum PaymentMethod {
   SOLANA
-  STRIPE
   USDC
 }
 

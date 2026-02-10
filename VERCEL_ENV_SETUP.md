@@ -59,8 +59,6 @@ Your production site on Vercel uses environment variables configured in the Verc
    ```
    GOOGLE_ID=<your-google-client-id>
    GOOGLE_SECRET=<your-google-client-secret>
-   STRIPE_SECRET_KEY=<your-stripe-secret>
-   STRIPE_PUBLISHABLE_KEY=<your-stripe-public-key>
    ```
 
 3. **Select Environment:**
