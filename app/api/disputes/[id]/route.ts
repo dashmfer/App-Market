@@ -85,30 +85,31 @@ export async function POST(
     let sellerPayout = 0;
     let feeCharged = false;
 
+    // SECURITY: Dispute fee must be accounted for in refund calculations
+    const disputeFeeAmount = Number(dispute.disputeFee || 0);
+
     switch (resolution) {
       case "FULL_REFUND":
-        // Buyer gets full refund, seller gets nothing
+        // Buyer gets full refund; dispute fee charged to seller from escrow
         buyerRefund = Number(transaction.salePrice);
         sellerPayout = 0;
         newTransactionStatus = "REFUNDED";
-        // Charge dispute fee to seller (loser)
         feeCharged = true;
         break;
 
       case "PARTIAL_REFUND":
-        // Split based on circumstances (default 50/50 for now)
-        buyerRefund = Number(transaction.salePrice) * 0.5;
-        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5;
+        // Split 50/50, dispute fee split proportionally
+        buyerRefund = Number(transaction.salePrice) * 0.5 - (disputeFeeAmount * 0.5);
+        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5 - (disputeFeeAmount * 0.5);
         newTransactionStatus = "COMPLETED";
-        // No dispute fee charged on partial resolution
+        feeCharged = disputeFeeAmount > 0;
         break;
 
       case "RELEASE_TO_SELLER":
-        // Seller gets full payment minus platform fee
+        // Seller gets proceeds; dispute fee charged to buyer (loser)
         buyerRefund = 0;
         sellerPayout = Number(transaction.sellerProceeds);
         newTransactionStatus = "COMPLETED";
-        // Charge dispute fee to buyer (loser)
         feeCharged = true;
         break;
 

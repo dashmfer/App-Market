@@ -39,10 +39,21 @@ export async function POST(
       return NextResponse.json({ error: "Partner not found" }, { status: 404 });
     }
 
-    // Only the partner themselves can mark as deposited
-    // (or by wallet address match if not a registered user)
-    if (partner.userId && partner.userId !== session.user.id) {
-      return NextResponse.json({ error: "Only the partner can confirm their deposit" }, { status: 403 });
+    // SECURITY: Only the partner themselves can mark as deposited.
+    // If partner has a userId, they must match. If no userId, verify wallet address.
+    if (partner.userId) {
+      if (partner.userId !== session.user.id) {
+        return NextResponse.json({ error: "Only the partner can confirm their deposit" }, { status: 403 });
+      }
+    } else {
+      // No userId set — verify the session user's wallet matches the partner's wallet
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { walletAddress: true },
+      });
+      if (!currentUser?.walletAddress || currentUser.walletAddress !== partner.walletAddress) {
+        return NextResponse.json({ error: "Wallet address does not match partner record" }, { status: 403 });
+      }
     }
 
     // Check if deposit deadline has passed

@@ -6,6 +6,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 import { sanitizePagination, sanitizeSearchQuery } from "@/lib/validation";
 
@@ -15,6 +16,12 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.READ)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('read', 'agent-listings'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const { searchParams } = new URL(request.url);

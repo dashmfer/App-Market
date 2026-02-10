@@ -9,6 +9,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 
 // GET /api/agent/keys - List user's API keys
@@ -31,6 +32,12 @@ export async function GET(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('read', 'agent-keys'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const apiKeys = await prisma.apiKey.findMany({
@@ -75,6 +82,12 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-keys'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const body = await request.json();
@@ -163,6 +176,12 @@ export async function DELETE(request: NextRequest) {
       return agentErrorResponse("Unauthorized", 401);
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-keys'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
+    }
+
     const { searchParams } = new URL(request.url);
     const keyId = searchParams.get("id");
 
@@ -212,6 +231,12 @@ export async function PATCH(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-keys'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const body = await request.json();

@@ -86,11 +86,17 @@ export async function GET(request: NextRequest) {
     // Process offers to mark as expired
     for (const offer of expiredOffers) {
       try {
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // CRITICAL TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. This MUST be implemented before mainnet.
+        // Requires:
+        // 1. BACKEND_AUTHORITY_SECRET_KEY env var (JSON array from keypair file)
+        // 2. Run `anchor build` to generate complete IDL with refund_escrow instruction
+        // 3. Call expireOffer() from lib/solana-contract.ts with backend authority
+        // 4. Only mark as EXPIRED after on-chain refund succeeds
+        // 5. If on-chain refund fails, log error and skip (don't mark as expired)
+        //
+        // WARNING: Without this, expired offers have funds locked in escrow forever.
+        // Users are notified "funds will be returned" but currently they are NOT.
 
         // Update offer status to EXPIRED
         await prisma.offer.update({

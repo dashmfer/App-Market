@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // SECURITY: Validate message format and timestamp (replay protection)
     if (publicKey && message) {
-      const messageValidation = validateWalletSignatureMessage(message, publicKey, 300);
+      const messageValidation = await validateWalletSignatureMessage(message, publicKey, 300);
       if (!messageValidation.valid) {
         return NextResponse.json(
           { error: messageValidation.error || "Invalid signature message" },

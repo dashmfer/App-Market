@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getAuthToken } from "@/lib/auth";
 
 // GET - Get purchase partner invite details by ID
+// SECURITY: Requires authentication to prevent unauthenticated access (BOLA)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // SECURITY: Require authentication
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized - please sign in" },
+        { status: 401 }
+      );
+    }
+
     const { id: partnerId } = await params;
 
     const partner = await prisma.transactionPartner.findUnique({
@@ -71,6 +82,16 @@ export async function GET(
 
     if (!partner) {
       return NextResponse.json({ error: "Partner invite not found" }, { status: 404 });
+    }
+
+    // SECURITY: Only allow access if user is a partner in this transaction or the seller
+    const userId = token.id as string;
+    const isPartnerInTx = partner.transaction.partners.some(
+      (p: { userId: string | null }) => p.userId === userId
+    );
+    const isSeller = partner.transaction.seller?.id === userId;
+    if (!isPartnerInTx && !isSeller) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Calculate stats

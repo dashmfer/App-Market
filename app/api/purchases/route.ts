@@ -53,97 +53,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get listing with seller info
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      include: {
-        seller: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-          },
-        },
-      },
-    });
-
-    if (!listing) {
+    // SECURITY: Validate amount is positive
+    if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check listing status
-    if (listing.status !== "ACTIVE") {
-      return NextResponse.json(
-        { error: "Listing is not available for purchase" },
+        { error: "Amount must be a positive number" },
         { status: 400 }
       );
     }
 
-    // Check if listing has expired
-    if (listing.endTime && new Date() > new Date(listing.endTime)) {
-      return NextResponse.json(
-        { error: "This listing has expired" },
-        { status: 400 }
-      );
-    }
-
-    // Check if buyer is not the seller
-    if (listing.sellerId === userId) {
-      return NextResponse.json(
-        { error: "You cannot buy your own listing" },
-        { status: 400 }
-      );
-    }
-
-    // SECURITY: Validate purchase amount matches listing price
-    if (purchaseType === "buyNow") {
-      if (!listing.buyNowEnabled || !listing.buyNowPrice) {
-        return NextResponse.json(
-          { error: "Buy Now is not available for this listing" },
-          { status: 400 }
-        );
-      }
-
-      if (amount < Number(listing.buyNowPrice)) {
-        return NextResponse.json(
-          { error: `Payment amount must be at least ${listing.buyNowPrice} ${listing.currency}` },
-          { status: 400 }
-        );
-      }
-    } else {
-      // For auction purchases, verify the amount matches the current highest bid
-      const highestBid = await prisma.bid.findFirst({
-        where: { listingId, isWinning: true },
-        orderBy: { amount: 'desc' },
-      });
-      if (highestBid && amount < Number(highestBid.amount)) {
-        return NextResponse.json(
-          { error: "Amount does not match winning bid" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Calculate fees using configurable rate from solana.ts
-    const platformFee = calculatePlatformFee(amount, currency);
-    const { proceeds: sellerProceeds } = calculateSellerProceeds(amount, currency);
-
-    // Check if a transaction already exists for this listing
-    const existingTransaction = await prisma.transaction.findUnique({
-      where: { listingId },
-    });
-
-    if (existingTransaction) {
-      return NextResponse.json(
-        { error: "This listing has already been purchased" },
-        { status: 400 }
-      );
-    }
-
-    // Verify on-chain transaction if provided
+    // Verify on-chain transaction if provided (outside DB transaction to avoid holding lock)
     if (onChainTx) {
       try {
         const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
@@ -169,76 +87,161 @@ export async function POST(request: NextRequest) {
       } catch (verifyErr) {
         console.error("Error verifying on-chain tx:", verifyErr);
         // Don't block purchase if RPC is temporarily unavailable
-        // The tx signature is still stored for manual verification
       }
     }
 
-    // Calculate buyer info deadline (48 hours from now)
-    const buyerInfoDeadline = listing.requiredBuyerInfo
-      ? new Date(Date.now() + 48 * 60 * 60 * 1000)
-      : null;
-
-    // Determine initial status based on whether it's a partner purchase
-    const initialStatus = withPartners ? "AWAITING_PARTNER_DEPOSITS" : "IN_ESCROW";
-    const partnerDepositDeadline = withPartners
-      ? new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
-      : null;
-
-    // Create transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        salePrice: amount,
-        platformFee,
-        sellerProceeds,
-        currency: currency || listing.currency,
-        paymentMethod: (currency || listing.currency) === "USDC" ? "USDC" : (currency || listing.currency) === "APP" ? "APP" : "SOL",
-        onChainTx,
-        status: initialStatus,
-        listingId,
-        buyerId: userId,
-        sellerId: listing.sellerId,
-        paidAt: withPartners ? null : new Date(), // Only set paidAt when fully paid
-        buyerInfoDeadline: withPartners ? null : buyerInfoDeadline, // Set after all deposits
-        buyerInfoStatus: listing.requiredBuyerInfo ? "PENDING" : "PROVIDED",
-        hasPartners: withPartners || false,
-        partnerDepositDeadline,
-      },
-    });
-
-    // If partner purchase, create lead buyer as a partner and other partners
-    if (withPartners && partners && partners.length > 0) {
-      // Create lead buyer partner record
-      await prisma.transactionPartner.create({
-        data: {
-          transactionId: transaction.id,
-          walletAddress: walletAddress,
-          userId: userId,
-          percentage: leadBuyerPercentage,
-          depositAmount: leadBuyerDepositAmount,
-          isLead: true,
-          depositStatus: "DEPOSITED",
-          depositedAt: new Date(),
-          depositTxHash: onChainTx,
+    // SECURITY: Use serializable transaction to prevent double-purchase race condition
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Get listing with seller info inside transaction
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        include: {
+          seller: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+            },
+          },
         },
       });
 
-      // Create other partner records
-      for (const partner of partners) {
-        await prisma.transactionPartner.create({
+      if (!listing) {
+        return { error: "Listing not found", status: 404 } as const;
+      }
+
+      if (listing.status !== "ACTIVE") {
+        return { error: "Listing is not available for purchase", status: 400 } as const;
+      }
+
+      if (listing.endTime && new Date() > new Date(listing.endTime)) {
+        return { error: "This listing has expired", status: 400 } as const;
+      }
+
+      if (listing.sellerId === userId) {
+        return { error: "You cannot buy your own listing", status: 400 } as const;
+      }
+
+      // SECURITY: Validate purchase amount matches listing price
+      if (purchaseType === "buyNow") {
+        if (!listing.buyNowEnabled || !listing.buyNowPrice) {
+          return { error: "Buy Now is not available for this listing", status: 400 } as const;
+        }
+        if (amount < Number(listing.buyNowPrice)) {
+          return { error: `Payment amount must be at least ${listing.buyNowPrice} ${listing.currency}`, status: 400 } as const;
+        }
+      } else {
+        const highestBid = await tx.bid.findFirst({
+          where: { listingId, isWinning: true },
+          orderBy: { amount: 'desc' },
+        });
+        if (highestBid && amount < Number(highestBid.amount)) {
+          return { error: "Amount does not match winning bid", status: 400 } as const;
+        }
+      }
+
+      // Calculate fees
+      const platformFee = calculatePlatformFee(amount, currency);
+      const { proceeds: sellerProceeds } = calculateSellerProceeds(amount, currency);
+
+      // SECURITY: Atomic check — if transaction already exists, reject (prevents double-purchase)
+      const existingTransaction = await tx.transaction.findUnique({
+        where: { listingId },
+      });
+
+      if (existingTransaction) {
+        return { error: "This listing has already been purchased", status: 400 } as const;
+      }
+
+      const buyerInfoDeadline = listing.requiredBuyerInfo
+        ? new Date(Date.now() + 48 * 60 * 60 * 1000)
+        : null;
+
+      const initialStatus = withPartners ? "AWAITING_PARTNER_DEPOSITS" : "IN_ESCROW";
+      const partnerDepositDeadline = withPartners
+        ? new Date(Date.now() + 30 * 60 * 1000)
+        : null;
+
+      // Create transaction atomically
+      const transaction = await tx.transaction.create({
+        data: {
+          salePrice: amount,
+          platformFee,
+          sellerProceeds,
+          currency: currency || listing.currency,
+          paymentMethod: (currency || listing.currency) === "USDC" ? "USDC" : (currency || listing.currency) === "APP" ? "APP" : "SOL",
+          onChainTx,
+          status: initialStatus,
+          listingId,
+          buyerId: userId,
+          sellerId: listing.sellerId,
+          paidAt: withPartners ? null : new Date(),
+          buyerInfoDeadline: withPartners ? null : buyerInfoDeadline,
+          buyerInfoStatus: listing.requiredBuyerInfo ? "PENDING" : "PROVIDED",
+          hasPartners: withPartners || false,
+          partnerDepositDeadline,
+        },
+      });
+
+      // If partner purchase, create partners atomically
+      if (withPartners && partners && partners.length > 0) {
+        await tx.transactionPartner.create({
           data: {
             transactionId: transaction.id,
-            walletAddress: partner.walletAddress,
-            userId: partner.userId || null,
-            percentage: partner.percentage,
-            depositAmount: partner.depositAmount,
-            isLead: false,
-            depositStatus: "PENDING",
+            walletAddress: walletAddress,
+            userId: userId,
+            percentage: leadBuyerPercentage,
+            depositAmount: leadBuyerDepositAmount,
+            isLead: true,
+            depositStatus: "DEPOSITED",
+            depositedAt: new Date(),
+            depositTxHash: onChainTx,
           },
         });
 
-        // Notify each partner
+        for (const partner of partners) {
+          await tx.transactionPartner.create({
+            data: {
+              transactionId: transaction.id,
+              walletAddress: partner.walletAddress,
+              userId: partner.userId || null,
+              percentage: partner.percentage,
+              depositAmount: partner.depositAmount,
+              isLead: false,
+              depositStatus: "PENDING",
+            },
+          });
+        }
+      }
+
+      // Update listing status atomically
+      if (!withPartners) {
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { status: "SOLD" },
+        });
+      }
+
+      return { transaction, listing, partnerDepositDeadline, buyerInfoDeadline } as const;
+    }, {
+      isolationLevel: 'Serializable',
+    });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
+    }
+
+    const { transaction, listing, partnerDepositDeadline, buyerInfoDeadline } = txResult;
+
+    // Notifications outside transaction (non-critical, fire-and-forget)
+    if (withPartners && partners && partners.length > 0) {
+      for (const partner of partners) {
         if (partner.userId) {
-          await prisma.notification.create({
+          prisma.notification.create({
             data: {
               type: "PURCHASE_PARTNER_INVITE",
               title: "Purchase Partner Invite",
@@ -253,18 +256,9 @@ export async function POST(request: NextRequest) {
               },
               userId: partner.userId,
             },
-          });
+          }).catch(console.error);
         }
       }
-    }
-
-    // Update listing status - SOLD only if not a partner purchase
-    // For partner purchases, it stays ACTIVE until all deposits are in
-    if (!withPartners) {
-      await prisma.listing.update({
-        where: { id: listingId },
-        data: { status: "SOLD" },
-      });
     }
 
     // NOTE: Buyer stats (totalPurchases, totalVolume) are updated on transaction

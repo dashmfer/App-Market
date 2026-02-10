@@ -8,8 +8,39 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission, WebhookEventType } from "@/lib/prisma-enums";
 import { encrypt } from "@/lib/encryption";
+
+// SECURITY: SSRF protection — block private/internal IPs in webhook URLs
+function checkSsrfUrl(hostname: string): string | null {
+  const h = hostname.toLowerCase();
+
+  // Block localhost variants
+  if (h === "localhost" || h === "::1" || h === "0.0.0.0" || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h)) {
+    return "Webhook URL cannot point to localhost";
+  }
+
+  // Block private IP ranges (RFC 1918), link-local, CGNAT
+  const privatePatterns = [
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+    /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
+    /^192\.168\.\d{1,3}\.\d{1,3}$/,
+    /^169\.254\.\d{1,3}\.\d{1,3}$/,           // AWS/cloud metadata
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/, // CGNAT
+  ];
+
+  if (privatePatterns.some(p => p.test(h))) {
+    return "Webhook URL cannot point to private/internal IP addresses";
+  }
+
+  // Block cloud metadata hostnames
+  if (["metadata.google.internal", "metadata.google", "instance-data"].some(b => h.includes(b))) {
+    return "Webhook URL cannot point to cloud metadata services";
+  }
+
+  return null;
+}
 
 // GET /api/agent/webhooks - List user's webhooks
 export async function GET(request: NextRequest) {
@@ -28,6 +59,12 @@ export async function GET(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('read', 'agent-webhooks'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const webhooks = await prisma.webhook.findMany({
@@ -74,6 +111,12 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("Unauthorized", 401);
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-webhooks'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
+    }
+
     const body = await request.json();
     const { name, url, events } = body;
 
@@ -85,11 +128,15 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("URL is required", 400);
     }
 
-    // Validate URL format
+    // Validate URL format and SECURITY: Block SSRF via private IPs
     try {
       const parsedUrl = new URL(url);
       if (!["http:", "https:"].includes(parsedUrl.protocol)) {
         throw new Error("Invalid protocol");
+      }
+      const ssrfError = checkSsrfUrl(parsedUrl.hostname);
+      if (ssrfError) {
+        return agentErrorResponse(ssrfError, 400);
       }
     } catch {
       return agentErrorResponse("Invalid URL format. Must be http:// or https://", 400);
@@ -171,6 +218,12 @@ export async function DELETE(request: NextRequest) {
       return agentErrorResponse("Unauthorized", 401);
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-webhooks'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
+    }
+
     const { searchParams } = new URL(request.url);
     const webhookId = searchParams.get("id");
 
@@ -222,6 +275,12 @@ export async function PATCH(request: NextRequest) {
       return agentErrorResponse("Unauthorized", 401);
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-webhooks'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
+    }
+
     const body = await request.json();
     const { id, name, url, events, isActive } = body;
 
@@ -254,6 +313,11 @@ export async function PATCH(request: NextRequest) {
         const parsedUrl = new URL(url);
         if (!["http:", "https:"].includes(parsedUrl.protocol)) {
           throw new Error("Invalid protocol");
+        }
+        // SECURITY: SSRF check on URL update too
+        const ssrfError = checkSsrfUrl(parsedUrl.hostname);
+        if (ssrfError) {
+          return agentErrorResponse(ssrfError, 400);
         }
         updateData.url = url.trim();
       } catch {
