@@ -423,6 +423,31 @@ function generateNotificationContent(
         message: data?.message || 'Suspicious activity was detected on your account',
       };
 
+    // PATO notifications
+    case 'PATO_LAUNCHED':
+      return {
+        title: 'Token Launched',
+        message: `Your token for "${displayTitle}" is now live and tradeable`,
+      };
+
+    case 'PATO_GRADUATED':
+      return {
+        title: 'Token Graduated',
+        message: `The token for "${displayTitle}" has graduated to Meteora AMM with permanently locked liquidity`,
+      };
+
+    case 'PATO_FEES_AVAILABLE':
+      return {
+        title: 'Trading Fees Available',
+        message: `You have trading fees ready to claim for "${displayTitle}"`,
+      };
+
+    case 'PATO_LAUNCH_FAILED':
+      return {
+        title: 'Token Launch Failed',
+        message: `The token launch for "${displayTitle}" failed. You can try again.`,
+      };
+
     case 'SYSTEM':
       return {
         title: 'System Notification',

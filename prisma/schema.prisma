@@ -344,6 +344,7 @@ model Listing {
   offers            Offer[]
   pendingWithdrawals PendingWithdrawal[]
   transaction       Transaction?
+  tokenLaunches     TokenLaunch[]
   watchlist         Watchlist[]
   ndaSignatures     ListingNDA[]
   similarities      ListingSimilarity[] @relation("ListingSimilarities")
@@ -565,6 +566,7 @@ model Transaction {
   reviews             Review[]
   uploads             Upload[]
   agreements          TransactionAgreement[]
+  tokenLaunch         TokenLaunch?
 
   // Timestamps
   createdAt           DateTime          @default(now())
@@ -824,37 +826,82 @@ model Message {
 }
 
 // ============================================
-// TOKEN LAUNCHES
+// TOKEN LAUNCHES (PATO - Post-Acquisition Token Offerings)
 // ============================================
 
 model TokenLaunch {
   id              String            @id @default(cuid())
-  
+
   // Token Info
   tokenName       String
   tokenSymbol     String
-  tokenMint       String?
+  tokenMint       String?           // SPL token mint address
+  tokenImage      String?           // Token image URL
+  tokenDescription String?          @db.Text
   totalSupply     BigInt
-  
+
   // Launch Config
-  launchType      TokenLaunchType
-  presalePrice    Decimal?  @db.Decimal(18, 8)
-  listingPrice    Decimal?  @db.Decimal(18, 8)
-  
-  // Platform Fee (1% of supply)
-  platformTokens  BigInt?
-  
+  launchType      TokenLaunchType   @default(PATO)
+
+  // Meteora DBC (Dynamic Bonding Curve) Config
+  dbcPoolAddress       String?      // Meteora DBC virtual pool address
+  dbcConfigKey         String?      // Partner DBC config key used for this launch
+  bondingCurveStatus   BondingCurveStatus @default(PENDING)
+
+  // Graduation / Migration
+  graduationThreshold  Decimal      @default(500) @db.Decimal(18, 8) // SOL needed to graduate
+  graduatedAt          DateTime?    // When the curve graduated
+  dammPoolAddress      String?      // Meteora DAMM v2 pool address post-graduation
+  migrationFeeOption   Int          @default(2) // 0=0.25%, 1=0.3%, 2=1%, 3=2%, 4=4%, 5=6%
+
+  // Fee Configuration (Bonding Curve Phase)
+  tradingFeeBps        Int          @default(100) // 1% total trading fee (100 bps)
+  creatorFeePct        Int          @default(50)  // Creator gets 50% of partner's 80% share
+
+  // LP Lock Configuration (Post-Graduation)
+  partnerLockedLpPct   Int          @default(50)  // 50% of LP permanently locked for platform
+  creatorLockedLpPct   Int          @default(50)  // 50% of LP permanently locked for creator
+
+  // Creator Info
+  creatorWallet        String?      // Creator's wallet for fee claims
+
+  // Vanity Address
+  vanityKeypair        String?      // Encrypted keypair for vanity mint address (ends in 'app')
+
+  // Fee Tracking
+  totalBondingCurveFeesSOL  Decimal @default(0) @db.Decimal(18, 8) // Total fees earned on curve
+  totalPostGradFeesSOL      Decimal @default(0) @db.Decimal(18, 8) // Total fees earned post-grad
+  creatorFeesClaimedSOL     Decimal @default(0) @db.Decimal(18, 8) // Total creator fees claimed
+  platformFeesClaimedSOL    Decimal @default(0) @db.Decimal(18, 8) // Total platform fees claimed
+
   // Status
   status          TokenLaunchStatus @default(PENDING)
-  
-  // Related Project
-  projectId       String
-  
+
+  // Related Transaction (the acquisition that triggered this PATO)
+  transactionId   String            @unique
+  transaction     Transaction       @relation(fields: [transactionId], references: [id])
+
+  // Related Listing (the acquired project)
+  listingId       String
+  listing         Listing           @relation(fields: [listingId], references: [id])
+
+  // Social Links (for token metadata)
+  website         String?
+  twitter         String?
+  telegram        String?
+  discord         String?
+
   // Timestamps
   createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   launchedAt      DateTime?
 
   @@index([status])
+  @@index([transactionId])
+  @@index([listingId])
+  @@index([bondingCurveStatus])
+  @@index([tokenMint])
+  @@index([creatorWallet])
 }
 
 // ============================================
@@ -1043,6 +1090,12 @@ enum NotificationType {
   ACCOUNT_SUSPENDED         // Notify when account is suspended
   ACCOUNT_REACTIVATED       // Notify when account is reactivated
 
+  // PATO (Token Launch) notifications
+  PATO_LAUNCHED             // Notify creator when PATO is live
+  PATO_GRADUATED            // Notify creator when curve graduates to DAMM
+  PATO_FEES_AVAILABLE       // Notify when fees are ready to claim
+  PATO_LAUNCH_FAILED        // Notify creator when launch fails
+
   // Security notifications
   LOGIN_NEW_DEVICE          // Notify when login from new device
   PASSWORD_CHANGED          // Notify when password is changed
@@ -1058,16 +1111,27 @@ enum BuyerInfoStatus {
 }
 
 enum TokenLaunchType {
-  FAIR_LAUNCH
-  PRESALE
+  PATO        // Post-Acquisition Token Offering (Meteora DBC)
+  FAIR_LAUNCH // Legacy
+  PRESALE     // Legacy
 }
 
 enum TokenLaunchStatus {
-  PENDING
-  LAUNCHING
-  LIVE
-  COMPLETED
-  FAILED
+  PENDING     // Record created, awaiting launch
+  LAUNCHING   // Transaction being submitted on-chain
+  LIVE        // Bonding curve is active and tradeable
+  GRADUATED   // Curve completed, migrated to DAMM v2 pool
+  COMPLETED   // Fully migrated and operational
+  FAILED      // Launch failed (on-chain error)
+  CANCELLED   // Cancelled by creator before launch
+}
+
+enum BondingCurveStatus {
+  PENDING     // Not yet deployed
+  ACTIVE      // Bonding curve is live, accepting trades
+  GRADUATING  // Threshold met, migration in progress
+  GRADUATED   // Successfully migrated to DAMM v2
+  FAILED      // Deployment or migration failed
 }
 
 // ============================================

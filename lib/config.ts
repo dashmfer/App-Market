@@ -66,20 +66,47 @@ export const PLATFORM_CONFIG = {
   },
 
   // ============================================
-  // TOKEN LAUNCH SETTINGS
+  // PATO (Post-Acquisition Token Offering) SETTINGS
   // ============================================
-  tokenLaunch: {
-    // Platform receives 1% of all token launches
-    platformAllocationBps: 100,
-    
-    // Supported launch types
-    launchTypes: ["FAIR_LAUNCH", "PRESALE"],
-    
-    // Integration provider (pump.fun, etc.)
-    provider: "pump.fun",
-    
-    // Minimum liquidity required for launch
-    minimumLiquidity: 5, // SOL
+  pato: {
+    // Infrastructure provider
+    provider: "meteora-dbc",
+
+    // Bonding curve trading fee (1% = 100 bps)
+    tradingFeeBps: 100,
+
+    // Fee split: creator gets 50% of partner's 80% share
+    // Meteora gets 20%, partner pool gets 80%
+    // Of the 80%: 50% to platform, 50% to creator
+    creatorFeePercentage: 50,
+
+    // Graduation threshold (SOL needed to migrate to DAMM v2)
+    graduationThresholdSOL: 500,
+
+    // Post-graduation DAMM v2 fee tier
+    // 0=0.25%, 1=0.3%, 2=1%, 3=2%, 4=4%, 5=6%
+    migrationFeeOption: 2, // 1% fee on DAMM v2 pool
+
+    // LP lock distribution (must total 100%)
+    lpDistribution: {
+      partnerPermanentLocked: 50, // Platform earns fees forever
+      creatorPermanentLocked: 50, // Creator earns fees forever
+      partnerClaimable: 0,        // No withdrawable LP
+      creatorClaimable: 0,        // No withdrawable LP
+    },
+
+    // Token defaults
+    defaultTotalSupply: "1000000000", // 1 billion tokens
+    tokenDecimals: 9,
+
+    // Vanity address suffix for all PATO tokens
+    vanitySuffix: "app",
+
+    // DBC config key (set via env)
+    configKey: process.env.PATO_DBC_CONFIG_KEY || null,
+
+    // Fee claimer wallet (set via env)
+    feeClaimerWallet: process.env.PATO_FEE_CLAIMER_WALLET || null,
   },
 
   // ============================================
