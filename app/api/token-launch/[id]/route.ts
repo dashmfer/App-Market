@@ -160,7 +160,7 @@ export async function GET(
     };
 
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO] Error fetching token launch:", error);
     return NextResponse.json(
       { error: "Failed to fetch token launch details" },
@@ -312,7 +312,7 @@ export async function PATCH(
         graduatedAt: updated.graduatedAt,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO] Error updating token launch:", error);
     return NextResponse.json(
       { error: "Failed to update token launch" },

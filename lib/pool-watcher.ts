@@ -60,7 +60,7 @@ async function addToHeliusWebhook(address: string): Promise<boolean> {
 
     console.log(`[PoolWatcher] Added ${address} to Helius webhook for real-time monitoring`);
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.error("[PoolWatcher] Error adding to Helius webhook:", err);
     return false;
   }
@@ -91,7 +91,7 @@ async function removeFromHeliusWebhook(address: string): Promise<boolean> {
 
     console.log(`[PoolWatcher] Removed ${address} from Helius webhook`);
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.error("[PoolWatcher] Error removing from Helius webhook:", err);
     return false;
   }

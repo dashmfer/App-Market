@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       // (the mint keypair must sign the pool creation tx)
       mintKeypairBytes: Array.from(decryptedKeypair.secretKey),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO Deploy] Error building deploy transaction:", error);
     return NextResponse.json(
       { error: "Failed to build deployment transaction" },

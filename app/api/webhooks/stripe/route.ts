@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Webhook error:", error);
     return NextResponse.json(
       { error: "Webhook handler failed" },
@@ -103,7 +103,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
           userId: buyerId,
         },
       });
-    } catch (refundError) {
+    } catch (refundError: any) {
       console.error("CRITICAL: Failed to refund payment for missing listing:", refundError);
       // Manual intervention required
     }
@@ -200,7 +200,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     ];
 
     // Wrap critical DB operations in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Create transaction record
       await tx.transaction.create({
         data: {
@@ -247,7 +247,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     });
   } else {
     // Wrap bid operations in a transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Mark previous winning bid as outbid
       await tx.bid.updateMany({
         where: { listingId, isWinning: true },

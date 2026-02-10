@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO] Error creating token launch:", error);
     return NextResponse.json(
       { error: "Failed to create token launch" },
@@ -321,7 +321,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ tokenLaunches: formattedLaunches });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO] Error fetching token launches:", error);
     return NextResponse.json(
       { error: "Failed to fetch token launches" },

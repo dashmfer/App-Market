@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ processed: 0, message: "No matching pool found in payload" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Webhook] Error processing pool graduation:", error);
     return NextResponse.json(
       { error: "Failed to process webhook" },
