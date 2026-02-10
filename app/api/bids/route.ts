@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       const currentHighBid = listing.bids[0]?.amount || null;
 
       if (currentHighBid !== null) {
-        if (amount <= currentHighBid) {
+        if (amount <= Number(currentHighBid)) {
           return { error: `Bid must be higher than ${currentHighBid} ${listing.currency}`, status: 400 } as const;
         }
       } else {
