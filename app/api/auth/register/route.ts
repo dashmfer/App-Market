@@ -2,19 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/db";
 import { validatePasswordComplexity } from "@/lib/validation";
-import { withRateLimit, getClientIp } from "@/lib/rate-limit";
-
-// Rate limiter for registration
-const rateLimitRegister = withRateLimit('auth', 'register');
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Rate limit registration attempts
-    const rateLimit = rateLimitRegister(request);
-    if (!rateLimit.success) {
+    // SECURITY: Rate limit registration attempts (uses Redis in production)
+    const rateLimitResult = await (withRateLimitAsync('auth', 'register'))(request);
+    if (!rateLimitResult.success) {
       return NextResponse.json(
-        { error: rateLimit.error },
-        { status: 429, headers: rateLimit.headers }
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
       );
     }
 

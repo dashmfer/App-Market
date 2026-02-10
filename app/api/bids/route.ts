@@ -96,115 +96,114 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get listing
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      include: {
-        bids: {
-          orderBy: { amount: "desc" },
-          take: 1,
-        },
-      },
-    });
-
-    if (!listing) {
+    // SECURITY: Validate amount is positive
+    if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json(
-        { error: "Listing not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check auction status
-    if (listing.status !== "ACTIVE") {
-      return NextResponse.json(
-        { error: "Listing is not active" },
+        { error: "Amount must be a positive number" },
         { status: 400 }
       );
     }
 
-    // Check if auction ended
-    if (new Date() > listing.endTime) {
-      return NextResponse.json(
-        { error: "Auction has ended" },
-        { status: 400 }
-      );
-    }
-
-    // Check seller not bidding
-    if (listing.sellerId === userId) {
-      return NextResponse.json(
-        { error: "Seller cannot bid on their own listing" },
-        { status: 400 }
-      );
-    }
-
-    // Check minimum bid
-    const currentHighBid = listing.bids[0]?.amount || null;
-
-    if (currentHighBid !== null) {
-      // There are existing bids - new bid must be higher
-      if (amount <= currentHighBid) {
-        return NextResponse.json(
-          { error: `Bid must be higher than ${currentHighBid} ${listing.currency}` },
-          { status: 400 }
-        );
-      }
-    } else {
-      // No bids yet - bid must be at least the starting price
-      if (amount < Number(listing.startingPrice)) {
-        return NextResponse.json(
-          { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Mark previous winning bid as outbid
-    if (listing.bids[0]) {
-      await prisma.bid.update({
-        where: { id: listing.bids[0].id },
-        data: { isWinning: false, isOutbid: true },
-      });
-
-      // Notify previous high bidder
-      const previousBidder = await prisma.bid.findUnique({
-        where: { id: listing.bids[0].id },
-        select: { bidderId: true },
-      });
-
-      if (previousBidder) {
-        await prisma.notification.create({
-          data: {
-            type: "BID_OUTBID",
-            title: "You've been outbid!",
-            message: `Someone placed a higher bid on "${listing.title}"`,
-            data: { listingId, listingSlug: listing.slug },
-            userId: previousBidder.bidderId,
+    // SECURITY: Use serializable transaction to prevent race conditions (concurrent bid attacks)
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Get listing inside transaction for consistent read
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        include: {
+          bids: {
+            orderBy: { amount: "desc" },
+            take: 1,
           },
+        },
+      });
+
+      if (!listing) {
+        return { error: "Listing not found", status: 404 } as const;
+      }
+
+      if (listing.status !== "ACTIVE") {
+        return { error: "Listing is not active", status: 400 } as const;
+      }
+
+      if (new Date() > listing.endTime) {
+        return { error: "Auction has ended", status: 400 } as const;
+      }
+
+      if (listing.sellerId === userId) {
+        return { error: "Seller cannot bid on their own listing", status: 400 } as const;
+      }
+
+      // Check minimum bid
+      const currentHighBid = listing.bids[0]?.amount || null;
+
+      if (currentHighBid !== null) {
+        if (amount <= currentHighBid) {
+          return { error: `Bid must be higher than ${currentHighBid} ${listing.currency}`, status: 400 } as const;
+        }
+      } else {
+        if (amount < Number(listing.startingPrice)) {
+          return { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}`, status: 400 } as const;
+        }
+      }
+
+      // Mark previous winning bid as outbid
+      let previousBidderId: string | null = null;
+      if (listing.bids[0]) {
+        await tx.bid.update({
+          where: { id: listing.bids[0].id },
+          data: { isWinning: false, isOutbid: true },
         });
+        previousBidderId = listing.bids[0].bidderId;
       }
-    }
 
-    // Create new bid
-    const bid = await prisma.bid.create({
-      data: {
-        amount,
-        currency: currency || listing.currency,
-        maxBid: maxBid || null,
-        onChainTx,
-        isWinning: true,
-        listingId,
-        bidderId: userId,
-      },
-      include: {
-        bidder: {
-          select: {
-            id: true,
-            username: true,
+      // Create new bid
+      const bid = await tx.bid.create({
+        data: {
+          amount,
+          currency: currency || listing.currency,
+          maxBid: maxBid || null,
+          onChainTx,
+          isWinning: true,
+          listingId,
+          bidderId: userId,
+        },
+        include: {
+          bidder: {
+            select: {
+              id: true,
+              username: true,
+            },
           },
         },
-      },
+      });
+
+      return { bid, listing, previousBidderId } as const;
+    }, {
+      isolationLevel: 'Serializable',
     });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
+    }
+
+    const { bid, listing, previousBidderId } = txResult;
+
+    // Notifications outside transaction (non-critical)
+    if (previousBidderId) {
+      await prisma.notification.create({
+        data: {
+          type: "BID_OUTBID",
+          title: "You've been outbid!",
+          message: `Someone placed a higher bid on "${listing.title}"`,
+          data: { listingId, listingSlug: listing.slug },
+          userId: previousBidderId,
+        },
+      }).catch(console.error);
+    }
 
     await audit({
       action: "ESCROW_DEPOSIT",

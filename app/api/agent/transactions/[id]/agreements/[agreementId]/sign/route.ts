@@ -6,6 +6,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 
 // POST /api/agent/transactions/[id]/agreements/[agreementId]/sign - Sign an agreement
@@ -17,6 +18,12 @@ export async function POST(
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.TRANSACTION)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-agreements-sign'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const userId = auth.userId!;

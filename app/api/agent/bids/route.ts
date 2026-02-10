@@ -6,6 +6,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 import { PLATFORM_CONFIG } from "@/lib/config";
 
@@ -15,6 +16,12 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.READ)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('read', 'agent-bids'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const bids = await prisma.bid.findMany({
@@ -49,12 +56,23 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-bids'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
+    }
+
     const userId = auth.userId!;
     const body = await request.json();
     const { listingId, amount, currency } = body;
 
     if (!listingId || !amount) {
       return agentErrorResponse("listingId and amount are required", 400);
+    }
+
+    // SECURITY: Validate amount is positive
+    if (typeof amount !== 'number' || amount <= 0) {
+      return agentErrorResponse("Amount must be a positive number", 400);
     }
 
     // Get listing

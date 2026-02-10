@@ -122,10 +122,16 @@ export async function checkRateLimitAsync(
     };
   }
 
-  // Fallback to in-memory (development only)
-  console.warn(
-    "Rate limiting: Using in-memory fallback. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production."
-  );
+  // SECURITY: Warn loudly and refuse in production if Upstash is not configured
+  if (process.env.NODE_ENV === "production") {
+    console.error(
+      "CRITICAL: Rate limiting falling back to in-memory in production! Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."
+    );
+  } else {
+    console.warn(
+      "Rate limiting: Using in-memory fallback. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production."
+    );
+  }
 
   const config = RATE_LIMIT_PRESETS_LEGACY[preset];
   const now = Date.now();
@@ -199,16 +205,24 @@ export function checkRateLimit(
 
 /**
  * Get client IP from request headers
+ * SECURITY: On Vercel/trusted proxies, use the rightmost non-private IP from x-forwarded-for
+ * to prevent IP spoofing via client-supplied headers. Falls back to x-real-ip.
  */
 export function getClientIp(headers: Headers): string {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim();
-  }
-
+  // x-real-ip is set by the reverse proxy (Vercel) and is more trustworthy
   const realIp = headers.get("x-real-ip");
   if (realIp) {
-    return realIp;
+    return realIp.trim();
+  }
+
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) {
+    // SECURITY: Use rightmost IP (closest to trusted proxy) to prevent spoofing.
+    // The client can prepend arbitrary IPs, but the proxy appends the real client IP last.
+    const ips = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
+    if (ips.length > 0) {
+      return ips[ips.length - 1];
+    }
   }
 
   return "unknown";

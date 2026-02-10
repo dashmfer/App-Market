@@ -156,6 +156,10 @@ export async function buyNow(params: BuyNowParams): Promise<string> {
   const [escrow] = getEscrowPDA(params.listing);
   const [transaction] = getTransactionPDA(params.listing);
   const [config] = getConfigPDA();
+  // SECURITY: Include pending_withdrawal account required by on-chain program
+  const listing = await program.account.listing.fetch(params.listing);
+  const withdrawalCount = (listing as any).withdrawalCount ?? 0;
+  const [pendingWithdrawal] = getWithdrawalPDA(params.listing, withdrawalCount + 1);
 
   const tx = await program.methods
     .buyNow()
@@ -163,6 +167,7 @@ export async function buyNow(params: BuyNowParams): Promise<string> {
       listing: params.listing,
       escrow,
       transaction,
+      pendingWithdrawal,
       buyer,
       config,
       systemProgram: SystemProgram.programId,
@@ -186,6 +191,7 @@ export async function settleAuction(params: SettleAuctionParams): Promise<string
   const bidder = params.provider.wallet.publicKey;
 
   const [transaction] = getTransactionPDA(params.listing);
+  const [escrow] = getEscrowPDA(params.listing);
   const [config] = getConfigPDA();
 
   const tx = await program.methods
@@ -193,6 +199,7 @@ export async function settleAuction(params: SettleAuctionParams): Promise<string
     .accounts({
       listing: params.listing,
       transaction,
+      escrow,
       config,
       bidder,
       systemProgram: SystemProgram.programId,

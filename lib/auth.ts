@@ -180,7 +180,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // SECURITY: Validate message format and timestamp (replay protection)
-        const messageValidation = validateWalletSignatureMessage(
+        const messageValidation = await validateWalletSignatureMessage(
           credentials.message,
           credentials.publicKey,
           300 // 5 minute validity

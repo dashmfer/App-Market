@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // SECURITY: Overall cron timeout to prevent webhook retry DOS
+    const CRON_TIMEOUT_MS = 55000; // 55 seconds (Vercel cron max is 60s)
+    const cronStart = Date.now();
+
     // Find deliveries ready for retry
     const pendingRetries = await prisma.webhookDelivery.findMany({
       where: {
@@ -33,6 +37,11 @@ export async function GET(req: NextRequest) {
 
     let retried = 0;
     for (const delivery of pendingRetries) {
+      // SECURITY: Check overall timeout to prevent runaway cron
+      if (Date.now() - cronStart > CRON_TIMEOUT_MS) {
+        console.warn(`[Webhook Retry Cron] Timeout after ${retried} retries, stopping`);
+        break;
+      }
       if (!delivery.webhook.isActive) {
         await prisma.webhookDelivery.update({
           where: { id: delivery.id },

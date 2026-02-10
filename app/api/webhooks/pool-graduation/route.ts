@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import prisma from "@/lib/db";
 import { hasPoolGraduated, getPoolState } from "@/lib/meteora-dbc";
 import { unwatchPool } from "@/lib/pool-watcher";
@@ -95,9 +96,19 @@ async function handleGraduation(poolAddressStr: string) {
 }
 
 export async function POST(request: NextRequest) {
-  // Verify webhook secret
+  // SECURITY: Verify webhook secret using timing-safe comparison (prevents timing attacks)
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.WEBHOOK_SECRET}`) {
+  const expectedSecret = process.env.WEBHOOK_SECRET;
+  if (!authHeader || !expectedSecret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const expectedHeader = `Bearer ${expectedSecret}`;
+  try {
+    if (authHeader.length !== expectedHeader.length ||
+        !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedHeader))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

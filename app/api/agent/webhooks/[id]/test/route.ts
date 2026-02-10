@@ -7,6 +7,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
 
@@ -19,6 +20,12 @@ export async function POST(
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.ADMIN)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-webhook-test'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const webhook = await prisma.webhook.findUnique({

@@ -6,6 +6,7 @@ import {
   agentErrorResponse,
   agentSuccessResponse,
 } from "@/lib/agent-auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 
 // GET /api/agent/watchlist - Get all watchlisted items
@@ -14,6 +15,12 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.READ)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('read', 'agent-watchlist'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const watchlist = await prisma.watchlist.findMany({
@@ -59,6 +66,12 @@ export async function POST(request: NextRequest) {
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.WRITE)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-watchlist'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const userId = auth.userId!;
@@ -108,6 +121,12 @@ export async function DELETE(request: NextRequest) {
     const auth = await authenticateAgent(request);
     if (!auth.success || !hasPermission(auth, ApiKeyPermission.WRITE)) {
       return agentErrorResponse(auth.error || "Unauthorized", auth.statusCode || 401);
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'agent-watchlist'))(request);
+    if (!rateLimitResult.success) {
+      return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
     const userId = auth.userId!;

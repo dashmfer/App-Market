@@ -3,14 +3,53 @@
  */
 import crypto from 'crypto';
 
-// SECURITY: Track used wallet signature timestamps to prevent replay attacks
-// In production, this should use Redis/Upstash for multi-instance support
+// SECURITY: Track used wallet signature nonces to prevent replay attacks
+// Uses Redis (Upstash) in production for multi-instance support, in-memory fallback for dev
 const usedSignatureNonces = new Map<string, number>();
 
-// Clean up expired nonces every 10 minutes
+let _redis: any = null;
+async function getNonceRedis() {
+  if (_redis !== undefined && _redis !== null) return _redis;
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    try {
+      const { Redis } = await import("@upstash/redis");
+      _redis = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+      return _redis;
+    } catch {
+      _redis = null;
+    }
+  }
+  _redis = null;
+  return null;
+}
+
+// Check nonce via Redis if available, else in-memory
+async function hasNonceBeenUsed(nonceKey: string): Promise<boolean> {
+  const redis = await getNonceRedis();
+  if (redis) {
+    const exists = await redis.get(`nonce:${nonceKey}`);
+    return !!exists;
+  }
+  return usedSignatureNonces.has(nonceKey);
+}
+
+async function markNonceUsed(nonceKey: string): Promise<void> {
+  const redis = await getNonceRedis();
+  if (redis) {
+    // Set with 10 minute TTL (auto-expiry, no cleanup needed)
+    await redis.set(`nonce:${nonceKey}`, "1", { ex: 600 });
+  } else {
+    usedSignatureNonces.set(nonceKey, Date.now());
+  }
+}
+
+// Clean up expired in-memory nonces every 10 minutes (dev fallback only)
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
-    const cutoff = Date.now() - 10 * 60 * 1000; // 10 min
+    const cutoff = Date.now() - 10 * 60 * 1000;
     for (const [key, timestamp] of usedSignatureNonces.entries()) {
       if (timestamp < cutoff) {
         usedSignatureNonces.delete(key);
@@ -190,11 +229,11 @@ export function validatePasswordComplexity(password: string): { valid: boolean; 
 /**
  * Validate wallet signature message (replay protection)
  */
-export function validateWalletSignatureMessage(
+export async function validateWalletSignatureMessage(
   message: string,
   expectedWallet: string,
   maxAgeSeconds: number = 300 // 5 minutes
-): { valid: boolean; error?: string } {
+): Promise<{ valid: boolean; error?: string }> {
   // Check message format
   if (!message.includes('Sign this message to authenticate with App Market')) {
     return { valid: false, error: 'Invalid message format' };
@@ -225,11 +264,13 @@ export function validateWalletSignatureMessage(
   }
 
   // SECURITY: Check for replay attacks - each signature can only be used once
+  // Uses Redis in production for multi-instance consistency
   const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
-  if (usedSignatureNonces.has(nonceKey)) {
+  const alreadyUsed = await hasNonceBeenUsed(nonceKey);
+  if (alreadyUsed) {
     return { valid: false, error: 'Signature has already been used' };
   }
-  usedSignatureNonces.set(nonceKey, Date.now());
+  await markNonceUsed(nonceKey);
 
   return { valid: true };
 }

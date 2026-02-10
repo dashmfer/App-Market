@@ -39,9 +39,12 @@ export interface RateLimitResult {
 // ============================================
 
 const API_KEY_PREFIX = "ak_live_";
-const SIGNATURE_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
+// SECURITY: Reduced from 5 minutes to 30 seconds to minimize replay window
+const SIGNATURE_TIMESTAMP_TOLERANCE_MS = 30 * 1000; // 30 seconds
 
-// In-memory rate limit store (for production, use Redis)
+// Agent rate limiting — use Upstash Redis if configured, else in-memory fallback
+import { checkRateLimitAsync, isRateLimitingDistributed } from "@/lib/rate-limit";
+
 const rateLimitStore = new Map<string, { count: number; resetAt: Date }>();
 
 // ============================================
@@ -297,19 +300,30 @@ export function hasPermission(
 
 /**
  * Check rate limit for an API key or wallet
+ * SECURITY: Uses Upstash Redis in production for distributed rate limiting
  */
-export async function checkRateLimit(
+export async function checkAgentRateLimit(
   identifier: string,
   limit: number = 100
 ): Promise<RateLimitResult> {
+  // Use distributed rate limiting (Upstash) if available
+  if (isRateLimitingDistributed()) {
+    const result = await checkRateLimitAsync(identifier, "agent-api", "read");
+    return {
+      allowed: !result.isLimited,
+      remaining: result.remaining,
+      resetAt: new Date(result.resetTime),
+    };
+  }
+
+  // Fallback to in-memory (dev only)
   const now = new Date();
-  const windowMs = 60 * 1000; // 1 minute window
+  const windowMs = 60 * 1000;
   const resetAt = new Date(now.getTime() + windowMs);
 
   const current = rateLimitStore.get(identifier);
 
   if (!current || current.resetAt < now) {
-    // New window
     rateLimitStore.set(identifier, { count: 1, resetAt });
     return { allowed: true, remaining: limit - 1, resetAt };
   }
@@ -318,7 +332,6 @@ export async function checkRateLimit(
     return { allowed: false, remaining: 0, resetAt: current.resetAt };
   }
 
-  // Increment count
   current.count++;
   return { allowed: true, remaining: limit - current.count, resetAt: current.resetAt };
 }
