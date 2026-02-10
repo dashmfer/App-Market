@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { canEditListing, isValidUrl, MAX_CATEGORIES } from "@/lib/validation";
 import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/listings/[slug] - Get a single listing by slug
 export async function GET(
@@ -145,6 +146,12 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const rateLimitResult = await (withRateLimitAsync('write', 'listing-update'))(request);
     if (!rateLimitResult.success) {
       return NextResponse.json(

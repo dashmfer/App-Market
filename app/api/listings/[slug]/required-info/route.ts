@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/listings/[slug]/required-info - Get required buyer info
 export async function GET(

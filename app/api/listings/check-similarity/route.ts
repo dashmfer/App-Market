@@ -6,6 +6,7 @@ import {
   findSimilarListings,
   ListingForComparison,
 } from "@/lib/similarity-detection";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/listings/check-similarity - Check if a listing is similar to existing ones
 export async function POST(request: NextRequest) {

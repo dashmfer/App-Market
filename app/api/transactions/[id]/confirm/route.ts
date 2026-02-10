@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { hashEvidence } from "@/lib/validation";
+import { getAuthToken } from "@/lib/auth";
+import { hashEvidence, isValidUUID } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/transactions/[id]/confirm - Confirm transfer item
@@ -17,9 +16,9 @@ export async function POST(
       return csrfError(csrfValidation.error || 'CSRF validation failed');
     }
 
-    const session = await getServerSession(authOptions);
+    const token = await getAuthToken(request);
 
-    if (!session?.user) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -27,6 +26,15 @@ export async function POST(
     }
 
     const transactionId = params.id;
+
+    // SECURITY [M13]: Validate UUID format
+    if (!isValidUUID(transactionId)) {
+      return NextResponse.json(
+        { error: "Invalid ID format" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { asset, action, evidence } = body; // action: "sellerConfirm", "buyerConfirm", "partnerConfirm"
 
@@ -60,9 +68,9 @@ export async function POST(
     }
 
     // Check authorization - include partners for group purchases
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
-    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
+    const isBuyer = transaction.buyerId === token.id as string;
+    const isSeller = transaction.sellerId === token.id as string;
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === token.id as string);
     const isPartner = !!userPartner;
 
     if (!isBuyer && !isSeller && !isPartner) {

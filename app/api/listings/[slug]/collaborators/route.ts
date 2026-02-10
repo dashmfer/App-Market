@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
 import { createNotification } from "@/lib/notifications";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/listings/[slug]/collaborators - Get all collaborators for a listing
 export async function GET(

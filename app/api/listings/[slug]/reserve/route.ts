@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { isValidSolanaAddress } from "@/lib/validation";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/listings/[slug]/reserve
