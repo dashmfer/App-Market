@@ -204,7 +204,7 @@ export async function POST(
         : "You have declined the collaboration invite",
       collaborator: updatedCollaborator,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error responding to collaboration:", error);
     return NextResponse.json(
       { error: "Failed to respond to collaboration invite" },
@@ -261,7 +261,7 @@ export async function GET(
     }
 
     return NextResponse.json({ collaborator });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching collaboration:", error);
     return NextResponse.json(
       { error: "Failed to fetch collaboration invite" },

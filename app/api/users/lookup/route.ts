@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       user,
       isWalletAddress,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error looking up user:", error);
     return NextResponse.json(
       { error: "Failed to lookup user" },
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({ results });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error looking up users:", error);
     return NextResponse.json(
       { error: "Failed to lookup users" },

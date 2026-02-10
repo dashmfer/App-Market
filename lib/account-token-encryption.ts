@@ -19,7 +19,7 @@ export function encryptAccountTokens<T extends Record<string, any>>(data: T): T 
         if (!looksEncrypted(encrypted[field])) {
           encrypted[field] = encrypt(encrypted[field]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Token Encryption] Failed to encrypt ${field}:`, error);
         // Continue without encryption rather than breaking auth
       }
@@ -39,7 +39,7 @@ export function decryptAccountTokens<T extends Record<string, any>>(data: T): T 
         if (looksEncrypted(decrypted[field])) {
           decrypted[field] = decrypt(decrypted[field]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Token Encryption] Failed to decrypt ${field}:`, error);
         // Return the raw value if decryption fails (may be unencrypted legacy data)
       }

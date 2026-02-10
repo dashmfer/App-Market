@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Registration error:", error);
     return NextResponse.json(
       { error: "Failed to create account" },

@@ -95,7 +95,7 @@ export function ReviewList({ userId }: ReviewListProps) {
           setStats(data.stats);
           setTotalPages(data.pagination.totalPages);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch reviews:", error);
       } finally {
         setLoading(false);

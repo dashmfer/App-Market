@@ -171,7 +171,7 @@ async function getJupiterQuote(
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Jupiter] Quote error:", error);
     return null;
   }

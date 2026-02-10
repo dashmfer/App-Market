@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete("twitter_oauth_data");
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Twitter callback error:", error);
     return NextResponse.redirect(
       `${SITE_URL}/dashboard/settings?twitter_error=unknown`

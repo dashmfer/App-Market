@@ -139,7 +139,7 @@ function DeveloperContent() {
           const data = await res.json();
           setApiKeys(data.keys || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to load API keys:", error);
       } finally {
         setKeysLoading(false);
@@ -158,7 +158,7 @@ function DeveloperContent() {
           const data = await res.json();
           setWebhooks(data.webhooks || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to load webhooks:", error);
       } finally {
         setWebhooksLoading(false);
@@ -194,7 +194,7 @@ function DeveloperContent() {
         const error = await res.json();
         alert(error.error || "Failed to create API key");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create API key:", error);
       alert("Failed to create API key");
     } finally {
@@ -214,7 +214,7 @@ function DeveloperContent() {
       } else {
         alert("Failed to delete API key");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete API key:", error);
       alert("Failed to delete API key");
     } finally {
@@ -234,7 +234,7 @@ function DeveloperContent() {
           prev.map((k) => (k.id === id ? { ...k, isActive: !isActive } : k))
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to toggle API key:", error);
     }
   };
@@ -264,7 +264,7 @@ function DeveloperContent() {
         const error = await res.json();
         alert(error.error || "Failed to create webhook");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create webhook:", error);
       alert("Failed to create webhook");
     } finally {
@@ -284,7 +284,7 @@ function DeveloperContent() {
       } else {
         alert("Failed to delete webhook");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete webhook:", error);
       alert("Failed to delete webhook");
     } finally {
@@ -304,7 +304,7 @@ function DeveloperContent() {
           prev.map((w) => (w.id === id ? { ...w, isActive: !isActive } : w))
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to toggle webhook:", error);
     }
   };

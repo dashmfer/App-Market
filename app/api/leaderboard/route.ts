@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching leaderboard:", error);
     return NextResponse.json(
       { error: "Failed to fetch leaderboard" },

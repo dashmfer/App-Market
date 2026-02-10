@@ -113,7 +113,7 @@ export async function POST(
       listing: updatedListing,
       buyerIsRegistered: !!existingUser,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error reserving listing:", error);
     return NextResponse.json(
       { error: "Failed to reserve listing" },
@@ -191,7 +191,7 @@ export async function DELETE(
       success: true,
       listing: updatedListing,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error removing reservation:", error);
     return NextResponse.json(
       { error: "Failed to remove reservation" },

@@ -83,7 +83,7 @@ export async function POST(
       success: true,
       message: "Asset Purchase Agreement signed successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error signing APA:", error);
     return NextResponse.json(
       { error: "Failed to sign APA" },

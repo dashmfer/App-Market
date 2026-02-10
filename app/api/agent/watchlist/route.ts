@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return agentSuccessResponse({ listings });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching watchlist:", error);
     return agentErrorResponse("Failed to fetch watchlist", 500);
   }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       watchlistId: watchlist.id,
       message: "Added to watchlist",
     }, 201);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error adding to watchlist:", error);
     return agentErrorResponse("Failed to add to watchlist", 500);
   }
@@ -133,7 +133,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return agentSuccessResponse({ message: "Removed from watchlist" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error removing from watchlist:", error);
     return agentErrorResponse("Failed to remove from watchlist", 500);
   }

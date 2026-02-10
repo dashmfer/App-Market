@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
       try {
         const { del } = await import("@vercel/blob");
         await del(currentUser.image);
-      } catch (e) {
+      } catch (e: any) {
         console.error("[Profile Image] Failed to delete old image:", e);
         // Continue with upload even if delete fails
       }
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       success: true,
       imageUrl: updatedUser.image,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error uploading profile picture:', error);
     return NextResponse.json(
       { error: 'Failed to upload profile picture' },
@@ -124,7 +124,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({
       success: true,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error removing profile picture:', error);
     return NextResponse.json(
       { error: 'Failed to remove profile picture' },

@@ -46,7 +46,7 @@ export function verifyWalletOwnership(
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Wallet Ownership Verification] Error:", error);
     return { valid: false, error: "Verification failed" };
   }
@@ -192,7 +192,7 @@ export async function verifyWalletSignature(
             },
           });
           console.log("[Wallet Verification] Referral record created");
-        } catch (error) {
+        } catch (error: any) {
           console.error("[Wallet Verification] Failed to create referral record:", error);
           // Don't fail the signup if referral creation fails
         }
@@ -232,7 +232,7 @@ export async function verifyWalletSignature(
         email: user.email ?? null,
       },
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Wallet Verification] Error during verification:", error);
     return { success: false, error: "Verification failed" };
   }

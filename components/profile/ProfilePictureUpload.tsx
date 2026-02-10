@@ -82,7 +82,7 @@ export default function ProfilePictureUpload({
       const data = await response.json();
       setPreviewUrl(data.imageUrl);
       onImageUpdate?.(data.imageUrl);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload image');
       setPreviewUrl(currentImage || null);
@@ -116,7 +116,7 @@ export default function ProfilePictureUpload({
 
       setPreviewUrl(null);
       onImageUpdate?.('');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Remove error:', err);
       setError('Failed to remove image');
     } finally {

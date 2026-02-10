@@ -106,7 +106,7 @@ export async function POST(
       success: true,
       message: "Fallback transfer process activated",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error activating fallback transfer:", error);
     return NextResponse.json(
       { error: "Failed to activate fallback transfer" },

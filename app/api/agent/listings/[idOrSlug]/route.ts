@@ -105,7 +105,7 @@ export async function GET(
         bidCount: listing._count.bids,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching listing:", error);
     return agentErrorResponse("Failed to fetch listing", 500);
   }

@@ -61,7 +61,7 @@ export async function GET() {
       activeListings,
       avgSaleTime: avgDays,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching platform stats:", error);
     return NextResponse.json(
       { error: "Failed to fetch stats" },

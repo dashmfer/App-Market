@@ -86,7 +86,7 @@ export async function revokeAllUserSessions(userId: string, reason?: string): Pr
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   // Revoke each session
-  const revocations = sessions.map(session =>
+  const revocations = sessions.map((session: any) =>
     prisma.revokedSession.upsert({
       where: { sessionId: session.sessionToken },
       create: {
@@ -493,7 +493,7 @@ export const authOptions: NextAuthOptions = {
               (session.user as any).githubUsername = user.githubUsername;
               session.user.image = user.image;
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error('[Auth Session Callback] Database error:', error);
           }
         }

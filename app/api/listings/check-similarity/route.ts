@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
           ? "This listing has some similarities to existing listings. Please ensure it is unique."
           : "No significant similarities detected.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking similarity:", error);
     return NextResponse.json(
       { error: "Failed to check similarity" },

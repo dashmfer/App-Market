@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Twitter connect error:", error);
     return NextResponse.json(
       { error: "Failed to initiate Twitter connection" },

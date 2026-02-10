@@ -192,7 +192,7 @@ export async function POST(
         ? `Confirmation recorded. ${partnerStats?.currentConfirmations}/${partnerStats?.totalPartners} partners confirmed.`
         : "Receipt confirmed successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error confirming buyer receipt:", error);
     return NextResponse.json(
       { error: "Failed to confirm receipt" },

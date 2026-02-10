@@ -270,7 +270,7 @@ export async function retry<T>(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
 
       if (attempt === maxAttempts || !shouldRetry(error)) {

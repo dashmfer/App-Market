@@ -40,7 +40,7 @@ async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error as Error;
       console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
 
@@ -226,7 +226,7 @@ export async function GET(request: NextRequest) {
 
         results.cancelled++;
         console.log(`[Cron] Cancelled partner transaction ${transaction.id} - deadline expired`);
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
       processed: expiredTransactions.length,
       results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Partner deposit deadline error:", error);
     return NextResponse.json(
       { error: "Failed to process partner deadline check" },

@@ -27,7 +27,7 @@ export async function GET(
       requiredBuyerInfo: listing.requiredBuyerInfo,
       isLocked: listing.buyerInfoLocked,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching required info:", error);
     return NextResponse.json(
       { error: "Failed to fetch required info" },
@@ -97,7 +97,7 @@ export async function PATCH(
       success: true,
       message: "Required buyer info updated",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating required info:", error);
     return NextResponse.json(
       { error: "Failed to update required info" },

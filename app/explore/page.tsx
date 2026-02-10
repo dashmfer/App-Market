@@ -107,7 +107,7 @@ function ExploreContent() {
           const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
           setWatchlistedIds(ids);
         }
-      } catch (err) {
+      } catch (err: any) {
         // Silently fail - user might not be logged in
       }
     };
@@ -170,7 +170,7 @@ function ExploreContent() {
       } else {
         setError(tCommon("error"));
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(tCommon("error"));
     } finally {
       setLoading(false);

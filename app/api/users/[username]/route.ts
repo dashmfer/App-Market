@@ -217,7 +217,7 @@ export async function GET(
     };
 
     return NextResponse.json({ user: transformedUser });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching user:", error);
     return NextResponse.json(
       { error: "Failed to fetch user" },

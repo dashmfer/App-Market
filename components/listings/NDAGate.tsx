@@ -62,7 +62,7 @@ export function NDAGate({
           isSeller: data.isSeller || false,
           loading: false,
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error checking NDA status:", error);
         setNdaStatus((prev) => ({ ...prev, loading: false }));
       }

@@ -204,7 +204,7 @@ export async function GET() {
       activeListings: listings,
       pendingTransferDetails,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching user stats:", error);
     return NextResponse.json(
       { error: "Failed to fetch user stats" },

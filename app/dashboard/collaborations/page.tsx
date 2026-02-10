@@ -85,7 +85,7 @@ export default function CollaborationsPage() {
         const data = await response.json();
         setInvites(data.invites || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch invites:", error);
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export default function CollaborationsPage() {
         const data = await response.json();
         toast.error(data.error || "Failed to respond");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Something went wrong");
     } finally {
       setRespondingTo(null);

@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       notifications,
       unreadCount,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching notifications:", error);
     return NextResponse.json(
       { error: "Failed to fetch notifications" },
@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest) {
       { error: "Invalid request - provide notificationId or markAll" },
       { status: 400 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating notifications:", error);
     return NextResponse.json(
       { error: "Failed to update notifications" },

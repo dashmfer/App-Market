@@ -80,7 +80,7 @@ export default function EditListingPage() {
         } else {
           setError("Failed to load listing");
         }
-      } catch (err) {
+      } catch (err: any) {
         setError("Failed to load listing");
       } finally {
         setLoading(false);
@@ -123,7 +123,7 @@ export default function EditListingPage() {
         const data = await response.json();
         setError(data.error || "Failed to update listing");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Failed to update listing");
     } finally {
       setSaving(false);
@@ -152,7 +152,7 @@ export default function EditListingPage() {
         const data = await response.json();
         setError(data.error || "Failed to cancel listing");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Failed to cancel listing");
     } finally {
       setCanceling(false);
@@ -188,7 +188,7 @@ export default function EditListingPage() {
         const data = await response.json();
         setError(data.error || "Failed to reserve listing");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Failed to reserve listing");
     } finally {
       setReserving(false);
@@ -220,7 +220,7 @@ export default function EditListingPage() {
         const data = await response.json();
         setError(data.error || "Failed to remove reservation");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Failed to remove reservation");
     } finally {
       setReserving(false);

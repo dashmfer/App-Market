@@ -132,7 +132,7 @@ export async function POST(
     }
 
     return agentSuccessResponse({ checklist, allConfirmed });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error confirming transfer:", error);
     return agentErrorResponse("Failed to confirm transfer", 500);
   }

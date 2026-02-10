@@ -37,7 +37,7 @@ export default function LeaderboardPage() {
           const data = await response.json();
           setLeaderboard(data.leaderboard);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch leaderboard:", error);
       } finally {
         setLoading(false);

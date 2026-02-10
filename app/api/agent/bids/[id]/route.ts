@@ -46,7 +46,7 @@ export async function GET(
     }
 
     return agentSuccessResponse({ bid });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching bid:", error);
     return agentErrorResponse("Failed to fetch bid", 500);
   }

@@ -48,7 +48,7 @@ export default function PurchasesPage() {
           const data = await response.json();
           setReservedListings(data.listings || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch reserved listings:", error);
       } finally {
         setLoading(false);

@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ transactions });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching transactions:", error);
     return NextResponse.json(
       { error: "Failed to fetch transactions" },
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
     // This prevents inflated stats from cancelled/disputed transactions.
 
     return NextResponse.json({ transaction }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating transaction:", error);
     return NextResponse.json(
       { error: "Failed to create transaction" },

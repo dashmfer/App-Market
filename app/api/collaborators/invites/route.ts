@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       invites,
       count: invites.length,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching collaboration invites:", error);
     return NextResponse.json(
       { error: "Failed to fetch collaboration invites" },

@@ -166,7 +166,7 @@ export class AppMarketClient {
         data,
         statusCode: response.status,
       };
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 

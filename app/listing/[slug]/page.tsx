@@ -261,7 +261,7 @@ export default function ListingPage() {
               setCollaborators(collabData.collaborators || []);
               setSellerPercentage(collabData.seller?.percentage || 100);
             }
-          } catch (collabErr) {
+          } catch (collabErr: any) {
             console.error("Failed to fetch collaborators:", collabErr);
           }
 
@@ -273,7 +273,7 @@ export default function ListingPage() {
                 const partnersData = await partnersResponse.json();
                 setPurchasePartners(partnersData.partners || []);
               }
-            } catch (partnersErr) {
+            } catch (partnersErr: any) {
               console.error("Failed to fetch purchase partners:", partnersErr);
             }
           }
@@ -288,7 +288,7 @@ export default function ListingPage() {
         } else {
           setError("Failed to load listing");
         }
-      } catch (err) {
+      } catch (err: any) {
         setError("Failed to load listing");
       } finally {
         setLoading(false);
@@ -311,7 +311,7 @@ export default function ListingPage() {
           const data = await response.json();
           setOffers(data);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch offers:", err);
       }
     }
@@ -336,7 +336,7 @@ export default function ListingPage() {
         const data = await response.json();
         alert(data.error || "Failed to accept offer");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error accepting offer:", err);
       alert("Failed to accept offer");
     } finally {
@@ -361,7 +361,7 @@ export default function ListingPage() {
         const data = await response.json();
         alert(data.error || "Failed to decline offer");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error declining offer:", err);
       alert("Failed to decline offer");
     } finally {
@@ -390,7 +390,7 @@ export default function ListingPage() {
         setCollaborators(collabData.collaborators || []);
         setSellerPercentage(collabData.seller?.percentage || 100);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(`Error ${action}ing invite:`, err);
       throw err;
     }

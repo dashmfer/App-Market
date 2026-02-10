@@ -130,7 +130,7 @@ export default function CategoriesPage() {
           const data = await res.json();
           setCounts(data.counts || {});
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch category counts:", error);
       }
     }

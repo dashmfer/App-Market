@@ -21,7 +21,7 @@ export default function RecentSalesPage() {
           const data = await response.json();
           setRecentSales(data.listings || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch recent sales:", error);
       } finally {
         setLoading(false);

@@ -129,7 +129,7 @@ export async function GET(
         purchaseInfo,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching listing:", error);
     return NextResponse.json(
       { error: "Failed to fetch listing" },
@@ -224,7 +224,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ listing: updatedListing });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating listing:", error);
     return NextResponse.json(
       { error: "Failed to update listing" },

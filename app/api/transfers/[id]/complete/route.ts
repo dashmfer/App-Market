@@ -158,7 +158,7 @@ export async function POST(
         transaction.sellerId
       );
       console.log("[Transfer Complete] Referral earnings processed:", referralResult);
-    } catch (referralError) {
+    } catch (referralError: any) {
       // Don't fail the transaction if referral processing fails
       console.error("[Transfer Complete] Failed to process referral earnings:", referralError);
     }
@@ -294,7 +294,7 @@ export async function POST(
         releasedAt: new Date(),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error completing transfer:", error);
     return NextResponse.json(
       { error: "Failed to complete transfer" },

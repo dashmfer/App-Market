@@ -182,7 +182,7 @@ export async function POST(
             verificationHash,
           });
         }
-      } catch (onChainError) {
+      } catch (onChainError: any) {
         console.error('On-chain verification failed:', onChainError);
         // Don't fail the request - uploads are stored, just not verified on-chain
         // Admin can manually verify later or buyer can use emergency verification after 30 days
@@ -206,7 +206,7 @@ export async function POST(
       validationResults,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload verification error:', error);
     return NextResponse.json({
       error: 'Internal server error',
@@ -434,7 +434,7 @@ async function verifyGithubRepo(
         stars: data.stargazers_count,
       },
     };
-  } catch (error) {
+  } catch (error: any) {
     return {
       verified: false,
       error: 'Cannot access GitHub repo. Ensure it exists and you have access.',

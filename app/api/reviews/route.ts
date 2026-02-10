@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching reviews:", error);
     return NextResponse.json(
       { error: "Failed to fetch reviews" },
@@ -387,7 +387,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ review }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating review:", error);
     return NextResponse.json(
       { error: "Failed to process review" },

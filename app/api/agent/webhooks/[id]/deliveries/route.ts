@@ -69,7 +69,7 @@ export async function GET(
         totalPages: Math.ceil(total / pageSize),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching webhook deliveries:", error);
     return agentErrorResponse("Failed to fetch webhook deliveries", 500);
   }

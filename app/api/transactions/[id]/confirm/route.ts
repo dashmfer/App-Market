@@ -304,7 +304,7 @@ export async function POST(
       allConfirmed,
       majorityVote: item.majorityVote || null,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error confirming transfer:", error);
     return NextResponse.json(
       { error: "Failed to confirm transfer" },

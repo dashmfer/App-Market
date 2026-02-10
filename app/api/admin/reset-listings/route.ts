@@ -126,7 +126,7 @@ export async function DELETE(request: NextRequest) {
       { error: "Specify ?id=LISTING_ID to delete one, or ?all=true to delete all" },
       { status: 400 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in admin reset:", error);
     return NextResponse.json(
       { error: "Failed to delete" },

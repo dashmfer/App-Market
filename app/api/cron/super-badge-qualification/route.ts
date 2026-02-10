@@ -55,7 +55,7 @@ async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error as Error;
       console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
 
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
           results.newSuperSellers++;
           console.log(`[Cron] Granted Super Seller to user ${user.id} (${user.username})`);
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Failed to process super seller for ${user.id}: ${error}`);
       }
     }
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
           results.revokedSuperSellers++;
           console.log(`[Cron] Revoked Super Seller from user ${user.id} (${user.username})`);
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Failed to check super seller status for ${user.id}: ${error}`);
       }
     }
@@ -290,7 +290,7 @@ export async function GET(request: NextRequest) {
           results.newSuperBuyers++;
           console.log(`[Cron] Granted Super Buyer to user ${user.id} (${user.username})`);
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Failed to process super buyer for ${user.id}: ${error}`);
       }
     }
@@ -349,7 +349,7 @@ export async function GET(request: NextRequest) {
           results.revokedSuperBuyers++;
           console.log(`[Cron] Revoked Super Buyer from user ${user.id} (${user.username})`);
         }
-      } catch (error) {
+      } catch (error: any) {
         results.errors.push(`Failed to check super buyer status for ${user.id}: ${error}`);
       }
     }
@@ -360,7 +360,7 @@ export async function GET(request: NextRequest) {
       success: true,
       ...results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Super badge qualification failed:", error);
     return NextResponse.json(
       {

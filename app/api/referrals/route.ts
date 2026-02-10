@@ -80,7 +80,7 @@ export async function GET() {
       })),
       commissionRate: PLATFORM_CONFIG.referral.commissionRateBps / 100,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching referral info:", error);
     return NextResponse.json(
       { error: "Internal server error" },
@@ -162,7 +162,7 @@ export async function PATCH(request: Request) {
     });
 
     return NextResponse.json({ success: true, code: cleanCode });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating referral code:", error);
     return NextResponse.json(
       { error: "Internal server error" },

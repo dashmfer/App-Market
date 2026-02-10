@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ counts });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching category counts:", error);
     return NextResponse.json(
       { error: "Failed to fetch category counts" },

@@ -132,7 +132,7 @@ export async function POST(
       success: true,
       reportId: report.id,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error reporting review:", error);
     return NextResponse.json(
       { error: "Failed to report review" },

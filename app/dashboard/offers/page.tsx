@@ -67,7 +67,7 @@ export default function OffersPage() {
           const data = await sentRes.json();
           setSentOffers(data.offers || []);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to fetch offers:", err);
       } finally {
         setLoading(false);
@@ -94,7 +94,7 @@ export default function OffersPage() {
         const data = await response.json();
         alert(data.error || "Failed to accept offer");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error accepting offer:", err);
       alert("Failed to accept offer");
     } finally {
@@ -119,7 +119,7 @@ export default function OffersPage() {
         const data = await response.json();
         alert(data.error || "Failed to decline offer");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error declining offer:", err);
       alert("Failed to decline offer");
     } finally {
@@ -144,7 +144,7 @@ export default function OffersPage() {
         const data = await response.json();
         alert(data.error || "Failed to cancel offer");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error cancelling offer:", err);
       alert("Failed to cancel offer");
     } finally {

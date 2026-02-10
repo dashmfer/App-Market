@@ -125,7 +125,7 @@ export async function GET(
         currency: transaction.currency,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching agreements:", error);
     return NextResponse.json(
       { error: "Failed to fetch agreements" },
@@ -226,7 +226,7 @@ export async function POST(
             { status: 400 }
           );
         }
-      } catch (error) {
+      } catch (error: any) {
         return NextResponse.json(
           { error: "Failed to verify signature" },
           { status: 400 }
@@ -376,7 +376,7 @@ export async function POST(
     });
 
     return NextResponse.json({ agreement }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating/signing agreement:", error);
     return NextResponse.json(
       { error: "Failed to process agreement" },

@@ -106,7 +106,7 @@ export default function PartnerInvitePage() {
         const responseData = await response.json();
         setData(responseData);
         setTimeRemaining(responseData.transaction.timeRemaining);
-      } catch (err) {
+      } catch (err: any) {
         setError(err instanceof Error ? err.message : "Failed to load invite");
       } finally {
         setLoading(false);
@@ -165,7 +165,7 @@ export default function PartnerInvitePage() {
 
       // Redirect to transaction page or listing
       router.push(`/listing/${data?.listing.slug}`);
-    } catch (err) {
+    } catch (err: any) {
       setDepositError(err instanceof Error ? err.message : "Failed to deposit");
     } finally {
       setDepositing(false);

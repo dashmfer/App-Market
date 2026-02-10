@@ -136,7 +136,7 @@ export async function POST(
         .filter((p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED")
         .reduce((sum: number, p: any) => sum + Number(p.percentage), 0),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error processing deposit:", error);
     return NextResponse.json({ error: "Failed to process deposit" }, { status: 500 });
   }

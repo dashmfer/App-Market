@@ -52,7 +52,7 @@ export default function WatchlistPage() {
           const data = await response.json();
           setError(data.error || "Failed to load watchlist");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error fetching watchlist:", err);
         setError("Failed to load watchlist");
       } finally {

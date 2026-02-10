@@ -87,7 +87,7 @@ export default function UserProfilePage() {
         } else {
           setError("Failed to load profile");
         }
-      } catch (err) {
+      } catch (err: any) {
         setError("Failed to load profile");
       } finally {
         setLoading(false);

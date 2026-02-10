@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ bids: transformedBids });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching bids:", error);
     return NextResponse.json(
       { error: "Failed to fetch bids" },
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
       auctionExtended: newEndTime !== null,
       newEndTime: newEndTime?.toISOString() || null,
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error placing bid:", error);
     return NextResponse.json(
       { error: "Failed to place bid" },

@@ -69,7 +69,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
       setUnreadCount(newCount);
       setLastFetchedCount(newCount);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching notifications:", error);
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         )
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error marking notification as read:", error);
     }
   }, []);
@@ -106,7 +106,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       setLastFetchedCount(0);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error marking all notifications as read:", error);
     }
   }, []);

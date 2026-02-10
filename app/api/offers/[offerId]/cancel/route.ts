@@ -83,7 +83,7 @@ export async function POST(
     });
 
     return NextResponse.json(updatedOffer);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error cancelling offer:', error);
     return NextResponse.json(
       { error: 'Failed to cancel offer' },

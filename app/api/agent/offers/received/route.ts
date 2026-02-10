@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ offers });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching received offers:", error);
     return agentErrorResponse("Failed to fetch received offers", 500);
   }

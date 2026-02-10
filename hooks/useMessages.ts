@@ -59,7 +59,7 @@ export function useConversations(options: UseMessagesOptions = {}) {
           0
         ) || 0
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching conversations:", error);
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ export function useConversation(conversationId: string | null) {
       const data = await res.json();
       setMessages(data.messages || []);
       setOtherParticipant(data.conversation?.otherParticipant || null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching messages:", error);
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export function useConversation(conversationId: string | null) {
         const data = await res.json();
         setMessages((prev) => [...prev, data.message]);
         return data.message;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error sending message:", error);
         return null;
       }
@@ -174,7 +174,7 @@ export async function startConversation(
 
     const data = await res.json();
     return { conversationId: data.conversationId };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error starting conversation:", error);
     return null;
   }

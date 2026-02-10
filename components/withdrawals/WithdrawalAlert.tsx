@@ -32,7 +32,7 @@ export default function WithdrawalAlert() {
 
       const data = await response.json();
       setStats(data.stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching withdrawals:', error);
     } finally {
       setLoading(false);

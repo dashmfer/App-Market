@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
         claimedCount: claimed.length,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching withdrawals:', error);
     return NextResponse.json(
       { error: 'Failed to fetch withdrawals' },

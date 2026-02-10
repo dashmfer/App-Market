@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ webhooks });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching webhooks:", error);
     return agentErrorResponse("Failed to fetch webhooks", 500);
   }
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       },
       message: "Webhook created. Save the secret for signature verification.",
     }, 201);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating webhook:", error);
     return agentErrorResponse("Failed to create webhook", 500);
   }
@@ -197,7 +197,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return agentSuccessResponse({ message: "Webhook deleted" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting webhook:", error);
     return agentErrorResponse("Failed to delete webhook", 500);
   }
@@ -295,7 +295,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     return agentSuccessResponse({ webhook: updated });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating webhook:", error);
     return agentErrorResponse("Failed to update webhook", 500);
   }

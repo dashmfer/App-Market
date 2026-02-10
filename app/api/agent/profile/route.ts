@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     }
 
     return agentSuccessResponse(user);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching profile:", error);
     return agentErrorResponse("Failed to fetch profile", 500);
   }
@@ -108,7 +108,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     return agentSuccessResponse(updatedUser);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error updating profile:", error);
     return agentErrorResponse("Failed to update profile", 500);
   }

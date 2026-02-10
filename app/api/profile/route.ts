@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(user);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching profile:', error);
     return NextResponse.json(
       { error: 'Failed to fetch profile' },
@@ -132,7 +132,7 @@ export async function PUT(req: NextRequest) {
     });
 
     return NextResponse.json(updatedUser);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid data', details: error.errors },

@@ -73,7 +73,7 @@ export async function POST(
       listing: cancelledListing,
       message: "Listing cancelled successfully"
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error cancelling listing:", error);
     return NextResponse.json(
       { error: "Failed to cancel listing" },

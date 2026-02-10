@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ transactions });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching transactions:", error);
     return agentErrorResponse("Failed to fetch transactions", 500);
   }

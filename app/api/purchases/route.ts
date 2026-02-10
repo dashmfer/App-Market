@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-      } catch (verifyErr) {
+      } catch (verifyErr: any) {
         console.error("Error verifying on-chain tx:", verifyErr);
         // Don't block purchase if RPC is temporarily unavailable
         // The tx signature is still stored for manual verification
@@ -327,7 +327,7 @@ export async function POST(request: NextRequest) {
         ? "Purchase initiated. Waiting for partner deposits."
         : "Purchase successful"
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating purchase:", error);
     return NextResponse.json(
       { error: "Failed to complete purchase" },
@@ -375,7 +375,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ purchases });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching purchases:", error);
     return NextResponse.json(
       { error: "Failed to fetch purchases" },

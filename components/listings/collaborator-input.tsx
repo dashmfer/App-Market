@@ -154,7 +154,7 @@ export function CollaboratorInput({
             setSearchError("No user found");
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Search error:", error);
         setSearchError("Failed to search");
       } finally {

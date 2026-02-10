@@ -77,7 +77,7 @@ export async function POST(
         error: error.message || "Failed to deliver test webhook",
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error testing webhook:", error);
     return agentErrorResponse("Failed to test webhook", 500);
   }

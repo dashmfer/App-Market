@@ -200,7 +200,7 @@ async function verifyWalletSignature(
   try {
     publicKeyBytes = bs58.decode(walletAddress);
     signatureBytes = bs58.decode(signature);
-  } catch (e) {
+  } catch (e: any) {
     return { success: false, error: "Invalid wallet address or signature format", statusCode: 400 };
   }
 

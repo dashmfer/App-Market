@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(offer, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid data', details: error.errors },
@@ -236,7 +236,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({ offers });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching offers:', error);
     return NextResponse.json(
       { error: 'Failed to fetch offers' },

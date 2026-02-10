@@ -172,7 +172,7 @@ export async function POST(
       offer: updatedOffer,
       transaction,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error accepting offer:', error);
     return NextResponse.json(
       { error: 'Failed to accept offer' },

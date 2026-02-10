@@ -53,7 +53,7 @@ function getBackendAuthority(): Keypair | null {
   try {
     const keypairBytes = JSON.parse(secretKeyJson);
     return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY:", error);
     return null;
   }
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
     if (authority) {
       try {
         connection = getConnection();
-      } catch (error) {
+      } catch (error: any) {
         console.error("[Cron] Failed to get Solana connection:", error);
       }
     }
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
 
             console.log(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;
-          } catch (onChainError) {
+          } catch (onChainError: any) {
             console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
             results.onChainFailed++;
             // Still mark as claimed in DB so we don't retry forever
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
         }
 
         results.processed++;
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cron] Failed to process withdrawal ${withdrawal.id}:`, error);
       }
     }
@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
       message: `Processed ${results.processed} expired withdrawals`,
       ...results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Expire withdrawals error:", error);
     return NextResponse.json(
       { error: "Failed to process expired withdrawals" },

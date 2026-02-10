@@ -61,7 +61,7 @@ export async function GET(
     }));
 
     return agentSuccessResponse({ bids: transformedBids });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching listing bids:", error);
     return agentErrorResponse("Failed to fetch bids", 500);
   }

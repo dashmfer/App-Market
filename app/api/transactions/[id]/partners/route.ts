@@ -53,7 +53,7 @@ export async function GET(
     }
 
     return NextResponse.json({ partners: transaction.partners });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching partners:", error);
     return NextResponse.json({ error: "Failed to fetch partners" }, { status: 500 });
   }
@@ -179,7 +179,7 @@ export async function POST(
     }
 
     return NextResponse.json({ partner }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding partner:", error);
     return NextResponse.json({ error: "Failed to add partner" }, { status: 500 });
   }
@@ -265,7 +265,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error removing partner:", error);
     return NextResponse.json({ error: "Failed to remove partner" }, { status: 500 });
   }
@@ -362,7 +362,7 @@ export async function PATCH(
     });
 
     return NextResponse.json({ partner: updatedPartner });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating partner:", error);
     return NextResponse.json({ error: "Failed to update partner" }, { status: 500 });
   }

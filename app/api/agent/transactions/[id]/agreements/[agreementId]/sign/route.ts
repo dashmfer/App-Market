@@ -77,7 +77,7 @@ export async function POST(
     });
 
     return agentSuccessResponse({ agreement: updatedAgreement });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error signing agreement:", error);
     return agentErrorResponse("Failed to sign agreement", 500);
   }

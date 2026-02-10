@@ -38,7 +38,7 @@ async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error as Error;
       console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
 
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
 
         results.released++;
         console.log(`[Cron] Auto-released transaction ${transaction.id}`);
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         const errorMsg = `Failed to release transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
       processed: eligibleTransactions.length,
       results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Escrow auto-release error:", error);
     return NextResponse.json(
       { error: "Failed to process auto-release" },

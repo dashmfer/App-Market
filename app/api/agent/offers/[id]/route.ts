@@ -53,7 +53,7 @@ export async function GET(
     }
 
     return agentSuccessResponse({ offer });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching offer:", error);
     return agentErrorResponse("Failed to fetch offer", 500);
   }

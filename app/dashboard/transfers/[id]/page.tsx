@@ -270,7 +270,7 @@ export default function TransferPage() {
 
       const data = await res.json();
       setTransfer(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching transfer:", err);
       setError("Failed to load transfer details");
     } finally {
@@ -292,7 +292,7 @@ export default function TransferPage() {
           setTokenLaunch(data.tokenLaunches[0]);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching token launch:", err);
     } finally {
       setTokenLaunchLoading(false);
@@ -324,7 +324,7 @@ export default function TransferPage() {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to copy:", err);
     }
   };
@@ -491,7 +491,7 @@ export default function TransferPage() {
 
       await fetchTransfer();
       alert("Asset Purchase Agreement signed successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error signing APA:", err);
       alert(err instanceof Error ? err.message : "Failed to sign APA");
     } finally {
@@ -519,7 +519,7 @@ export default function TransferPage() {
 
       await fetchTransfer();
       alert("Non-Compete Agreement signed successfully!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error signing Non-Compete:", err);
       alert(err instanceof Error ? err.message : "Failed to sign Non-Compete");
     } finally {
@@ -546,7 +546,7 @@ export default function TransferPage() {
 
       await fetchTransfer();
       alert("APA request sent to seller!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error requesting APA:", err);
       alert(err instanceof Error ? err.message : "Failed to request APA");
     } finally {
@@ -573,7 +573,7 @@ export default function TransferPage() {
 
       await fetchTransfer();
       alert("Non-Compete request sent to seller!");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error requesting Non-Compete:", err);
       alert(err instanceof Error ? err.message : "Failed to request Non-Compete");
     } finally {

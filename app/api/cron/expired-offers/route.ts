@@ -38,7 +38,7 @@ async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error as Error;
       console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
 
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
         results.markedExpired++;
         results.refundsInitiated++;
         console.log(`[Cron] Marked offer ${offer.id} as expired`);
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         const errorMsg = `Failed to expire offer ${offer.id}: ${error}`;
         results.errors.push(errorMsg);
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
       },
       results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Expired offers cleanup error:", error);
     return NextResponse.json(
       { error: "Failed to process offer cleanup" },

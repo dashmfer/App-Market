@@ -236,7 +236,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching listings:", error);
     return NextResponse.json(
       { error: "Failed to fetch listings" },
@@ -561,7 +561,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ listing }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating listing:", error);
     console.error("Error details:", error instanceof Error ? error.message : error);
     return NextResponse.json(

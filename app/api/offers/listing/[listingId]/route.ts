@@ -34,7 +34,7 @@ export async function GET(
     });
 
     return NextResponse.json(offers);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching listing offers:', error);
     return NextResponse.json(
       { error: 'Failed to fetch offers' },

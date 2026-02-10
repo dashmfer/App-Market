@@ -86,7 +86,7 @@ export async function POST(
       success: true,
       message: "Non-Compete Agreement signed successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error signing Non-Compete:", error);
     return NextResponse.json(
       { error: "Failed to sign Non-Compete Agreement" },

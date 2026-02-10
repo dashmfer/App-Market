@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ bids });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching bids:", error);
     return agentErrorResponse("Failed to fetch bids", 500);
   }
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     });
 
     return agentSuccessResponse({ bid }, 201);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error placing bid:", error);
     return agentErrorResponse("Failed to place bid", 500);
   }

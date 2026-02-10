@@ -49,7 +49,7 @@ export default function WithdrawalList() {
 
       const data = await response.json();
       setData(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching withdrawals:', error);
     } finally {
       setLoading(false);
@@ -71,7 +71,7 @@ export default function WithdrawalList() {
 
       // Refresh withdrawals
       await fetchWithdrawals();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error claiming withdrawal:', error);
       alert(error instanceof Error ? error.message : 'Failed to claim withdrawal');
     } finally {

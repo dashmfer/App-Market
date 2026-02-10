@@ -55,7 +55,7 @@ export async function GET(
       isBuyer,
       isSeller,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching buyer info:", error);
     return NextResponse.json(
       { error: "Failed to fetch buyer info" },
@@ -167,7 +167,7 @@ export async function POST(
       success: true,
       message: "Buyer info submitted successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error submitting buyer info:", error);
     return NextResponse.json(
       { error: "Failed to submit buyer info" },

@@ -254,7 +254,7 @@ export async function GET(
     };
 
     return NextResponse.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching transfer:", error);
     return NextResponse.json({ error: "Failed to fetch transfer" }, { status: 500 });
   }

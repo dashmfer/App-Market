@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ offers });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching offers:", error);
     return agentErrorResponse("Failed to fetch offers", 500);
   }
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     });
 
     return agentSuccessResponse({ offer }, 201);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error creating offer:", error);
     return agentErrorResponse("Failed to create offer", 500);
   }

@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ invites: formattedInvites });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching purchase partner invites:", error);
     return NextResponse.json({ error: "Failed to fetch invites" }, { status: 500 });
   }

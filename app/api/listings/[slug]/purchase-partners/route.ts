@@ -99,7 +99,7 @@ export async function GET(
         transactionStatus: listing.transaction.status,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching purchase partners:", error);
     return NextResponse.json(
       { error: "Failed to fetch purchase partners" },

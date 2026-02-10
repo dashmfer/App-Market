@@ -209,7 +209,7 @@ export async function POST(
       checklist,
       message: "Transfer confirmed successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error confirming seller transfer:", error);
     return NextResponse.json(
       { error: "Failed to confirm transfer" },

@@ -141,7 +141,7 @@ export async function GET(
         hasMore: offset + messages.length < totalMessages,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching messages:", error);
     return NextResponse.json(
       { error: "Failed to fetch messages" },
@@ -259,7 +259,7 @@ export async function POST(
     });
 
     return NextResponse.json({ message }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending message:", error);
     return NextResponse.json(
       { error: "Failed to send message" },

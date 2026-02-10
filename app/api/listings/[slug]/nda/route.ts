@@ -95,7 +95,7 @@ export async function GET(
       ndaTerms,
       listingTitle: listing.title,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking NDA status:", error);
     return NextResponse.json(
       { error: "Failed to check NDA status" },
@@ -201,7 +201,7 @@ export async function POST(
           { status: 400 }
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Signature verification error:", error);
       return NextResponse.json(
         { error: "Failed to verify signature" },
@@ -278,7 +278,7 @@ export async function POST(
       ndaId: nda.id,
       signedAt: nda.signedAt,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error signing NDA:", error);
     return NextResponse.json(
       { error: "Failed to sign NDA" },

@@ -76,7 +76,7 @@ export async function POST(
       withdrawal: updatedWithdrawal,
       message: 'Withdrawal claimed successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error claiming withdrawal:', error);
     return NextResponse.json(
       { error: 'Failed to claim withdrawal' },

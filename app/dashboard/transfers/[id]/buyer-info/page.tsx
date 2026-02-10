@@ -122,7 +122,7 @@ export default function BuyerInfoPage() {
       if (responseData.providedInfo) {
         setFormData(responseData.providedInfo);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching buyer info:", err);
       setError(err instanceof Error ? err.message : "Failed to load buyer info");
     } finally {
@@ -164,7 +164,7 @@ export default function BuyerInfoPage() {
 
       // Redirect to transfer page
       router.push(`/dashboard/transfers/${params.id}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error submitting buyer info:", err);
       setSubmitError(err instanceof Error ? err.message : "Failed to submit info");
     } finally {

@@ -58,7 +58,7 @@ export function ExportKeyModal({
         setHasKey(true);
         setShowKey(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to get private key:", error);
     } finally {
       setLoading(false);

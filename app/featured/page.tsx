@@ -19,7 +19,7 @@ export default function FeaturedPage() {
           const data = await response.json();
           setListings(data.listings || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch featured listings:", error);
       } finally {
         setLoading(false);
@@ -34,7 +34,7 @@ export default function FeaturedPage() {
           const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
           setWatchlistedIds(ids);
         }
-      } catch (error) {
+      } catch (error: any) {
         // Silently fail - user might not be logged in
       }
     }

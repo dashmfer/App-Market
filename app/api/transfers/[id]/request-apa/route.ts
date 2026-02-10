@@ -87,7 +87,7 @@ export async function POST(
       success: true,
       message: "Asset Purchase Agreement request sent to seller",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error requesting APA:", error);
     return NextResponse.json(
       { error: "Failed to request APA" },

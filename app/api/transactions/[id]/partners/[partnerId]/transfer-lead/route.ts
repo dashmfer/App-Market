@@ -90,7 +90,7 @@ export async function POST(
       newLeadId: newLead.id,
       message: "Lead status transferred successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error transferring lead:", error);
     return NextResponse.json({ error: "Failed to transfer lead status" }, { status: 500 });
   }

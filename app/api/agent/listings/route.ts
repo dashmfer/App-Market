@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
       listings: transformedListings,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error fetching listings:", error);
     return agentErrorResponse("Failed to fetch listings", 500);
   }

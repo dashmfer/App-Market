@@ -93,7 +93,7 @@ export default function CollaboratorInvitePage() {
         }
         const data = await response.json();
         setInvite(data.collaborator);
-      } catch (err) {
+      } catch (err: any) {
         setError(err instanceof Error ? err.message : "Failed to load invite");
       } finally {
         setLoading(false);
@@ -133,7 +133,7 @@ export default function CollaboratorInvitePage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (err) {
+    } catch (err: any) {
       setResponseError(err instanceof Error ? err.message : "Failed to respond");
     } finally {
       setResponding(false);

@@ -371,7 +371,7 @@ function MessagesPageContent() {
         setSelectedConversation(result.conversationId);
         window.history.replaceState({}, "", "/dashboard/messages");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error sending message:", err);
       alert("Failed to send message");
     } finally {

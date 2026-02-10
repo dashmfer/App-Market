@@ -48,7 +48,7 @@ export default function ListingsPage() {
         } else {
           setError("Failed to load listings");
         }
-      } catch (err) {
+      } catch (err: any) {
         setError("Failed to load listings");
       } finally {
         setLoading(false);

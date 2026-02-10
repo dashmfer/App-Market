@@ -80,7 +80,7 @@ export default function DashboardPage() {
           if (data.result?.value !== undefined) {
             setWalletBalance(data.result.value / 1e9); // Convert lamports to SOL
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to fetch wallet balance:", error);
         }
       }
@@ -104,7 +104,7 @@ export default function DashboardPage() {
           setActiveListings(data.activeListings || []);
           setPendingTransferDetails(data.pendingTransferDetails || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch user stats:", error);
       } finally {
         setLoading(false);

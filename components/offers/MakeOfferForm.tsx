@@ -62,7 +62,7 @@ export default function MakeOfferForm({
       setAmount('');
       setDeadline('');
       onSuccess?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Offer error:', err);
       setError(err instanceof Error ? err.message : 'Failed to create offer');
     } finally {

@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       hardFlags,
       softFlags,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error running similarity scan:", error);
     return NextResponse.json(
       { error: "Failed to run similarity scan" },
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching similarities:", error);
     return NextResponse.json(
       { error: "Failed to fetch similarities" },

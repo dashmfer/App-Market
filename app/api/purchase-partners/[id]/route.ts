@@ -120,7 +120,7 @@ export async function GET(
         totalPercentageDeposited,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching partner invite:", error);
     return NextResponse.json({ error: "Failed to fetch partner invite" }, { status: 500 });
   }

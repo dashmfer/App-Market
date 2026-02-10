@@ -105,7 +105,7 @@ export async function POST(
     });
 
     return agentSuccessResponse({ offer: updatedOffer, transaction });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error accepting offer:", error);
     return agentErrorResponse("Failed to accept offer", 500);
   }

@@ -30,7 +30,7 @@ export async function GET(
     }
 
     return NextResponse.json({ response });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching review response:", error);
     return NextResponse.json(
       { error: "Failed to fetch response" },
@@ -144,7 +144,7 @@ export async function POST(
     });
 
     return NextResponse.json({ response }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating review response:", error);
     return NextResponse.json(
       { error: "Failed to create response" },
@@ -236,7 +236,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ response });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating review response:", error);
     return NextResponse.json(
       { error: "Failed to update response" },

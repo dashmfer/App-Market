@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ conversations: transformedConversations });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching conversations:", error);
     return NextResponse.json(
       { error: "Failed to fetch conversations" },
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       message,
       conversationId: conversation.id,
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error sending message:", error);
     return NextResponse.json(
       { error: "Failed to send message" },

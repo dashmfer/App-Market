@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       note: "Repository found. Ownership will be verified during the transfer process.",
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("GitHub verification error:", error);
     return NextResponse.json(
       { error: "Verification failed. Please try again." },

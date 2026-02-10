@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ isWatchlisted: !!existing });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Agent] Error checking watchlist:", error);
     return agentErrorResponse("Failed to check watchlist", 500);
   }

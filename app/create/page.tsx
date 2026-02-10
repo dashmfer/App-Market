@@ -497,7 +497,7 @@ export default function CreateListingPage() {
       } else {
         updateFormData("githubVerificationError", data.error || "Could not verify ownership. Make sure you own this repository.");
       }
-    } catch (error) {
+    } catch (error: any) {
       updateFormData("githubVerificationError", "Verification failed. Please try again.");
     } finally {
       setIsVerifyingGithub(false);

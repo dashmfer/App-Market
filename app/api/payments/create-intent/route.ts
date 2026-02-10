@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       if (!solPriceUsd || typeof solPriceUsd !== 'number') {
         throw new Error('Invalid price data');
       }
-    } catch (priceError) {
+    } catch (priceError: any) {
       console.error('Error fetching SOL price:', priceError);
       return NextResponse.json(
         { error: 'Unable to fetch current SOL price. Please try again.' },
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       amountUsd: amountUsd.toFixed(2),
       amountSol: amountInSol,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating payment intent:", error);
     return NextResponse.json(
       { error: "Failed to create payment" },

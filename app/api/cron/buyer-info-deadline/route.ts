@@ -40,7 +40,7 @@ async function withRetry<T>(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error as Error;
       console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
 
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
         results.processed++;
         results.fallbackActivated++;
         console.log(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
-      } catch (error) {
+      } catch (error: any) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
       remindersSent,
       results,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Buyer info deadline error:", error);
     return NextResponse.json(
       { error: "Failed to process buyer info deadlines" },

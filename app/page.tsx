@@ -91,7 +91,7 @@ export default function HomePage() {
           const data = await response.json();
           setFeaturedListings(data.listings || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch listings:", error);
       } finally {
         setLoading(false);
@@ -105,7 +105,7 @@ export default function HomePage() {
           const data = await response.json();
           setCategoryCounts(data.counts || {});
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch category counts:", error);
       }
     }
@@ -122,7 +122,7 @@ export default function HomePage() {
             avgSaleTime: data.avgSaleTime || 7,
           });
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch platform stats:", error);
       }
     }
@@ -135,7 +135,7 @@ export default function HomePage() {
           const ids = new Set<string>(data.listings?.map((l: any) => l.id) || []);
           setWatchlistedIds(ids);
         }
-      } catch (error) {
+      } catch (error: any) {
         // Silently fail - user might not be logged in
       }
     }

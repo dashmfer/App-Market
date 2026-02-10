@@ -185,7 +185,7 @@ export async function POST(
       feeCharged,
       disputeFee: feeCharged ? dispute.disputeFee : 0,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error resolving dispute:", error);
     return NextResponse.json(
       { error: "Failed to resolve dispute" },
@@ -273,7 +273,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error responding to dispute:", error);
     return NextResponse.json(
       { error: "Failed to respond to dispute" },

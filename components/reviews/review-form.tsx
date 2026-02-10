@@ -92,7 +92,7 @@ export function ReviewForm({ subjectId, subjectName, onClose, onSuccess }: Revie
             setSelectedItem(firstUnreviewed);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         setError("Failed to check review eligibility");
       } finally {
         setLoading(false);
@@ -132,7 +132,7 @@ export function ReviewForm({ subjectId, subjectName, onClose, onSuccess }: Revie
         const data = await response.json();
         setError(data.error || "Failed to submit review");
       }
-    } catch (error) {
+    } catch (error: any) {
       setError("Failed to submit review");
     } finally {
       setSubmitting(false);

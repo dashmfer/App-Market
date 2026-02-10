@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     });
 
     return agentSuccessResponse({ keys: apiKeys });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching API keys:", error);
     return agentErrorResponse("Failed to fetch API keys", 500);
   }
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
       },
       message: "API key created. Save the secret - it won't be shown again.",
     }, 201);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating API key:", error);
     return agentErrorResponse("Failed to create API key", 500);
   }
@@ -189,7 +189,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return agentSuccessResponse({ message: "API key deleted" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting API key:", error);
     return agentErrorResponse("Failed to delete API key", 500);
   }
@@ -266,7 +266,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     return agentSuccessResponse({ key: updated });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating API key:", error);
     return agentErrorResponse("Failed to update API key", 500);
   }

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       success: true,
       user: result.user,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Wallet Verify API] Error during verification:", error);
     return NextResponse.json(
       { error: "Verification failed" },

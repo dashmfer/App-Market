@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, retried, total: pendingRetries.length });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Webhook Retry Cron] Error:", error);
     return NextResponse.json({ error: "Failed to process retries" }, { status: 500 });
   }

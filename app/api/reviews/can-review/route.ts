@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
         ? "Already reviewed all interactions"
         : "No reviewable interactions",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error checking review eligibility:", error);
     return NextResponse.json(
       { error: "Failed to check review eligibility" },

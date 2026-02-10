@@ -74,7 +74,7 @@ export async function GET(
       collaboratorCount: listing.collaborators.length,
       pendingCount: listing.collaborators.filter((c: { status: string }) => c.status === "PENDING").length,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching collaborators:", error);
     return NextResponse.json(
       { error: "Failed to fetch collaborators" },
@@ -277,7 +277,7 @@ export async function POST(
         ? "Collaborator added and notification sent"
         : "Collaborator added. They will need to connect their wallet to accept.",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding collaborator:", error);
     return NextResponse.json(
       { error: "Failed to add collaborator" },
@@ -372,7 +372,7 @@ export async function DELETE(
     return NextResponse.json({
       message: "Collaborator removed successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error removing collaborator:", error);
     return NextResponse.json(
       { error: "Failed to remove collaborator" },
@@ -501,7 +501,7 @@ export async function PATCH(
       collaborator: updatedCollaborator,
       message: "Collaborator updated successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating collaborator:", error);
     return NextResponse.json(
       { error: "Failed to update collaborator" },

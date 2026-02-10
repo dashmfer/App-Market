@@ -114,7 +114,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Watchlist error:", error);
       toast.error(error instanceof Error ? error.message : t("somethingWentWrong"));
     } finally {

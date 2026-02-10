@@ -72,7 +72,7 @@ export default function ReferralsPage() {
           });
           setNewCode(data.code || "");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch referral data:", error);
       } finally {
         setLoading(false);
@@ -125,7 +125,7 @@ export default function ReferralsPage() {
         const errorData = await response.json();
         setError(errorData.error || "Failed to save code");
       }
-    } catch (e) {
+    } catch (e: any) {
       setError("Failed to save code. Please try again.");
     } finally {
       setIsSaving(false);

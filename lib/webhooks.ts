@@ -84,7 +84,7 @@ export async function dispatchWebhookEvent(
 
     // Fire and forget - don't await
     Promise.allSettled(deliveryPromises).catch(console.error);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error dispatching webhook event:", error);
   }
 }
@@ -180,7 +180,7 @@ async function attemptDelivery(
       statusCode: response.status,
       error: `HTTP ${response.status}: ${response.statusText}`,
     };
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: errorMessage };
@@ -206,7 +206,7 @@ async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<v
         attempts: attempt,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Webhook] Failed to schedule retry:", error);
   }
 }

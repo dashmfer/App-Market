@@ -116,7 +116,7 @@ function SettingsContent() {
             setTwitterConnected(data.twitterVerified || false);
             setTwitterUsername(data.twitterUsername || null);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to load profile:", error);
           // Fallback to session data
           setProfileImage(session.user.image || null);
@@ -146,7 +146,7 @@ function SettingsContent() {
       } else {
         throw new Error("Failed to disconnect");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to disconnect X:", error);
       alert("Failed to disconnect X. Please try again.");
     } finally {
@@ -161,7 +161,7 @@ function SettingsContent() {
   const handleDisconnectWallet = async () => {
     try {
       await disconnect();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error disconnecting wallet:", error);
     }
   };
@@ -251,7 +251,7 @@ function SettingsContent() {
       await updateSession();
 
       alert("Profile picture removed");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Remove error:", error);
       alert("Failed to remove image");
     } finally {
@@ -278,7 +278,7 @@ function SettingsContent() {
       await updateSession();
 
       alert("Profile updated successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save error:", error);
       alert("Failed to save profile");
     }

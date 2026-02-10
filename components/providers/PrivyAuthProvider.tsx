@@ -109,7 +109,7 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
             console.log("[Privy Auth] Sync successful!");
             lastSyncedPrivyId.current = user.id;
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("[Privy Auth] Sync error:", error);
         } finally {
           isSyncing.current = false;
