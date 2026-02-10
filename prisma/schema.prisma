@@ -961,8 +961,9 @@ enum Currency {
 }
 
 enum PaymentMethod {
-  SOLANA
+  SOL
   USDC
+  APP
 }
 
 enum TransactionStatus {

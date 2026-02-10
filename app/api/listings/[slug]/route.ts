@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { canEditListing, isValidUrl, MAX_CATEGORIES } from "@/lib/validation";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/listings/[slug] - Get a single listing by slug
 export async function GET(
@@ -144,6 +145,14 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const rateLimitResult = await (withRateLimitAsync('write', 'listing-update'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error || 'Rate limit exceeded' },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {

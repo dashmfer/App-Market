@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         platformFee,
         sellerProceeds,
         currency: currency || listing.currency,
-        paymentMethod: "SOLANA",
+        paymentMethod: (currency || listing.currency) === "USDC" ? "USDC" : (currency || listing.currency) === "APP" ? "APP" : "SOL",
         onChainTx,
         status: initialStatus,
         listingId,

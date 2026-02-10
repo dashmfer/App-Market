@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -31,7 +30,7 @@ export async function POST(
     }
 
     // Only seller can sign Non-Compete
-    if (transaction.sellerId !== session.user.id) {
+    if (transaction.sellerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the seller can sign the Non-Compete Agreement" },
         { status: 403 }
@@ -56,7 +55,7 @@ export async function POST(
 
     // Sign the Non-Compete
     const duration = transaction.listing.nonCompeteDurationYears || 2;
-    const signature = `NC-${transaction.id}-${session.user.id}-${duration}y-${Date.now()}`;
+    const signature = `NC-${transaction.id}-${token.id as string}-${duration}y-${Date.now()}`;
 
     await prisma.transaction.update({
       where: { id: params.id },

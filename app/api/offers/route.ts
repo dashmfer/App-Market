@@ -63,6 +63,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Deadline must be in the future
+    if (new Date(validatedData.deadline) <= new Date()) {
+      return NextResponse.json(
+        { error: 'Offer deadline must be in the future' },
+        { status: 400 }
+      );
+    }
+
     // Can't make offer on own listing
     if (listing.sellerId === session.user.id) {
       return NextResponse.json(
