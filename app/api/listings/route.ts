@@ -5,6 +5,7 @@ import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -193,7 +194,7 @@ export async function GET(request: NextRequest) {
     // Transform listings for response
     const transformedListings = listings.map((listing: typeof listings[number]) => {
       // Check if this is a Buy Now only listing (no valid starting price)
-      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+      const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || Number(listing.startingPrice) <= 0);
 
       return {
         id: listing.id,
@@ -254,6 +255,15 @@ export async function POST(request: NextRequest) {
       return csrfError(csrfValidation.error || "CSRF validation failed");
     }
 
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'listings'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(request);
 
@@ -308,7 +318,6 @@ export async function POST(request: NextRequest) {
       monthlyRevenue,
       githubStars,
       startingPrice,
-      reservePrice,
       buyNowEnabled,
       buyNowPrice,
       currency,
@@ -351,17 +360,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate reserve price equals starting price (per business rule)
-    // If reserve price is set, it must equal starting price - auctions start at reserve
     const parsedStartingPrice = startingPrice ? parseFloat(startingPrice) : 0;
-    const parsedReservePrice = reservePrice ? parseFloat(reservePrice) : null;
-
-    if (parsedReservePrice !== null && parsedReservePrice !== parsedStartingPrice) {
-      return NextResponse.json(
-        { error: "Reserve price must equal starting price. Auctions start at the reserve price." },
-        { status: 400 }
-      );
-    }
 
     // SECURITY: Validate buy now price
     const parsedBuyNowPrice = buyNowPrice ? parseFloat(buyNowPrice) : null;
@@ -382,7 +381,12 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Validate URLs have safe protocols
-    const urlsToValidate = { demoUrl, videoUrl, githubRepo };
+    const urlsToValidate: Record<string, string | undefined> = { demoUrl, videoUrl, githubRepo, thumbnailUrl };
+    if (screenshotUrls && Array.isArray(screenshotUrls)) {
+      screenshotUrls.forEach((url: string, i: number) => {
+        urlsToValidate[`screenshotUrls[${i}]`] = url;
+      });
+    }
     for (const [field, url] of Object.entries(urlsToValidate)) {
       if (url && !isValidUrl(url)) {
         return NextResponse.json(
@@ -499,7 +503,6 @@ export async function POST(request: NextRequest) {
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
         githubStars: githubStars ? parseInt(githubStars) : null,
         startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
-        reservePrice: reservePrice ? parseFloat(reservePrice) : null,
         buyNowEnabled,
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,
         currency,
@@ -570,11 +573,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ listing }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating listing:", error);
-    console.error("Error details:", error?.message, error?.code);
+    console.error("Error details:", error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { error: error?.message || "Failed to create listing" },
+      { error: "Failed to process listing" },
       { status: 500 }
     );
   }

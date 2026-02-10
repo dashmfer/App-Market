@@ -20,12 +20,14 @@ function deriveKey(secret: string, salt: Buffer): Buffer {
 
 /**
  * Get the encryption secret from environment
- * Falls back to NEXTAUTH_SECRET if ENCRYPTION_SECRET not set
  */
 function getEncryptionSecret(): string {
-  const secret = process.env.ENCRYPTION_SECRET || process.env.NEXTAUTH_SECRET;
+  const secret = process.env.ENCRYPTION_SECRET;
   if (!secret) {
-    throw new Error("ENCRYPTION_SECRET or NEXTAUTH_SECRET must be set");
+    throw new Error(
+      "ENCRYPTION_SECRET must be set in environment variables. " +
+      "Generate one with: openssl rand -hex 32"
+    );
   }
   return secret;
 }
@@ -83,9 +85,13 @@ export function decrypt(encryptedData: string): string {
 }
 
 /**
- * Check if a string is encrypted (base64 with expected length)
+ * Heuristic check if a string might be encrypted data.
+ * NOTE: This only checks if the data has the expected minimum length for
+ * our encryption format (salt + iv + authTag + data). It does NOT validate
+ * that the data was actually encrypted by this system. Use decrypt() which
+ * will throw if the data is invalid or tampered with.
  */
-export function isEncrypted(data: string): boolean {
+export function looksEncrypted(data: string): boolean {
   try {
     const decoded = Buffer.from(data, "base64");
     // Minimum length: salt (32) + iv (16) + authTag (16) + some data

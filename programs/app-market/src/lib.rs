@@ -361,6 +361,9 @@ pub mod app_market {
 
         // SECURITY: Lock fees at listing creation time
         // Use discounted 3% fee for APP token payments, standard 5% for others
+        // SECURITY: APP token fee discount is only valid when payment is actually
+        // made in APP tokens via SPL token transfer. The buy_now and place_bid
+        // instructions must verify the payment mint matches the actual transfer.
         listing.platform_fee_bps = if payment_mint == Some(APP_TOKEN_MINT) {
             APP_FEE_BPS
         } else {
@@ -611,6 +614,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
+                    expires_at: clock.unix_timestamp + 3600, // 1 hour
                     bump,
                 };
 
@@ -690,6 +694,87 @@ pub mod app_market {
         Ok(())
     }
 
+    /// Expire unclaimed withdrawal (anyone can call after expiry)
+    /// Returns funds to the original user and unblocks the escrow.
+    /// This prevents auctions from stalling when outbid users don't claim.
+    pub fn expire_withdrawal(ctx: Context<ExpireWithdrawal>) -> Result<()> {
+        let withdrawal = &ctx.accounts.pending_withdrawal;
+        let clock = Clock::get()?;
+
+        // CHECKS: Withdrawal must be expired
+        require!(
+            clock.unix_timestamp > withdrawal.expires_at,
+            AppMarketError::WithdrawalNotExpired
+        );
+
+        // SECURITY: Validate escrow balance
+        let escrow_balance = ctx.accounts.escrow.to_account_info().lamports();
+        let rent = Rent::get()?.minimum_balance(
+            ctx.accounts.escrow.to_account_info().data_len()
+        );
+        require!(
+            escrow_balance >= withdrawal.amount + rent,
+            AppMarketError::InsufficientEscrowBalance
+        );
+
+        // INTERACTIONS: Transfer funds back to the original user
+        let seeds = &[
+            b"escrow",
+            ctx.accounts.listing.to_account_info().key.as_ref(),
+            &[ctx.accounts.escrow.bump],
+        ];
+        let signer = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.escrow.to_account_info(),
+                to: ctx.accounts.recipient.to_account_info(),
+            },
+            signer,
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, withdrawal.amount)?;
+
+        // Update escrow tracking
+        ctx.accounts.escrow.amount = ctx.accounts.escrow.amount
+            .checked_sub(withdrawal.amount)
+            .ok_or(AppMarketError::MathOverflow)?;
+
+        emit!(WithdrawalExpired {
+            user: withdrawal.user,
+            listing: ctx.accounts.listing.key(),
+            amount: withdrawal.amount,
+            expired_by: ctx.accounts.caller.key(),
+            timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Close escrow after all pending withdrawals are cleared
+    /// Permissionless — anyone can call once escrow.amount == 0 and transaction is terminal
+    /// Caller receives PDA rent as incentive for cleanup
+    pub fn close_escrow(ctx: Context<CloseEscrow>) -> Result<()> {
+        let status = ctx.accounts.transaction.status.clone();
+        require!(
+            status == TransactionStatus::Completed || status == TransactionStatus::Refunded,
+            AppMarketError::TransactionNotComplete
+        );
+
+        require!(
+            ctx.accounts.escrow.amount == 0,
+            AppMarketError::PendingWithdrawalsExist
+        );
+
+        emit!(EscrowClosed {
+            listing: ctx.accounts.listing.key(),
+            closed_by: ctx.accounts.caller.key(),
+            timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
     /// Buy now (instant purchase)
     pub fn buy_now(ctx: Context<BuyNow>) -> Result<()> {
         require!(!ctx.accounts.config.paused, AppMarketError::ContractPaused);
@@ -704,6 +789,16 @@ pub mod app_market {
         require!(ctx.accounts.buyer.key() != listing.seller, AppMarketError::SellerCannotBuy);
 
         let buy_now_price = listing.buy_now_price.unwrap();
+
+        // SECURITY: Validate payment mint matches actual payment method
+        // buy_now uses SOL transfer via SystemProgram - APP token fee discount
+        // requires actual SPL token transfer which is not supported in this path
+        if listing.payment_mint == Some(APP_TOKEN_MINT) {
+            // When APP token is claimed, verify we're actually using the token transfer path
+            // and not a raw SOL transfer. Since buy_now only supports SOL transfers,
+            // listings with APP token payment mint cannot use this instruction.
+            return Err(AppMarketError::InvalidPaymentMint.into());
+        }
 
         // SECURITY: Pre-check buyer has sufficient balance
         require!(
@@ -787,6 +882,7 @@ pub mod app_market {
                 withdrawal.amount = old_bid;
                 withdrawal.withdrawal_id = listing.withdrawal_count;
                 withdrawal.created_at = clock.unix_timestamp;
+                withdrawal.expires_at = clock.unix_timestamp + 3600; // 1 hour
                 withdrawal.bump = bump;
 
                 withdrawal.try_serialize(&mut &mut withdrawal_data[..])?;
@@ -930,6 +1026,8 @@ pub mod app_market {
 
     /// Cancel auction (when no bids received, closes escrow and refunds rent)
     pub fn cancel_auction(ctx: Context<CancelAuction>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
@@ -975,6 +1073,8 @@ pub mod app_market {
 
     /// Expire listing (for buy-now listings that reached deadline)
     pub fn expire_listing(ctx: Context<ExpireListing>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let listing = &mut ctx.accounts.listing;
         let clock = Clock::get()?;
 
@@ -992,7 +1092,7 @@ pub mod app_market {
             AppMarketError::HasBids
         );
 
-        listing.status = ListingStatus::Expired;
+        listing.status = ListingStatus::Ended;
 
         emit!(ListingExpired {
             listing: listing.key(),
@@ -1226,10 +1326,12 @@ pub mod app_market {
             AppMarketError::InsufficientEscrowBalance
         );
 
-        // SECURITY: Verify tracked amount matches what we're distributing (prevents theft of pending withdrawals)
+        // Allow finalization even with pending withdrawals — escrow stays open for cleanup
+        // The >= check ensures enough SOL exists for the sale; excess is pending withdrawal SOL
+        // that will be returned via expire_withdrawal/withdraw_funds + close_escrow
         require!(
-            ctx.accounts.escrow.amount == required_balance,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= required_balance,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Transfer funds
@@ -1340,10 +1442,10 @@ pub mod app_market {
             AppMarketError::EscrowBalanceMismatch
         );
 
-        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        // Allow confirmation even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == required_balance,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= required_balance,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Transfer funds
@@ -1522,6 +1624,12 @@ pub mod app_market {
         let offer = &mut ctx.accounts.offer;
         let clock = Clock::get()?;
 
+        // SECURITY: Verify offer belongs to this listing
+        require!(
+            offer.listing == ctx.accounts.listing.key(),
+            AppMarketError::InvalidOffer
+        );
+
         // Validations
         require!(
             ctx.accounts.buyer.key() == offer.buyer,
@@ -1587,6 +1695,12 @@ pub mod app_market {
     pub fn expire_offer(ctx: Context<ExpireOffer>) -> Result<()> {
         let offer = &mut ctx.accounts.offer;
         let clock = Clock::get()?;
+
+        // SECURITY: Verify offer belongs to this listing
+        require!(
+            offer.listing == ctx.accounts.listing.key(),
+            AppMarketError::InvalidOffer
+        );
 
         // Validations
         require!(
@@ -1778,6 +1892,7 @@ pub mod app_market {
                     amount: old_bid,
                     withdrawal_id: listing.withdrawal_count,
                     created_at: clock.unix_timestamp,
+                    expires_at: clock.unix_timestamp + 3600, // 1 hour
                     bump,
                 };
 
@@ -1838,6 +1953,8 @@ pub mod app_market {
         ctx: Context<OpenDispute>,
         reason: String,
     ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, AppMarketError::PlatformPaused);
+
         let clock = Clock::get()?;
 
         // Validations
@@ -1862,8 +1979,10 @@ pub mod app_market {
         }
 
         // SECURITY: Pre-check initiator has sufficient balance for dispute fee
+        // Use the locked dispute fee from listing creation time, not the live config
+        // which could be changed by admin after the transaction was created
         let dispute_fee = ctx.accounts.transaction.sale_price
-            .checked_mul(ctx.accounts.config.dispute_fee_bps)
+            .checked_mul(ctx.accounts.listing.dispute_fee_bps)
             .ok_or(AppMarketError::MathOverflow)?
             .checked_div(BASIS_POINTS_DIVISOR)
             .ok_or(AppMarketError::MathOverflow)?;
@@ -2019,6 +2138,12 @@ pub mod app_market {
     pub fn execute_dispute_resolution(ctx: Context<ExecuteDisputeResolution>) -> Result<()> {
         let clock = Clock::get()?;
 
+        // SECURITY: Only admin can resolve disputes
+        require!(
+            ctx.accounts.caller.key() == ctx.accounts.config.admin,
+            AppMarketError::Unauthorized
+        );
+
         // Must have pending resolution
         require!(
             ctx.accounts.dispute.pending_resolution.is_some(),
@@ -2067,12 +2192,10 @@ pub mod app_market {
             ctx.accounts.escrow.to_account_info().data_len()
         );
 
-        // SECURITY FIX M-4: Check for pending withdrawals before draining escrow
-        // If escrow.amount > sale_price, there are pending withdrawals that must be claimed first
-        // This prevents dispute resolution from draining funds owed to previous bidders
+        // Allow dispute resolution even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == sale_price,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= sale_price,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         let seeds = &[
@@ -2291,10 +2414,10 @@ pub mod app_market {
             AppMarketError::EscrowBalanceMismatch
         );
 
-        // SECURITY: Check no pending withdrawals before closing escrow (prevents theft)
+        // Allow refund even with pending withdrawals — escrow stays open for cleanup
         require!(
-            ctx.accounts.escrow.amount == transaction.sale_price,
-            AppMarketError::PendingWithdrawalsExist
+            ctx.accounts.escrow.amount >= transaction.sale_price,
+            AppMarketError::InsufficientEscrowBalance
         );
 
         // Refund full amount to buyer
@@ -2500,6 +2623,75 @@ pub struct WithdrawFunds<'info> {
 }
 
 #[derive(Accounts)]
+pub struct ExpireWithdrawal<'info> {
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    // Close the expired withdrawal account, return rent to the original user (not caller)
+    #[account(
+        mut,
+        close = recipient,
+        seeds = [
+            b"withdrawal",
+            listing.key().as_ref(),
+            &pending_withdrawal.withdrawal_id.to_le_bytes()
+        ],
+        bump = pending_withdrawal.bump,
+    )]
+    pub pending_withdrawal: Account<'info, PendingWithdrawal>,
+
+    /// The original user who was outbid — funds + PDA rent go back to them
+    /// CHECK: Validated against pending_withdrawal.user
+    #[account(
+        mut,
+        constraint = recipient.key() == pending_withdrawal.user @ AppMarketError::NotWithdrawalOwner
+    )]
+    pub recipient: AccountInfo<'info>,
+
+    /// Anyone can call this after expiry (permissionless cleanup)
+    #[account(mut)]
+    pub caller: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CloseEscrow<'info> {
+    #[account(
+        constraint = listing.seller == seller.key() @ AppMarketError::InvalidSeller
+    )]
+    pub listing: Account<'info, Listing>,
+
+    #[account(
+        seeds = [b"transaction", listing.key().as_ref()],
+        bump = transaction.bump,
+    )]
+    pub transaction: Account<'info, Transaction>,
+
+    // Close escrow — rent returns to the seller (who originally created the listing)
+    #[account(
+        mut,
+        close = seller,
+        seeds = [b"escrow", listing.key().as_ref()],
+        bump = escrow.bump,
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    /// CHECK: Seller receives escrow rent — validated against listing.seller
+    #[account(mut)]
+    pub seller: AccountInfo<'info>,
+
+    /// Anyone can call this (permissionless cleanup)
+    pub caller: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct BuyNow<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
@@ -2571,6 +2763,9 @@ pub struct SettleAuction<'info> {
 
 #[derive(Accounts)]
 pub struct CancelAuction<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
@@ -2591,6 +2786,9 @@ pub struct CancelAuction<'info> {
 
 #[derive(Accounts)]
 pub struct ExpireListing<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
@@ -2680,10 +2878,9 @@ pub struct FinalizeTransaction<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2723,10 +2920,9 @@ pub struct ConfirmReceipt<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -2842,7 +3038,10 @@ pub struct AcceptOffer<'info> {
     #[account(mut)]
     pub listing: Account<'info, Listing>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = offer.listing == listing.key() @ AppMarketError::InvalidOffer
+    )]
     pub offer: Account<'info, Offer>,
 
     // Transfer funds from offer escrow to listing escrow
@@ -2997,10 +3196,9 @@ pub struct ExecuteDisputeResolution<'info> {
     )]
     pub seller: AccountInfo<'info>,
 
-    // SECURITY: Close escrow - rent goes to seller (validated above)
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = seller,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
@@ -3031,18 +3229,17 @@ pub struct ExecuteDisputeResolution<'info> {
 pub struct EmergencyRefund<'info> {
     pub listing: Account<'info, Listing>,
 
-    // SECURITY: Close escrow and transaction, return rent
+    // Escrow stays open until all pending withdrawals are cleared (close_escrow handles cleanup)
     #[account(
         mut,
-        close = buyer,
         seeds = [b"escrow", listing.key().as_ref()],
         bump = escrow.bump
     )]
     pub escrow: Account<'info, Escrow>,
 
+    // Transaction stays open so close_escrow can verify terminal state later
     #[account(
         mut,
-        close = buyer,
         seeds = [b"transaction", listing.key().as_ref()],
         bump = transaction.bump
     )]
@@ -3207,8 +3404,10 @@ pub struct PendingWithdrawal {
     pub amount: u64,
     pub withdrawal_id: u64,  // Unique ID from listing.withdrawal_count
     pub created_at: i64,
+    pub expires_at: i64,  // Auto-expire after 1 hour
     pub bump: u8,
 }
+
 
 #[account]
 #[derive(InitSpace)]
@@ -3243,18 +3442,28 @@ pub enum ListingType {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum ListingStatus {
     Active,
+    Ended,
     Sold,
     Cancelled,
-    Expired,
+    InEscrow,
+    TransferPending,
+    Disputed,
+    Completed,
+    Refunded,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum TransactionStatus {
     Pending,
+    Paid,
     InEscrow,
-    Completed,
+    TransferPending,
+    TransferInProgress,
+    AwaitingConfirmation,
     Disputed,
+    Completed,
     Refunded,
+    Cancelled,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
@@ -3451,6 +3660,22 @@ pub struct WithdrawalClaimed {
 }
 
 #[event]
+pub struct WithdrawalExpired {
+    pub user: Pubkey,
+    pub listing: Pubkey,
+    pub amount: u64,
+    pub expired_by: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct EscrowClosed {
+    pub listing: Pubkey,
+    pub closed_by: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
 pub struct OfferCreated {
     pub offer: Pubkey,
     pub listing: Pubkey,
@@ -3585,7 +3810,7 @@ pub enum AppMarketError {
     NotAnAuction,
     #[msg("Seller has not confirmed transfer yet")]
     SellerNotConfirmed,
-    #[msg("Grace period has not expired: must wait 72 hours after seller confirmation")]
+    #[msg("Grace period has not expired: must wait 7 days after seller confirmation")]
     GracePeriodNotExpired,
     #[msg("Starting price must equal reserve price for reserve auctions")]
     StartingPriceMustEqualReserve,
@@ -3609,6 +3834,8 @@ pub enum AppMarketError {
     CannotCancelWithBids,
     #[msg("Cannot close escrow: pending withdrawals exist")]
     PendingWithdrawalsExist,
+    #[msg("Transaction must be in Completed or Refunded state")]
+    TransactionNotComplete,
     #[msg("Invalid GitHub username: max 39 chars, alphanumeric/hyphens, no start/end/consecutive hyphens")]
     InvalidGithubUsername,
     #[msg("Dispute deadline expired: must dispute within grace period")]
@@ -3635,4 +3862,14 @@ pub enum AppMarketError {
     InvalidOfferSeed,
     #[msg("Invalid withdrawal ID: counter mismatch")]
     InvalidWithdrawalId,
+    #[msg("Invalid payment mint: APP token fee discount requires actual SPL token transfer")]
+    InvalidPaymentMint,
+    #[msg("Invalid offer: offer does not belong to this listing")]
+    InvalidOffer,
+    #[msg("Unauthorized: only admin can perform this action")]
+    Unauthorized,
+    #[msg("Platform is paused")]
+    PlatformPaused,
+    #[msg("Withdrawal has not expired yet")]
+    WithdrawalNotExpired,
 }

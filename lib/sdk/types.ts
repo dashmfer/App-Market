@@ -189,11 +189,14 @@ export interface UpdateWebhookParams {
 
 export type ListingStatus =
   | "DRAFT"
+  | "PENDING_COLLABORATORS"
+  | "PENDING_REVIEW"
   | "ACTIVE"
-  | "PAUSED"
+  | "RESERVED"
+  | "ENDED"
   | "SOLD"
-  | "EXPIRED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "EXPIRED";
 
 export type ListingType = "AUCTION" | "FIXED_PRICE" | "BOTH";
 
@@ -206,7 +209,6 @@ export interface Listing {
   status: ListingStatus;
   listingType: ListingType;
   startingPrice: number;
-  reservePrice: number | null;
   buyNowPrice: number | null;
   currentBid: number | null;
   bidCount: number;

@@ -3,6 +3,22 @@
  */
 import crypto from 'crypto';
 
+// SECURITY: Track used wallet signature timestamps to prevent replay attacks
+// In production, this should use Redis/Upstash for multi-instance support
+const usedSignatureNonces = new Map<string, number>();
+
+// Clean up expired nonces every 10 minutes
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const cutoff = Date.now() - 10 * 60 * 1000; // 10 min
+    for (const [key, timestamp] of usedSignatureNonces.entries()) {
+      if (timestamp < cutoff) {
+        usedSignatureNonces.delete(key);
+      }
+    }
+  }, 10 * 60 * 1000);
+}
+
 // Maximum limits for pagination and content
 export const MAX_PAGINATION_LIMIT = 100;
 export const MAX_SEARCH_QUERY_LENGTH = 200;
@@ -12,16 +28,20 @@ export const MAX_CATEGORIES = 3;
 // Valid listing states for editing
 export const EDITABLE_LISTING_STATES = ['ACTIVE', 'RESERVED', 'PENDING_COLLABORATORS', 'DRAFT'];
 
-// Valid transaction state transitions
+// Valid transaction state transitions (must match TransactionStatus enum in schema.prisma)
 export const VALID_TRANSACTION_TRANSITIONS: Record<string, string[]> = {
-  'PENDING': ['FUNDED', 'CANCELLED'],
-  'FUNDED': ['IN_PROGRESS', 'CANCELLED', 'DISPUTED'],
-  'IN_PROGRESS': ['AWAITING_CONFIRMATION', 'DISPUTED', 'COMPLETED'],
+  'PENDING': ['AWAITING_PARTNER_DEPOSITS', 'FUNDED', 'CANCELLED'],
+  'AWAITING_PARTNER_DEPOSITS': ['FUNDED', 'PAID', 'CANCELLED', 'REFUNDED'],
+  'FUNDED': ['IN_ESCROW', 'CANCELLED', 'REFUNDED'],
+  'PAID': ['IN_ESCROW', 'TRANSFER_PENDING', 'CANCELLED', 'REFUNDED'],
+  'IN_ESCROW': ['TRANSFER_PENDING', 'TRANSFER_IN_PROGRESS', 'CANCELLED', 'DISPUTED', 'REFUNDED'],
+  'TRANSFER_PENDING': ['TRANSFER_IN_PROGRESS', 'CANCELLED', 'DISPUTED'],
+  'TRANSFER_IN_PROGRESS': ['AWAITING_CONFIRMATION', 'DISPUTED', 'COMPLETED'],
   'AWAITING_CONFIRMATION': ['COMPLETED', 'DISPUTED'],
-  'DISPUTED': ['RESOLVED', 'COMPLETED'],
+  'DISPUTED': ['COMPLETED', 'REFUNDED'],
   'COMPLETED': [], // Terminal state
+  'REFUNDED': [], // Terminal state
   'CANCELLED': [], // Terminal state
-  'RESOLVED': ['COMPLETED'], // After dispute resolution
 };
 
 /**
@@ -128,7 +148,7 @@ export function calculatePartnerPayments(
     const isLast = index === partners.length - 1;
     const amountLamports = isLast
       ? totalLamports - distributedLamports
-      : (totalLamports * BigInt(Math.round(partner.percentage * 100))) / BigInt(10000);
+      : (totalLamports * BigInt(Math.round(Number(partner.percentage) * 100))) / BigInt(10000);
 
     distributedLamports += amountLamports;
 
@@ -203,6 +223,13 @@ export function validateWalletSignatureMessage(
   if (ageMs > maxAgeSeconds * 1000) {
     return { valid: false, error: 'Signature has expired' };
   }
+
+  // SECURITY: Check for replay attacks - each signature can only be used once
+  const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
+  if (usedSignatureNonces.has(nonceKey)) {
+    return { valid: false, error: 'Signature has already been used' };
+  }
+  usedSignatureNonces.set(nonceKey, Date.now());
 
   return { valid: true };
 }

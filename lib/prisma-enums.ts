@@ -12,10 +12,10 @@ export type ListingStatus =
   | "PENDING_REVIEW"
   | "ACTIVE"
   | "RESERVED"
+  | "ENDED"
   | "SOLD"
-  | "EXPIRED"
-  | "UNLISTED"
-  | "REJECTED";
+  | "CANCELLED"
+  | "EXPIRED";
 
 export const ListingStatus = {
   DRAFT: "DRAFT" as const,
@@ -23,10 +23,10 @@ export const ListingStatus = {
   PENDING_REVIEW: "PENDING_REVIEW" as const,
   ACTIVE: "ACTIVE" as const,
   RESERVED: "RESERVED" as const,
+  ENDED: "ENDED" as const,
   SOLD: "SOLD" as const,
+  CANCELLED: "CANCELLED" as const,
   EXPIRED: "EXPIRED" as const,
-  UNLISTED: "UNLISTED" as const,
-  REJECTED: "REJECTED" as const,
 };
 
 export type CollaboratorRole = "PARTNER" | "COLLABORATOR";
@@ -241,6 +241,11 @@ export type NotificationType =
   | "VERIFICATION_COMPLETED"
   | "ACCOUNT_SUSPENDED"
   | "ACCOUNT_REACTIVATED"
+  // PATO (Token Launch) notifications
+  | "PATO_LAUNCHED"
+  | "PATO_GRADUATED"
+  | "PATO_FEES_AVAILABLE"
+  | "PATO_LAUNCH_FAILED"
   // Security notifications
   | "LOGIN_NEW_DEVICE"
   | "PASSWORD_CHANGED"
@@ -318,6 +323,11 @@ export const NotificationType = {
   VERIFICATION_COMPLETED: "VERIFICATION_COMPLETED" as const,
   ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED" as const,
   ACCOUNT_REACTIVATED: "ACCOUNT_REACTIVATED" as const,
+  // PATO (Token Launch) notifications
+  PATO_LAUNCHED: "PATO_LAUNCHED" as const,
+  PATO_GRADUATED: "PATO_GRADUATED" as const,
+  PATO_FEES_AVAILABLE: "PATO_FEES_AVAILABLE" as const,
+  PATO_LAUNCH_FAILED: "PATO_LAUNCH_FAILED" as const,
   // Security notifications
   LOGIN_NEW_DEVICE: "LOGIN_NEW_DEVICE" as const,
   PASSWORD_CHANGED: "PASSWORD_CHANGED" as const,

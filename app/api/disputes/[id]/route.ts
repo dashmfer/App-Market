@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hashEvidence, isValidUUID } from "@/lib/validation";
+import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
 export async function POST(
@@ -87,7 +88,7 @@ export async function POST(
     switch (resolution) {
       case "FULL_REFUND":
         // Buyer gets full refund, seller gets nothing
-        buyerRefund = transaction.salePrice;
+        buyerRefund = Number(transaction.salePrice);
         sellerPayout = 0;
         newTransactionStatus = "REFUNDED";
         // Charge dispute fee to seller (loser)
@@ -96,8 +97,8 @@ export async function POST(
 
       case "PARTIAL_REFUND":
         // Split based on circumstances (default 50/50 for now)
-        buyerRefund = transaction.salePrice * 0.5;
-        sellerPayout = transaction.salePrice * 0.5 - transaction.platformFee * 0.5;
+        buyerRefund = Number(transaction.salePrice) * 0.5;
+        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5;
         newTransactionStatus = "COMPLETED";
         // No dispute fee charged on partial resolution
         break;
@@ -105,7 +106,7 @@ export async function POST(
       case "RELEASE_TO_SELLER":
         // Seller gets full payment minus platform fee
         buyerRefund = 0;
-        sellerPayout = transaction.sellerProceeds;
+        sellerPayout = Number(transaction.sellerProceeds);
         newTransactionStatus = "COMPLETED";
         // Charge dispute fee to buyer (loser)
         feeCharged = true;
@@ -177,6 +178,17 @@ export async function POST(
         data: { disputeId, transactionId: transaction.id, resolution },
         userId: transaction.sellerId,
       },
+    });
+
+    await audit({
+      action: "ADMIN_DISPUTE_RESOLUTION",
+      severity: "WARN",
+      userId: session.user.id,
+      targetId: disputeId,
+      targetType: "dispute",
+      detail: `Dispute resolved: ${resolution}`,
+      metadata: { resolution, transactionId: transaction.id, feeCharged },
+      ...auditContext(request.headers),
     });
 
     return NextResponse.json({

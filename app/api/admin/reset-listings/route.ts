@@ -1,7 +1,9 @@
+import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { audit, auditContext } from "@/lib/audit";
 
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -21,7 +23,19 @@ function validateAdminSecret(request: NextRequest): boolean {
     ? authHeader.slice(7)
     : authHeader;
 
-  return secret === ADMIN_SECRET;
+  // SECURITY: Use constant-time comparison to prevent timing attacks
+  if (secret.length !== ADMIN_SECRET.length) {
+    return false;
+  }
+
+  try {
+    return timingSafeEqual(
+      Buffer.from(secret),
+      Buffer.from(ADMIN_SECRET)
+    );
+  } catch {
+    return false;
+  }
 }
 
 // DELETE /api/admin/reset-listings
@@ -38,10 +52,20 @@ export async function DELETE(request: NextRequest) {
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 
-    // Also require authentication
+    // Also require authentication AND admin role
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // SECURITY: Verify user is an admin in the database
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
+    if (!user?.isAdmin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
     }
 
     // Delete specific listing
@@ -72,6 +96,16 @@ export async function DELETE(request: NextRequest) {
 
       await prisma.listing.delete({ where: { id: listingId } });
 
+      await audit({
+        action: "ADMIN_RESET_LISTINGS",
+        severity: "WARN",
+        userId: session?.user?.id,
+        targetId: listingId,
+        targetType: "listing",
+        detail: `Admin deleted listing "${listing.title}"`,
+        ...auditContext(request.headers),
+      });
+
       return NextResponse.json({
         success: true,
         message: `Listing "${listing.title}" deleted`,
@@ -93,6 +127,15 @@ export async function DELETE(request: NextRequest) {
         listings: await prisma.listing.deleteMany({}),
         notifications: await prisma.notification.deleteMany({}),
       };
+
+      await audit({
+        action: "ADMIN_RESET_LISTINGS",
+        severity: "CRITICAL",
+        userId: session?.user?.id,
+        detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
+        metadata: { listings: results.listings.count, transactions: results.transactions.count },
+        ...auditContext(request.headers),
+      });
 
       return NextResponse.json({
         success: true,

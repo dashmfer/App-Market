@@ -71,7 +71,16 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { walletAddress, userId, percentage } = body;
+    const { walletAddress, percentage } = body;
+    // SECURITY: Look up userId by wallet instead of accepting from body
+    let userId: string | null = null;
+    if (walletAddress) {
+      const matchedUser = await prisma.user.findFirst({
+        where: { walletAddress: { equals: walletAddress, mode: "insensitive" as const } },
+        select: { id: true },
+      });
+      userId = matchedUser?.id || null;
+    }
 
     if (!walletAddress) {
       return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
@@ -117,7 +126,7 @@ export async function POST(
     }
 
     // Calculate total percentage including new partner
-    const currentTotal = transaction.partners.reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+    const currentTotal = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
     if (currentTotal + percentage > 100) {
       return NextResponse.json({
         error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`
@@ -125,7 +134,7 @@ export async function POST(
     }
 
     // Calculate deposit amount based on percentage
-    const depositAmount = (transaction.salePrice * percentage) / 100;
+    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
     // Create the partner
     const partner = await prisma.transactionPartner.create({
@@ -330,7 +339,7 @@ export async function PATCH(
     // Calculate total percentage excluding this partner
     const otherTotal = transaction.partners
       .filter((p: { id: string }) => p.id !== partnerId)
-      .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+      .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
     if (otherTotal + percentage > 100) {
       return NextResponse.json({
@@ -339,7 +348,7 @@ export async function PATCH(
     }
 
     // Calculate new deposit amount
-    const depositAmount = (transaction.salePrice * percentage) / 100;
+    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
     // Update the partner
     const updatedPartner = await prisma.transactionPartner.update({

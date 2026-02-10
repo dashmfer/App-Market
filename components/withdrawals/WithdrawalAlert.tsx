@@ -55,7 +55,7 @@ export default function WithdrawalAlert() {
                 You have {stats.unclaimedCount} pending withdrawal{stats.unclaimedCount !== 1 ? 's' : ''}
               </p>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                ({stats.totalUnclaimed.toFixed(4)} SOL available)
+                ({Number(stats.totalUnclaimed).toFixed(4)} SOL available)
               </p>
             </div>
           </div>

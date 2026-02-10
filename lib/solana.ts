@@ -42,7 +42,14 @@ export const TOKEN_LAUNCH_FEE_BPS = 100; // 1% of token supply
 
 // Connection to Solana
 export const getConnection = () => {
-  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  if (!rpcUrl) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be set in production");
+    }
+    // Only fall back to devnet in development
+    return new Connection("https://api.devnet.solana.com", "confirmed");
+  }
   return new Connection(rpcUrl, "confirmed");
 };
 
@@ -105,7 +112,10 @@ export const getDisputePDA = (transaction: PublicKey) => {
 
 // Convert SOL to lamports
 export const solToLamports = (sol: number): BN => {
-  return new BN(sol * LAMPORTS_PER_SOL);
+  // Use string conversion to avoid floating-point precision loss
+  const [whole, decimal = ""] = sol.toString().split(".");
+  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  return new BN(whole + paddedDecimal);
 };
 
 // Convert lamports to SOL
@@ -141,7 +151,7 @@ export const calculateSellerProceeds = (salePrice: number, currency?: string): {
   };
 };
 
-// Listing status enum (matches on-chain)
+// Listing status enum (matches on-chain - 9 statuses)
 export enum ListingStatus {
   Active = 0,
   Ended = 1,
@@ -154,18 +164,18 @@ export enum ListingStatus {
   Refunded = 8,
 }
 
-// Transaction status enum
+// Transaction status enum (matches on-chain - 10 statuses)
 export enum TransactionStatus {
-  Pending = "PENDING",
-  Paid = "PAID",
-  InEscrow = "IN_ESCROW",
-  TransferPending = "TRANSFER_PENDING",
-  TransferInProgress = "TRANSFER_IN_PROGRESS",
-  AwaitingConfirmation = "AWAITING_CONFIRMATION",
-  Disputed = "DISPUTED",
-  Completed = "COMPLETED",
-  Refunded = "REFUNDED",
-  Cancelled = "CANCELLED",
+  Pending = 0,
+  Paid = 1,
+  InEscrow = 2,
+  TransferPending = 3,
+  TransferInProgress = 4,
+  AwaitingConfirmation = 5,
+  Disputed = 6,
+  Completed = 7,
+  Refunded = 8,
+  Cancelled = 9,
 }
 
 // Types for on-chain data
@@ -223,17 +233,12 @@ export const getTimeRemaining = (endTime: number | BN): { days: number; hours: n
   };
 };
 
-// IDL placeholder - replace with generated IDL after building Solana program with `anchor build`
-// The actual IDL will be at target/idl/app_market.json after build
-export const IDL: Idl = {
-  version: "0.1.0",
-  name: "app_market",
-  instructions: [],
-  accounts: [],
-  types: [],
-  events: [],
-  errors: [],
-} as Idl;
+// WARNING: The IDL at idl/app_market.json may be incomplete.
+// Run `anchor build` in the programs/ directory to generate a complete IDL.
+// Until then, direct contract calls may fail.
+import AppMarketIDL from "@/idl/app_market.json";
+
+export const IDL: Idl = AppMarketIDL as Idl;
 
 // Create program instance
 export const getProgram = (provider: AnchorProvider): Program => {

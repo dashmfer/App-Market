@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "received" or "given"
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
 
     if (!userId) {
       return NextResponse.json(
@@ -126,6 +127,15 @@ export async function GET(request: NextRequest) {
 // POST /api/reviews - Submit a review
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'reviews'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(
@@ -377,10 +387,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ review }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating review:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to create review" },
+      { error: "Failed to process review" },
       { status: 500 }
     );
   }

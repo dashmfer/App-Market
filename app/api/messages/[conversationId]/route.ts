@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent, sanitizePagination, isValidUUID } from "@/lib/validation";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 const DEFAULT_MESSAGE_LIMIT = 50;
 
@@ -156,6 +157,15 @@ export async function POST(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'messages'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {

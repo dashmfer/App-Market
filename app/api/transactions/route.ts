@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     const userId = token.id as string;
 
     const body = await request.json();
-    const { listingId, paymentMethod, stripePaymentId, onChainTx } = body;
+    const { listingId, paymentMethod, onChainTx } = body;
 
     // Get listing
     const listing = await prisma.listing.findUnique({
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      salePrice = listing.buyNowPrice;
+      salePrice = Number(listing.buyNowPrice);
     } else {
       // Auction win
       if (listing.status !== "ENDED" && new Date() < listing.endTime) {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      salePrice = winningBid.amount;
+      salePrice = Number(winningBid.amount);
     }
 
     // Calculate fees (3% for APP token, 5% for others)
@@ -262,8 +262,7 @@ export async function POST(request: NextRequest) {
         platformFee,
         sellerProceeds,
         currency: listing.currency,
-        paymentMethod: paymentMethod === "BUY_NOW" ? "STRIPE" : (onChainTx ? "SOLANA" : "STRIPE"),
-        stripePaymentId,
+        paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
         onChainTx,
         status: onChainTx ? "IN_ESCROW" : "PENDING",
         transferChecklist,

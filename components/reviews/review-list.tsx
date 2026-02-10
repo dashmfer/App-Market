@@ -122,7 +122,7 @@ export function ReviewList({ userId }: ReviewListProps) {
             {/* Overall Rating */}
             <div className="text-center md:text-left md:pr-6 md:border-r border-zinc-200 dark:border-zinc-700">
               <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100">
-                {stats.averageRating.toFixed(1)}
+                {Number(stats.averageRating).toFixed(1)}
               </div>
               <StarRating rating={Math.round(stats.averageRating)} size="lg" />
               <div className="text-sm text-zinc-500 mt-1">

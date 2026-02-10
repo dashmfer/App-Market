@@ -697,6 +697,7 @@ Verify signatures using the \`X-Webhook-Signature\` header.
 };
 
 export async function GET(request: NextRequest) {
+  // SECURITY: No Access-Control-Allow-Origin header - OpenAPI spec is same-origin only
   return NextResponse.json(openApiSpec, {
     headers: {
       "Content-Type": "application/json",

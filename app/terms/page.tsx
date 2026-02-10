@@ -70,7 +70,7 @@ export default function TermsPage() {
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>3% platform fee on sales priced in $APP (platform token)</li>
                   <li>5% platform fee on sales priced in SOL or USDC</li>
-                  <li>Additional payment processing fees may apply (Stripe, blockchain)</li>
+                  <li>Additional blockchain network fees may apply (Solana transaction fees)</li>
                   <li>2% dispute resolution fee for losing party in disputes</li>
                 </ul>
                 <p>

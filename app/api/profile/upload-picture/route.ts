@@ -12,17 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    console.log('Upload Picture - Session Debug:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email,
-      cookies: req.cookies.getAll().map(c => ({ name: c.name, hasValue: !!c.value })),
-    });
-
     if (!session?.user?.id) {
-      console.error('Upload Picture - No session or user ID found');
-      console.error('Available cookies:', req.cookies.getAll().map(c => c.name));
       return NextResponse.json(
         { error: 'Unauthorized - No active session found. Please sign in again.' },
         { status: 401 }
@@ -55,6 +45,21 @@ export async function POST(req: NextRequest) {
         { error: 'File too large. Maximum size is 5MB.' },
         { status: 400 }
       );
+    }
+
+    // Delete old profile picture if it exists
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true },
+    });
+    if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
+      try {
+        const { del } = await import("@vercel/blob");
+        await del(currentUser.image);
+      } catch (e) {
+        console.error("[Profile Image] Failed to delete old image:", e);
+        // Continue with upload even if delete fails
+      }
     }
 
     // Upload to Vercel Blob Storage

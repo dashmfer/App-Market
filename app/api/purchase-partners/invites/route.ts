@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       ).length;
       const totalPercentageDeposited = invite.transaction.partners
         .filter((p: { depositStatus: string }) => p.depositStatus === "DEPOSITED")
-        .reduce((sum: number, p: { percentage: number }) => sum + p.percentage, 0);
+        .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
       const timeRemaining = invite.transaction.partnerDepositDeadline
         ? Math.max(0, new Date(invite.transaction.partnerDepositDeadline).getTime() - Date.now())

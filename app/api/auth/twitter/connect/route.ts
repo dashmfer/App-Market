@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
-import crypto from "crypto";
 import { encrypt } from "@/lib/encryption";
+import crypto from "crypto";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";

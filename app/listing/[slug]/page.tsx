@@ -158,7 +158,6 @@ interface Listing {
   githubStars?: number;
   listingType: string;
   startingPrice: number;
-  reservePrice?: number;
   buyNowPrice?: number;
   buyNowEnabled: boolean;
   currency: string;
@@ -281,8 +280,8 @@ export default function ListingPage() {
 
           // Set initial bid amount: if no bids, use starting price; otherwise use current bid + 0.01
           const initialBid = data.listing.bidCount > 0
-            ? Math.round((data.listing.currentBid + 0.01) * 100) / 100
-            : data.listing.startingPrice;
+            ? Math.round((Number(data.listing.currentBid) + 0.01) * 100) / 100
+            : Number(data.listing.startingPrice);
           setBidAmount(initialBid);
         } else if (response.status === 404) {
           setError("Listing not found");
@@ -425,12 +424,12 @@ export default function ListingPage() {
   }
 
   // Check if this is a Buy Now only listing (no auction)
-  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || listing.startingPrice <= 0);
+  const isBuyNowOnly = listing.buyNowEnabled && (!listing.startingPrice || Number(listing.startingPrice) <= 0);
 
   // Minimum bid: if no bids, use starting price; if there are bids, use current bid + 0.01
   const minimumBid = listing.bidCount > 0
-    ? Math.round((listing.currentBid + 0.01) * 100) / 100
-    : (listing.startingPrice || 0.01);
+    ? Math.round((Number(listing.currentBid) + 0.01) * 100) / 100
+    : (Number(listing.startingPrice) || 0.01);
 
   const sellerName = listing.seller.name || listing.seller.username || listing.seller.walletAddress?.slice(0, 8) || "Anonymous";
 
@@ -501,7 +500,7 @@ export default function ListingPage() {
         if (listingResponse.ok) {
           const data = await listingResponse.json();
           setListing(data.listing);
-          setBidAmount(Math.round((data.listing.currentBid + 0.01) * 100) / 100);
+          setBidAmount(Math.round((Number(data.listing.currentBid) + 0.01) * 100) / 100);
         }
       } else {
         const data = await response.json();
@@ -547,7 +546,7 @@ export default function ListingPage() {
       const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
 
       // Create transfer transaction for buy now price
-      const lamports = Math.floor(listing.buyNowPrice * LAMPORTS_PER_SOL);
+      const lamports = Math.floor(Number(listing.buyNowPrice) * LAMPORTS_PER_SOL);
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -1092,7 +1091,7 @@ export default function ListingPage() {
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-display font-semibold text-zinc-900 dark:text-zinc-100">
-                      {isBuyNowOnly ? listing.buyNowPrice : (listing.currentBid || listing.startingPrice)}
+                      {isBuyNowOnly ? Number(listing.buyNowPrice) : (Number(listing.currentBid) || Number(listing.startingPrice))}
                     </span>
                     <span className="text-xl text-zinc-500">{formatCurrency(listing.currency)}</span>
                   </div>

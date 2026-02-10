@@ -25,7 +25,6 @@ interface Listing {
   category: string;
   status: string;
   startingPrice: number;
-  reservePrice?: number;
   buyNowPrice?: number;
   buyNowEnabled: boolean;
   currency: string;

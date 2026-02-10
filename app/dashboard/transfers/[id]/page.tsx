@@ -29,11 +29,14 @@ import {
   Scale,
   FileCheck,
   PenTool,
+  Rocket,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
 
 import { SecurityNotice } from "@/components/transfers/SecurityNotice";
+import { PATOLaunchModal } from "@/components/pato/PATOLaunchModal";
+import { PATOStatusCard } from "@/components/pato/PATOStatusCard";
 
 interface ChecklistItem {
   id: string;
@@ -237,6 +240,11 @@ export default function TransferPage() {
   const [requestingAPA, setRequestingAPA] = useState(false);
   const [requestingNonCompete, setRequestingNonCompete] = useState(false);
 
+  // PATO state
+  const [showPATOModal, setShowPATOModal] = useState(false);
+  const [tokenLaunch, setTokenLaunch] = useState<any>(null);
+  const [tokenLaunchLoading, setTokenLaunchLoading] = useState(false);
+
   useEffect(() => {
     fetchTransfer();
   }, [params.id]);
@@ -250,7 +258,7 @@ export default function TransferPage() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          router.push("/login");
+          router.push("/auth/signin");
           return;
         }
         if (res.status === 404) {
@@ -269,6 +277,33 @@ export default function TransferPage() {
       setLoading(false);
     }
   };
+
+  // Fetch existing PATO token launch for this transaction
+  const fetchTokenLaunch = useCallback(async () => {
+    if (!params.id) return;
+    setTokenLaunchLoading(true);
+    try {
+      const res = await fetch(`/api/token-launch?transactionId=${params.id}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.tokenLaunches?.length > 0) {
+          setTokenLaunch(data.tokenLaunches[0]);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching token launch:", err);
+    } finally {
+      setTokenLaunchLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    if (transfer?.status === "COMPLETED" && transfer?.isBuyer) {
+      fetchTokenLaunch();
+    }
+  }, [transfer?.status, transfer?.isBuyer, fetchTokenLaunch]);
 
   // Handle domain transfer link changes for registrar detection
   const handleDomainLinkChange = useCallback((value: string) => {
@@ -1167,6 +1202,41 @@ export default function TransferPage() {
                 </div>
               </div>
             )}
+
+            {/* PATO Launch CTA - Buyer only, after transfer completed, no existing launch */}
+            {isCompleted && isBuyer && !tokenLaunch && !tokenLaunchLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="relative overflow-hidden rounded-2xl border border-green-200 dark:border-green-800/50 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/20 dark:via-emerald-900/20 dark:to-teal-900/20 p-6"
+              >
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200/40 to-emerald-300/40 dark:from-green-800/20 dark:to-emerald-800/20 rounded-full -translate-y-8 translate-x-8" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                    <Rocket className="w-6 h-6 text-white stroke-[1.5] fill-none" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                      Launch a Token
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                      Deploy a token for <span className="font-medium">{transfer.listing.title}</span> on a Meteora bonding curve.
+                      Earn trading fees in perpetuity.
+                    </p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1.5">
+                      Post-Acquisition Token Offering (PATO)
+                    </p>
+                    <button
+                      onClick={() => setShowPATOModal(true)}
+                      className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white font-medium rounded-full transition-all duration-300 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 hover:scale-105 active:scale-95 text-sm"
+                    >
+                      <Rocket className="w-4 h-4" />
+                      Launch Token
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -1217,6 +1287,11 @@ export default function TransferPage() {
                 </div>
               )}
             </div>
+
+            {/* PATO Status Card */}
+            {tokenLaunch && (
+              <PATOStatusCard tokenLaunch={tokenLaunch} isBuyer={isBuyer} />
+            )}
 
             {/* Legal Agreements Section */}
             {(transfer.listing.offersAPA || transfer.listing.offersNonCompete || transfer.buyerRequestedAPA || transfer.buyerRequestedNonCompete) && (
@@ -1554,6 +1629,20 @@ export default function TransferPage() {
           </div>
         </div>
       </div>
+
+      {/* PATO Launch Modal */}
+      <PATOLaunchModal
+        isOpen={showPATOModal}
+        onClose={() => setShowPATOModal(false)}
+        transactionId={transfer.id}
+        listingSlug={transfer.listing.slug}
+        listingTitle={transfer.listing.title}
+        onSuccess={(launch) => {
+          setTokenLaunch(launch);
+          setShowPATOModal(false);
+          fetchTokenLaunch();
+        }}
+      />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import {
   validateDomainTransferLink,
   validateAuthCode,
@@ -34,8 +33,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -110,7 +109,7 @@ export async function POST(
     }
 
     // Only seller can confirm transfers
-    if (transaction.sellerId !== session.user.id) {
+    if (transaction.sellerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the seller can confirm transfers" },
         { status: 403 }

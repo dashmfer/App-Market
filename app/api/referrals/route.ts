@@ -45,26 +45,26 @@ export async function GET() {
       (r: { status: string }) => r.status === "ACTIVE"
     ).length;
     const pendingEarnings = user.referralsGiven.reduce(
-      (sum: number, r: { earnings: Array<{ status: string; earnedAmount: number }> }) =>
+      (sum: number, r: any) =>
         sum +
         r.earnings
-          .filter((e: { status: string }) => e.status === "PENDING")
-          .reduce((s: number, e: { earnedAmount: number }) => s + e.earnedAmount, 0),
+          .filter((e: any) => e.status === "PENDING")
+          .reduce((s: number, e: any) => s + Number(e.earnedAmount), 0),
       0
     );
     const availableEarnings = user.referralsGiven.reduce(
-      (sum: number, r: { earnings: Array<{ status: string; earnedAmount: number }> }) =>
+      (sum: number, r: any) =>
         sum +
         r.earnings
-          .filter((e: { status: string }) => e.status === "AVAILABLE")
-          .reduce((s: number, e: { earnedAmount: number }) => s + e.earnedAmount, 0),
+          .filter((e: any) => e.status === "AVAILABLE")
+          .reduce((s: number, e: any) => s + Number(e.earnedAmount), 0),
       0
     );
 
     return NextResponse.json({
       code: user.referralCode,
       isCustomized: user.referralCodeCustomized,
-      totalEarnings: user.referralEarnings,
+      totalEarnings: Number(user.referralEarnings),
       pendingEarnings,
       availableEarnings,
       totalReferrals,

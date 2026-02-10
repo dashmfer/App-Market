@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Escrow Auto-Release
@@ -13,19 +14,6 @@ import { PLATFORM_CONFIG } from "@/lib/config";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
-
-// Verify cron secret to prevent unauthorized access
-function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("[Cron] CRON_SECRET not configured");
-    return false;
-  }
-
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 // Retry wrapper for database operations
 async function withRetry<T>(
@@ -128,6 +116,12 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of eligibleTransactions) {
       try {
+        // TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in escrow. Requires:
+        // 1. Backend authority keypair to sign refund transactions
+        // 2. Complete IDL for refund_escrow instruction
+        // 3. Error handling for failed on-chain refunds
+
         // Update transaction to COMPLETED
         await withRetry(() => prisma.transaction.update({
           where: { id: transaction.id },
@@ -143,7 +137,7 @@ export async function GET(request: NextRequest) {
           where: { id: transaction.sellerId },
           data: {
             totalSales: { increment: 1 },
-            totalVolume: { increment: transaction.salePrice },
+            totalVolume: { increment: Number(transaction.salePrice) },
           },
         }), `Update seller stats ${transaction.sellerId}`);
 
@@ -164,7 +158,7 @@ export async function GET(request: NextRequest) {
             data: {
               transactionId: transaction.id,
               autoRelease: true,
-              amount: transaction.sellerProceeds,
+              amount: Number(transaction.sellerProceeds),
             },
             userId: transaction.sellerId,
           },

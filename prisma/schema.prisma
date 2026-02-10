@@ -28,17 +28,16 @@ model User {
   // Verification & Trust
   isVerified      Boolean   @default(false)
   verifiedAt      DateTime?
-  kycStatus       KycStatus @default(NONE)
   isAdmin         Boolean   @default(false)
   
   // Stats
   totalSales      Int       @default(0)
   totalPurchases  Int       @default(0)
-  totalVolume     Float     @default(0)
-  rating          Float     @default(0)
+  totalVolume     Decimal   @default(0) @db.Decimal(18, 8)
+  rating          Decimal   @default(0) @db.Decimal(3, 2)
   ratingCount     Int       @default(0)
   sellerLevel     Int       @default(1)
-  successRate     Float     @default(100)
+  successRate     Decimal   @default(100) @db.Decimal(5, 2)
 
   // Dispute Stats
   totalDisputes   Int       @default(0)
@@ -60,7 +59,7 @@ model User {
   referralCode       String?   @unique  // Unique code like "alex123" or auto-generated
   referralCodeCustomized Boolean @default(false)  // Can only customize once
   referredBy         String?   // User ID of who referred them
-  referralEarnings   Float     @default(0)  // Total earnings from referrals
+  referralEarnings   Decimal   @default(0) @db.Decimal(18, 8)  // Total earnings from referrals
   
   // Profile Fields (optional)
   displayName     String?
@@ -127,6 +126,9 @@ model User {
   apiKeys         ApiKey[]
   webhooks        Webhook[]
 
+  // Audit logs
+  auditLogs       AuditLog[]
+
   @@index([walletAddress])
   @@index([email])
   @@index([githubUsername])
@@ -160,6 +162,21 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Revoked sessions for immediate invalidation
+// Used for logout, security incidents, password changes, etc.
+model RevokedSession {
+  id        String   @id @default(cuid())
+  sessionId String   @unique // The JWT session ID to revoke
+  userId    String?  // Optional: which user's session was revoked
+  reason    String?  // Optional: why it was revoked (logout, security, etc.)
+  revokedAt DateTime @default(now())
+  expiresAt DateTime // When this revocation record can be cleaned up
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // User's linked wallets (supports multiple wallets per account)
@@ -213,7 +230,8 @@ model ListingCollaborator {
   customRoleDescription String?         // Free-form text when roleDescription is OTHER
 
   // Payment split
-  percentage        Float               // Their cut of the sale (e.g., 25.5 for 25.5%)
+  percentage        Decimal             @db.Decimal(5, 2) // Their cut of the sale (e.g., 25.5 for 25.5%)
+  // Application enforces 0-100 range
 
   // Permissions
   canEdit           Boolean             @default(false) // Partners can edit, collaborators cannot
@@ -292,14 +310,13 @@ model Listing {
   
   // Metrics (if deployed)
   monthlyUsers      Int?
-  monthlyRevenue    Float?
+  monthlyRevenue    Decimal?  @db.Decimal(18, 8)
   githubStars       Int?
   
   // Auction Settings
   listingType       ListingType   @default(AUCTION)
-  startingPrice     Float
-  reservePrice      Float?
-  buyNowPrice       Float?
+  startingPrice     Decimal   @db.Decimal(18, 8)
+  buyNowPrice       Decimal?  @db.Decimal(18, 8)
   buyNowEnabled     Boolean       @default(false)
   currency          Currency      @default(APP)
   
@@ -330,6 +347,7 @@ model Listing {
   offers            Offer[]
   pendingWithdrawals PendingWithdrawal[]
   transaction       Transaction?
+  tokenLaunches     TokenLaunch[]
   watchlist         Watchlist[]
   ndaSignatures     ListingNDA[]
   similarities      ListingSimilarity[] @relation("ListingSimilarities")
@@ -351,9 +369,9 @@ model Listing {
 
 model Bid {
   id            String    @id @default(cuid())
-  amount        Float
+  amount        Decimal   @db.Decimal(18, 8)
   currency      Currency  @default(SOL)
-  maxBid        Float?    // For auto-bidding
+  maxBid        Decimal?  @db.Decimal(18, 8)    // For auto-bidding
   
   // On-chain
   onChainTx     String?
@@ -364,9 +382,9 @@ model Bid {
   
   // Relations
   listingId     String
-  listing       Listing   @relation(fields: [listingId], references: [id])
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
   bidderId      String
-  bidder        User      @relation(fields: [bidderId], references: [id])
+  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Cascade)
   
   // Timestamps
   createdAt     DateTime  @default(now())
@@ -374,6 +392,7 @@ model Bid {
   @@index([listingId])
   @@index([bidderId])
   @@index([isWinning])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -382,7 +401,7 @@ model Bid {
 
 model Offer {
   id            String      @id @default(cuid())
-  amount        Float
+  amount        Decimal   @db.Decimal(18, 8)
   deadline      DateTime
   currency      Currency    @default(SOL)
 
@@ -395,9 +414,9 @@ model Offer {
 
   // Relations
   listingId     String
-  listing       Listing     @relation(fields: [listingId], references: [id])
+  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyerId       String
-  buyer         User        @relation(fields: [buyerId], references: [id])
+  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -410,11 +429,12 @@ model Offer {
   @@index([buyerId])
   @@index([status])
   @@index([deadline])
+  @@index([createdAt])
 }
 
 model PendingWithdrawal {
   id            String   @id @default(cuid())
-  amount        Float
+  amount        Decimal  @db.Decimal(18, 8)
   currency      Currency @default(SOL)
   claimed       Boolean  @default(false)
 
@@ -423,9 +443,9 @@ model PendingWithdrawal {
 
   // Relations
   userId        String
-  user          User     @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId     String
-  listing       Listing  @relation(fields: [listingId], references: [id])
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime @default(now())
@@ -480,14 +500,13 @@ model Transaction {
   id                  String            @id @default(cuid())
   
   // Amount
-  salePrice           Float
-  platformFee         Float
-  sellerProceeds      Float
+  salePrice           Decimal           @db.Decimal(18, 8)
+  platformFee         Decimal           @db.Decimal(18, 8)
+  sellerProceeds      Decimal           @db.Decimal(18, 8)
   currency            Currency          @default(SOL)
   
   // Payment
   paymentMethod       PaymentMethod
-  stripePaymentId     String?
   onChainTx           String?
   escrowAddress       String?
   
@@ -549,6 +568,7 @@ model Transaction {
   reviews             Review[]
   uploads             Upload[]
   agreements          TransactionAgreement[]
+  tokenLaunch         TokenLaunch?
 
   // Timestamps
   createdAt           DateTime          @default(now())
@@ -563,6 +583,7 @@ model Transaction {
   @@index([buyerId])
   @@index([sellerId])
   @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -582,8 +603,8 @@ model TransactionPartner {
   user              User?                 @relation(fields: [userId], references: [id])
 
   // Percentage & Amount
-  percentage        Float                 // Their share (e.g., 40 for 40%)
-  depositAmount     Float                 // Amount they need to deposit (calculated)
+  percentage        Decimal               @db.Decimal(5, 2) // Their share (e.g., 40 for 40%)
+  depositAmount     Decimal               @db.Decimal(18, 8) // Amount they need to deposit (calculated)
 
   // Lead buyer status
   isLead            Boolean               @default(false)
@@ -635,17 +656,9 @@ model Dispute {
   resolutionNotes   String?       @db.Text
   
   // Fees
-  disputeFee        Float         // 2% fee charged to losing party
+  disputeFee        Decimal       @db.Decimal(18, 8) // 2% fee charged to losing party
   feeCharged        Boolean       @default(false)
-  
-  // Buyer Escrow Deposit (for denial claims)
-  // When buyer claims they didn't receive, they must deposit additional funds into escrow
-  buyerDepositRequired Float?     // 10% of purchase price
-  buyerDepositAmount   Float?     @default(0)
-  buyerDepositHeld     Boolean    @default(false)
-  // If buyer loses dispute, deposit goes to treasury
-  depositForfeited     Boolean    @default(false)
-  
+
   // Relations
   transactionId     String        @unique
   transaction       Transaction   @relation(fields: [transactionId], references: [id])
@@ -676,6 +689,7 @@ model Review {
 
   // Overall Rating (1-5)
   rating        Int         // Overall rating 1-5
+  // Application enforces 1-5 range
 
   // Multi-Criteria Ratings (1-5, optional)
   communicationRating Int?  // How responsive and clear
@@ -731,9 +745,9 @@ enum ReviewerRole {
 model Watchlist {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id])
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, listingId])
@@ -747,11 +761,12 @@ model Notification {
   data      Json?
   read      Boolean          @default(false)
   userId    String
-  user      User             @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime         @default(now())
 
   @@index([userId])
   @@index([read])
+  @@index([createdAt])
 }
 
 // ============================================
@@ -809,52 +824,91 @@ model Message {
   @@index([conversationId])
   @@index([senderId])
   @@index([read])
+  @@index([createdAt])
 }
 
 // ============================================
-// TOKEN LAUNCHES
+// TOKEN LAUNCHES (PATO - Post-Acquisition Token Offerings)
 // ============================================
 
 model TokenLaunch {
   id              String            @id @default(cuid())
-  
+
   // Token Info
   tokenName       String
   tokenSymbol     String
-  tokenMint       String?
+  tokenMint       String?           // SPL token mint address
+  tokenImage      String?           // Token image URL
+  tokenDescription String?          @db.Text
   totalSupply     BigInt
-  
+
   // Launch Config
-  launchType      TokenLaunchType
-  presalePrice    Float?
-  listingPrice    Float?
-  
-  // Platform Fee (1% of supply)
-  platformTokens  BigInt?
-  
+  launchType      TokenLaunchType   @default(PATO)
+
+  // Meteora DBC (Dynamic Bonding Curve) Config
+  dbcPoolAddress       String?      // Meteora DBC virtual pool address
+  dbcConfigKey         String?      // Partner DBC config key used for this launch
+  bondingCurveStatus   BondingCurveStatus @default(PENDING)
+
+  // Graduation / Migration
+  graduationThreshold  Decimal      @default(500) @db.Decimal(18, 8) // SOL needed to graduate
+  graduatedAt          DateTime?    // When the curve graduated
+  dammPoolAddress      String?      // Meteora DAMM v2 pool address post-graduation
+  migrationFeeOption   Int          @default(2) // 0=0.25%, 1=0.3%, 2=1%, 3=2%, 4=4%, 5=6%
+
+  // Fee Configuration (Bonding Curve Phase)
+  tradingFeeBps        Int          @default(100) // 1% total trading fee (100 bps)
+  creatorFeePct        Int          @default(50)  // Creator gets 50% of partner's 80% share
+
+  // LP Lock Configuration (Post-Graduation)
+  partnerLockedLpPct   Int          @default(50)  // 50% of LP permanently locked for platform
+  creatorLockedLpPct   Int          @default(50)  // 50% of LP permanently locked for creator
+
+  // Creator Info
+  creatorWallet        String?      // Creator's wallet for fee claims
+
+  // Vanity Address
+  vanityKeypair        String?      // Encrypted keypair for vanity mint address (ends in 'app')
+
+  // Fee Tracking
+  totalBondingCurveFeesSOL  Decimal @default(0) @db.Decimal(18, 8) // Total fees earned on curve
+  totalPostGradFeesSOL      Decimal @default(0) @db.Decimal(18, 8) // Total fees earned post-grad
+  creatorFeesClaimedSOL     Decimal @default(0) @db.Decimal(18, 8) // Total creator fees claimed
+  platformFeesClaimedSOL    Decimal @default(0) @db.Decimal(18, 8) // Total platform fees claimed
+
   // Status
   status          TokenLaunchStatus @default(PENDING)
-  
-  // Related Project
-  projectId       String
-  
+
+  // Related Transaction (the acquisition that triggered this PATO)
+  transactionId   String            @unique
+  transaction     Transaction       @relation(fields: [transactionId], references: [id])
+
+  // Related Listing (the acquired project)
+  listingId       String
+  listing         Listing           @relation(fields: [listingId], references: [id])
+
+  // Social Links (for token metadata)
+  website         String?
+  twitter         String?
+  telegram        String?
+  discord         String?
+
   // Timestamps
   createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   launchedAt      DateTime?
 
   @@index([status])
+  @@index([transactionId])
+  @@index([listingId])
+  @@index([bondingCurveStatus])
+  @@index([tokenMint])
+  @@index([creatorWallet])
 }
 
 // ============================================
 // ENUMS
 // ============================================
-
-enum KycStatus {
-  NONE
-  PENDING
-  VERIFIED
-  REJECTED
-}
 
 enum Category {
   SAAS
@@ -907,9 +961,9 @@ enum Currency {
 }
 
 enum PaymentMethod {
-  SOLANA
-  STRIPE
+  SOL
   USDC
+  APP
 }
 
 enum TransactionStatus {
@@ -1038,6 +1092,12 @@ enum NotificationType {
   ACCOUNT_SUSPENDED         // Notify when account is suspended
   ACCOUNT_REACTIVATED       // Notify when account is reactivated
 
+  // PATO (Token Launch) notifications
+  PATO_LAUNCHED             // Notify creator when PATO is live
+  PATO_GRADUATED            // Notify creator when curve graduates to DAMM
+  PATO_FEES_AVAILABLE       // Notify when fees are ready to claim
+  PATO_LAUNCH_FAILED        // Notify creator when launch fails
+
   // Security notifications
   LOGIN_NEW_DEVICE          // Notify when login from new device
   PASSWORD_CHANGED          // Notify when password is changed
@@ -1053,16 +1113,27 @@ enum BuyerInfoStatus {
 }
 
 enum TokenLaunchType {
-  FAIR_LAUNCH
-  PRESALE
+  PATO        // Post-Acquisition Token Offering (Meteora DBC)
+  FAIR_LAUNCH // Legacy
+  PRESALE     // Legacy
 }
 
 enum TokenLaunchStatus {
-  PENDING
-  LAUNCHING
-  LIVE
-  COMPLETED
-  FAILED
+  PENDING     // Record created, awaiting launch
+  LAUNCHING   // Transaction being submitted on-chain
+  LIVE        // Bonding curve is active and tradeable
+  GRADUATED   // Curve completed, migrated to DAMM v2 pool
+  COMPLETED   // Fully migrated and operational
+  FAILED      // Launch failed (on-chain error)
+  CANCELLED   // Cancelled by creator before launch
+}
+
+enum BondingCurveStatus {
+  PENDING     // Not yet deployed
+  ACTIVE      // Bonding curve is live, accepting trades
+  GRADUATING  // Threshold met, migration in progress
+  GRADUATED   // Successfully migrated to DAMM v2
+  FAILED      // Deployment or migration failed
 }
 
 // ============================================
@@ -1074,7 +1145,7 @@ model Referral {
 
   // Who referred whom
   referrerId      String
-  referrer        User      @relation("Referrer", fields: [referrerId], references: [id])
+  referrer        User      @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
   referredUserId  String    @unique
   referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
@@ -1086,7 +1157,7 @@ model Referral {
   firstTransactionPaid Boolean @default(false)
 
   // Earnings from this referral
-  totalEarnings   Float     @default(0)
+  totalEarnings   Decimal   @default(0) @db.Decimal(18, 8)
 
   // Timestamps
   createdAt       DateTime  @default(now())
@@ -1103,15 +1174,15 @@ model ReferralEarning {
   id              String    @id @default(cuid())
   
   referralId      String
-  referral        Referral  @relation(fields: [referralId], references: [id])
+  referral        Referral  @relation(fields: [referralId], references: [id], onDelete: Cascade)
   
   // What transaction generated this earning
   transactionId   String
   
   // Amounts
-  saleAmount      Float     // Total sale amount
-  commissionRate  Float     // e.g., 0.02 for 2%
-  earnedAmount    Float     // saleAmount * commissionRate
+  saleAmount      Decimal   @db.Decimal(18, 8) // Total sale amount
+  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2%
+  earnedAmount    Decimal   @db.Decimal(18, 8) // saleAmount * commissionRate
   
   // Status
   status          EarningStatus @default(PENDING)
@@ -1260,10 +1331,10 @@ model ListingSimilarity {
   similarListing  Listing   @relation("SimilarListings", fields: [similarListingId], references: [id], onDelete: Cascade)
 
   // Similarity scores (0-100)
-  titleSimilarity       Float   @default(0)
-  descriptionSimilarity Float   @default(0)
-  screenshotSimilarity  Float   @default(0)
-  overallSimilarity     Float   @default(0)
+  titleSimilarity       Decimal @default(0) @db.Decimal(5, 2)
+  descriptionSimilarity Decimal @default(0) @db.Decimal(5, 2)
+  screenshotSimilarity  Decimal @default(0) @db.Decimal(5, 2)
+  overallSimilarity     Decimal @default(0) @db.Decimal(5, 2)
 
   // Flags
   flagType        SimilarityFlagType @default(INFO)
@@ -1544,4 +1615,73 @@ enum WebhookDeliveryStatus {
   SUCCESS
   FAILED
   RETRYING
+}
+
+// ============================================
+// AUDIT LOGGING
+// ============================================
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  action    AuditAction
+  severity  AuditSeverity @default(INFO)
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  targetId  String?       // ID of the affected resource (listing, transaction, etc.)
+  targetType String?      // Type of resource ("listing", "transaction", "user", etc.)
+  detail    String?       // Human-readable description
+  metadata  Json?         // Structured data (old/new values, request info, etc.)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+
+  @@index([action])
+  @@index([severity])
+  @@index([userId])
+  @@index([targetId, targetType])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  // Auth
+  AUTH_LOGIN
+  AUTH_LOGOUT
+  AUTH_FAILED_LOGIN
+  AUTH_SESSION_REVOKED
+
+  // Admin
+  ADMIN_RESET_LISTINGS
+  ADMIN_SIMILARITY_SCAN
+  ADMIN_DISPUTE_RESOLUTION
+
+  // Financial
+  TRANSACTION_CREATED
+  TRANSACTION_COMPLETED
+  TRANSACTION_REFUNDED
+  ESCROW_DEPOSIT
+  ESCROW_RELEASE
+  WITHDRAWAL_CREATED
+  WITHDRAWAL_CLAIMED
+  WITHDRAWAL_EXPIRED
+
+  // Listing
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_CANCELLED
+
+  // User
+  USER_PROFILE_UPDATED
+  USER_WALLET_LINKED
+
+  // Security
+  RATE_LIMIT_EXCEEDED
+  CRON_EXECUTION
+  API_ERROR
+}
+
+enum AuditSeverity {
+  INFO
+  WARN
+  ERROR
+  CRITICAL
 }

@@ -8,6 +8,11 @@ import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
 import { validateWalletSignatureMessage } from "@/lib/validation";
 import { AuthMethod } from "@/lib/prisma-enums";
+import { PrivyClient } from "@privy-io/server-auth";
+
+const privyClient = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+  ? new PrivyClient(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET)
+  : null;
 
 /**
  * Map auth method string to Prisma enum
@@ -38,24 +43,6 @@ if (!secret) {
   throw new Error("NEXTAUTH_SECRET must be set in environment variables");
 }
 
-// Session revocation - in-memory store (use Redis in production for multi-instance)
-// Maps sessionId -> userId for active sessions
-const activeSessions = new Map<string, { userId: string; createdAt: Date }>();
-
-// Revoked session IDs (blacklist)
-const revokedSessions = new Set<string>();
-
-// Clean up old sessions periodically (every hour)
-setInterval(() => {
-  const now = Date.now();
-  const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-  activeSessions.forEach((data, sessionId) => {
-    if (now - data.createdAt.getTime() > maxAge) {
-      activeSessions.delete(sessionId);
-    }
-  });
-}, 60 * 60 * 1000);
-
 /**
  * Generate a unique session ID
  */
@@ -64,42 +51,92 @@ function generateSessionId(): string {
 }
 
 /**
- * Revoke a specific session
+ * Revoke a specific session (database-backed for multi-instance/serverless support)
+ * Session revocations persist in the database to work across serverless function instances
  */
-export function revokeSession(sessionId: string): void {
-  revokedSessions.add(sessionId);
-  activeSessions.delete(sessionId);
+export async function revokeSession(sessionId: string, reason?: string): Promise<void> {
+  // Session revocations expire after 7 days (max JWT lifetime)
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.revokedSession.upsert({
+    where: { sessionId },
+    create: {
+      sessionId,
+      reason,
+      expiresAt,
+    },
+    update: {
+      reason,
+      revokedAt: new Date(),
+    },
+  });
 }
 
 /**
- * Revoke all sessions for a user
+ * Revoke all sessions for a user (database-backed)
+ * Creates revocation records for all active sessions belonging to the user
  */
-export function revokeAllUserSessions(userId: string): number {
-  let count = 0;
-  const sessionsToRevoke: string[] = [];
-
-  // Collect sessions to revoke (can't delete during forEach)
-  activeSessions.forEach((data, sessionId) => {
-    if (data.userId === userId) {
-      sessionsToRevoke.push(sessionId);
-    }
+export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
+  // Get all active JWT sessions for this user from the Session table
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    select: { sessionToken: true },
   });
 
-  // Now revoke them
-  sessionsToRevoke.forEach(sessionId => {
-    revokedSessions.add(sessionId);
-    activeSessions.delete(sessionId);
-    count++;
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  // Revoke each session
+  const revocations = sessions.map((session: { sessionToken: string }) =>
+    prisma.revokedSession.upsert({
+      where: { sessionId: session.sessionToken },
+      create: {
+        sessionId: session.sessionToken,
+        userId,
+        reason: reason || 'revoke_all_sessions',
+        expiresAt,
+      },
+      update: {
+        reason: reason || 'revoke_all_sessions',
+        revokedAt: new Date(),
+      },
+    })
+  );
+
+  await Promise.all(revocations);
+
+  // Also delete from Session table to prevent re-use
+  await prisma.session.deleteMany({
+    where: { userId },
   });
 
-  return count;
+  return sessions.length;
 }
 
 /**
- * Check if a session is valid (not revoked)
+ * Check if a session has been revoked (database-backed)
+ * NOTE: This only checks the revocation blacklist - it does NOT validate
+ * that a session ID was ever created. For JWT-based auth, session validity
+ * is determined by the JWT itself; this function only checks revocation.
  */
-export function isSessionValid(sessionId: string): boolean {
-  return !revokedSessions.has(sessionId);
+export async function isSessionNotRevoked(sessionId: string): Promise<boolean> {
+  const revoked = await prisma.revokedSession.findUnique({
+    where: { sessionId },
+    select: { id: true },
+  });
+  return !revoked;
+}
+
+/**
+ * Clean up expired revocation records (call from cron job or scheduled task)
+ * Should be run periodically to prevent the revocation table from growing indefinitely
+ */
+export async function cleanupExpiredRevocations(): Promise<number> {
+  const result = await prisma.revokedSession.deleteMany({
+    where: {
+      expiresAt: { lt: new Date() },
+    },
+  });
+  return result.count;
 }
 
 // Helper function to get token from request with proper secret
@@ -114,8 +151,8 @@ export async function getAuthToken(req: NextRequest) {
     cookieName,
   });
 
-  // SECURITY: Check if session has been revoked
-  if (token?.sessionId && !isSessionValid(token.sessionId as string)) {
+  // SECURITY: Check if session has been revoked (database lookup)
+  if (token?.sessionId && !(await isSessionNotRevoked(token.sessionId as string))) {
     return null;
   }
 
@@ -165,11 +202,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Generate session ID for revocation support
+        // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
-        activeSessions.set(sessionId, {
-          userId: result.user.id,
-          createdAt: new Date(),
-        });
 
         return {
           id: result.user.id,
@@ -187,6 +221,7 @@ export const authOptions: NextAuthOptions = {
       name: "Privy",
       credentials: {
         privyUserId: { label: "Privy User ID", type: "text" },
+        privyToken: { label: "Privy Token", type: "text" },
         walletAddress: { label: "Wallet Address", type: "text" },
         email: { label: "Email", type: "text" },
         twitterUsername: { label: "Twitter Username", type: "text" },
@@ -196,6 +231,28 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.privyUserId) {
           throw new Error("Missing Privy user ID");
+        }
+
+        // SECURITY: Verify the Privy auth token server-side
+        if (!privyClient) {
+          throw new Error("Privy is not configured on the server");
+        }
+
+        // The client should send the Privy auth token for verification
+        const privyToken = credentials.privyToken;
+        if (!privyToken) {
+          throw new Error("Missing Privy authentication token");
+        }
+
+        try {
+          const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
+          // Ensure the verified Privy user ID matches the claimed one
+          if (verifiedClaims.userId !== credentials.privyUserId) {
+            throw new Error("Privy user ID mismatch");
+          }
+        } catch (verifyError: any) {
+          console.error("[Privy Auth] Token verification failed:", verifyError.message);
+          throw new Error("Invalid Privy authentication token");
         }
 
         // Find or create user by Privy ID
@@ -294,20 +351,40 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          console.log("[Privy Auth] Created new user:", user.id);
+          console.log("[Privy Auth] Created new user");
         } else {
           // Update user with latest info from Privy
           const updateData: any = {};
 
+          // SECURITY: Check uniqueness before linking wallet/email/twitter
+          // Prevents one Privy account from claiming another user's identity
           if (credentials.walletAddress && !user.walletAddress) {
-            updateData.walletAddress = credentials.walletAddress;
+            const existing = await prisma.user.findUnique({
+              where: { walletAddress: credentials.walletAddress },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.walletAddress = credentials.walletAddress;
+            }
           }
           if (credentials.email && !user.email) {
-            updateData.email = credentials.email;
+            const existing = await prisma.user.findUnique({
+              where: { email: credentials.email },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.email = credentials.email;
+            }
           }
           if (credentials.twitterUsername && !user.twitterUsername) {
-            updateData.twitterUsername = credentials.twitterUsername;
-            updateData.twitterVerified = true;
+            const existing = await prisma.user.findFirst({
+              where: { twitterUsername: credentials.twitterUsername },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.twitterUsername = credentials.twitterUsername;
+              updateData.twitterVerified = true;
+            }
           }
 
           if (Object.keys(updateData).length > 0) {
@@ -319,11 +396,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Generate session ID for revocation support
+        // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
-        activeSessions.set(sessionId, {
-          userId: user.id,
-          createdAt: new Date(),
-        });
 
         return {
           id: user.id,
@@ -373,13 +447,18 @@ export const authOptions: NextAuthOptions = {
         token.isAdmin = dbUser?.isAdmin ?? false;
       }
 
-      // Refresh isAdmin status periodically (on update trigger or when not set)
-      if (trigger === "update" || (token.id && token.isAdmin === undefined)) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { isAdmin: true },
-        });
-        token.isAdmin = dbUser?.isAdmin ?? false;
+      // Re-check isAdmin from database on every JWT refresh
+      // Prevents stale admin status if role is revoked between token refreshes
+      if (token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { isAdmin: true },
+          });
+          token.isAdmin = dbUser?.isAdmin || false;
+        } catch {
+          token.isAdmin = false;
+        }
       }
 
       return token;
@@ -430,10 +509,8 @@ export const authOptions: NextAuthOptions = {
 
                 if (primarySolanaWallet) {
                   walletAddress = primarySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using primary Solana wallet instead of ETH:", walletAddress);
                 } else if (anySolanaWallet) {
                   walletAddress = anySolanaWallet.walletAddress;
-                  console.log("[Auth Session] Using Solana wallet instead of ETH:", walletAddress);
                 }
               }
 

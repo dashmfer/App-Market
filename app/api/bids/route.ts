@@ -4,6 +4,8 @@ import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { audit, auditContext } from "@/lib/audit";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
@@ -60,6 +62,15 @@ export async function POST(request: NextRequest) {
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'bids'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
@@ -140,7 +151,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // No bids yet - bid must be at least the starting price
-      if (amount < listing.startingPrice) {
+      if (amount < Number(listing.startingPrice)) {
         return NextResponse.json(
           { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}` },
           { status: 400 }
@@ -193,6 +204,17 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+    });
+
+    await audit({
+      action: "ESCROW_DEPOSIT",
+      severity: "INFO",
+      userId,
+      targetId: bid.id,
+      targetType: "Bid",
+      detail: `Bid placed: ${amount} ${listing.currency} on listing ${listingId}`,
+      metadata: { listingId, amount, currency: listing.currency },
+      ...auditContext(request.headers),
     });
 
     // Notify seller

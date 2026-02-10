@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
+import { audit } from "@/lib/audit";
 
 interface ChecklistItem {
   id: string;
@@ -25,8 +25,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -56,7 +56,7 @@ export async function POST(
     }
 
     // Only buyer can complete the transfer
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the buyer can complete the transfer" },
         { status: 403 }
@@ -137,7 +137,7 @@ export async function POST(
       where: { id: transaction.sellerId },
       data: {
         totalSales: { increment: 1 },
-        totalVolume: { increment: transaction.salePrice },
+        totalVolume: { increment: Number(transaction.salePrice) },
       },
     });
 
@@ -153,7 +153,7 @@ export async function POST(
     try {
       const referralResult = await processReferralEarnings(
         transaction.id,
-        transaction.salePrice,
+        Number(transaction.salePrice),
         transaction.buyerId,
         transaction.sellerId
       );
@@ -165,22 +165,23 @@ export async function POST(
 
     // Calculate payment distribution for collaborators
     const collaborators = transaction.listing.collaborators || [];
-    const sellerProceeds = transaction.sellerProceeds;
+    const sellerProceeds = Number(transaction.sellerProceeds);
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
     let collaboratorTotalPercentage = 0;
 
     for (const collab of collaborators) {
-      const collaboratorAmount = (sellerProceeds * collab.percentage) / 100;
-      collaboratorTotalPercentage += collab.percentage;
+      const collabPct = Number(collab.percentage);
+      const collaboratorAmount = (sellerProceeds * collabPct) / 100;
+      collaboratorTotalPercentage += collabPct;
 
       collaboratorPayments.push({
         collaboratorId: collab.id,
         walletAddress: collab.walletAddress,
         userId: collab.userId,
         role: collab.role,
-        percentage: collab.percentage,
+        percentage: collabPct,
         amount: collaboratorAmount,
       });
     }
@@ -229,10 +230,10 @@ export async function POST(
         title: "Payment Released!",
         message: collaborators.length > 0
           ? `Congratulations! The transfer is complete. Your share (${sellerPercentage}%) of ${sellerFinalAmount.toFixed(2)} ${transaction.currency} has been released.`
-          : `Congratulations! The buyer has completed the transfer. ${transaction.sellerProceeds} ${transaction.currency} has been released to your wallet.`,
+          : `Congratulations! The buyer has completed the transfer. ${Number(transaction.sellerProceeds)} ${transaction.currency} has been released to your wallet.`,
         data: {
           transactionId: transaction.id,
-          amount: collaborators.length > 0 ? sellerFinalAmount : transaction.sellerProceeds,
+          amount: collaborators.length > 0 ? sellerFinalAmount : Number(transaction.sellerProceeds),
           percentage: sellerPercentage,
           currency: transaction.currency,
           hasCollaborators: collaborators.length > 0,
@@ -248,7 +249,7 @@ export async function POST(
             userId: payment.userId,
             type: "PAYMENT_RECEIVED",
             title: "Payment Released!",
-            message: `Your share (${payment.percentage}%) of the sale of "${transaction.listing.title}" has been released: ${payment.amount.toFixed(2)} ${transaction.currency}`,
+            message: `Your share (${payment.percentage}%) of the sale of "${transaction.listing.title}" has been released: ${Number(payment.amount).toFixed(2)} ${transaction.currency}`,
             data: {
               transactionId: transaction.id,
               listingId: transaction.listingId,
@@ -282,6 +283,16 @@ export async function POST(
           listingId: transaction.listingId,
         },
       },
+    });
+
+    await audit({
+      action: "TRANSACTION_COMPLETED",
+      severity: "INFO",
+      userId: token.id as string,
+      targetId: transaction.id,
+      targetType: "Transaction",
+      detail: `Transfer completed: ${Number(transaction.salePrice)} ${transaction.currency}`,
+      metadata: { listingId: transaction.listingId, salePrice: Number(transaction.salePrice) },
     });
 
     return NextResponse.json({

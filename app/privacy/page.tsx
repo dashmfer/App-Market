@@ -32,7 +32,7 @@ export default function PrivacyPage() {
                     <li>GitHub username and profile information</li>
                     <li>Wallet addresses (Solana, etc.)</li>
                     <li>Profile picture</li>
-                    <li>Payment information (processed by Stripe)</li>
+                    <li>Payment information (processed on-chain via Solana)</li>
                   </ul>
                 </div>
                 <div>
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                 <div>
                   <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Service Providers</h3>
                   <ul className="list-disc list-inside space-y-2 ml-4">
-                    <li>Payment processors (Stripe)</li>
+                    <li>Blockchain networks (Solana)</li>
                     <li>Cloud hosting providers (Vercel, AWS)</li>
                     <li>Analytics services (Google Analytics)</li>
                     <li>Email service providers</li>
@@ -174,7 +174,7 @@ export default function PrivacyPage() {
                 <p>We integrate with third-party services:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>GitHub (authentication and code access)</li>
-                  <li>Stripe (payment processing)</li>
+                  <li>Solana (on-chain payments and escrow)</li>
                   <li>Solana blockchain (transactions)</li>
                   <li>Vercel Blob (file storage)</li>
                 </ul>

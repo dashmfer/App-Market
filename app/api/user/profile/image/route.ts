@@ -46,8 +46,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Delete old profile picture if it exists
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true },
+    });
+    if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
+      try {
+        const { del } = await import("@vercel/blob");
+        await del(currentUser.image);
+      } catch (e) {
+        console.error("[Profile Image] Failed to delete old image:", e);
+        // Continue with upload even if delete fails
+      }
+    }
+
     // Upload to Vercel Blob
-    const blob = await put(`profile-pictures/${session.user.id}/${file.name}`, file, {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${ext}`, file, {
       access: "public",
     });
 

@@ -3,6 +3,22 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Octokit } from '@octokit/rest';
+import { PublicKey, Keypair, Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
+import { verifyUploads } from '@/lib/solana-contract';
+import { getConnection } from '@/lib/solana';
+import { z } from "zod";
+
+const uploadSchema = z.object({
+  type: z.string().min(1),
+  url: z.string().url().optional().nullable(),
+  fileKey: z.string().optional().nullable(),
+  fileName: z.string().max(500).optional().nullable(),
+  fileSize: z.number().int().positive().max(100_000_000).optional().nullable(),
+  metadata: z.record(z.unknown()).optional().nullable(),
+});
+
+const uploadsArraySchema = z.array(uploadSchema).min(1).max(20);
 
 // Types for upload validation
 interface UploadData {
@@ -38,7 +54,15 @@ export async function POST(
     }
 
     const transactionId = params.id;
-    const uploads: UploadData[] = await req.json();
+    const body = await req.json();
+    const parseResult = uploadsArraySchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid upload data", details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
+    const uploads: UploadData[] = parseResult.data as UploadData[];
 
     // 1. Get transaction and listing details
     const transaction = await prisma.transaction.findUnique({
@@ -107,8 +131,63 @@ export async function POST(
     const verificationHash = generateVerificationHash(uploads, validationResults);
 
     // 9. Call smart contract verify_uploads instruction
-    // TODO: Implement Solana transaction
-    // await verifyUploadsOnChain(transactionId, verificationHash);
+    // This marks the transaction as verified on-chain, enabling finalization
+    const listing = await prisma.listing.findUnique({
+      where: { id: transaction.listingId },
+      select: { onChainId: true },
+    });
+
+    if (listing?.onChainId) {
+      try {
+        // Backend authority keypair from environment
+        const backendSecretKey = process.env.BACKEND_AUTHORITY_SECRET_KEY;
+        if (!backendSecretKey) {
+          console.error('BACKEND_AUTHORITY_SECRET_KEY not configured');
+          // Continue without on-chain verification - will need manual verification
+        } else {
+          const keypairBytes = JSON.parse(backendSecretKey);
+          const backendKeypair = Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
+          const connection = getConnection();
+
+          const wallet: Wallet = {
+            publicKey: backendKeypair.publicKey,
+            payer: backendKeypair,
+            signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T): Promise<T> => {
+              if (tx instanceof VersionedTransaction) {
+                tx.sign([backendKeypair]);
+              } else {
+                (tx as Transaction).partialSign(backendKeypair);
+              }
+              return tx;
+            },
+            signAllTransactions: async <T extends Transaction | VersionedTransaction>(txs: T[]): Promise<T[]> => {
+              txs.forEach(tx => {
+                if (tx instanceof VersionedTransaction) {
+                  tx.sign([backendKeypair]);
+                } else {
+                  (tx as Transaction).partialSign(backendKeypair);
+                }
+              });
+              return txs;
+            },
+          };
+
+          const provider = new AnchorProvider(connection, wallet, {
+            commitment: 'confirmed',
+          });
+
+          await verifyUploads({
+            provider,
+            listing: new PublicKey(listing.onChainId),
+            verificationHash,
+          });
+        }
+      } catch (onChainError) {
+        console.error('On-chain verification failed:', onChainError);
+        // Don't fail the request - uploads are stored, just not verified on-chain
+        // Admin can manually verify later or buyer can use emergency verification after 30 days
+      }
+    }
 
     // 10. Update transaction in database
     await prisma.transaction.update({
@@ -131,7 +210,6 @@ export async function POST(
     console.error('Upload verification error:', error);
     return NextResponse.json({
       error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
@@ -414,6 +492,6 @@ function generateVerificationHash(
     timestamp: Date.now(),
   };
 
-  // Simple hash (in production, use crypto.createHash)
-  return Buffer.from(JSON.stringify(data)).toString('base64').slice(0, 64);
+  const { createHash } = require('crypto');
+  return createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
