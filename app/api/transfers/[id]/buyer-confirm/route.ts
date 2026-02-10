@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 
 interface PartnerConfirmation {
   partnerId: string;
@@ -28,8 +27,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -58,8 +57,8 @@ export async function POST(
     }
 
     // Check if user is buyer or a purchase partner
-    const isMainBuyer = transaction.buyerId === session.user.id;
-    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
+    const isMainBuyer = transaction.buyerId === token.id as string;
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === token.id as string);
     const isPartner = !!userPartner;
 
     if (!isMainBuyer && !isPartner) {

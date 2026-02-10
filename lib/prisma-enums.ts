@@ -12,10 +12,10 @@ export type ListingStatus =
   | "PENDING_REVIEW"
   | "ACTIVE"
   | "RESERVED"
+  | "ENDED"
   | "SOLD"
-  | "EXPIRED"
-  | "UNLISTED"
-  | "REJECTED";
+  | "CANCELLED"
+  | "EXPIRED";
 
 export const ListingStatus = {
   DRAFT: "DRAFT" as const,
@@ -23,10 +23,10 @@ export const ListingStatus = {
   PENDING_REVIEW: "PENDING_REVIEW" as const,
   ACTIVE: "ACTIVE" as const,
   RESERVED: "RESERVED" as const,
+  ENDED: "ENDED" as const,
   SOLD: "SOLD" as const,
+  CANCELLED: "CANCELLED" as const,
   EXPIRED: "EXPIRED" as const,
-  UNLISTED: "UNLISTED" as const,
-  REJECTED: "REJECTED" as const,
 };
 
 export type CollaboratorRole = "PARTNER" | "COLLABORATOR";

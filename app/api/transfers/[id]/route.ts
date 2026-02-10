@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 
 // Default checklist structure
 const DEFAULT_CHECKLIST = [
@@ -84,8 +83,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -149,11 +148,11 @@ export async function GET(
     }
 
     // Check if user is a purchase partner
-    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === token.id as string);
     const isPartner = !!userPartner;
 
     // Only buyer, seller, or partners can view
-    if (transaction.buyerId !== session.user.id && transaction.sellerId !== session.user.id && !isPartner) {
+    if (transaction.buyerId !== token.id as string && transaction.sellerId !== token.id as string && !isPartner) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -221,8 +220,8 @@ export async function GET(
       createdAt: transaction.createdAt,
       transferDeadline,
       checklist,
-      isSeller: transaction.sellerId === session.user.id,
-      isBuyer: transaction.buyerId === session.user.id || isPartner,
+      isSeller: transaction.sellerId === token.id as string,
+      isBuyer: transaction.buyerId === token.id as string || isPartner,
       isPartner,
       // Partner information for majority vote UI
       hasPartners: transaction.hasPartners,

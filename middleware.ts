@@ -39,7 +39,6 @@ const PROTECTED_API_ROUTES = [
   "/api/user",
   "/api/uploads",
   "/api/purchases",
-  "/api/payments",
   "/api/transfers",
   "/api/withdrawals",
   "/api/referrals",

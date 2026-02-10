@@ -130,7 +130,7 @@ export async function POST(
           platformFee,
           sellerProceeds,
           currency: offer.listing.currency,
-          paymentMethod: 'SOLANA',
+          paymentMethod: offer.listing.currency === "USDC" ? "USDC" : offer.listing.currency === "APP" ? "APP" : "SOL",
           status: 'IN_ESCROW',
         },
       });

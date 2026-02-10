@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
         platformFee,
         sellerProceeds,
         currency: listing.currency,
-        paymentMethod: paymentMethod === "USDC" ? "USDC" : "SOLANA",
+        paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
         onChainTx,
         status: onChainTx ? "IN_ESCROW" : "PENDING",
         transferChecklist,

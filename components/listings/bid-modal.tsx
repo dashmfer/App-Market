@@ -120,9 +120,14 @@ export function BidModal({
         // Get or create escrow address
         // For now, we'll use a platform escrow wallet
         // In production, this should be a PDA from the smart contract
-        const escrowPubkey = listing.escrowAddress
-          ? new PublicKey(listing.escrowAddress)
-          : TREASURY_WALLET;
+        let escrowPubkey = TREASURY_WALLET;
+        if (listing.escrowAddress) {
+          try {
+            escrowPubkey = new PublicKey(listing.escrowAddress);
+          } catch {
+            throw new Error("Invalid escrow address on listing");
+          }
+        }
 
         // Create transfer transaction
         const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);

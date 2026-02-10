@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
 import { audit } from "@/lib/audit";
 
@@ -26,8 +25,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -57,7 +56,7 @@ export async function POST(
     }
 
     // Only buyer can complete the transfer
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the buyer can complete the transfer" },
         { status: 403 }
@@ -289,7 +288,7 @@ export async function POST(
     await audit({
       action: "TRANSACTION_COMPLETED",
       severity: "INFO",
-      userId: session.user.id,
+      userId: token.id as string,
       targetId: transaction.id,
       targetType: "Transaction",
       detail: `Transfer completed: ${Number(transaction.salePrice)} ${transaction.currency}`,
