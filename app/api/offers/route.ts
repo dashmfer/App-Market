@@ -86,8 +86,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SECURITY: Offers are currently database-only (no on-chain escrow).
+    // To prevent spam offers that lock seller listings, enforce strict limits:
+    // - Max 3 active offers per buyer per listing
+    // - Max 10 total active offers per buyer across all listings
+    const activeOffersOnListing = await prisma.offer.count({
+      where: {
+        buyerId: session.user.id,
+        listingId: validatedData.listingId,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (activeOffersOnListing >= 3) {
+      return NextResponse.json(
+        { error: 'You already have the maximum of 3 active offers on this listing. Cancel an existing offer first.' },
+        { status: 429 }
+      );
+    }
+
+    const totalActiveOffers = await prisma.offer.count({
+      where: {
+        buyerId: session.user.id,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (totalActiveOffers >= 10) {
+      return NextResponse.json(
+        { error: 'You have reached the maximum of 10 active offers. Cancel an existing offer first.' },
+        { status: 429 }
+      );
+    }
+
     // TODO: Call Solana contract place_offer instruction to create on-chain escrow.
-    // Without this, offers are database-only and not backed by locked funds.
+    // Without on-chain escrow, offers are not backed by locked funds.
     // Requires: Complete IDL, offer escrow PDA creation, buyer signature.
 
     // Create offer in database

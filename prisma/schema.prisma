@@ -976,6 +976,7 @@ enum TransactionStatus {
   TRANSFER_IN_PROGRESS
   AWAITING_CONFIRMATION
   DISPUTED
+  PENDING_RELEASE            // Transfer deadline passed, awaiting on-chain escrow release
   COMPLETED
   REFUNDED
   CANCELLED

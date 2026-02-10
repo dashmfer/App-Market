@@ -61,33 +61,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify on-chain transaction if provided (outside DB transaction to avoid holding lock)
-    if (onChainTx) {
-      try {
-        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
-        const connection = new Connection(rpcUrl, "confirmed");
-        const txInfo = await connection.getTransaction(onChainTx, {
-          maxSupportedTransactionVersion: 0,
-          commitment: "confirmed",
-        });
+    // SECURITY: On-chain transaction verification is mandatory for purchases.
+    // A purchase without a verified on-chain payment must not proceed.
+    if (!onChainTx) {
+      return NextResponse.json(
+        { error: "On-chain transaction signature is required" },
+        { status: 400 }
+      );
+    }
 
-        if (!txInfo) {
-          return NextResponse.json(
-            { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
-            { status: 400 }
-          );
-        }
+    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpcUrl) {
+      console.error("NEXT_PUBLIC_SOLANA_RPC_URL is not configured");
+      return NextResponse.json(
+        { error: "Server configuration error. Please try again later." },
+        { status: 500 }
+      );
+    }
 
-        if (txInfo.meta?.err) {
-          return NextResponse.json(
-            { error: "On-chain transaction failed" },
-            { status: 400 }
-          );
-        }
-      } catch (verifyErr) {
-        console.error("Error verifying on-chain tx:", verifyErr);
-        // Don't block purchase if RPC is temporarily unavailable
+    try {
+      const connection = new Connection(rpcUrl, "confirmed");
+      const txInfo = await connection.getTransaction(onChainTx, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
+
+      if (!txInfo) {
+        return NextResponse.json(
+          { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
+          { status: 400 }
+        );
       }
+
+      if (txInfo.meta?.err) {
+        return NextResponse.json(
+          { error: "On-chain transaction failed" },
+          { status: 400 }
+        );
+      }
+    } catch (verifyErr) {
+      console.error("Error verifying on-chain tx:", verifyErr);
+      // SECURITY: Do NOT proceed without successful verification.
+      // If RPC is unavailable, the user must retry.
+      return NextResponse.json(
+        { error: "Unable to verify on-chain transaction. Please try again." },
+        { status: 503 }
+      );
     }
 
     // SECURITY: Use serializable transaction to prevent double-purchase race condition

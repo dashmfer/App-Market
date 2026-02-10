@@ -116,60 +116,40 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of eligibleTransactions) {
       try {
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
-
-        // Update transaction to COMPLETED
+        // SECURITY: Do NOT mark as COMPLETED without on-chain escrow release.
+        // On-chain release requires the backend authority keypair and the
+        // confirm_receipt / finalize_transaction smart contract instruction.
+        // Until on-chain release is implemented, mark as PENDING_RELEASE
+        // so the state accurately reflects that funds are still in escrow.
         await withRetry(() => prisma.transaction.update({
           where: { id: transaction.id },
           data: {
-            status: "COMPLETED",
-            transferCompletedAt: now,
-            releasedAt: now,
+            status: "PENDING_RELEASE",
           },
         }), `Update transaction ${transaction.id}`);
 
-        // Update seller stats
-        await withRetry(() => prisma.user.update({
-          where: { id: transaction.sellerId },
-          data: {
-            totalSales: { increment: 1 },
-            totalVolume: { increment: Number(transaction.salePrice) },
-          },
-        }), `Update seller stats ${transaction.sellerId}`);
-
-        // Update buyer stats
-        await withRetry(() => prisma.user.update({
-          where: { id: transaction.buyerId },
-          data: {
-            totalPurchases: { increment: 1 },
-          },
-        }), `Update buyer stats ${transaction.buyerId}`);
-
-        // Notify seller of auto-release
+        // Notify admin/ops that manual intervention is needed
         await withRetry(() => prisma.notification.create({
           data: {
-            type: "PAYMENT_RECEIVED",
-            title: "Funds Auto-Released",
-            message: `Funds for "${transaction.listing.title}" have been automatically released after the confirmation period expired.`,
+            type: "SYSTEM",
+            title: "Escrow Release Required",
+            message: `Transaction for "${transaction.listing.title}" has passed its transfer deadline and requires on-chain escrow release. Transaction ID: ${transaction.id}`,
             data: {
               transactionId: transaction.id,
               autoRelease: true,
+              requiresOnChainRelease: true,
               amount: Number(transaction.sellerProceeds),
             },
             userId: transaction.sellerId,
           },
         }), `Notify seller ${transaction.sellerId}`);
 
-        // Notify buyer that transfer is complete
+        // Notify buyer that the deadline has passed
         await withRetry(() => prisma.notification.create({
           data: {
-            type: "TRANSFER_COMPLETED",
-            title: "Transfer Confirmed (Auto)",
-            message: `The transfer for "${transaction.listing.title}" has been automatically confirmed. Funds have been released to the seller.`,
+            type: "SYSTEM",
+            title: "Transfer Deadline Passed",
+            message: `The transfer deadline for "${transaction.listing.title}" has passed. Escrow release is being processed.`,
             data: {
               transactionId: transaction.id,
               autoRelease: true,
@@ -179,10 +159,10 @@ export async function GET(request: NextRequest) {
         }), `Notify buyer ${transaction.buyerId}`);
 
         results.released++;
-        console.log(`[Cron] Auto-released transaction ${transaction.id}`);
+        console.log(`[Cron] Flagged transaction ${transaction.id} for on-chain escrow release (PENDING_RELEASE)`);
       } catch (error) {
         results.failed++;
-        const errorMsg = `Failed to release transaction ${transaction.id}: ${error}`;
+        const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
         console.error(`[Cron] ${errorMsg}`);
       }

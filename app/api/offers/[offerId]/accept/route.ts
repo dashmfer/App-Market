@@ -121,6 +121,9 @@ export async function POST(
         data: { status: 'ACCEPTED', acceptedAt: new Date() },
       });
 
+      // SECURITY: Since offers are not backed by on-chain escrow, the
+      // transaction starts as PENDING (awaiting buyer payment), not IN_ESCROW.
+      // The buyer must complete the on-chain payment before escrow is confirmed.
       const transaction = await tx.transaction.create({
         data: {
           listingId: offer.listingId,
@@ -131,7 +134,7 @@ export async function POST(
           sellerProceeds,
           currency: offer.listing.currency,
           paymentMethod: offer.listing.currency === "USDC" ? "USDC" : offer.listing.currency === "APP" ? "APP" : "SOL",
-          status: 'IN_ESCROW',
+          status: 'PENDING',
         },
       });
 
@@ -163,7 +166,7 @@ export async function POST(
         userId: offer.buyerId,
         type: 'OFFER_ACCEPTED',
         title: 'Offer Accepted!',
-        message: `Your offer on "${offer.listing.title}" was accepted! The listing is now reserved for you.`,
+        message: `Your offer on "${offer.listing.title}" was accepted! Please complete payment to finalize the purchase.`,
         data: {
           offerId: offer.id,
           listingId: offer.listingId,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
@@ -106,6 +107,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { listingId, paymentMethod, onChainTx } = body;
 
+    // SECURITY: Require on-chain transaction proof before creating a transaction record.
+    if (!onChainTx || typeof onChainTx !== 'string' || onChainTx.trim().length === 0) {
+      return NextResponse.json(
+        { error: "On-chain transaction signature is required" },
+        { status: 400 }
+      );
+    }
+
     // Get listing
     const listing = await prisma.listing.findUnique({
       where: { id: listingId },
@@ -155,6 +164,43 @@ export async function POST(request: NextRequest) {
       }
       
       salePrice = Number(winningBid.amount);
+    }
+
+    // SECURITY: Verify the on-chain transaction before creating any DB records.
+    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpcUrl) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    try {
+      const connection = new Connection(rpcUrl, "confirmed");
+      const txInfo = await connection.getTransaction(onChainTx, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
+
+      if (!txInfo) {
+        return NextResponse.json(
+          { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
+          { status: 400 }
+        );
+      }
+
+      if (txInfo.meta?.err) {
+        return NextResponse.json(
+          { error: "On-chain transaction failed" },
+          { status: 400 }
+        );
+      }
+    } catch (verifyErr) {
+      console.error("Error verifying on-chain tx:", verifyErr);
+      return NextResponse.json(
+        { error: "Unable to verify on-chain transaction. Please try again." },
+        { status: 503 }
+      );
     }
 
     // Calculate fees (3% for APP token, 5% for others)
@@ -264,7 +310,7 @@ export async function POST(request: NextRequest) {
         currency: listing.currency,
         paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
         onChainTx,
-        status: onChainTx ? "IN_ESCROW" : "PENDING",
+        status: "IN_ESCROW", // Always IN_ESCROW since onChainTx is now required and verified
         transferChecklist,
         buyerInfoDeadline,
         buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",

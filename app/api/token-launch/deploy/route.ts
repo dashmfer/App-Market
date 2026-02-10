@@ -144,7 +144,16 @@ export async function POST(request: NextRequest) {
       console.error("[PATO Deploy] Failed to register pool watcher:", err)
     );
 
-    // Serialize transactions for client to sign
+    // SECURITY: Sign transactions server-side with the mint keypair.
+    // Never send private keys to the client.
+    if (result.createPoolTx) {
+      result.createPoolTx.partialSign(decryptedKeypair);
+    }
+    if (result.swapBuyTx) {
+      result.swapBuyTx.partialSign(decryptedKeypair);
+    }
+
+    // Serialize the partially-signed transactions for the client to co-sign
     const transactions = [];
 
     if (result.createPoolTx) {
@@ -171,9 +180,8 @@ export async function POST(request: NextRequest) {
       poolAddress: result.poolAddress.toBase58(),
       mintAddress: result.mintAddress.toBase58(),
       transactions,
-      // Include the vanity keypair bytes for the client to co-sign
-      // (the mint keypair must sign the pool creation tx)
-      mintKeypairBytes: Array.from(decryptedKeypair.secretKey),
+      // NOTE: mintKeypairBytes intentionally NOT included.
+      // The mint keypair signs server-side via partialSign above.
     });
   } catch (error: any) {
     console.error("[PATO Deploy] Error building deploy transaction:", error);
