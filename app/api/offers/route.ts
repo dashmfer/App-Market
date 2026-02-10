@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 const createOfferSchema = z.object({
@@ -17,6 +18,12 @@ const createOfferSchema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'offers'))(req);
     if (!rateLimitResult.success) {

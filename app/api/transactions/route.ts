@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/transactions - Get user's transactions
 export async function GET(request: NextRequest) {
@@ -84,6 +85,12 @@ export async function GET(request: NextRequest) {
 // POST /api/transactions - Create a transaction (Buy Now or Auction Win)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(request);
 

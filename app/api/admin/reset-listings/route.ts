@@ -8,36 +8,49 @@ import { audit, auditContext } from "@/lib/audit";
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
+/**
+ * Validate admin secret from Authorization header
+ * Expected format: "Bearer <admin_secret>"
+ */
+function validateAdminSecret(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !ADMIN_SECRET) {
+    return false;
+  }
+
+  // Support both "Bearer <secret>" and raw "<secret>" formats
+  const secret = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : authHeader;
+
+  // SECURITY: Use constant-time comparison to prevent timing attacks
+  if (secret.length !== ADMIN_SECRET.length) {
+    return false;
+  }
+
+  try {
+    return timingSafeEqual(
+      Buffer.from(secret),
+      Buffer.from(ADMIN_SECRET)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // DELETE /api/admin/reset-listings
-// Delete all listings: DELETE /api/admin/reset-listings?all=true (with X-Admin-Secret header)
-// Delete specific listing: DELETE /api/admin/reset-listings?id=LISTING_ID (with X-Admin-Secret header)
+// Delete all listings: DELETE /api/admin/reset-listings?all=true (with Authorization: Bearer <secret>)
+// Delete specific listing: DELETE /api/admin/reset-listings?id=LISTING_ID (with Authorization: Bearer <secret>)
 export async function DELETE(request: NextRequest) {
   try {
+    // SECURITY: Validate admin secret from Authorization header (not query params)
+    if (!validateAdminSecret(request)) {
+      return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
-    // SECURITY: Read admin secret from header instead of query string
-    // This prevents the secret from being logged in server access logs
-    const secret = request.headers.get("X-Admin-Secret");
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
-
-    // SECURITY: Use constant-time comparison to prevent timing attacks
-    if (!ADMIN_SECRET || !secret || secret.length !== ADMIN_SECRET.length) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    let isValidSecret = false;
-    try {
-      isValidSecret = timingSafeEqual(
-        Buffer.from(secret),
-        Buffer.from(ADMIN_SECRET)
-      );
-    } catch {
-      isValidSecret = false;
-    }
-
-    if (!isValidSecret) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     // Also require authentication AND admin role
     const session = await getServerSession(authOptions);

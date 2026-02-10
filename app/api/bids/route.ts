@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
 
@@ -57,6 +58,12 @@ export async function GET(request: NextRequest) {
 // POST /api/bids - Place a bid
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'bids'))(request);
     if (!rateLimitResult.success) {

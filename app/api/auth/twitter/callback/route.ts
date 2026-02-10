@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
 
     let oauthData: { codeVerifier: string; state: string; userId: string };
     try {
-      oauthData = JSON.parse(decrypt(oauthCookie.value));
+      // SECURITY: Decrypt OAuth data with AES-256-GCM
+      const decryptedData = decrypt(oauthCookie.value);
+      oauthData = JSON.parse(decryptedData);
     } catch {
       return NextResponse.redirect(
         `${SITE_URL}/dashboard/settings?twitter_error=invalid_session`

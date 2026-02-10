@@ -432,12 +432,19 @@ export const authOptions: NextAuthOptions = {
   },
   debug: process.env.NODE_ENV === 'development',
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       // When signing in, add user data to token
       if (user) {
         token.id = user.id;
         token.walletAddress = (user as any).walletAddress;
         token.sessionId = (user as any).sessionId; // For session revocation
+
+        // Fetch isAdmin status at sign-in
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { isAdmin: true },
+        });
+        token.isAdmin = dbUser?.isAdmin ?? false;
       }
 
       // Re-check isAdmin from database on every JWT refresh
@@ -453,6 +460,7 @@ export const authOptions: NextAuthOptions = {
           token.isAdmin = false;
         }
       }
+
       return token;
     },
     async session({ session, token }) {
@@ -473,6 +481,7 @@ export const authOptions: NextAuthOptions = {
                 isVerified: true,
                 githubUsername: true,
                 image: true,
+                isAdmin: true,
                 wallets: {
                   select: {
                     walletAddress: true,
@@ -512,6 +521,7 @@ export const authOptions: NextAuthOptions = {
               (session.user as any).walletAddress = walletAddress;
               (session.user as any).isVerified = user.isVerified;
               (session.user as any).githubUsername = user.githubUsername;
+              (session.user as any).isAdmin = user.isAdmin;
               session.user.image = user.image;
             }
           } catch (error) {
@@ -536,6 +546,7 @@ declare module "next-auth" {
       walletAddress?: string | null;
       isVerified?: boolean;
       githubUsername?: string | null;
+      isAdmin?: boolean;
     };
   }
 }
