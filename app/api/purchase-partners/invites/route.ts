@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 // GET - Get all pending purchase partner invites for the current user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get user's primary wallet and all linked wallets (multi-wallet support)
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: {
         walletAddress: true,
         wallets: {
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
     const invites = await prisma.transactionPartner.findMany({
       where: {
         OR: [
-          { userId: session.user.id },
+          { userId: token.id as string },
           ...walletConditions,
         ],
         depositStatus: "PENDING",

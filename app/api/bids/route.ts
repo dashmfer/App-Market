@@ -156,6 +156,21 @@ export async function POST(request: NextRequest) {
         previousBidderId = listing.bids[0].bidderId;
       }
 
+      // ANTI-SNIPE: Extend auction if bid placed in final minutes (inside transaction for atomicity)
+      const txNow = new Date();
+      const timeUntilEndMs = listing.endTime.getTime() - txNow.getTime();
+      const antiSnipeWindowMs = PLATFORM_CONFIG.auction.antiSnipeMinutes * 60 * 1000;
+      const antiSnipeExtensionMs = PLATFORM_CONFIG.auction.antiSnipeExtension * 60 * 1000;
+
+      let newEndTime = null;
+      if (timeUntilEndMs > 0 && timeUntilEndMs <= antiSnipeWindowMs) {
+        newEndTime = new Date(txNow.getTime() + antiSnipeExtensionMs);
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { endTime: newEndTime },
+        });
+      }
+
       // Create new bid
       const bid = await tx.bid.create({
         data: {
@@ -177,7 +192,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { bid, listing, previousBidderId } as const;
+      return { bid, listing, previousBidderId, newEndTime } as const;
     }, {
       isolationLevel: 'Serializable',
     });
@@ -227,23 +242,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // ANTI-SNIPE: Extend auction if bid placed in final minutes
-    const now = new Date();
-    const timeUntilEndMs = listing.endTime.getTime() - now.getTime();
-    const antiSnipeWindowMs = PLATFORM_CONFIG.auction.antiSnipeMinutes * 60 * 1000;
-    const antiSnipeExtensionMs = PLATFORM_CONFIG.auction.antiSnipeExtension * 60 * 1000;
-
-    let newEndTime = null;
-    if (timeUntilEndMs > 0 && timeUntilEndMs <= antiSnipeWindowMs) {
-      // Bid placed in anti-snipe window - extend the auction
-      newEndTime = new Date(now.getTime() + antiSnipeExtensionMs);
-
-      await prisma.listing.update({
-        where: { id: listingId },
-        data: { endTime: newEndTime },
-      });
-
-      // Notify all bidders about extension
+    // Notify all bidders about extension (outside transaction — non-critical)
+    if (newEndTime) {
       const allBidders = await prisma.bid.findMany({
         where: { listingId },
         select: { bidderId: true },
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
               data: { listingId, listingSlug: listing.slug, newEndTime: newEndTime!.toISOString() },
               userId: b.bidderId,
             },
-          })
+          }).catch(console.error)
         )
       );
     }

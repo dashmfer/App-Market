@@ -6,6 +6,13 @@ import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Email/password registration is disabled.
+    // Authentication is wallet-based (Solana wallet signature).
+    return NextResponse.json(
+      { error: "Registration is not available. Please sign in with your wallet." },
+      { status: 403 }
+    );
+
     // SECURITY: Rate limit registration attempts (uses Redis in production)
     const rateLimitResult = await (withRateLimitAsync('auth', 'register'))(request);
     if (!rateLimitResult.success) {

@@ -74,6 +74,10 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
       const escrowPubkey = TREASURY_WALLET;
       const lamports = Math.floor(totalPrice * LAMPORTS_PER_SOL);
 
+      // SECURITY TODO [H8]: This transfer sends SOL directly to the treasury wallet,
+      // bypassing the on-chain escrow PDA. Funds should be routed through the escrow
+      // PDA (getEscrowPDA) so that the smart contract governs fund release, dispute
+      // resolution, and refunds. Requires smart contract integration to fix.
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,
@@ -150,6 +154,10 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
       const escrowPubkey = TREASURY_WALLET;
       const lamports = Math.floor(myDepositAmount * LAMPORTS_PER_SOL);
 
+      // SECURITY TODO [H8]: This transfer sends SOL directly to the treasury wallet,
+      // bypassing the on-chain escrow PDA. Partner deposits should be routed through
+      // the escrow PDA (getEscrowPDA) so that the smart contract governs fund release,
+      // dispute resolution, and refunds. Requires smart contract integration to fix.
       const transaction = new Transaction().add(
         SystemProgram.transfer({
           fromPubkey: publicKey,

@@ -31,9 +31,17 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {};
 
-    // Only filter by status if provided (allows getting all statuses for seller's own listings)
+    // SECURITY: Whitelist allowed public statuses to prevent querying internal states
+    const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "COMPLETED", "EXPIRED", "ENDED", "SOLD"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upper = status.toUpperCase();
+      if (sellerId) {
+        // Sellers can see all their own listing statuses
+        where.status = upper;
+      } else if (PUBLIC_STATUSES.includes(upper)) {
+        where.status = upper;
+      }
+      // Invalid/internal statuses silently ignored for public queries
     } else if (!sellerId) {
       // Default to ACTIVE only for public listings
       where.status = "ACTIVE";
@@ -49,12 +57,21 @@ export async function GET(request: NextRequest) {
       where.sellerId = sellerId;
     }
 
+    // SECURITY: Whitelist allowed categories and blockchains
+    const ALLOWED_CATEGORIES = ["SAAS", "E_COMMERCE", "MOBILE_APP", "CHROME_EXTENSION", "AI_ML", "WEB_APP", "MARKETPLACE", "SOCIAL_MEDIA", "DEVELOPER_TOOL", "GAME", "DEFI", "NFT", "DAO", "NEWSLETTER", "BLOG", "DOMAIN", "OTHER"];
     if (category && category !== "all") {
-      where.categories = { has: category.toUpperCase().replace("-", "_") };
+      const upper = category.toUpperCase().replace("-", "_");
+      if (ALLOWED_CATEGORIES.includes(upper)) {
+        where.categories = { has: upper };
+      }
     }
 
+    const ALLOWED_BLOCKCHAINS = ["SOLANA", "ETHEREUM", "BASE", "POLYGON", "NONE"];
     if (blockchain && blockchain !== "all") {
-      where.blockchain = blockchain.toUpperCase();
+      const upper = blockchain.toUpperCase();
+      if (ALLOWED_BLOCKCHAINS.includes(upper)) {
+        where.blockchain = upper;
+      }
     }
 
     // SECURITY: Sanitize search query length
@@ -125,12 +142,19 @@ export async function GET(request: NextRequest) {
       where.OR = searchConditions;
     }
 
+    // SECURITY: Validate price filters are non-negative
     if (minPrice) {
-      where.startingPrice = { gte: parseFloat(minPrice) };
+      const min = parseFloat(minPrice);
+      if (!isNaN(min) && min >= 0) {
+        where.startingPrice = { gte: min };
+      }
     }
 
     if (maxPrice) {
-      where.startingPrice = { ...where.startingPrice, lte: parseFloat(maxPrice) };
+      const max = parseFloat(maxPrice);
+      if (!isNaN(max) && max >= 0) {
+        where.startingPrice = { ...where.startingPrice, lte: max };
+      }
     }
 
     if (featured === "true") {
@@ -422,7 +446,8 @@ export async function POST(request: NextRequest) {
       : baseSlug;
 
     // Calculate end time
-    const durationDays = parseInt(duration) || 7;
+    // SECURITY: Cap listing duration to 1-90 days
+    const durationDays = Math.min(Math.max(parseInt(duration) || 7, 1), 90);
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
     // Handle reservation if a buyer wallet is provided

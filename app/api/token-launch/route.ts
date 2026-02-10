@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
 import {
@@ -24,8 +23,8 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -57,6 +56,45 @@ export async function POST(request: NextRequest) {
         { error: "Token symbol must be between 2 and 10 characters" },
         { status: 400 }
       );
+    }
+
+    // SECURITY [M10]: Validate token launch input lengths and URL formats
+    if (typeof tokenName !== "string" || tokenName.length > 100) {
+      return NextResponse.json(
+        { error: "Token name must be a string of 100 characters or less" },
+        { status: 400 }
+      );
+    }
+    if (tokenDescription && (typeof tokenDescription !== "string" || tokenDescription.length > 2000)) {
+      return NextResponse.json(
+        { error: "Token description must be 2000 characters or less" },
+        { status: 400 }
+      );
+    }
+    const socialUrls: Record<string, string | undefined> = { website, twitter, telegram, discord };
+    for (const [field, url] of Object.entries(socialUrls)) {
+      if (url) {
+        if (typeof url !== "string" || url.length > 200) {
+          return NextResponse.json(
+            { error: `${field} URL must be 200 characters or less` },
+            { status: 400 }
+          );
+        }
+        try {
+          const parsed = new URL(url);
+          if (!["http:", "https:"].includes(parsed.protocol)) {
+            return NextResponse.json(
+              { error: `${field} must be an http or https URL` },
+              { status: 400 }
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: `${field} must be a valid URL` },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     // Verify the user owns this acquisition
@@ -232,8 +270,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -253,8 +291,12 @@ export async function GET(request: NextRequest) {
       where.listingId = listingId;
     }
 
+    // SECURITY: Whitelist allowed token launch statuses
+    const ALLOWED_LAUNCH_STATUSES = ["PENDING", "LAUNCHING", "LIVE", "GRADUATED", "FAILED"];
     if (status) {
-      where.status = status;
+      if (ALLOWED_LAUNCH_STATUSES.includes(status)) {
+        where.status = status;
+      }
     }
 
     // Only return launches the user is involved in (as buyer/creator)

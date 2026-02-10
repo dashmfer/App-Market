@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/transfers/[id]/fallback - Activate fallback transfer process
 export async function POST(
@@ -8,6 +9,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST - Transfer lead buyer status to another partner
 export async function POST(
@@ -10,6 +11,12 @@ export async function POST(
   { params }: { params: { id: string; partnerId: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

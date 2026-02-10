@@ -8,6 +8,7 @@ import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { verifyUploads } from '@/lib/solana-contract';
 import { getConnection } from '@/lib/solana';
 import { z } from "zod";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 const uploadSchema = z.object({
   type: z.string().min(1),
@@ -48,6 +49,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -145,7 +152,21 @@ export async function POST(
           console.error('BACKEND_AUTHORITY_SECRET_KEY not configured');
           // Continue without on-chain verification - will need manual verification
         } else {
-          const keypairBytes = JSON.parse(backendSecretKey);
+          // SECURITY: Validate keypair format before using it.
+          // If parsing fails, do NOT silently skip verification.
+          let keypairBytes: number[];
+          try {
+            keypairBytes = JSON.parse(backendSecretKey);
+            if (!Array.isArray(keypairBytes) || keypairBytes.length !== 64) {
+              throw new Error('Invalid keypair format: expected 64-byte array');
+            }
+          } catch (parseError) {
+            console.error('BACKEND_AUTHORITY_SECRET_KEY is malformed:', parseError);
+            return NextResponse.json(
+              { error: 'Server configuration error' },
+              { status: 500 }
+            );
+          }
           const backendKeypair = Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
           const connection = getConnection();
 

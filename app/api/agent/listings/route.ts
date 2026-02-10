@@ -42,8 +42,13 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {};
 
+    // SECURITY: Whitelist allowed statuses
+    const ALLOWED_STATUSES = ["ACTIVE", "RESERVED", "COMPLETED", "EXPIRED", "ENDED", "SOLD"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upper = status.toUpperCase();
+      if (ALLOWED_STATUSES.includes(upper)) {
+        where.status = upper;
+      }
     } else if (!sellerId) {
       where.status = "ACTIVE";
     }

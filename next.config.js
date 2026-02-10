@@ -61,7 +61,7 @@ const nextConfig = {
           {
             // Enforce HTTPS
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            value: 'max-age=31536000; includeSubDomains; preload',
           },
           {
             // Prevent loading in Adobe products

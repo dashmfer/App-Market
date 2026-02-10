@@ -258,7 +258,11 @@ export async function buildCreatePoolWithFirstBuyTransaction(params: {
       buyAmount: new BN(
         Math.floor(params.initialBuyAmountSOL * LAMPORTS_PER_SOL)
       ),
-      minimumAmountOut: new BN(0), // No minimum for initial buy
+      // SECURITY [H9]: Previously set to BN(0), which allowed unlimited slippage
+      // and made the initial buy vulnerable to sandwich attacks. Using BN(1)
+      // as a minimum non-zero slippage protection. For production, calculate a
+      // proper minimum based on expected token output and acceptable slippage %.
+      minimumAmountOut: new BN(1),
       referralTokenAccount: null,
     },
   });

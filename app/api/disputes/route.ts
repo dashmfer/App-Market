@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -20,8 +19,8 @@ export async function GET(request: NextRequest) {
     const disputes = await prisma.dispute.findMany({
       where: {
         OR: [
-          { initiatorId: session.user.id },
-          { respondentId: session.user.id },
+          { initiatorId: token.id as string },
+          { respondentId: token.id as string },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -77,9 +76,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const token = await getAuthToken(request);
 
-    if (!session?.user) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -130,8 +129,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is part of transaction
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
+    const isBuyer = transaction.buyerId === token.id as string;
+    const isSeller = transaction.sellerId === token.id as string;
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json(
@@ -169,7 +168,7 @@ export async function POST(request: NextRequest) {
         status: "OPEN",
         disputeFee,
         transactionId,
-        initiatorId: session.user.id,
+        initiatorId: token.id as string,
         respondentId: isBuyer ? transaction.sellerId : transaction.buyerId,
       },
     });

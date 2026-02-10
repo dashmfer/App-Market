@@ -1,8 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { audit, auditContext } from "@/lib/audit";
 
 // ADMIN SECRET - Must be set in environment variables
@@ -53,14 +52,14 @@ export async function DELETE(request: NextRequest) {
     const deleteAll = searchParams.get("all") === "true";
 
     // Also require authentication AND admin role
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // SECURITY: Verify user is an admin in the database
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: { isAdmin: true },
     });
 
@@ -99,7 +98,7 @@ export async function DELETE(request: NextRequest) {
       await audit({
         action: "ADMIN_RESET_LISTINGS",
         severity: "WARN",
-        userId: session?.user?.id,
+        userId: token.id as string,
         targetId: listingId,
         targetType: "listing",
         detail: `Admin deleted listing "${listing.title}"`,
@@ -131,7 +130,7 @@ export async function DELETE(request: NextRequest) {
       await audit({
         action: "ADMIN_RESET_LISTINGS",
         severity: "CRITICAL",
-        userId: session?.user?.id,
+        userId: token.id as string,
         detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
         metadata: { listings: results.listings.count, transactions: results.transactions.count },
         ...auditContext(request.headers),

@@ -1,19 +1,18 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
 
 // GET /api/referrals - Get user's referral info
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: {
         referralCode: true,
         referralCodeCustomized: true,
@@ -90,10 +89,10 @@ export async function GET() {
 }
 
 // PATCH /api/referrals - Update referral code (one time only)
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -129,7 +128,7 @@ export async function PATCH(request: Request) {
 
     // Check if user already customized
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: { referralCodeCustomized: true },
     });
 
@@ -154,7 +153,7 @@ export async function PATCH(request: Request) {
 
     // Update code
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       data: {
         referralCode: cleanCode,
         referralCodeCustomized: true,

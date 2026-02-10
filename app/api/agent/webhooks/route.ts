@@ -34,6 +34,13 @@ function checkSsrfUrl(hostname: string): string | null {
     return "Webhook URL cannot point to private/internal IP addresses";
   }
 
+  // IPv6 private ranges
+  if (h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') ||
+      h === '::ffff:127.0.0.1' || h.startsWith('::ffff:10.') ||
+      h.startsWith('::ffff:192.168.') || h.startsWith('::ffff:172.')) {
+    return 'Webhook URL cannot point to private IPv6 addresses';
+  }
+
   // Block cloud metadata hostnames
   if (["metadata.google.internal", "metadata.google", "instance-data"].some(b => h.includes(b))) {
     return "Webhook URL cannot point to cloud metadata services";

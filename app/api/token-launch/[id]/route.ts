@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { getPoolState, calculateFeeBreakdown } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
 import { PLATFORM_CONFIG } from "@/lib/config";
@@ -16,8 +15,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -55,11 +54,11 @@ export async function GET(
 
     // Check user is involved (buyer or admin)
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: { isAdmin: true, walletAddress: true },
     });
 
-    const isBuyer = tokenLaunch.transaction.buyerId === session.user.id;
+    const isBuyer = tokenLaunch.transaction.buyerId === token.id as string;
     const isCreator = tokenLaunch.creatorWallet === user?.walletAddress;
     const isAdmin = user?.isAdmin;
 
@@ -185,8 +184,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -206,7 +205,7 @@ export async function PATCH(
       );
     }
 
-    if (tokenLaunch.transaction.buyerId !== session.user.id) {
+    if (tokenLaunch.transaction.buyerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the token creator can update this launch" },
         { status: 403 }

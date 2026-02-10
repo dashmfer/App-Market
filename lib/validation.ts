@@ -33,6 +33,7 @@ async function hasNonceBeenUsed(nonceKey: string): Promise<boolean> {
     const exists = await redis.get(`nonce:${nonceKey}`);
     return !!exists;
   }
+  console.warn('SECURITY: Nonce replay check using in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
   return usedSignatureNonces.has(nonceKey);
 }
 
@@ -42,6 +43,7 @@ async function markNonceUsed(nonceKey: string): Promise<void> {
     // Set with 10 minute TTL (auto-expiry, no cleanup needed)
     await redis.set(`nonce:${nonceKey}`, "1", { ex: 600 });
   } else {
+    console.warn('SECURITY: Nonce marked as used in in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
     usedSignatureNonces.set(nonceKey, Date.now());
   }
 }
@@ -65,7 +67,8 @@ export const MAX_MESSAGE_LENGTH = 5000;
 export const MAX_CATEGORIES = 3;
 
 // Valid listing states for editing
-export const EDITABLE_LISTING_STATES = ['ACTIVE', 'RESERVED', 'PENDING_COLLABORATORS', 'DRAFT'];
+// SECURITY: RESERVED removed — listings should not be editable after a buyer has committed
+export const EDITABLE_LISTING_STATES = ['ACTIVE', 'PENDING_COLLABORATORS', 'DRAFT'];
 
 // Valid transaction state transitions (must match TransactionStatus enum in schema.prisma)
 export const VALID_TRANSACTION_TRANSITIONS: Record<string, string[]> = {

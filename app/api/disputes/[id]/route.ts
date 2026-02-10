@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { hashEvidence, isValidUUID } from "@/lib/validation";
 import { audit, auditContext } from "@/lib/audit";
 
@@ -11,9 +10,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -21,6 +20,15 @@ export async function POST(
     }
 
     const disputeId = params.id;
+
+    // SECURITY [M13]: Validate UUID format
+    if (!isValidUUID(disputeId)) {
+      return NextResponse.json(
+        { error: "Invalid ID format" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { resolution, notes } = body;
 
@@ -49,7 +57,7 @@ export async function POST(
 
     // SECURITY: Only admin can resolve disputes
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: { isAdmin: true },
     });
 
@@ -120,26 +128,28 @@ export async function POST(
         break;
     }
 
-    // Update dispute
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: "RESOLVED",
-        resolution,
-        resolutionNotes: notes,
-        feeCharged,
-        resolvedAt: new Date(),
-      },
-    });
+    // SECURITY: Use database transaction for atomicity — dispute + transaction
+    // must update together to prevent inconsistent state
+    await prisma.$transaction(async (tx) => {
+      await tx.dispute.update({
+        where: { id: disputeId },
+        data: {
+          status: "RESOLVED",
+          resolution,
+          resolutionNotes: notes,
+          feeCharged,
+          resolvedAt: new Date(),
+        },
+      });
 
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: newTransactionStatus,
+      await tx.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: newTransactionStatus,
         releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
-      },
-    });
+        },
+      });
+    }); // end $transaction
 
     // Notify both parties
     const resolutionMessages: Record<string, { buyer: string; seller: string }> = {
@@ -184,7 +194,7 @@ export async function POST(
     await audit({
       action: "ADMIN_DISPUTE_RESOLUTION",
       severity: "WARN",
-      userId: session.user.id,
+      userId: token.id as string,
       targetId: disputeId,
       targetType: "dispute",
       detail: `Dispute resolved: ${resolution}`,
@@ -213,9 +223,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -223,8 +233,37 @@ export async function PUT(
     }
 
     const disputeId = params.id;
+
+    // SECURITY [M13]: Validate UUID format
+    if (!isValidUUID(disputeId)) {
+      return NextResponse.json(
+        { error: "Invalid ID format" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { response, evidence } = body;
+
+    // SECURITY [M9]: Validate response and evidence inputs
+    if (typeof response !== "string" || response.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Response must be a non-empty string" },
+        { status: 400 }
+      );
+    }
+    if (response.length > 5000) {
+      return NextResponse.json(
+        { error: "Response must be 5000 characters or less" },
+        { status: 400 }
+      );
+    }
+    if (evidence !== undefined && evidence !== null && !Array.isArray(evidence)) {
+      return NextResponse.json(
+        { error: "Evidence must be an array" },
+        { status: 400 }
+      );
+    }
 
     // Get dispute
     const dispute = await prisma.dispute.findUnique({
@@ -239,7 +278,7 @@ export async function PUT(
     }
 
     // Only respondent can respond
-    if (dispute.respondentId !== session.user.id) {
+    if (dispute.respondentId !== (token.id as string)) {
       return NextResponse.json(
         { error: "Only the respondent can respond to this dispute" },
         { status: 403 }

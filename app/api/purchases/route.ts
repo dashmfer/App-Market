@@ -5,10 +5,17 @@ import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'purchases'))(request);
     if (!rateLimitResult.success) {
@@ -344,7 +351,7 @@ export async function POST(request: NextRequest) {
         : "Purchase successful"
     }, { status: 201 });
   } catch (error) {
-    console.error("Error creating purchase:", error);
+    console.error("Error creating purchase:", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json(
       { error: "Failed to complete purchase" },
       { status: 500 }

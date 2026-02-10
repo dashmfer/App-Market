@@ -180,7 +180,21 @@ export async function POST(
     const body = await request.json();
     const { content } = body;
 
-    // SECURITY: Validate message content
+    // SECURITY [M12]: Validate content is a string and within length limits
+    if (typeof content !== "string") {
+      return NextResponse.json(
+        { error: "Message content must be a string" },
+        { status: 400 }
+      );
+    }
+    if (content.length > 10000) {
+      return NextResponse.json(
+        { error: "Message content must be 10000 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate message content (empty check + existing library limit)
     const contentValidation = validateMessageContent(content);
     if (!contentValidation.valid) {
       return NextResponse.json(

@@ -88,7 +88,7 @@ export async function POST(
       message: 'Withdrawal claimed successfully',
     });
   } catch (error) {
-    console.error('Error claiming withdrawal:', error);
+    console.error('Error claiming withdrawal:', error instanceof Error ? error.message : 'Unknown error');
     return NextResponse.json(
       { error: 'Failed to claim withdrawal' },
       { status: 500 }

@@ -38,8 +38,13 @@ export async function GET(request: NextRequest) {
       where.OR = [{ buyerId: userId }, { sellerId: userId }];
     }
 
+    // SECURITY: Whitelist allowed transaction statuses
+    const ALLOWED_TX_STATUSES = ["PENDING", "IN_ESCROW", "TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION", "DISPUTED", "PENDING_RELEASE", "COMPLETED", "REFUNDED", "CANCELLED"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upper = status.toUpperCase();
+      if (ALLOWED_TX_STATUSES.includes(upper)) {
+        where.status = upper;
+      }
     }
 
     const transactions = await prisma.transaction.findMany({

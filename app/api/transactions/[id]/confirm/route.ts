@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { hashEvidence } from "@/lib/validation";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/transactions/[id]/confirm - Confirm transfer item
 export async function POST(
@@ -10,6 +11,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {

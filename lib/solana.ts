@@ -41,11 +41,19 @@ export const DISPUTE_FEE_BPS = 200; // 2%
 export const TOKEN_LAUNCH_FEE_BPS = 100; // 1% of token supply
 
 // Connection to Solana
+// SECURITY [H10]: For server-side usage, prefer SOLANA_RPC_URL (without NEXT_PUBLIC_ prefix)
+// to avoid leaking an API key to the browser. NEXT_PUBLIC_ env vars are embedded in the
+// client bundle by Next.js. If your RPC URL contains an API key, set a separate
+// SOLANA_RPC_URL for server-side code and NEXT_PUBLIC_SOLANA_RPC_URL (without key or
+// with a rate-limited public key) for the client.
 export const getConnection = () => {
-  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  // Server-side: prefer the non-public env var to keep API keys out of the client bundle
+  const rpcUrl =
+    (typeof window === "undefined" ? process.env.SOLANA_RPC_URL : undefined) ||
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   if (!rpcUrl) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be set in production");
+      throw new Error("SOLANA_RPC_URL or NEXT_PUBLIC_SOLANA_RPC_URL must be set in production");
     }
     // Only fall back to devnet in development
     return new Connection("https://api.devnet.solana.com", "confirmed");

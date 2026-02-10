@@ -15,6 +15,9 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
+  // SECURITY [H10]: NEXT_PUBLIC_SOLANA_RPC_URL is exposed to the client bundle.
+  // Ensure this URL does not contain a private API key. Use a rate-limited
+  // or public-tier RPC endpoint for client-side usage.
   const endpoint = useMemo(() => {
     return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
   }, []);

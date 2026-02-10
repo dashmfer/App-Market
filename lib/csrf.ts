@@ -15,6 +15,9 @@ const TOKEN_LENGTH = 32;
  * Get the CSRF secret from environment
  */
 function getCsrfSecret(): string {
+  if (!process.env.CSRF_SECRET && process.env.NODE_ENV === 'production') {
+    console.warn('SECURITY: CSRF_SECRET not set, falling back to NEXTAUTH_SECRET. Set a dedicated CSRF_SECRET for production.');
+  }
   const secret = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
     throw new Error("CSRF_SECRET or NEXTAUTH_SECRET must be set");

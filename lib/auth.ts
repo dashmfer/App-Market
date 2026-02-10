@@ -43,6 +43,20 @@ if (!secret) {
   throw new Error("NEXTAUTH_SECRET must be set in environment variables");
 }
 
+const KNOWN_DEFAULTS = [
+  'your-super-secret-key-change-in-production',
+  'your-admin-secret-change-in-production',
+  'your-cron-secret-change-in-production',
+];
+if (process.env.NODE_ENV === 'production') {
+  for (const envVar of ['NEXTAUTH_SECRET', 'ADMIN_SECRET', 'CRON_SECRET']) {
+    const val = process.env[envVar];
+    if (val && KNOWN_DEFAULTS.includes(val)) {
+      throw new Error(`SECURITY: ${envVar} is using a known default value. Change it before deploying to production.`);
+    }
+  }
+}
+
 /**
  * Generate a unique session ID
  */
