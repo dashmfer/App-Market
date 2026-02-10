@@ -289,7 +289,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedLaunches = tokenLaunches.map((launch) => ({
+    const formattedLaunches = tokenLaunches.map((launch: any) => ({
       id: launch.id,
       tokenName: launch.tokenName,
       tokenSymbol: launch.tokenSymbol,
