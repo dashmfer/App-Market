@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
           graduatedCount++;
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[Cron] Error checking pool ${launch.dbcPoolAddress}:`, err);
       }
     }
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       checked: activeLaunches.length,
       graduated: graduatedCount,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Cron] Error checking graduations:", error);
     return NextResponse.json(
       { error: "Failed to check graduations" },

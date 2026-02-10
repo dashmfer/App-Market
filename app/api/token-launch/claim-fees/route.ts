@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         ).toString("base64"),
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("[PATO Claim] Error building claim transaction:", error);
     return NextResponse.json(
       { error: "Failed to build fee claim transaction" },
