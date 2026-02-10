@@ -45,9 +45,9 @@ export const PATO_CONFIG = {
   // Creator gets 50% of partner's 80% share (= 0.4% of volume)
   creatorTradingFeePercentage: 50,
 
-  // Graduation threshold: 85 SOL
-  graduationThresholdSOL: 85,
-  migrationQuoteThreshold: new BN(85 * LAMPORTS_PER_SOL),
+  // Graduation threshold: 500 SOL
+  graduationThresholdSOL: 500,
+  migrationQuoteThreshold: new BN(500 * LAMPORTS_PER_SOL),
 
   // Post-graduation: DAMM v2 with 1% fee
   migrationOption: 1, // MigrationOption.DammV2

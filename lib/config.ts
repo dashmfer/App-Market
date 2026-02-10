@@ -81,7 +81,7 @@ export const PLATFORM_CONFIG = {
     creatorFeePercentage: 50,
 
     // Graduation threshold (SOL needed to migrate to DAMM v2)
-    graduationThresholdSOL: 85,
+    graduationThresholdSOL: 500,
 
     // Post-graduation DAMM v2 fee tier
     // 0=0.25%, 1=0.3%, 2=1%, 3=2%, 4=4%, 5=6%
