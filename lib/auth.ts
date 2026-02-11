@@ -162,29 +162,8 @@ export async function isSessionNotRevoked(sessionId: string, userId?: string, ia
   return true;
 }
 
-/**
- * SECURITY [M5]: Edge-compatible revocation check using Redis only.
- * Called from middleware (Edge Runtime) where Prisma is unavailable.
- */
-export async function isSessionNotRevokedEdge(sessionId: string, userId?: string, iat?: number): Promise<boolean> {
-  const redis = await getRedis();
-  if (!redis) return true; // If Redis is unavailable, let API-level checks handle it
-
-  // Check individual session revocation
-  const revoked = await redis.get(`${SESSION_REVOKE_PREFIX}${sessionId}`);
-  if (revoked) return false;
-
-  // Check user-wide timestamp revocation
-  if (userId && iat) {
-    const revokedAtStr = await redis.get(`${USER_REVOKE_PREFIX}${userId}`);
-    if (revokedAtStr) {
-      const revokedAtMs = parseInt(revokedAtStr as string, 10);
-      if (iat < Math.floor(revokedAtMs / 1000)) return false;
-    }
-  }
-
-  return true;
-}
+// NOTE: isSessionNotRevokedEdge lives in lib/session-revocation-edge.ts
+// to avoid pulling Prisma into the Edge Runtime bundle via this file.
 
 /**
  * Clean up expired revocation records

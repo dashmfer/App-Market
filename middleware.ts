@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { timingSafeEqual, randomBytes } from "crypto";
-import { isSessionNotRevokedEdge } from "@/lib/auth";
+import { isSessionNotRevokedEdge } from "@/lib/session-revocation-edge";
 
 /**
  * Middleware for route protection, session revocation, and CSP nonce injection.
