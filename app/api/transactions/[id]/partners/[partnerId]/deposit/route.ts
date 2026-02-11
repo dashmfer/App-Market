@@ -82,7 +82,10 @@ export async function POST(
 
     // SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
     // via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
-    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpcUrl) {
+      return NextResponse.json({ error: "RPC URL not configured" }, { status: 500 });
+    }
     const connection = new Connection(rpcUrl, "confirmed");
     const txInfo = await connection.getTransaction(txHash, { maxSupportedTransactionVersion: 0 });
 

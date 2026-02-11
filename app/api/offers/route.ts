@@ -44,10 +44,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = createOfferSchema.parse(body);
 
-    // Deadline must be in the future
-    if (new Date(validatedData.deadline) <= new Date()) {
+    // Deadline must be in the future and within 30 days
+    const deadlineDate = new Date(validatedData.deadline);
+    if (deadlineDate <= new Date()) {
       return NextResponse.json(
         { error: 'Offer deadline must be in the future' },
+        { status: 400 }
+      );
+    }
+    const maxDeadline = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    if (deadlineDate > maxDeadline) {
+      return NextResponse.json(
+        { error: 'Offer deadline cannot be more than 30 days in the future' },
         { status: 400 }
       );
     }

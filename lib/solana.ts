@@ -52,11 +52,7 @@ export const getConnection = () => {
     (typeof window === "undefined" ? process.env.SOLANA_RPC_URL : undefined) ||
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   if (!rpcUrl) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("SOLANA_RPC_URL or NEXT_PUBLIC_SOLANA_RPC_URL must be set in production");
-    }
-    // Only fall back to devnet in development
-    return new Connection("https://api.devnet.solana.com", "confirmed");
+    throw new Error("SOLANA_RPC_URL or NEXT_PUBLIC_SOLANA_RPC_URL must be configured");
   }
   return new Connection(rpcUrl, "confirmed");
 };

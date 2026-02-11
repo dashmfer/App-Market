@@ -201,24 +201,30 @@ export async function POST(
         transaction.sellerId,
         transaction.currency || undefined
       );
-      console.log("[Transfer Complete] Referral earnings processed:", referralResult);
+      if (process.env.NODE_ENV === 'development') console.log("[Transfer Complete] Referral earnings processed:", referralResult);
     } catch (referralError) {
       // Don't fail the transaction if referral processing fails
       console.error("[Transfer Complete] Failed to process referral earnings:", referralError);
     }
 
     // Calculate payment distribution for collaborators
+    // SECURITY: Use integer math to prevent floating-point drift on payment splits
     const collaborators = transaction.listing.collaborators || [];
     const sellerProceeds = Number(transaction.sellerProceeds);
+    const currency = transaction.currency || "SOL";
+    const decimals = currency === "USDC" ? 6 : 9;
+    const base = Math.pow(10, decimals);
+    const proceedsUnits = Math.round(sellerProceeds * base);
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
-    let collaboratorTotalPercentage = 0;
+    let collaboratorTotalUnits = 0;
 
     for (const collab of collaborators) {
       const collabPct = Number(collab.percentage);
-      const collaboratorAmount = (sellerProceeds * collabPct) / 100;
-      collaboratorTotalPercentage += collabPct;
+      // Integer-safe: floor each collaborator's share so rounding favors the seller
+      const collabUnits = Math.floor(proceedsUnits * collabPct / 100);
+      collaboratorTotalUnits += collabUnits;
 
       collaboratorPayments.push({
         collaboratorId: collab.id,
@@ -226,13 +232,15 @@ export async function POST(
         userId: collab.userId,
         role: collab.role,
         percentage: collabPct,
-        amount: collaboratorAmount,
+        amount: collabUnits / base,
       });
     }
 
-    // Seller gets the remainder
+    // Seller gets the remainder — guarantees total = sellerProceeds exactly
+    const sellerFinalUnits = proceedsUnits - collaboratorTotalUnits;
+    const collaboratorTotalPercentage = collaborators.reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
     const sellerPercentage = 100 - collaboratorTotalPercentage;
-    const sellerFinalAmount = (sellerProceeds * sellerPercentage) / 100;
+    const sellerFinalAmount = sellerFinalUnits / base;
 
     // Store the payment distribution in the transaction data
     const paymentDistribution = {

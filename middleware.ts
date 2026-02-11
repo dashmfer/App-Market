@@ -88,7 +88,7 @@ function createPageResponse(request: NextRequest): NextResponse {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://avatars.githubusercontent.com https://github.com https://raw.githubusercontent.com https://opengraph.githubassets.com https://*.public.blob.vercel-storage.com",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.mainnet-beta.solana.com wss://api.devnet.solana.com https://*.helius-rpc.com https://*.vercel-storage.com https://auth.privy.io https://*.privy.io wss://*.privy.io https://*.walletconnect.com wss://*.walletconnect.com https://explorer-api.walletconnect.com",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mainnet-beta.solana.com wss://api.mainnet-beta.solana.com https://*.helius-rpc.com https://*.vercel-storage.com https://auth.privy.io https://*.privy.io wss://*.privy.io https://*.walletconnect.com wss://*.walletconnect.com https://explorer-api.walletconnect.com",
     "frame-src 'self' https://phantom.app https://solflare.com https://auth.privy.io https://*.privy.io",
     "object-src 'none'",
     "base-uri 'self'",

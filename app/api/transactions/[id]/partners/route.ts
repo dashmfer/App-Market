@@ -144,8 +144,14 @@ export async function POST(
         } as const;
       }
 
-      // Calculate deposit amount based on percentage
-      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+      // SECURITY: Integer-safe deposit amount calculation
+      const salePrice = Number(transaction.salePrice);
+      const currency = transaction.currency || "SOL";
+      const decimals = currency === "USDC" ? 6 : 9;
+      const base = Math.pow(10, decimals);
+      const salePriceUnits = Math.round(salePrice * base);
+      const depositUnits = Math.floor(salePriceUnits * percentage / 100);
+      const depositAmount = depositUnits / base;
 
       // SECURITY [M4]: Validate computed deposit amount is positive and finite
       if (!Number.isFinite(depositAmount) || depositAmount <= 0) {

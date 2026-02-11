@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { audit, auditContext } from "@/lib/audit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -42,6 +43,12 @@ function validateAdminSecret(request: NextRequest): boolean {
 // Delete specific listing: DELETE /api/admin/reset-listings?id=LISTING_ID (with Authorization: Bearer <secret>)
 export async function DELETE(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Validate admin secret from Authorization header (not query params)
     if (!validateAdminSecret(request)) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });

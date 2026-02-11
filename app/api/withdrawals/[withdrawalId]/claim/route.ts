@@ -77,7 +77,10 @@ export async function POST(
     }
 
     // SECURITY [M12]: Verify the on-chain transaction before marking as claimed
-    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpcUrl) {
+      return NextResponse.json({ error: "RPC URL not configured" }, { status: 500 });
+    }
     const connection = new Connection(rpcUrl, "confirmed");
 
     let txInfo;
