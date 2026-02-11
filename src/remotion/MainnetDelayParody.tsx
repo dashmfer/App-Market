@@ -447,7 +447,7 @@ const Desk: React.FC = () => (
   >
     <svg width="700" height="40" viewBox="0 0 700 40">
       {/* Desk surface */}
-      <rect x="0" y="0" width="700" height="8" rx="2" fill="none" stroke={COLORS.green} strokeWidth="2" />
+      <rect x="0" y="0" width="700" height="8" rx="2" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.3" />
       {/* Legs */}
       <line x1="40" y1="8" x2="40" y2="40" stroke={`${COLORS.green}50`} strokeWidth="2" />
       <line x1="660" y1="8" x2="660" y2="40" stroke={`${COLORS.green}50`} strokeWidth="2" />

@@ -202,45 +202,7 @@ const Avatar: React.FC<{
           strokeWidth="2.5"
         />
 
-        {/* Hair based on style - green outline only */}
-        {character.hairStyle === "curly" && (
-          <>
-            <ellipse cx="100" cy="62" rx="56" ry="35" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="52" cy="75" r="16" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="148" cy="75" r="16" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="58" cy="58" r="14" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="142" cy="58" r="14" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="75" cy="48" r="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="125" cy="48" r="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.hairStyle === "short" && (
-          <>
-            <ellipse cx="100" cy="65" rx="54" ry="32" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="48" y="60" width="104" height="20" rx="8" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.hairStyle === "long" && (
-          <>
-            <ellipse cx="100" cy="62" rx="56" ry="34" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="46" y="60" width="20" height="80" rx="10" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="134" y="60" width="20" height="80" rx="10" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.hairStyle === "fade" && (
-          <>
-            <ellipse cx="100" cy="68" rx="50" ry="26" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="52" y="58" width="96" height="16" rx="6" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.7" />
-            <rect x="56" y="70" width="88" height="8" rx="4" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.4" />
-          </>
-        )}
-        {character.hairStyle === "bob" && (
-          <>
-            <ellipse cx="100" cy="62" rx="58" ry="34" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="44" y="60" width="24" height="55" rx="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="132" y="60" width="24" height="55" rx="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
+        {/* No hair - clean head only */}
 
         {/* Eyes - green outline */}
         <ellipse cx="80" cy="102" rx="6" ry="7" fill="none" stroke={COLORS.green} strokeWidth="2" />
@@ -267,42 +229,7 @@ const Avatar: React.FC<{
           strokeWidth="1.5"
         />
 
-        {/* Accessories - green outlined */}
-        {character.accessory === "glasses" && (
-          <>
-            <circle cx="80" cy="102" r="16" fill="none" stroke={COLORS.green} strokeWidth="2.5" />
-            <circle cx="120" cy="102" r="16" fill="none" stroke={COLORS.green} strokeWidth="2.5" />
-            <line x1="96" y1="102" x2="104" y2="102" stroke={COLORS.green} strokeWidth="2.5" />
-            <line x1="64" y1="100" x2="52" y2="96" stroke={COLORS.green} strokeWidth="2" />
-            <line x1="136" y1="100" x2="148" y2="96" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.accessory === "earrings" && (
-          <>
-            <circle cx="50" cy="112" r="5" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="150" cy="112" r="5" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.accessory === "headphones" && (
-          <>
-            <path
-              d="M 48 90 Q 48 50 100 50 Q 152 50 152 90"
-              fill="none"
-              stroke={COLORS.green}
-              strokeWidth="4"
-              strokeLinecap="round"
-            />
-            <rect x="40" y="85" width="16" height="28" rx="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="144" y="85" width="16" height="28" rx="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
-        {character.accessory === "beanie" && (
-          <>
-            <ellipse cx="100" cy="60" rx="58" ry="28" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="42" y="55" width="116" height="18" rx="4" fill="none" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="100" cy="34" r="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
-          </>
-        )}
+        {/* No accessories - clean heads only */}
       </svg>
     </div>
   );
