@@ -10,7 +10,7 @@ import {
 import React from "react";
 
 // ============================================
-// BRAND COLORS
+// APP MARKET BRAND COLORS
 // ============================================
 const COLORS = {
   green: "#22c55e",
@@ -19,6 +19,8 @@ const COLORS = {
   teal: "#14b8a6",
   white: "#ffffff",
   black: "#000000",
+  dark: "#0f0f23",
+  darkAlt: "#1a1a2e",
   gray: "#6b7280",
   lightGray: "#f3f4f6",
 };
@@ -26,24 +28,37 @@ const COLORS = {
 const FONT = "SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif";
 
 // ============================================
-// CHARACTER DATA
+// CHARACTER DATA - mfers & miladys NFT silhouettes
 // ============================================
-interface Character {
+type NFTType = "mfer" | "milady";
+
+interface NFTCharacter {
   name: string;
-  skinTone: string;
-  hairColor: string;
-  hairStyle: "curly" | "short" | "long" | "fade" | "bob";
-  accessory?: "glasses" | "earrings" | "headphones" | "beanie";
-  shirtColor: string;
+  type: NFTType;
+  // mfer traits
+  hasHeadphones?: boolean;
+  hasCig?: boolean;
+  hasPipe?: boolean;
+  hasBeanie?: boolean;
+  hasHoodie?: boolean;
+  hasChain?: boolean;
+  hasWatch?: boolean;
+  eyeType?: "normal" | "shades" | "vr" | "zombie";
+  // milady traits
+  hairStyle?: "twintails" | "bob" | "long" | "bangs" | "messy";
+  hatType?: "beret" | "bow" | "snapback" | "none";
+  hasEarrings?: boolean;
+  hasGlasses?: boolean;
+  hasChoker?: boolean;
 }
 
 interface SceneConfig {
-  character: Character;
-  bgColors: string[];
+  character: NFTCharacter;
+  bgGradient: string[];
   envElements: string;
   callingFrom: string;
   quote: string;
-  quoteStyle: "excited" | "mindblown" | "analytical" | "hyped" | "urgent";
+  quoteAccent: string;
   callDirection: "outgoing" | "incoming";
   contactName: string;
 }
@@ -51,109 +66,117 @@ interface SceneConfig {
 const SCENES: SceneConfig[] = [
   {
     character: {
-      name: "Maya",
-      skinTone: "#8D5524",
-      hairColor: "#1a1a2e",
-      hairStyle: "curly",
-      accessory: "earrings",
-      shirtColor: "#7c3aed",
+      name: "mfer_042",
+      type: "mfer",
+      hasHeadphones: true,
+      hasCig: true,
+      hasBeanie: true,
+      hasChain: true,
+      eyeType: "normal",
     },
-    bgColors: ["#1a1a2e", "#16213e", "#0f3460"],
+    bgGradient: [COLORS.dark, COLORS.darkAlt, "#0f3460"],
     envElements: "apartment-night",
-    callingFrom: "Her apartment, 11:47 PM",
+    callingFrom: "His apartment, 11:47 PM",
     quote:
       "YOOO have you seen this?? It's called App Market — I just listed my dashboard template and someone already bid on it!!",
-    quoteStyle: "excited",
+    quoteAccent: COLORS.green,
     callDirection: "outgoing",
-    contactName: "Jordan",
+    contactName: "milady_888",
   },
   {
     character: {
-      name: "Jordan",
-      skinTone: "#FDBCB4",
-      hairColor: "#C4552D",
-      hairStyle: "short",
-      shirtColor: "#059669",
+      name: "milady_888",
+      type: "milady",
+      hairStyle: "twintails",
+      hatType: "beret",
+      hasEarrings: true,
+      hasChoker: true,
     },
-    bgColors: ["#fef3c7", "#fde68a", "#f59e0b"],
+    bgGradient: [COLORS.dark, "#0a1628", "#0f2440"],
     envElements: "coffee-shop",
-    callingFrom: "Café Voltaire, 2:15 PM",
+    callingFrom: "Cafe, Shibuya, 2:15 PM",
     quote:
-      "Wait wait wait... you're telling me I can sell all those side projects sitting in my GitHub?? BRO.",
-    quoteStyle: "mindblown",
+      "Wait wait wait... you're telling me I can sell all those side projects sitting in my GitHub?? This is actually insane.",
+    quoteAccent: COLORS.emerald,
     callDirection: "incoming",
-    contactName: "Maya",
+    contactName: "mfer_042",
   },
   {
     character: {
-      name: "Priya",
-      skinTone: "#C68642",
-      hairColor: "#0a0a0a",
-      hairStyle: "long",
-      accessory: "glasses",
-      shirtColor: "#2563eb",
+      name: "mfer_777",
+      type: "mfer",
+      hasHeadphones: true,
+      hasPipe: true,
+      hasHoodie: true,
+      eyeType: "shades",
+      hasWatch: true,
     },
-    bgColors: ["#ede9fe", "#c4b5fd", "#8b5cf6"],
+    bgGradient: [COLORS.dark, "#0a1a0a", "#0f2a0f"],
     envElements: "coworking",
-    callingFrom: "WeWork Bangalore, 6:30 PM",
+    callingFrom: "WeWork, NYC, 6:30 PM",
     quote:
       "Escrow on Solana. Instant settlement. GitHub-verified ownership. This is exactly what the vibe coding era needed.",
-    quoteStyle: "analytical",
+    quoteAccent: COLORS.teal,
     callDirection: "incoming",
-    contactName: "Jordan",
+    contactName: "milady_888",
   },
   {
     character: {
-      name: "Marcus",
-      skinTone: "#4A2C17",
-      hairColor: "#1a1a1a",
-      hairStyle: "fade",
-      accessory: "headphones",
-      shirtColor: "#dc2626",
-    },
-    bgColors: ["#0f0f23", "#1a0a2e", "#2d1b69"],
-    envElements: "garage-setup",
-    callingFrom: "His garage, 9:00 PM",
-    quote:
-      "Fam. I just made more selling my weather app on App Market than I did in 6 months of freelancing. I'm NOT joking.",
-    quoteStyle: "hyped",
-    callDirection: "incoming",
-    contactName: "Priya",
-  },
-  {
-    character: {
-      name: "Aiko",
-      skinTone: "#F1C27D",
-      hairColor: "#1a1a2e",
+      name: "milady_420",
+      type: "milady",
       hairStyle: "bob",
-      shirtColor: "#f97316",
+      hatType: "snapback",
+      hasGlasses: true,
+      hasChoker: true,
     },
-    bgColors: ["#fdf2f8", "#fbcfe8", "#f472b6"],
+    bgGradient: [COLORS.dark, "#1a0a2e", "#2d1b40"],
+    envElements: "garage-setup",
+    callingFrom: "Her studio, 9:00 PM",
+    quote:
+      "I just made more selling my weather app on App Market than I did in 6 months of freelancing. I'm NOT joking.",
+    quoteAccent: COLORS.green,
+    callDirection: "incoming",
+    contactName: "mfer_777",
+  },
+  {
+    character: {
+      name: "mfer_069",
+      type: "mfer",
+      hasHeadphones: true,
+      hasCig: true,
+      eyeType: "zombie",
+      hasChain: true,
+      hasWatch: true,
+    },
+    bgGradient: [COLORS.dark, "#0a0f1a", "#0f1a2e"],
     envElements: "rooftop-sunset",
-    callingFrom: "Rooftop, Shibuya, 7:45 PM",
+    callingFrom: "Rooftop, Tokyo, 7:45 PM",
     quote:
       "Everyone's sleeping on this. I listed three vibe-coded projects yesterday. All three got offers TODAY. Go to appmrkt.xyz. Now.",
-    quoteStyle: "urgent",
+    quoteAccent: COLORS.emerald,
     callDirection: "incoming",
-    contactName: "Marcus",
+    contactName: "milady_420",
   },
 ];
 
 // ============================================
-// AVATAR COMPONENT (SVG-based character)
+// MFER SILHOUETTE - green outline, no fill
 // ============================================
-const Avatar: React.FC<{
-  character: Character;
+const MferSilhouette: React.FC<{
+  character: NFTCharacter;
   size?: number;
   animate?: boolean;
   frame?: number;
   fps?: number;
-}> = ({ character, size = 200, animate = false, frame = 0, fps = 30 }) => {
-  const headBob = animate
-    ? Math.sin((frame / fps) * 3) * 3
-    : 0;
-
-  const s = size / 200; // scale factor
+}> = ({ character, size = 280, animate = false, frame = 0, fps = 30 }) => {
+  const headBob = animate ? Math.sin((frame / fps) * 3) * 2 : 0;
+  const smokeDrift = animate ? Math.sin((frame / fps) * 2) * 4 : 0;
+  const smokeOpacity = animate
+    ? 0.4 + Math.sin((frame / fps) * 1.5) * 0.3
+    : 0.5;
+  const strokeColor = COLORS.green;
+  const strokeW = "2.5";
+  const glowFilter = `drop-shadow(0 0 6px ${COLORS.green}40)`;
 
   return (
     <div
@@ -162,141 +185,342 @@ const Avatar: React.FC<{
         height: size,
         position: "relative",
         transform: `translateY(${headBob}px)`,
+        filter: glowFilter,
       }}
     >
-      <svg width={size} height={size} viewBox="0 0 200 200">
-        {/* Body / Shirt */}
-        <ellipse
-          cx="100"
-          cy="195"
-          rx="65"
-          ry="40"
-          fill={character.shirtColor}
-        />
-
-        {/* Neck */}
-        <rect
-          x="88"
-          y="130"
-          width="24"
-          height="30"
-          rx="8"
-          fill={character.skinTone}
-        />
-
-        {/* Head */}
-        <ellipse
-          cx="100"
-          cy="100"
-          rx="52"
-          ry="58"
-          fill={character.skinTone}
-        />
-
-        {/* Hair based on style */}
-        {character.hairStyle === "curly" && (
-          <>
-            <ellipse cx="100" cy="62" rx="56" ry="35" fill={character.hairColor} />
-            <circle cx="52" cy="75" r="16" fill={character.hairColor} />
-            <circle cx="148" cy="75" r="16" fill={character.hairColor} />
-            <circle cx="58" cy="58" r="14" fill={character.hairColor} />
-            <circle cx="142" cy="58" r="14" fill={character.hairColor} />
-            <circle cx="75" cy="48" r="12" fill={character.hairColor} />
-            <circle cx="125" cy="48" r="12" fill={character.hairColor} />
-          </>
-        )}
-        {character.hairStyle === "short" && (
-          <>
-            <ellipse cx="100" cy="65" rx="54" ry="32" fill={character.hairColor} />
-            <rect x="48" y="60" width="104" height="20" rx="8" fill={character.hairColor} />
-          </>
-        )}
-        {character.hairStyle === "long" && (
-          <>
-            <ellipse cx="100" cy="62" rx="56" ry="34" fill={character.hairColor} />
-            <rect x="46" y="60" width="20" height="80" rx="10" fill={character.hairColor} />
-            <rect x="134" y="60" width="20" height="80" rx="10" fill={character.hairColor} />
-          </>
-        )}
-        {character.hairStyle === "fade" && (
-          <>
-            <ellipse cx="100" cy="68" rx="50" ry="26" fill={character.hairColor} />
-            <rect x="52" y="58" width="96" height="16" rx="6" fill={character.hairColor} opacity="0.7" />
-            <rect x="56" y="70" width="88" height="8" rx="4" fill={character.hairColor} opacity="0.4" />
-          </>
-        )}
-        {character.hairStyle === "bob" && (
-          <>
-            <ellipse cx="100" cy="62" rx="58" ry="34" fill={character.hairColor} />
-            <rect x="44" y="60" width="24" height="55" rx="12" fill={character.hairColor} />
-            <rect x="132" y="60" width="24" height="55" rx="12" fill={character.hairColor} />
-          </>
-        )}
-
-        {/* Eyes */}
-        <ellipse cx="80" cy="102" rx="6" ry="7" fill="#1a1a1a" />
-        <ellipse cx="120" cy="102" rx="6" ry="7" fill="#1a1a1a" />
-        <circle cx="82" cy="100" r="2" fill="white" />
-        <circle cx="122" cy="100" r="2" fill="white" />
-
-        {/* Eyebrows */}
-        <line x1="72" y1="90" x2="88" y2="88" stroke="#1a1a1a" strokeWidth="3" strokeLinecap="round" />
-        <line x1="112" y1="88" x2="128" y2="90" stroke="#1a1a1a" strokeWidth="3" strokeLinecap="round" />
-
-        {/* Smile */}
+      <svg width={size} height={size} viewBox="0 0 280 280">
+        {/* Body / shoulders + arms extending forward (typing posture) */}
         <path
-          d="M 82 120 Q 100 138 118 120"
-          stroke="#1a1a1a"
-          strokeWidth="3"
+          d="M 90 210 Q 90 185 105 175 L 140 170 L 175 175 Q 190 185 190 210 L 190 260 Q 140 270 90 260 Z"
           fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+          strokeLinejoin="round"
+        />
+        {/* Arms extending forward */}
+        <path
+          d="M 95 195 Q 60 200 40 210"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+          strokeLinecap="round"
+        />
+        <path
+          d="M 185 195 Q 220 200 240 210"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
           strokeLinecap="round"
         />
 
-        {/* Nose */}
-        <path
-          d="M 100 106 Q 96 116 100 118 Q 104 116 100 106"
-          fill={character.skinTone}
-          stroke={character.skinTone}
-          strokeWidth="1"
-          filter="brightness(0.9)"
+        {/* Neck */}
+        <line
+          x1="130"
+          y1="155"
+          x2="130"
+          y2="170"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+        <line
+          x1="150"
+          y1="155"
+          x2="150"
+          y2="170"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
         />
 
-        {/* Accessories */}
-        {character.accessory === "glasses" && (
-          <>
-            <circle cx="80" cy="102" r="16" fill="none" stroke="#333" strokeWidth="2.5" />
-            <circle cx="120" cy="102" r="16" fill="none" stroke="#333" strokeWidth="2.5" />
-            <line x1="96" y1="102" x2="104" y2="102" stroke="#333" strokeWidth="2.5" />
-            <line x1="64" y1="100" x2="52" y2="96" stroke="#333" strokeWidth="2" />
-            <line x1="136" y1="100" x2="148" y2="96" stroke="#333" strokeWidth="2" />
-          </>
-        )}
-        {character.accessory === "earrings" && (
-          <>
-            <circle cx="50" cy="112" r="5" fill="#fbbf24" />
-            <circle cx="150" cy="112" r="5" fill="#fbbf24" />
-          </>
-        )}
-        {character.accessory === "headphones" && (
+        {/* Head - circle */}
+        <circle
+          cx="140"
+          cy="110"
+          r="48"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+
+        {/* Headphones - iconic mfer trait */}
+        {character.hasHeadphones && (
           <>
             <path
-              d="M 48 90 Q 48 50 100 50 Q 152 50 152 90"
+              d="M 88 100 Q 88 55 140 55 Q 192 55 192 100"
               fill="none"
-              stroke="#333"
-              strokeWidth="6"
+              stroke={strokeColor}
+              strokeWidth="3"
               strokeLinecap="round"
             />
-            <rect x="40" y="85" width="16" height="28" rx="6" fill="#333" />
-            <rect x="144" y="85" width="16" height="28" rx="6" fill="#333" />
-            <rect x="42" y="88" width="12" height="22" rx="5" fill="#555" />
-            <rect x="146" y="88" width="12" height="22" rx="5" fill="#555" />
+            {/* Left ear cup */}
+            <rect
+              x="76"
+              y="92"
+              width="18"
+              height="26"
+              rx="6"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            {/* Right ear cup */}
+            <rect
+              x="186"
+              y="92"
+              width="18"
+              height="26"
+              rx="6"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
           </>
         )}
-        {character.accessory === "beanie" && (
+
+        {/* Beanie (under headphones) */}
+        {character.hasBeanie && (
           <>
-            <ellipse cx="100" cy="60" rx="58" ry="28" fill="#e11d48" />
-            <rect x="42" y="55" width="116" height="18" rx="4" fill="#be123c" />
-            <circle cx="100" cy="34" r="6" fill="#e11d48" />
+            <path
+              d="M 94 85 Q 94 58 140 58 Q 186 58 186 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <line
+              x1="94"
+              y1="85"
+              x2="186"
+              y2="85"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <circle
+              cx="140"
+              cy="52"
+              r="5"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+          </>
+        )}
+
+        {/* Hoodie */}
+        {character.hasHoodie && (
+          <path
+            d="M 100 155 Q 100 140 115 130 Q 125 165 140 170 Q 155 165 165 130 Q 180 140 180 155"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeW}
+          />
+        )}
+
+        {/* Eyes */}
+        {character.eyeType === "normal" && (
+          <>
+            <circle
+              cx="122"
+              cy="108"
+              r="4"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <circle
+              cx="158"
+              cy="108"
+              r="4"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+          </>
+        )}
+        {character.eyeType === "shades" && (
+          <>
+            <rect
+              x="108"
+              y="102"
+              width="28"
+              height="14"
+              rx="3"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <rect
+              x="144"
+              y="102"
+              width="28"
+              height="14"
+              rx="3"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <line
+              x1="136"
+              y1="109"
+              x2="144"
+              y2="109"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+          </>
+        )}
+        {character.eyeType === "zombie" && (
+          <>
+            <circle
+              cx="122"
+              cy="108"
+              r="6"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <circle
+              cx="122"
+              cy="108"
+              r="2"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+            <circle
+              cx="158"
+              cy="108"
+              r="6"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <circle
+              cx="158"
+              cy="108"
+              r="2"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+          </>
+        )}
+        {character.eyeType === "vr" && (
+          <rect
+            x="105"
+            y="98"
+            width="70"
+            height="22"
+            rx="6"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeW}
+          />
+        )}
+
+        {/* Mouth - flat line */}
+        <line
+          x1="128"
+          y1="128"
+          x2="152"
+          y2="128"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+          strokeLinecap="round"
+        />
+
+        {/* Cigarette */}
+        {character.hasCig && (
+          <>
+            <line
+              x1="152"
+              y1="128"
+              x2="180"
+              y2="140"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            {/* Smoke wisps */}
+            <path
+              d={`M 180 140 Q ${185 + smokeDrift} ${130 + smokeDrift} ${182 + smokeDrift * 0.5} 118`}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              opacity={smokeOpacity}
+            />
+            <path
+              d={`M 180 140 Q ${190 + smokeDrift * 0.7} ${125 + smokeDrift} ${188 + smokeDrift * 0.3} 110`}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1"
+              strokeLinecap="round"
+              opacity={smokeOpacity * 0.6}
+            />
+          </>
+        )}
+
+        {/* Pipe */}
+        {character.hasPipe && (
+          <>
+            <path
+              d="M 152 128 L 170 128 Q 178 128 178 136 L 178 148 Q 178 156 170 156 L 164 156 Q 156 156 156 148 L 156 136"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <path
+              d={`M 170 148 Q ${175 + smokeDrift} ${135 + smokeDrift} ${172 + smokeDrift * 0.5} 120`}
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              opacity={smokeOpacity}
+            />
+          </>
+        )}
+
+        {/* Chain necklace */}
+        {character.hasChain && (
+          <path
+            d="M 115 160 Q 120 172 140 176 Q 160 172 165 160"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeDasharray="3 3"
+          />
+        )}
+
+        {/* 4:20 Watch */}
+        {character.hasWatch && (
+          <>
+            <rect
+              x="32"
+              y="206"
+              width="14"
+              height="10"
+              rx="2"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+            <line
+              x1="39"
+              y1="208"
+              x2="39"
+              y2="212"
+              stroke={strokeColor}
+              strokeWidth="1"
+            />
+            <line
+              x1="39"
+              y1="212"
+              x2="42"
+              y2="212"
+              stroke={strokeColor}
+              strokeWidth="1"
+            />
           </>
         )}
       </svg>
@@ -305,7 +529,482 @@ const Avatar: React.FC<{
 };
 
 // ============================================
-// ENVIRONMENT BACKGROUNDS
+// MILADY SILHOUETTE - green outline, no fill
+// ============================================
+const MiladySilhouette: React.FC<{
+  character: NFTCharacter;
+  size?: number;
+  animate?: boolean;
+  frame?: number;
+  fps?: number;
+}> = ({ character, size = 280, animate = false, frame = 0, fps = 30 }) => {
+  const headBob = animate ? Math.sin((frame / fps) * 2.5) * 2 : 0;
+  const strokeColor = COLORS.green;
+  const strokeW = "2.5";
+  const glowFilter = `drop-shadow(0 0 6px ${COLORS.green}40)`;
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        position: "relative",
+        transform: `translateY(${headBob}px)`,
+        filter: glowFilter,
+      }}
+    >
+      <svg width={size} height={size} viewBox="0 0 280 280">
+        {/* Body - small/narrow (chibi proportion) */}
+        <path
+          d="M 110 200 Q 110 185 120 178 L 140 175 L 160 178 Q 170 185 170 200 L 170 260 Q 140 268 110 260 Z"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+          strokeLinejoin="round"
+        />
+        {/* Collar / shirt detail */}
+        <path
+          d="M 120 178 L 140 190 L 160 178"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* Neck */}
+        <line
+          x1="133"
+          y1="160"
+          x2="133"
+          y2="175"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+        <line
+          x1="147"
+          y1="160"
+          x2="147"
+          y2="175"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+
+        {/* Head - large chibi head */}
+        <ellipse
+          cx="140"
+          cy="105"
+          rx="55"
+          ry="58"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+
+        {/* Hair styles */}
+        {character.hairStyle === "twintails" && (
+          <>
+            {/* Bangs */}
+            <path
+              d="M 90 85 Q 100 65 140 60 Q 180 65 190 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <path
+              d="M 100 85 Q 110 78 120 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <path
+              d="M 120 85 Q 130 78 140 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <path
+              d="M 140 85 Q 150 78 160 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <path
+              d="M 160 85 Q 170 78 180 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            {/* Left twin tail */}
+            <path
+              d="M 88 100 Q 65 110 55 150 Q 50 170 60 190"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+            <path
+              d="M 88 100 Q 72 115 65 155 Q 60 175 68 192"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            {/* Right twin tail */}
+            <path
+              d="M 192 100 Q 215 110 225 150 Q 230 170 220 190"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+            <path
+              d="M 192 100 Q 208 115 215 155 Q 220 175 212 192"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+        {character.hairStyle === "bob" && (
+          <>
+            <path
+              d="M 88 85 Q 100 58 140 54 Q 180 58 192 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <path
+              d="M 88 85 Q 82 100 80 130 Q 80 142 90 145"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+            <path
+              d="M 192 85 Q 198 100 200 130 Q 200 142 190 145"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+            {/* Bangs */}
+            <path
+              d="M 105 85 Q 115 76 125 85 Q 135 76 145 85 Q 155 76 165 85 Q 175 76 185 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+          </>
+        )}
+        {character.hairStyle === "long" && (
+          <>
+            <path
+              d="M 88 85 Q 100 58 140 54 Q 180 58 192 85"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <path
+              d="M 88 85 Q 78 120 75 170 Q 72 200 80 220"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+            <path
+              d="M 192 85 Q 202 120 205 170 Q 208 200 200 220"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+              strokeLinecap="round"
+            />
+          </>
+        )}
+        {character.hairStyle === "bangs" && (
+          <>
+            <path
+              d="M 88 90 Q 100 62 140 58 Q 180 62 192 90"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            {/* Heavy bangs covering forehead */}
+            <path
+              d="M 92 90 L 92 98 Q 110 92 128 98 Q 146 92 164 98 Q 182 92 188 98 L 188 90"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+          </>
+        )}
+        {character.hairStyle === "messy" && (
+          <>
+            <path
+              d="M 86 88 Q 98 55 140 50 Q 182 55 194 88"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            {/* Messy spikes */}
+            <line
+              x1="100"
+              y1="68"
+              x2="90"
+              y2="48"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="120"
+              y1="58"
+              x2="115"
+              y2="38"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="140"
+              y1="52"
+              x2="140"
+              y2="32"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="160"
+              y1="58"
+              x2="168"
+              y2="38"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <line
+              x1="178"
+              y1="68"
+              x2="190"
+              y2="48"
+              stroke={strokeColor}
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </>
+        )}
+
+        {/* Hats */}
+        {character.hatType === "beret" && (
+          <ellipse
+            cx="140"
+            cy="52"
+            rx="42"
+            ry="16"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeW}
+          />
+        )}
+        {character.hatType === "bow" && (
+          <>
+            <circle
+              cx="180"
+              cy="65"
+              r="8"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <path
+              d="M 172 65 Q 160 55 168 65 Q 160 75 172 65"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <path
+              d="M 188 65 Q 200 55 192 65 Q 200 75 188 65"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+          </>
+        )}
+        {character.hatType === "snapback" && (
+          <>
+            <path
+              d="M 90 78 Q 100 55 140 50 Q 180 55 190 78"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth={strokeW}
+            />
+            <line
+              x1="85"
+              y1="78"
+              x2="195"
+              y2="78"
+              stroke={strokeColor}
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+            {/* Brim */}
+            <path
+              d="M 85 78 Q 80 76 75 80 Q 78 84 85 78"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+          </>
+        )}
+
+        {/* Large anime eyes */}
+        <ellipse
+          cx="120"
+          cy="108"
+          rx="12"
+          ry="14"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+        {/* Eye highlight */}
+        <circle
+          cx="115"
+          cy="104"
+          r="3"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="1.5"
+        />
+        <ellipse
+          cx="160"
+          cy="108"
+          rx="12"
+          ry="14"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeW}
+        />
+        <circle
+          cx="155"
+          cy="104"
+          r="3"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="1.5"
+        />
+
+        {/* Glasses */}
+        {character.hasGlasses && (
+          <>
+            <circle
+              cx="120"
+              cy="108"
+              r="18"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <circle
+              cx="160"
+              cy="108"
+              r="18"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+            <line
+              x1="138"
+              y1="108"
+              x2="142"
+              y2="108"
+              stroke={strokeColor}
+              strokeWidth="2"
+            />
+          </>
+        )}
+
+        {/* Tiny mouth */}
+        <path
+          d="M 134 132 Q 140 136 146 132"
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+
+        {/* Earrings */}
+        {character.hasEarrings && (
+          <>
+            <line
+              x1="86"
+              y1="118"
+              x2="86"
+              y2="130"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+            <circle
+              cx="86"
+              cy="133"
+              r="4"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+            <line
+              x1="194"
+              y1="118"
+              x2="194"
+              y2="130"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+            <circle
+              cx="194"
+              cy="133"
+              r="4"
+              fill="none"
+              stroke={strokeColor}
+              strokeWidth="1.5"
+            />
+          </>
+        )}
+
+        {/* Choker */}
+        {character.hasChoker && (
+          <path
+            d="M 118 158 Q 125 163 140 165 Q 155 163 162 158"
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        )}
+      </svg>
+    </div>
+  );
+};
+
+// ============================================
+// NFT AVATAR DISPATCHER
+// ============================================
+const NFTAvatar: React.FC<{
+  character: NFTCharacter;
+  size?: number;
+  animate?: boolean;
+  frame?: number;
+  fps?: number;
+}> = (props) => {
+  if (props.character.type === "mfer") {
+    return <MferSilhouette {...props} />;
+  }
+  return <MiladySilhouette {...props} />;
+};
+
+// ============================================
+// ENVIRONMENT BACKGROUNDS (dark/brand themed)
 // ============================================
 const ApartmentNight: React.FC<{ frame: number }> = ({ frame }) => {
   const twinkle1 = 0.5 + Math.sin(frame * 0.15) * 0.5;
@@ -314,12 +1013,11 @@ const ApartmentNight: React.FC<{ frame: number }> = ({ frame }) => {
 
   return (
     <AbsoluteFill>
-      {/* Dark room gradient */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(180deg, #0f0f23 0%, #1a1a2e 40%, #16213e 100%)",
+          background: `linear-gradient(180deg, ${COLORS.dark} 0%, ${COLORS.darkAlt} 40%, #16213e 100%)`,
         }}
       />
       {/* Window with moonlight */}
@@ -330,13 +1028,12 @@ const ApartmentNight: React.FC<{ frame: number }> = ({ frame }) => {
           top: 80,
           width: 280,
           height: 350,
-          border: "4px solid #2a2a4a",
+          border: `2px solid ${COLORS.green}20`,
           borderRadius: 8,
-          background: "linear-gradient(180deg, #1e3a5f 0%, #2d5a87 100%)",
+          background: "linear-gradient(180deg, #0a1628 0%, #0f2440 100%)",
           overflow: "hidden",
         }}
       >
-        {/* Moon */}
         <div
           style={{
             position: "absolute",
@@ -345,11 +1042,10 @@ const ApartmentNight: React.FC<{ frame: number }> = ({ frame }) => {
             width: 60,
             height: 60,
             borderRadius: "50%",
-            background: "radial-gradient(circle, #fef9c3 0%, #fde68a 100%)",
-            boxShadow: "0 0 40px #fef9c320",
+            border: `2px solid ${COLORS.green}40`,
+            boxShadow: `0 0 40px ${COLORS.green}15`,
           }}
         />
-        {/* Stars */}
         {[
           { x: 30, y: 25 },
           { x: 180, y: 60 },
@@ -366,96 +1062,40 @@ const ApartmentNight: React.FC<{ frame: number }> = ({ frame }) => {
               width: 3,
               height: 3,
               borderRadius: "50%",
-              backgroundColor: "#fef9c3",
-              opacity: i % 3 === 0 ? twinkle1 : i % 3 === 1 ? twinkle2 : twinkle3,
+              backgroundColor: COLORS.green,
+              opacity:
+                (i % 3 === 0 ? twinkle1 : i % 3 === 1 ? twinkle2 : twinkle3) *
+                0.5,
             }}
           />
         ))}
       </div>
-      {/* Warm lamp glow */}
+      {/* Green ambient glow */}
       <div
         style={{
           position: "absolute",
           left: 100,
           bottom: 200,
-          width: 200,
-          height: 200,
+          width: 300,
+          height: 300,
           borderRadius: "50%",
-          background: "radial-gradient(circle, #fbbf2420 0%, transparent 70%)",
+          background: `radial-gradient(circle, ${COLORS.green}08 0%, transparent 70%)`,
         }}
       />
-      {/* Desk lamp */}
-      <div
-        style={{
-          position: "absolute",
-          left: 140,
-          bottom: 300,
-          width: 8,
-          height: 120,
-          backgroundColor: "#555",
-          borderRadius: 4,
-          transform: "rotate(-15deg)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: 100,
-          bottom: 380,
-          width: 60,
-          height: 30,
-          backgroundColor: "#666",
-          borderRadius: "30px 30px 0 0",
-          boxShadow: "0 8px 30px #fbbf2430",
-        }}
-      />
-      {/* Plant */}
-      <div style={{ position: "absolute", right: 60, bottom: 100 }}>
-        <div
-          style={{
-            width: 40,
-            height: 60,
-            backgroundColor: "#7c6f5b",
-            borderRadius: "0 0 8px 8px",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: -40,
-            left: -10,
-            width: 60,
-            height: 50,
-            borderRadius: "50%",
-            backgroundColor: "#22c55e40",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: -30,
-            left: 5,
-            width: 40,
-            height: 40,
-            borderRadius: "50%",
-            backgroundColor: "#22c55e50",
-          }}
-        />
-      </div>
-      {/* Fairy lights string */}
-      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+      {/* Matrix-like particles */}
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
         <div
           key={i}
           style={{
             position: "absolute",
-            left: 80 + i * 90,
-            top: 60 + Math.sin(i * 0.8) * 20,
-            width: 8,
-            height: 8,
+            left: 80 + i * 110,
+            top: 40 + Math.sin(i * 0.8) * 30,
+            width: 4,
+            height: 4,
             borderRadius: "50%",
-            backgroundColor: ["#fbbf24", "#f472b6", "#60a5fa", "#34d399"][i % 4],
-            opacity: 0.6 + Math.sin(frame * 0.1 + i) * 0.3,
-            boxShadow: `0 0 10px ${["#fbbf24", "#f472b6", "#60a5fa", "#34d399"][i % 4]}60`,
+            backgroundColor: COLORS.green,
+            opacity: 0.15 + Math.sin(frame * 0.08 + i * 1.2) * 0.15,
+            boxShadow: `0 0 8px ${COLORS.green}30`,
           }}
         />
       ))}
@@ -469,10 +1109,10 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
       style={{
         position: "absolute",
         inset: 0,
-        background: "linear-gradient(180deg, #fffbeb 0%, #fef3c7 40%, #fde68a 100%)",
+        background: `linear-gradient(180deg, ${COLORS.dark} 0%, #0a1a0f 40%, #0f2a15 100%)`,
       }}
     />
-    {/* Big window with sunlight */}
+    {/* Window with green-tinted light */}
     <div
       style={{
         position: "absolute",
@@ -480,18 +1120,17 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
         top: 0,
         width: "60%",
         height: "70%",
-        background: "linear-gradient(180deg, #fef9c340 0%, #fbbf2410 100%)",
+        background: `linear-gradient(180deg, ${COLORS.green}06 0%, transparent 100%)`,
       }}
     />
-    {/* Coffee cup */}
+    {/* Coffee cup outline */}
     <div style={{ position: "absolute", right: 200, bottom: 180 }}>
       <div
         style={{
           width: 50,
           height: 45,
-          backgroundColor: "#f5f5f4",
           borderRadius: "0 0 10px 10px",
-          border: "2px solid #d6d3d1",
+          border: `2px solid ${COLORS.green}30`,
         }}
       />
       <div
@@ -501,7 +1140,7 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
           right: -18,
           width: 18,
           height: 25,
-          border: "3px solid #d6d3d1",
+          border: `2px solid ${COLORS.green}30`,
           borderLeft: "none",
           borderRadius: "0 10px 10px 0",
         }}
@@ -511,53 +1150,28 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
         style={{
           position: "absolute",
           top: -25,
-          left: 12,
+          left: 15,
           width: 2,
           height: 20,
-          backgroundColor: "#d6d3d180",
+          backgroundColor: `${COLORS.green}30`,
           borderRadius: 2,
           transform: `translateY(${Math.sin(frame * 0.1) * 5}px)`,
-          opacity: 0.5 + Math.sin(frame * 0.15) * 0.3,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: -30,
-          left: 22,
-          width: 2,
-          height: 20,
-          backgroundColor: "#d6d3d180",
-          borderRadius: 2,
-          transform: `translateY(${Math.sin(frame * 0.12 + 1) * 5}px)`,
-          opacity: 0.4 + Math.sin(frame * 0.13 + 1) * 0.3,
+          opacity: 0.4 + Math.sin(frame * 0.15) * 0.2,
         }}
       />
     </div>
-    {/* Wooden table edge */}
+    {/* Table edge */}
     <div
       style={{
         position: "absolute",
         bottom: 140,
         left: 0,
         right: 0,
-        height: 12,
-        backgroundColor: "#92400e",
-        borderRadius: 4,
+        height: 2,
+        backgroundColor: `${COLORS.green}20`,
       }}
     />
-    <div
-      style={{
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 140,
-        backgroundColor: "#a16207",
-        opacity: 0.3,
-      }}
-    />
-    {/* Hanging pendant lights */}
+    {/* Hanging lights */}
     {[250, 550, 850].map((x, i) => (
       <React.Fragment key={i}>
         <div
@@ -565,20 +1179,9 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
             position: "absolute",
             left: x,
             top: 0,
-            width: 2,
+            width: 1,
             height: 80 + i * 20,
-            backgroundColor: "#78716c",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: x - 20,
-            top: 75 + i * 20,
-            width: 44,
-            height: 30,
-            backgroundColor: "#292524",
-            borderRadius: "0 0 22px 22px",
+            backgroundColor: `${COLORS.green}20`,
           }}
         />
         <div
@@ -589,30 +1192,11 @@ const CoffeeShop: React.FC<{ frame: number }> = ({ frame }) => (
             width: 24,
             height: 24,
             borderRadius: "50%",
-            background: "radial-gradient(circle, #fbbf2460 0%, transparent 70%)",
+            background: `radial-gradient(circle, ${COLORS.green}15 0%, transparent 70%)`,
           }}
         />
       </React.Fragment>
     ))}
-    {/* Chalkboard menu */}
-    <div
-      style={{
-        position: "absolute",
-        right: 60,
-        top: 80,
-        width: 180,
-        height: 240,
-        backgroundColor: "#1c1917",
-        borderRadius: 8,
-        border: "6px solid #78716c",
-        padding: 16,
-      }}
-    >
-      <div style={{ width: 80, height: 3, backgroundColor: "#fef9c360", borderRadius: 2, marginBottom: 12 }} />
-      <div style={{ width: 120, height: 2, backgroundColor: "#fef9c330", borderRadius: 2, marginBottom: 8 }} />
-      <div style={{ width: 100, height: 2, backgroundColor: "#fef9c330", borderRadius: 2, marginBottom: 8 }} />
-      <div style={{ width: 110, height: 2, backgroundColor: "#fef9c330", borderRadius: 2 }} />
-    </div>
   </AbsoluteFill>
 );
 
@@ -622,24 +1206,21 @@ const CoworkingSpace: React.FC<{ frame: number }> = ({ frame }) => (
       style={{
         position: "absolute",
         inset: 0,
-        background: "linear-gradient(180deg, #f5f3ff 0%, #ede9fe 40%, #ddd6fe 100%)",
+        background: `linear-gradient(180deg, ${COLORS.dark} 0%, #0a0f1a 40%, #0f1a2e 100%)`,
       }}
     />
-    {/* Standing desk with monitors */}
+    {/* Monitor */}
     <div style={{ position: "absolute", right: 100, bottom: 200 }}>
-      {/* Monitor 1 */}
       <div
         style={{
           width: 200,
           height: 130,
-          backgroundColor: "#1e1b4b",
           borderRadius: 8,
-          border: "3px solid #a5b4fc",
+          border: `2px solid ${COLORS.green}25`,
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Code lines on screen */}
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
@@ -647,61 +1228,51 @@ const CoworkingSpace: React.FC<{ frame: number }> = ({ frame }) => (
               position: "absolute",
               left: 10 + (i % 3) * 8,
               top: 12 + i * 18,
-              width: 40 + (i * 23) % 80,
-              height: 4,
-              backgroundColor: [COLORS.green, "#818cf8", "#f472b6", COLORS.teal, "#fbbf24", "#60a5fa"][i],
+              width: 40 + ((i * 23) % 80),
+              height: 3,
+              backgroundColor: COLORS.green,
               borderRadius: 2,
-              opacity: 0.7,
+              opacity: 0.15 + (i % 2) * 0.1,
             }}
           />
         ))}
       </div>
-      {/* Monitor stand */}
       <div
         style={{
-          width: 12,
+          width: 4,
           height: 40,
-          backgroundColor: "#a5b4fc",
+          backgroundColor: `${COLORS.green}20`,
           margin: "0 auto",
-          borderRadius: 2,
         }}
       />
     </div>
-    {/* Desk surface */}
-    <div
-      style={{
-        position: "absolute",
-        bottom: 150,
-        right: 40,
-        width: 400,
-        height: 10,
-        backgroundColor: "#e2e8f0",
-        borderRadius: 4,
-      }}
-    />
-    {/* Desk legs */}
-    <div style={{ position: "absolute", bottom: 0, right: 60, width: 6, height: 150, backgroundColor: "#cbd5e1" }} />
-    <div style={{ position: "absolute", bottom: 0, right: 420, width: 6, height: 150, backgroundColor: "#cbd5e1" }} />
-    {/* Whiteboard */}
-    <div
-      style={{
-        position: "absolute",
-        left: 80,
-        top: 100,
-        width: 300,
-        height: 200,
-        backgroundColor: "#fff",
-        borderRadius: 4,
-        border: "3px solid #e2e8f0",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
-      }}
-    >
-      {/* Sticky notes */}
-      <div style={{ position: "absolute", left: 20, top: 20, width: 60, height: 60, backgroundColor: "#fef08a", borderRadius: 2, transform: "rotate(-3deg)" }} />
-      <div style={{ position: "absolute", left: 100, top: 30, width: 60, height: 60, backgroundColor: "#bbf7d0", borderRadius: 2, transform: "rotate(2deg)" }} />
-      <div style={{ position: "absolute", left: 180, top: 15, width: 60, height: 60, backgroundColor: "#bfdbfe", borderRadius: 2, transform: "rotate(-1deg)" }} />
-      <div style={{ position: "absolute", left: 60, top: 110, width: 60, height: 60, backgroundColor: "#fecdd3", borderRadius: 2, transform: "rotate(4deg)" }} />
-    </div>
+    {/* Grid pattern */}
+    {Array.from({ length: 8 }).map((_, i) => (
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: i * 140,
+          height: 1,
+          backgroundColor: `${COLORS.green}06`,
+        }}
+      />
+    ))}
+    {Array.from({ length: 14 }).map((_, i) => (
+      <div
+        key={i}
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: i * 140,
+          width: 1,
+          backgroundColor: `${COLORS.green}06`,
+        }}
+      />
+    ))}
   </AbsoluteFill>
 );
 
@@ -715,7 +1286,7 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(180deg, #0a0a1a 0%, #0f0f23 40%, #1a0a2e 100%)",
+          background: `linear-gradient(180deg, #0a0a0f 0%, ${COLORS.dark} 40%, #1a0a2e 100%)`,
         }}
       />
       {/* LED strip top */}
@@ -725,10 +1296,10 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
           top: 0,
           left: 0,
           right: 0,
-          height: 4,
-          background: `linear-gradient(90deg, ${COLORS.green}, #8b5cf6, ${COLORS.green})`,
-          opacity: neonPulse,
-          boxShadow: `0 0 30px ${COLORS.green}60, 0 0 60px #8b5cf640`,
+          height: 3,
+          background: `linear-gradient(90deg, ${COLORS.green}, ${COLORS.emerald}, ${COLORS.green})`,
+          opacity: neonPulse * 0.5,
+          boxShadow: `0 0 30px ${COLORS.green}30`,
         }}
       />
       {/* LED strip bottom */}
@@ -738,10 +1309,10 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
           bottom: 120,
           left: 0,
           right: 0,
-          height: 3,
-          background: `linear-gradient(90deg, #8b5cf6, ${COLORS.green}, #8b5cf6)`,
-          opacity: neonPulse2,
-          boxShadow: `0 0 20px #8b5cf660`,
+          height: 2,
+          background: `linear-gradient(90deg, ${COLORS.emerald}, ${COLORS.green}, ${COLORS.emerald})`,
+          opacity: neonPulse2 * 0.4,
+          boxShadow: `0 0 20px ${COLORS.green}20`,
         }}
       />
       {/* Multiple monitors */}
@@ -758,14 +1329,11 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
             bottom: 240,
             width: monitor.w,
             height: monitor.h,
-            backgroundColor: "#0a0a1a",
             borderRadius: 6,
-            border: `2px solid ${i === 1 ? COLORS.green : "#8b5cf6"}40`,
+            border: `1.5px solid ${COLORS.green}${i === 1 ? "25" : "15"}`,
             overflow: "hidden",
-            boxShadow: `0 0 20px ${i === 1 ? COLORS.green : "#8b5cf6"}15`,
           }}
         >
-          {/* Screen content */}
           {[0, 1, 2, 3].map((j) => (
             <div
               key={j}
@@ -773,11 +1341,11 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
                 position: "absolute",
                 left: 8 + (j % 2) * 6,
                 top: 10 + j * 22,
-                width: 30 + ((j + i) * 19) % 60,
-                height: 4,
-                backgroundColor: [COLORS.green, "#8b5cf6", "#f472b6", "#fbbf24"][(j + i) % 4],
+                width: 30 + (((j + i) * 19) % 60),
+                height: 3,
+                backgroundColor: COLORS.green,
                 borderRadius: 2,
-                opacity: 0.6,
+                opacity: 0.12 + ((j + i) % 3) * 0.05,
               }}
             />
           ))}
@@ -790,22 +1358,8 @@ const GarageSetup: React.FC<{ frame: number }> = ({ frame }) => {
           bottom: 200,
           left: 20,
           right: 20,
-          height: 10,
-          backgroundColor: "#1e1b4b",
-          borderRadius: 4,
-        }}
-      />
-      {/* Mech keyboard glow */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 210,
-          left: 300,
-          width: 200,
-          height: 15,
-          borderRadius: 4,
-          background: `linear-gradient(90deg, ${COLORS.green}30, #8b5cf630, ${COLORS.green}30)`,
-          boxShadow: `0 -5px 15px ${COLORS.green}15`,
+          height: 2,
+          backgroundColor: `${COLORS.green}15`,
         }}
       />
     </AbsoluteFill>
@@ -817,25 +1371,23 @@ const RooftopSunset: React.FC<{ frame: number }> = ({ frame }) => {
 
   return (
     <AbsoluteFill>
-      {/* Sunset sky */}
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "linear-gradient(180deg, #7c3aed20 0%, #f97316 15%, #fb923c 30%, #fbbf24 45%, #fde68a 60%, #fed7aa 80%, #e2e8f0 100%)",
+          background: `linear-gradient(180deg, ${COLORS.dark} 0%, #0a1a0f 30%, #0f2a15 50%, #0a1628 80%, ${COLORS.dark} 100%)`,
         }}
       />
-      {/* Sun */}
+      {/* Horizon glow */}
       <div
         style={{
           position: "absolute",
           left: "50%",
-          top: "25%",
-          width: 120,
-          height: 120,
+          top: "40%",
+          width: 800,
+          height: 200,
           borderRadius: "50%",
-          background: "radial-gradient(circle, #fef08a 0%, #f97316 60%, #f9731600 100%)",
+          background: `radial-gradient(ellipse, ${COLORS.green}08 0%, transparent 70%)`,
           transform: "translateX(-50%)",
           opacity: glowPulse,
         }}
@@ -876,11 +1428,11 @@ const RooftopSunset: React.FC<{ frame: number }> = ({ frame }) => {
             bottom: 0,
             width: bldg.w,
             height: bldg.h,
-            backgroundColor: `rgba(30, 27, 75, ${0.7 + (i % 3) * 0.1})`,
-            borderRadius: "4px 4px 0 0",
+            border: `1px solid ${COLORS.green}08`,
+            borderBottom: "none",
+            borderRadius: "2px 2px 0 0",
           }}
         >
-          {/* Windows */}
           {Array.from({ length: Math.floor(bldg.h / 40) }).map((_, j) =>
             Array.from({ length: Math.floor(bldg.w / 20) }).map((_, k) => (
               <div
@@ -889,9 +1441,12 @@ const RooftopSunset: React.FC<{ frame: number }> = ({ frame }) => {
                   position: "absolute",
                   left: 6 + k * 18,
                   top: 10 + j * 35,
-                  width: 8,
-                  height: 12,
-                  backgroundColor: (i + j + k) % 3 === 0 ? "#fbbf2440" : "#fbbf2415",
+                  width: 6,
+                  height: 8,
+                  backgroundColor:
+                    (i + j + k) % 4 === 0
+                      ? `${COLORS.green}12`
+                      : `${COLORS.green}05`,
                   borderRadius: 1,
                 }}
               />
@@ -906,24 +1461,10 @@ const RooftopSunset: React.FC<{ frame: number }> = ({ frame }) => {
           bottom: 150,
           left: 0,
           right: 0,
-          height: 4,
-          backgroundColor: "#78716c",
+          height: 2,
+          backgroundColor: `${COLORS.green}20`,
         }}
       />
-      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            bottom: 120,
-            left: 80 + i * 170,
-            width: 4,
-            height: 34,
-            backgroundColor: "#78716c",
-            borderRadius: 2,
-          }}
-        />
-      ))}
     </AbsoluteFill>
   );
 };
@@ -964,7 +1505,6 @@ const PhoneCallUI: React.FC<{
   });
   const offset = interpolate(slideIn, [0, 1], [100, 0]);
   const opacity = interpolate(slideIn, [0, 1], [0, 1]);
-
   const pulseOpacity = 0.5 + Math.sin(frame * 0.15) * 0.3;
 
   return (
@@ -978,14 +1518,14 @@ const PhoneCallUI: React.FC<{
         display: "flex",
         alignItems: "center",
         gap: 16,
-        backgroundColor: "rgba(0,0,0,0.6)",
+        backgroundColor: "rgba(0,0,0,0.7)",
         backdropFilter: "blur(20px)",
         padding: "14px 28px",
         borderRadius: 60,
-        boxShadow: "0 10px 40px rgba(0,0,0,0.3)",
+        border: `1px solid ${COLORS.green}20`,
+        boxShadow: `0 10px 40px rgba(0,0,0,0.4), 0 0 0 1px ${COLORS.green}10`,
       }}
     >
-      {/* Pulse dot */}
       <div
         style={{
           width: 12,
@@ -996,7 +1536,6 @@ const PhoneCallUI: React.FC<{
           boxShadow: `0 0 10px ${COLORS.green}`,
         }}
       />
-      {/* Phone icon */}
       <svg
         width="22"
         height="22"
@@ -1013,7 +1552,7 @@ const PhoneCallUI: React.FC<{
         <p
           style={{
             fontSize: 12,
-            color: "#aaa",
+            color: `${COLORS.green}80`,
             margin: 0,
             fontFamily: FONT,
             fontWeight: 400,
@@ -1040,15 +1579,15 @@ const PhoneCallUI: React.FC<{
 };
 
 // ============================================
-// SPEECH BUBBLE WITH TYPING EFFECT
+// SPEECH BUBBLE - dark glass style
 // ============================================
 const SpeechBubble: React.FC<{
   quote: string;
-  style: "excited" | "mindblown" | "analytical" | "hyped" | "urgent";
+  accentColor: string;
   frame: number;
   fps: number;
   delay: number;
-}> = ({ quote, style: quoteStyle, frame, fps, delay }) => {
+}> = ({ quote, accentColor, frame, fps, delay }) => {
   const adjustedFrame = frame - delay;
   if (adjustedFrame < 0) return null;
 
@@ -1060,23 +1599,12 @@ const SpeechBubble: React.FC<{
   const offset = interpolate(slideUp, [0, 1], [60, 0]);
   const opacity = interpolate(slideUp, [0, 1], [0, 1]);
 
-  // Typewriter effect: reveal characters over time
   const charsPerFrame = 1.8;
   const visibleChars = Math.min(
     quote.length,
     Math.floor(adjustedFrame * charsPerFrame)
   );
   const displayedText = quote.slice(0, visibleChars);
-
-  const bubbleColors: Record<string, { bg: string; border: string; text: string }> = {
-    excited: { bg: "#7c3aed15", border: "#7c3aed40", text: "#1a1a2e" },
-    mindblown: { bg: "#05966915", border: "#05966940", text: "#1a1a2e" },
-    analytical: { bg: "#2563eb15", border: "#2563eb40", text: "#1a1a2e" },
-    hyped: { bg: "#dc262615", border: "#dc262640", text: "#1a1a2e" },
-    urgent: { bg: "#f9731615", border: "#f9731640", text: "#1a1a2e" },
-  };
-
-  const colors = bubbleColors[quoteStyle];
 
   return (
     <div
@@ -1092,23 +1620,23 @@ const SpeechBubble: React.FC<{
     >
       <div
         style={{
-          backgroundColor: "rgba(255,255,255,0.92)",
+          backgroundColor: "rgba(0,0,0,0.75)",
           backdropFilter: "blur(20px)",
-          border: `2px solid ${colors.border}`,
+          border: `1.5px solid ${accentColor}30`,
           borderRadius: 24,
           padding: "28px 36px",
-          boxShadow: `0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px ${colors.border}`,
+          boxShadow: `0 20px 60px rgba(0,0,0,0.3), 0 0 40px ${accentColor}08`,
         }}
       >
-        {/* Quote mark */}
         <span
           style={{
             fontSize: 48,
-            color: colors.border,
+            color: accentColor,
             fontFamily: "Georgia, serif",
             lineHeight: 0.5,
             display: "block",
             marginBottom: 8,
+            opacity: 0.6,
           }}
         >
           &ldquo;
@@ -1116,7 +1644,7 @@ const SpeechBubble: React.FC<{
         <p
           style={{
             fontSize: 30,
-            color: colors.text,
+            color: COLORS.white,
             fontFamily: FONT,
             fontWeight: 500,
             lineHeight: 1.5,
@@ -1131,7 +1659,7 @@ const SpeechBubble: React.FC<{
                 display: "inline-block",
                 width: 3,
                 height: 28,
-                backgroundColor: colors.text,
+                backgroundColor: COLORS.green,
                 marginLeft: 2,
                 opacity: Math.sin(frame * 0.3) > 0 ? 1 : 0,
                 verticalAlign: "text-bottom",
@@ -1170,19 +1698,19 @@ const LocationTag: React.FC<{
         display: "flex",
         alignItems: "center",
         gap: 8,
-        backgroundColor: "rgba(0,0,0,0.4)",
+        backgroundColor: "rgba(0,0,0,0.5)",
         backdropFilter: "blur(12px)",
         padding: "8px 20px",
         borderRadius: 30,
+        border: `1px solid ${COLORS.green}15`,
       }}
     >
-      {/* Pin icon */}
       <svg
         width="14"
         height="14"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#fff"
+        stroke={COLORS.green}
         strokeWidth="2"
         strokeLinecap="round"
       >
@@ -1192,7 +1720,7 @@ const LocationTag: React.FC<{
       <p
         style={{
           fontSize: 14,
-          color: "#fff",
+          color: "#9ca3af",
           margin: 0,
           fontFamily: FONT,
           fontWeight: 400,
@@ -1206,14 +1734,13 @@ const LocationTag: React.FC<{
 };
 
 // ============================================
-// INDIVIDUAL CHARACTER SCENE
+// CHARACTER SCENE
 // ============================================
 const CharacterScene: React.FC<{ sceneIndex: number }> = ({ sceneIndex }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const scene = SCENES[sceneIndex];
 
-  // Avatar entrance animation
   const avatarSpring = spring({
     frame: frame - 8,
     fps,
@@ -1224,30 +1751,17 @@ const CharacterScene: React.FC<{ sceneIndex: number }> = ({ sceneIndex }) => {
 
   return (
     <AbsoluteFill>
-      {/* Environment */}
       <EnvironmentBackground type={scene.envElements} frame={frame} />
 
-      {/* Dim overlay for readability */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "rgba(0,0,0,0.15)",
-        }}
-      />
-
-      {/* Phone call UI */}
       <PhoneCallUI
         contactName={scene.contactName}
         direction={scene.callDirection}
         frame={frame}
         fps={fps}
       />
-
-      {/* Location tag */}
       <LocationTag text={scene.callingFrom} frame={frame} fps={fps} />
 
-      {/* Character avatar */}
+      {/* NFT character silhouette */}
       <div
         style={{
           position: "absolute",
@@ -1257,9 +1771,9 @@ const CharacterScene: React.FC<{ sceneIndex: number }> = ({ sceneIndex }) => {
           opacity: avatarOpacity,
         }}
       >
-        <Avatar
+        <NFTAvatar
           character={scene.character}
-          size={280}
+          size={320}
           animate={true}
           frame={frame}
           fps={fps}
@@ -1268,22 +1782,22 @@ const CharacterScene: React.FC<{ sceneIndex: number }> = ({ sceneIndex }) => {
         <p
           style={{
             textAlign: "center",
-            fontSize: 28,
-            color: COLORS.white,
-            fontFamily: FONT,
-            fontWeight: 700,
-            margin: "12px 0 0 0",
-            textShadow: "0 2px 10px rgba(0,0,0,0.5)",
+            fontSize: 24,
+            color: COLORS.green,
+            fontFamily: "SF Mono, monospace",
+            fontWeight: 600,
+            margin: "8px 0 0 0",
+            textShadow: `0 0 20px ${COLORS.green}40`,
+            letterSpacing: "0.05em",
           }}
         >
           {scene.character.name}
         </p>
       </div>
 
-      {/* Speech bubble */}
       <SpeechBubble
         quote={scene.quote}
-        style={scene.quoteStyle}
+        accentColor={scene.quoteAccent}
         frame={frame}
         fps={fps}
         delay={30}
@@ -1336,13 +1850,12 @@ const IntroScene: React.FC = () => {
   });
   const subtitleOpacity = interpolate(subtitleSpring, [0, 1], [0, 1]);
 
-  // Phone vibration
   const vibrate = frame < 60 ? Math.sin(frame * 2) * 3 : 0;
 
   return (
     <AbsoluteFill
       style={{
-        background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)",
+        background: `linear-gradient(135deg, ${COLORS.dark} 0%, ${COLORS.darkAlt} 50%, #16213e 100%)`,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -1356,7 +1869,7 @@ const IntroScene: React.FC = () => {
           width: 200,
           height: 200,
           borderRadius: "50%",
-          border: `3px solid ${COLORS.green}`,
+          border: `2px solid ${COLORS.green}`,
           transform: `translate(-50%, -60%) scale(${ringScale1})`,
           opacity: ringOpacity1,
         }}
@@ -1369,7 +1882,7 @@ const IntroScene: React.FC = () => {
           width: 200,
           height: 200,
           borderRadius: "50%",
-          border: `3px solid ${COLORS.emerald}`,
+          border: `2px solid ${COLORS.emerald}`,
           transform: `translate(-50%, -60%) scale(${ringScale2})`,
           opacity: ringOpacity2,
         }}
@@ -1396,7 +1909,7 @@ const IntroScene: React.FC = () => {
         </svg>
       </div>
 
-      {/* Title text */}
+      {/* Title */}
       <div style={{ textAlign: "center" }}>
         <h1
           style={{
@@ -1422,6 +1935,7 @@ const IntroScene: React.FC = () => {
             opacity: textOpacity,
             transform: `translateY(${textY}px)`,
             letterSpacing: "-0.03em",
+            textShadow: `0 0 60px ${COLORS.green}30`,
           }}
         >
           App Market
@@ -1429,7 +1943,7 @@ const IntroScene: React.FC = () => {
         <p
           style={{
             fontSize: 28,
-            color: "#9ca3af",
+            color: "#6b7280",
             fontFamily: FONT,
             fontWeight: 400,
             margin: "20px 0 0 0",
@@ -1444,7 +1958,7 @@ const IntroScene: React.FC = () => {
 };
 
 // ============================================
-// SPLIT SCREEN ALL CHARACTERS
+// ALL TOGETHER SCENE
 // ============================================
 const AllTogether: React.FC = () => {
   const frame = useCurrentFrame();
@@ -1453,12 +1967,11 @@ const AllTogether: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        background: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)",
+        background: `linear-gradient(135deg, ${COLORS.dark} 0%, ${COLORS.darkAlt} 100%)`,
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      {/* Title */}
       {(() => {
         const titleSpring = spring({
           frame,
@@ -1488,13 +2001,7 @@ const AllTogether: React.FC = () => {
       })()}
 
       {/* Character grid */}
-      <div
-        style={{
-          display: "flex",
-          gap: 60,
-          marginTop: 40,
-        }}
-      >
+      <div style={{ display: "flex", gap: 50, marginTop: 40 }}>
         {SCENES.map((scene, i) => {
           const delay = 10 + i * 8;
           const charSpring = spring({
@@ -1514,41 +2021,41 @@ const AllTogether: React.FC = () => {
                 transform: `scale(${scale})`,
               }}
             >
-              {/* Environment color card */}
               <div
                 style={{
                   width: 180,
                   height: 220,
                   borderRadius: 24,
-                  background: `linear-gradient(135deg, ${scene.bgColors[0]}, ${scene.bgColors[2] || scene.bgColors[1]})`,
+                  background: `linear-gradient(135deg, ${scene.bgGradient[0]}, ${scene.bgGradient[2] || scene.bgGradient[1]})`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  border: `2px solid rgba(255,255,255,0.1)`,
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+                  border: `1.5px solid ${COLORS.green}20`,
+                  boxShadow: `0 20px 40px rgba(0,0,0,0.3), 0 0 30px ${COLORS.green}05`,
                   overflow: "hidden",
                   position: "relative",
                 }}
               >
-                <div style={{ transform: "scale(0.65)", marginTop: 20 }}>
-                  <Avatar character={scene.character} size={200} />
+                <div style={{ transform: "scale(0.55)", marginTop: 10 }}>
+                  <NFTAvatar character={scene.character} size={280} />
                 </div>
               </div>
               <p
                 style={{
-                  fontSize: 22,
-                  color: COLORS.white,
-                  fontFamily: FONT,
+                  fontSize: 18,
+                  color: COLORS.green,
+                  fontFamily: "SF Mono, monospace",
                   fontWeight: 600,
-                  margin: "16px 0 0 0",
+                  margin: "14px 0 0 0",
+                  letterSpacing: "0.03em",
                 }}
               >
                 {scene.character.name}
               </p>
               <p
                 style={{
-                  fontSize: 14,
-                  color: "#9ca3af",
+                  fontSize: 13,
+                  color: "#6b7280",
                   fontFamily: FONT,
                   fontWeight: 400,
                   margin: "4px 0 0 0",
@@ -1561,7 +2068,7 @@ const AllTogether: React.FC = () => {
         })}
       </div>
 
-      {/* Bottom connection line */}
+      {/* Connection line */}
       {(() => {
         const lineWidth = interpolate(frame, [50, 90], [0, 800], {
           extrapolateLeft: "clamp",
@@ -1574,10 +2081,11 @@ const AllTogether: React.FC = () => {
               bottom: 120,
               left: "50%",
               width: lineWidth,
-              height: 3,
-              background: `linear-gradient(90deg, transparent, ${COLORS.green}, transparent)`,
+              height: 2,
+              background: `linear-gradient(90deg, transparent, ${COLORS.green}60, transparent)`,
               transform: "translateX(-50%)",
               borderRadius: 2,
+              boxShadow: `0 0 20px ${COLORS.green}20`,
             }}
           />
         );
@@ -1624,7 +2132,6 @@ const CTAFinal: React.FC = () => {
   });
   const subtextOpacity = interpolate(subtextSpring, [0, 1], [0, 1]);
 
-  // Gradient rotation
   const gradAngle = interpolate(frame, [0, 300], [135, 225], {
     extrapolateRight: "clamp",
   });
@@ -1632,7 +2139,7 @@ const CTAFinal: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(${gradAngle}deg, #0f0f23 0%, #0a1628 50%, #0f0f23 100%)`,
+        background: `linear-gradient(${gradAngle}deg, ${COLORS.dark} 0%, #0a1628 50%, ${COLORS.dark} 100%)`,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -1646,13 +2153,12 @@ const CTAFinal: React.FC = () => {
           width: 600,
           height: 600,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${COLORS.green}10 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${COLORS.green}08 0%, transparent 70%)`,
           transform: "translate(-50%, -50%)",
         }}
       />
 
       <div style={{ textAlign: "center" }}>
-        {/* App Market logo */}
         <h1
           style={{
             fontSize: 130,
@@ -1663,12 +2169,12 @@ const CTAFinal: React.FC = () => {
             letterSpacing: "-0.03em",
             opacity: logoOpacity,
             transform: `scale(${logoScale})`,
+            textShadow: `0 0 80px ${COLORS.green}30`,
           }}
         >
           App Market
         </h1>
 
-        {/* Tagline */}
         <p
           style={{
             fontSize: 36,
@@ -1683,7 +2189,6 @@ const CTAFinal: React.FC = () => {
           Sell what you vibe code. Get paid instantly.
         </p>
 
-        {/* CTA button */}
         <div
           style={{
             display: "inline-block",
@@ -1710,11 +2215,10 @@ const CTAFinal: React.FC = () => {
           </p>
         </div>
 
-        {/* Subtext */}
         <p
           style={{
             fontSize: 20,
-            color: "#6b7280",
+            color: "#4b5563",
             fontFamily: FONT,
             fontWeight: 400,
             margin: "30px 0 0 0",
@@ -1754,7 +2258,7 @@ const TransitionWipe: React.FC<{
         style={{
           position: "absolute",
           top: 0,
-          left: `${(wipeOut) * 100}%`,
+          left: `${wipeOut * 100}%`,
           width: `${wipeProgress * 100}%`,
           height: "100%",
           backgroundColor: color,
@@ -1765,39 +2269,28 @@ const TransitionWipe: React.FC<{
 };
 
 // ============================================
-// MAIN COMPOSITION - ~50 seconds
+// MAIN COMPOSITION
 // ============================================
 export const PromoVideoCall: React.FC = () => {
-  // Scene durations in frames (30 fps)
-  const INTRO = 120; // 4s
-  const CHAR_SCENE = 240; // 8s each
-  const ALL_TOGETHER = 150; // 5s
-  const CTA = 150; // 5s
-  const TRANSITION = 16; // 0.5s
+  const INTRO = 120;
+  const CHAR_SCENE = 240;
+  const ALL_TOGETHER = 150;
+  const CTA = 150;
+  const TRANSITION = 16;
 
-  // Calculate scene start times
-  const introStart = 0;
   const char1Start = INTRO;
-  const char2Start = char1Start + CHAR_SCENE;
-  const char3Start = char2Start + CHAR_SCENE;
-  const char4Start = char3Start + CHAR_SCENE;
-  const char5Start = char4Start + CHAR_SCENE;
-  const allStart = char5Start + CHAR_SCENE;
+  const allStart = char1Start + SCENES.length * CHAR_SCENE;
   const ctaStart = allStart + ALL_TOGETHER;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#0f0f23" }}>
-      {/* Intro */}
-      <Sequence from={introStart} durationInFrames={INTRO}>
+    <AbsoluteFill style={{ backgroundColor: COLORS.dark }}>
+      <Sequence from={0} durationInFrames={INTRO}>
         <IntroScene />
       </Sequence>
-
-      {/* Transition */}
       <Sequence from={INTRO - TRANSITION} durationInFrames={TRANSITION}>
         <TransitionWipe />
       </Sequence>
 
-      {/* Character scenes */}
       {SCENES.map((_, i) => {
         const start = char1Start + i * CHAR_SCENE;
         return (
@@ -1805,14 +2298,13 @@ export const PromoVideoCall: React.FC = () => {
             <Sequence from={start} durationInFrames={CHAR_SCENE}>
               <CharacterScene sceneIndex={i} />
             </Sequence>
-            {/* Transition between scenes */}
             <Sequence
               from={start + CHAR_SCENE - TRANSITION}
               durationInFrames={TRANSITION}
             >
               <TransitionWipe
                 color={
-                  SCENES[Math.min(i + 1, SCENES.length - 1)].bgColors[0]
+                  SCENES[Math.min(i + 1, SCENES.length - 1)].bgGradient[0]
                 }
               />
             </Sequence>
@@ -1820,17 +2312,12 @@ export const PromoVideoCall: React.FC = () => {
         );
       })}
 
-      {/* All together */}
       <Sequence from={allStart} durationInFrames={ALL_TOGETHER}>
         <AllTogether />
       </Sequence>
-
-      {/* Transition to CTA */}
       <Sequence from={ctaStart - TRANSITION} durationInFrames={TRANSITION}>
-        <TransitionWipe color="#0f0f23" />
+        <TransitionWipe color={COLORS.dark} />
       </Sequence>
-
-      {/* CTA */}
       <Sequence from={ctaStart} durationInFrames={CTA}>
         <CTAFinal />
       </Sequence>
