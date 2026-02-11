@@ -12,17 +12,27 @@ const CSRF_HEADER_NAME = "x-csrf-token";
 const TOKEN_LENGTH = 32;
 
 /**
- * Get the CSRF secret from environment
+ * Get the CSRF secret, cryptographically derived from NEXTAUTH_SECRET.
+ * SECURITY [M9]: Uses HKDF to derive a separate key so CSRF tokens can't
+ * be used to forge JWTs and vice-versa. No extra env var needed.
  */
+let _derivedCsrfSecret: string | null = null;
+
 function getCsrfSecret(): string {
-  if (process.env.NODE_ENV === 'production' && !process.env.CSRF_SECRET) {
-    throw new Error('CSRF_SECRET must be set in production');
+  if (_derivedCsrfSecret) return _derivedCsrfSecret;
+
+  const base = process.env.NEXTAUTH_SECRET;
+  if (!base) {
+    throw new Error("NEXTAUTH_SECRET must be set");
   }
-  const secret = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET;
-  if (!secret) {
-    throw new Error("CSRF_SECRET or NEXTAUTH_SECRET must be set");
-  }
-  return secret;
+
+  // HKDF-derive a dedicated CSRF key from the auth secret
+  _derivedCsrfSecret = crypto
+    .createHmac("sha256", "csrf-token-derivation-key")
+    .update(base)
+    .digest("hex");
+
+  return _derivedCsrfSecret;
 }
 
 /**
