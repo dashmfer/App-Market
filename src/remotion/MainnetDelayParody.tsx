@@ -17,12 +17,15 @@ const COLORS = {
   greenDark: "#16a34a",
   emerald: "#10b981",
   teal: "#14b8a6",
-  dark: "#0f0f23",
-  darkAlt: "#1a1a2e",
+  dark: "#ffffff",
+  darkAlt: "#f5f5f5",
   white: "#ffffff",
   red: "#ef4444",
   gray: "#6b7280",
   dimGreen: "#22c55e20",
+  text: "#0a0a0a",
+  bg: "#ffffff",
+  border: "#e5e5e5",
 };
 
 const FONT = "SF Pro Display, -apple-system, BlinkMacSystemFont, sans-serif";
@@ -61,8 +64,8 @@ const GreenWipe: React.FC<{ triggerFrame: number }> = ({ triggerFrame }) => {
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(135deg, ${COLORS.green}dd, ${COLORS.emerald}dd)`,
-        opacity: progress,
+        background: `linear-gradient(135deg, ${COLORS.green}cc, ${COLORS.emerald}cc)`,
+        opacity: progress * 0.85,
         zIndex: 100,
       }}
     />
@@ -83,7 +86,7 @@ const ServerRoom: React.FC<{ dimLevel?: number }> = ({ dimLevel = 0 }) => {
   return (
     <AbsoluteFill
       style={{
-        background: `radial-gradient(ellipse at 50% 80%, ${COLORS.green}08 0%, ${COLORS.dark} 70%)`,
+        background: `radial-gradient(ellipse at 50% 80%, ${COLORS.green}08 0%, ${COLORS.bg} 70%)`,
         opacity: 1 - dimLevel * 0.5,
       }}
     >
@@ -99,7 +102,7 @@ const ServerRoom: React.FC<{ dimLevel?: number }> = ({ dimLevel = 0 }) => {
             height: 600,
             border: `1px solid ${COLORS.green}25`,
             borderRadius: 4,
-            background: `${COLORS.dark}cc`,
+            background: `${COLORS.darkAlt}cc`,
           }}
         >
           {Array.from({ length: 12 }, (_, i) => (
@@ -157,7 +160,7 @@ const ServerRoom: React.FC<{ dimLevel?: number }> = ({ dimLevel = 0 }) => {
             height: 560,
             border: `1px solid ${COLORS.green}20`,
             borderRadius: 4,
-            background: `${COLORS.dark}cc`,
+            background: `${COLORS.darkAlt}cc`,
           }}
         >
           {Array.from({ length: 11 }, (_, i) => (
@@ -237,7 +240,7 @@ const EnergyDrinkCan: React.FC<{
       top: y,
       transform: `rotate(${tipped ? 75 + rotation : rotation}deg)`,
       opacity,
-      filter: `drop-shadow(0 0 3px ${COLORS.green}30)`,
+      filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.08))`,
     }}
     width="28"
     height="56"
@@ -506,11 +509,11 @@ const Monitor: React.FC<{
         top: y,
         width,
         height,
-        border: `2px solid ${COLORS.green}40`,
+        border: `2px solid ${COLORS.border}`,
         borderRadius: 4,
-        background: `${COLORS.dark}ee`,
+        background: COLORS.bg,
         overflow: "hidden",
-        boxShadow: `0 0 15px ${COLORS.green}15, inset 0 0 30px ${COLORS.dark}`,
+        boxShadow: `0 2px 8px rgba(0,0,0,0.06), inset 0 0 30px ${COLORS.darkAlt}`,
       }}
     >
       {content}
@@ -549,21 +552,21 @@ const Terminal: React.FC<{
       style={{
         width,
         height,
-        background: `${COLORS.dark}f5`,
-        border: `1.5px solid ${COLORS.green}50`,
+        background: COLORS.darkAlt,
+        border: `1.5px solid ${COLORS.border}`,
         borderRadius: 8,
         overflow: "hidden",
         fontFamily: MONO,
         fontSize: 14,
-        boxShadow: `0 0 20px ${COLORS.green}15, 0 4px 30px rgba(0,0,0,0.5)`,
+        boxShadow: `0 2px 12px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)`,
       }}
     >
       {/* Title bar */}
       <div
         style={{
           height: 28,
-          background: `${COLORS.green}12`,
-          borderBottom: `1px solid ${COLORS.green}25`,
+          background: COLORS.bg,
+          borderBottom: `1px solid ${COLORS.border}`,
           display: "flex",
           alignItems: "center",
           padding: "0 10px",
@@ -573,7 +576,7 @@ const Terminal: React.FC<{
         <div style={{ width: 10, height: 10, borderRadius: "50%", border: `1.5px solid ${COLORS.red}80` }} />
         <div style={{ width: 10, height: 10, borderRadius: "50%", border: `1.5px solid #eab30880` }} />
         <div style={{ width: 10, height: 10, borderRadius: "50%", border: `1.5px solid ${COLORS.green}80` }} />
-        <span style={{ marginLeft: 8, color: `${COLORS.green}60`, fontSize: 11 }}>{title}</span>
+        <span style={{ marginLeft: 8, color: COLORS.gray, fontSize: 11 }}>{title}</span>
       </div>
       {/* Content */}
       <div style={{ padding: "10px 14px", lineHeight: 1.7 }}>
@@ -591,7 +594,7 @@ const Terminal: React.FC<{
           if (frame < lineDelay) return null;
 
           return (
-            <div key={i} style={{ color: line.color || COLORS.green, whiteSpace: "pre" }}>
+            <div key={i} style={{ color: line.color || COLORS.text, whiteSpace: "pre" }}>
               {visibleText}
               {showCursor && (
                 <span
@@ -624,12 +627,12 @@ const TweetCard: React.FC<{
     style={{
       width: 520,
       padding: "28px 32px",
-      background: `${COLORS.darkAlt}f0`,
-      border: `1.5px solid ${COLORS.green}35`,
+      background: COLORS.bg,
+      border: `1.5px solid ${COLORS.border}`,
       borderRadius: 16,
       fontFamily: FONT,
       transform: `scale(${scale})`,
-      boxShadow: `0 0 30px ${COLORS.green}10, 0 8px 40px rgba(0,0,0,0.4)`,
+      boxShadow: `0 2px 12px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)`,
     }}
   >
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -651,13 +654,13 @@ const TweetCard: React.FC<{
         </svg>
       </div>
       <div>
-        <div style={{ color: COLORS.white, fontWeight: 700, fontSize: 16 }}>App Market Dev</div>
+        <div style={{ color: COLORS.text, fontWeight: 700, fontSize: 16 }}>App Market Dev</div>
         <div style={{ color: COLORS.gray, fontSize: 13 }}>{handle}</div>
       </div>
     </div>
     <div
       style={{
-        color: COLORS.white,
+        color: COLORS.text,
         fontSize: 20,
         lineHeight: 1.5,
         fontWeight: 500,
@@ -703,12 +706,12 @@ const ReactionBubble: React.FC<{
         fontFamily: MONO,
         fontSize: 14,
         color,
-        background: `${COLORS.dark}dd`,
-        border: `1px solid ${color}30`,
+        background: COLORS.bg,
+        border: `1px solid ${COLORS.border}`,
         borderRadius: 12,
         padding: "8px 16px",
         whiteSpace: "nowrap",
-        boxShadow: `0 0 10px ${color}10`,
+        boxShadow: `0 2px 8px rgba(0,0,0,0.06)`,
       }}
     >
       {text}
@@ -768,7 +771,7 @@ const Scene1_Announcement: React.FC = () => {
   const glowPulse = 0.3 + Math.sin(frame * 0.08) * 0.15;
 
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       <ServerRoom />
 
       {/* Central green ambient glow */}
@@ -831,14 +834,14 @@ const Scene2_MondayMorning: React.FC = () => {
 
   const terminalLines = [
     { text: "$ npm run test:mainnet", color: COLORS.green, delay: 30 },
-    { text: "Running deployment preflight checks...", color: `${COLORS.green}aa`, delay: 55 },
+    { text: "Running deployment preflight checks...", color: COLORS.gray, delay: 55 },
     { text: "  [1/7] Compiling contracts.......... OK", color: COLORS.green, delay: 70 },
     { text: "  [2/7] Running unit tests........... OK", color: COLORS.green, delay: 82 },
-    { text: "  [3/7] Integration tests............", color: `${COLORS.green}80`, delay: 94 },
+    { text: "  [3/7] Integration tests............", color: COLORS.gray, delay: 94 },
   ];
 
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       <ServerRoom />
 
       {/* Clock */}
@@ -866,7 +869,7 @@ const Scene2_MondayMorning: React.FC = () => {
           right: 140,
           fontFamily: FONT,
           fontSize: 22,
-          color: `${COLORS.green}cc`,
+          color: COLORS.gray,
           fontStyle: "italic",
           opacity: textAppear,
           letterSpacing: -0.3,
@@ -887,7 +890,7 @@ const Scene2_MondayMorning: React.FC = () => {
         width={160}
         height={100}
         content={
-          <div style={{ padding: 6, fontFamily: MONO, fontSize: 7, color: `${COLORS.green}60` }}>
+          <div style={{ padding: 6, fontFamily: MONO, fontSize: 7, color: COLORS.gray }}>
             {">"} deploy --network mainnet{"\n"}
             checking...
           </div>
@@ -932,7 +935,7 @@ const Scene3_Discovery: React.FC = () => {
   const redPulse = frame > 15 ? Math.sin(frame * 0.15) * 0.08 : 0;
 
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       <ServerRoom />
 
       {/* Red warning overlay */}
@@ -971,7 +974,7 @@ const Scene3_Discovery: React.FC = () => {
           opacity: ohNoProgress,
           fontWeight: 600,
           letterSpacing: 4,
-          textShadow: `0 0 20px ${COLORS.red}50`,
+          textShadow: `0 0 20px ${COLORS.red}30`,
         }}
       >
         oh no
@@ -1041,7 +1044,7 @@ const Scene4_FixLoop: React.FC = () => {
   }
 
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       <ServerRoom />
 
       {/* Left half: clock */}
@@ -1078,15 +1081,15 @@ const Scene4_FixLoop: React.FC = () => {
                   fontWeight: 700,
                   color: cycleIdx === i
                     ? (step === "fail" ? COLORS.red : COLORS.green)
-                    : `${COLORS.green}30`,
-                  textShadow: cycleIdx === i ? `0 0 12px ${step === "fail" ? COLORS.red : COLORS.green}50` : "none",
+                    : `${COLORS.gray}50`,
+                  textShadow: cycleIdx === i ? `0 0 12px ${step === "fail" ? COLORS.red : COLORS.green}30` : "none",
                   transition: "all 0.1s",
                 }}
               >
                 {step}
               </div>
               {i < cycleSteps.length - 1 && (
-                <span style={{ color: `${COLORS.green}30`, fontFamily: MONO, fontSize: 20 }}>{"->"}</span>
+                <span style={{ color: `${COLORS.gray}50`, fontFamily: MONO, fontSize: 20 }}>{"->"}</span>
               )}
             </React.Fragment>
           ))}
@@ -1142,7 +1145,7 @@ const Scene4_FixLoop: React.FC = () => {
           bottom: "10%",
           left: "50%",
           width: 1,
-          background: `linear-gradient(to bottom, transparent, ${COLORS.green}25, transparent)`,
+          background: `linear-gradient(to bottom, transparent, ${COLORS.border}, transparent)`,
         }}
       />
     </AbsoluteFill>
@@ -1150,7 +1153,7 @@ const Scene4_FixLoop: React.FC = () => {
 };
 
 // ============================================
-// SCENE 5: THE UPDATE
+// SCENE 5: THE UPDATE (both delays)
 // ============================================
 const Scene5_Update: React.FC = () => {
   const frame = useCurrentFrame();
@@ -1165,15 +1168,15 @@ const Scene5_Update: React.FC = () => {
 
   const reactions = [
     { text: "ser wen mainnet", x: 120, startFrame: 50, color: `${COLORS.green}bb` },
-    { text: "it's always tomorrow", x: 800, startFrame: 65, color: `${COLORS.teal}bb` },
+    { text: "monday delayed. tuesday delayed.", x: 800, startFrame: 65, color: `${COLORS.teal}bb` },
     { text: "take your time king", x: 450, startFrame: 80, color: `${COLORS.emerald}` },
-    { text: "monday (est) (of which week?)", x: 1100, startFrame: 95, color: `${COLORS.green}99` },
-    { text: "lmao classic", x: 250, startFrame: 110, color: `${COLORS.teal}99` },
-    { text: "at least he's testing", x: 900, startFrame: 125, color: `${COLORS.emerald}bb` },
+    { text: "0 for 2 this week lmao", x: 1100, startFrame: 95, color: `${COLORS.green}99` },
+    { text: "at least he's testing", x: 250, startFrame: 110, color: `${COLORS.teal}99` },
+    { text: "two delays is just thorough QA", x: 900, startFrame: 125, color: `${COLORS.emerald}bb` },
   ];
 
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       <ServerRoom dimLevel={0.3} />
 
       {/* New tweet */}
@@ -1186,8 +1189,8 @@ const Scene5_Update: React.FC = () => {
         }}
       >
         <TweetCard
-          text="small delay. running some tests. mainnet tomorrow."
-          timestamp="Monday 11:58 PM"
+          text="small delay x2. monday didn't work. tuesday didn't either. still fixing."
+          timestamp="Tuesday 11:58 PM"
         />
       </div>
 
@@ -1207,7 +1210,7 @@ const Scene5_Update: React.FC = () => {
 };
 
 // ============================================
-// SCENE 6: THE TRUTH (3 AM)
+// SCENE 6: THE TRUTH (3 AM, after second delay)
 // ============================================
 const Scene6_Truth: React.FC = () => {
   const frame = useCurrentFrame();
@@ -1244,7 +1247,7 @@ const Scene6_Truth: React.FC = () => {
   if (checksVisible >= 7) {
     checkLines.push({ text: "", delay: 96 });
     checkLines.push({
-      text: "  All tests passing. Ready for deployment.",
+      text: "  All tests passing. Two delays later, but passing.",
       color: COLORS.green,
       delay: 100,
     });
@@ -1253,14 +1256,14 @@ const Scene6_Truth: React.FC = () => {
   // Monitor glow is the only light source
   const monitorGlow = 0.15 + Math.sin(frame * 0.05) * 0.05;
 
-  // "it's actually better this way" appears at the end
+  // "two delays. zero shortcuts." appears at the end
   const taglineOpacity = interpolate(frame, [110, 135], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
   return (
-    <AbsoluteFill style={{ background: "#050510" }}>
+    <AbsoluteFill style={{ background: COLORS.darkAlt }}>
       {/* Very dim server room */}
       <div style={{ opacity: 0.15 }}>
         <ServerRoom dimLevel={0.8} />
@@ -1287,7 +1290,7 @@ const Scene6_Truth: React.FC = () => {
           style={{
             fontFamily: MONO,
             fontSize: 28,
-            color: `${COLORS.green}50`,
+            color: `${COLORS.green}80`,
             fontWeight: 600,
           }}
         >
@@ -1305,7 +1308,7 @@ const Scene6_Truth: React.FC = () => {
         <DevSilhouette size={260} frame={frame} fps={fps} posture="relieved" hoodUp />
       </div>
 
-      {/* "it's actually better this way" */}
+      {/* "two delays. zero shortcuts." */}
       <div
         style={{
           position: "absolute",
@@ -1314,13 +1317,13 @@ const Scene6_Truth: React.FC = () => {
           transform: "translateX(-50%)",
           fontFamily: FONT,
           fontSize: 18,
-          color: `${COLORS.green}80`,
+          color: COLORS.gray,
           fontStyle: "italic",
           opacity: taglineOpacity,
           letterSpacing: 0.5,
         }}
       >
-        it's actually better this way
+        two delays. zero shortcuts.
       </div>
 
       {/* Scattered energy drinks */}
@@ -1364,7 +1367,7 @@ const Scene7_Punchline: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        background: `radial-gradient(ellipse at 50% 50%, ${COLORS.dark} 0%, #050510 100%)`,
+        background: `radial-gradient(ellipse at 50% 50%, ${COLORS.bg} 0%, ${COLORS.darkAlt} 100%)`,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -1393,7 +1396,7 @@ const Scene7_Punchline: React.FC = () => {
             fontWeight: 800,
             color: COLORS.green,
             letterSpacing: -3,
-            textShadow: `0 0 40px ${COLORS.green}40, 0 0 80px ${COLORS.green}20`,
+            textShadow: `0 0 40px ${COLORS.green}30, 0 0 80px ${COLORS.green}15`,
             lineHeight: 1.1,
           }}
         >
@@ -1406,13 +1409,13 @@ const Scene7_Punchline: React.FC = () => {
             fontFamily: FONT,
             fontSize: 30,
             fontWeight: 500,
-            color: COLORS.white,
+            color: COLORS.text,
             marginTop: 24,
             opacity: tagline1,
             letterSpacing: -0.5,
           }}
         >
-          Deploying to mainnet. For real this time.
+          Delayed twice. Deployed right.
         </div>
 
         {/* URL */}
@@ -1434,7 +1437,7 @@ const Scene7_Punchline: React.FC = () => {
           style={{
             fontFamily: FONT,
             fontSize: 14,
-            color: `${COLORS.green}60`,
+            color: `${COLORS.green}80`,
             marginTop: 40,
             opacity: badgeOpacity,
             letterSpacing: 2,
@@ -1449,7 +1452,7 @@ const Scene7_Punchline: React.FC = () => {
           <span style={{ color: `${COLORS.green}30` }}>|</span>
           <span>Trustless Escrow</span>
           <span style={{ color: `${COLORS.green}30` }}>|</span>
-          <span>Actually Tested</span>
+          <span>Worth The Wait</span>
         </div>
       </div>
     </AbsoluteFill>
@@ -1461,7 +1464,7 @@ const Scene7_Punchline: React.FC = () => {
 // ============================================
 export const MainnetDelayParody: React.FC = () => {
   return (
-    <AbsoluteFill style={{ background: COLORS.dark }}>
+    <AbsoluteFill style={{ background: COLORS.bg }}>
       {/* Scene 1: The Announcement */}
       <Sequence from={SCENE.announcement.start} durationInFrames={SCENE.announcement.duration}>
         <Scene1_Announcement />
