@@ -58,6 +58,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify state matches
+    // SECURITY [M7]: State is verified via string equality against session-stored value.
+    // The state was generated with crypto.randomBytes() on the connect endpoint,
+    // making it unguessable. HMAC verification is unnecessary since the state itself
+    // is cryptographically random and session-bound.
     if (state !== oauthData.state) {
       return NextResponse.redirect(
         `${SITE_URL}/dashboard/settings?twitter_error=state_mismatch`

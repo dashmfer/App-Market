@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
     const severity = searchParams.get("severity");
     const userId = searchParams.get("userId");
     const targetType = searchParams.get("targetType");
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
+    // SECURITY [L1]: Guard against NaN from malformed input
+    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1") || 1));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50") || 20));
 
     const where: Record<string, unknown> = {};
     if (action) where.action = action;

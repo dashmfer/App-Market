@@ -228,6 +228,9 @@ async function attemptDelivery(
  * In serverless environments, setTimeout won't survive function termination.
  * Instead, schedule the retry by updating nextRetryAt in the database.
  * A cron job should poll for deliveries where nextRetryAt <= now and status = 'RETRYING'.
+ *
+ * SECURITY [L18]: maxAttempts is capped at 3 in the schema default.
+ * The retry logic respects this — see cron/webhook-retries.
  */
 async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<void> {
   const backoffMs = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s

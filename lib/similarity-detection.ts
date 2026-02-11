@@ -180,6 +180,9 @@ export function calculateListingSimilarity(
   const techSim = calculateTechStackSimilarity(listing1.techStack, listing2.techStack);
 
   // Image similarity (placeholder)
+  // SECURITY [M22]: Screenshot comparison uses URL-based hashing, not perceptual hashing.
+  // The same image served from a different URL will not be detected as similar.
+  // Consider implementing perceptual hashing (e.g., pHash) for robust detection.
   let imageSim = 0;
   if (listing1.thumbnailUrl && listing2.thumbnailUrl) {
     const hash1 = calculateImageHash(listing1.thumbnailUrl);

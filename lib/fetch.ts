@@ -17,6 +17,8 @@ const CSRF_COOKIE_NAME =
     : 'csrf-token';
 const CSRF_HEADER = 'x-csrf-token';
 
+// SECURITY [L10]: Cookie parsing is duplicated across multiple files.
+// TODO: Extract to a shared utility in lib/cookies.ts
 function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.split('; ').find(c => c.startsWith(`${CSRF_COOKIE_NAME}=`));

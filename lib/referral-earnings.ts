@@ -35,6 +35,8 @@ export async function processReferralEarnings(
   totalReferralPayout: number;
   platformFeeAfterReferrals: number;
 }> {
+  // SECURITY [C6]: Prevent self-referral — if the buyer's referrer IS the seller
+  // (or vice versa), skip that referral payout entirely.
   const commissionRateBps = PLATFORM_CONFIG.referral.commissionRateBps; // 200 = 2%
   const platformFeeBps = PLATFORM_CONFIG.fees.platformFeeBps; // 500 = 5%
   const base = Math.pow(10, getDecimals(currency));
@@ -58,6 +60,11 @@ export async function processReferralEarnings(
     });
 
     if (buyerReferral) {
+      // SECURITY [C6]: Block self-referral — referrer must not be the buyer themselves
+      // or the counterparty (seller) in this transaction
+      if (buyerReferral.referrerId === buyerId || buyerReferral.referrerId === sellerId) {
+        if (process.env.NODE_ENV === 'development') console.log(`[Referral] Blocked self/counterparty referral for buyer ${buyerId}`);
+      } else {
       // Atomic check-and-set: only claim if firstTransactionPaid is still false
       const claimResult = await tx.referral.updateMany({
         where: {
@@ -123,6 +130,7 @@ export async function processReferralEarnings(
 
         if (process.env.NODE_ENV === 'development') console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} ${currencyLabel}`);
       }
+      } // end self-referral guard
     }
 
     // Check if seller was referred AND atomically claim first transaction flag
@@ -134,6 +142,10 @@ export async function processReferralEarnings(
     });
 
     if (sellerReferral) {
+      // SECURITY [C6]: Block self-referral for seller side
+      if (sellerReferral.referrerId === sellerId || sellerReferral.referrerId === buyerId) {
+        if (process.env.NODE_ENV === 'development') console.log(`[Referral] Blocked self/counterparty referral for seller ${sellerId}`);
+      } else {
       // Atomic check-and-set: only claim if firstTransactionPaid is still false
       const claimResult = await tx.referral.updateMany({
         where: {
@@ -199,6 +211,7 @@ export async function processReferralEarnings(
 
         if (process.env.NODE_ENV === 'development') console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} ${currencyLabel}`);
       }
+      } // end self-referral guard
     }
 
     return { buyerReferralEarning, sellerReferralEarning };

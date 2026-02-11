@@ -113,7 +113,7 @@ export async function POST(
       );
     }
 
-    // SECURITY [C6]: Smart contract escrow release is not yet implemented.
+    // SECURITY [C3]: Smart contract escrow release is not yet implemented.
     // This is a critical TODO -- funds are being released without on-chain verification.
     console.warn(
       `[SECURITY WARNING] Transfer ${params.id}: Completing transfer WITHOUT on-chain escrow release. ` +
@@ -151,6 +151,24 @@ export async function POST(
       return NextResponse.json(
         { error: "Re-verification failed: not all required items are confirmed" },
         { status: 400 }
+      );
+    }
+
+    // SECURITY [H4]: Verify fee + proceeds = salePrice (reconciliation check)
+    const salePrice = Number(transaction.salePrice);
+    const platformFee = Number(transaction.platformFee);
+    const sellerProceeds = Number(transaction.sellerProceeds);
+    const currency = transaction.currency || "SOL";
+    const decimals = currency === "USDC" ? 6 : 9;
+    const base = Math.pow(10, decimals);
+    const salePriceUnits = Math.round(salePrice * base);
+    const feeUnits = Math.round(platformFee * base);
+    const proceedsUnits = Math.round(sellerProceeds * base);
+    if (feeUnits + proceedsUnits !== salePriceUnits) {
+      console.error(`[SECURITY] Fee reconciliation mismatch: fee(${feeUnits}) + proceeds(${proceedsUnits}) != salePrice(${salePriceUnits})`);
+      return NextResponse.json(
+        { error: "Internal error: fee reconciliation failed. Contact support." },
+        { status: 500 }
       );
     }
 
@@ -261,6 +279,8 @@ export async function POST(
       })),
     };
 
+    // SECURITY [L20]: transferMethods is schemaless JSON. Consider adding Zod
+    // validation for the paymentDistribution structure before persisting.
     // Update transaction with payment distribution
     const existingMethods = (transaction.transferMethods as Record<string, unknown>) || {};
     await prisma.transaction.update({

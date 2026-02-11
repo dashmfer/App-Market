@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/notifications - Get user's notifications
@@ -16,6 +17,16 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = token.id as string;
+
+    // SECURITY [L15]: Rate limit notification polling
+    const rateLimitResult = await (withRateLimitAsync('read', 'notifications'))(request, userId);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const unreadOnly = searchParams.get("unread") === "true";
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));

@@ -175,7 +175,9 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
 
-    if (flagType) {
+    // SECURITY [M4]: Whitelist allowed flagType values
+    const VALID_FLAG_TYPES = ["INFO", "SOFT", "HARD"];
+    if (flagType && VALID_FLAG_TYPES.includes(flagType.toUpperCase())) {
       where.flagType = flagType.toUpperCase();
     }
 

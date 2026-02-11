@@ -118,6 +118,8 @@ model User {
   // NDA signatures
   ndaSignatures     ListingNDA[]
 
+  reservedListings  Listing[]    @relation("ReservedBuyer")
+
   // Review reports & responses
   reviewReportsSubmitted ReviewReport[] @relation("ReviewReporter")
   reviewReportsResolved  ReviewReport[] @relation("ReviewReportResolver")
@@ -155,15 +157,22 @@ model Account {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@unique([provider, providerAccountId])
 }
 
+// SECURITY [L14]: This model is retained for NextAuth adapter compatibility
+// but is unused — the app uses JWT-only auth with RevokedSession for invalidation.
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
 }
 
 // Revoked sessions for immediate invalidation
@@ -194,6 +203,9 @@ model UserWallet {
 
   @@index([userId])
   @@index([walletAddress])
+  // SECURITY [C9]: Enforced at application level — partial unique indexes
+  // (WHERE isPrimary = true) are not supported by Prisma declaratively.
+  // See migration SQL for the actual constraint.
 }
 
 enum WalletType {
@@ -275,7 +287,7 @@ model Listing {
   githubRepo        String?
   githubRepoId      String?
   hasDomain         Boolean       @default(false)
-  domain            String?
+  domain            String?   // SECURITY [L13]: App enforces non-null when hasDomain=true
   hasDatabase       Boolean       @default(false)
   databaseType      String?
   hasHosting        Boolean       @default(false)
@@ -312,7 +324,7 @@ model Listing {
   
   // Metrics (if deployed)
   monthlyUsers      Int?
-  monthlyRevenue    Decimal?  @db.Decimal(18, 8)
+  monthlyRevenue    Decimal?  @db.Decimal(18, 8) // SECURITY [M8]: Precision set, matches salePrice
   githubStars       Int?
   
   // Auction Settings
@@ -339,6 +351,7 @@ model Listing {
   // Reservation (when seller accepts offer or reserves for a specific buyer)
   reservedBuyerWallet String?     // Wallet address the listing is reserved for (may not be a user yet)
   reservedBuyerId     String?     // User ID if the reserved wallet belongs to a registered user
+  reservedBuyer       User?       @relation("ReservedBuyer", fields: [reservedBuyerId], references: [id], onDelete: SetNull)
   reservedAt          DateTime?   // When the reservation was made
 
   // Relations
@@ -386,10 +399,11 @@ model Bid {
   listingId     String
   listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
   bidderId      String
-  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Restrict)
   
   // Timestamps
   createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([listingId])
   @@index([bidderId])
@@ -418,7 +432,7 @@ model Offer {
   listingId     String
   listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
   buyerId       String
-  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Restrict)
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -445,12 +459,13 @@ model PendingWithdrawal {
 
   // Relations
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   listingId     String
   listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   claimedAt     DateTime?
 
   @@index([userId])
@@ -570,6 +585,7 @@ model Transaction {
   reviews             Review[]
   uploads             Upload[]
   agreements          TransactionAgreement[]
+  referralEarnings    ReferralEarning[]
   tokenLaunch         TokenLaunch?
 
   // Timestamps
@@ -1185,10 +1201,11 @@ model ReferralEarning {
   
   // What transaction generated this earning
   transactionId   String
+  transaction     Transaction  @relation(fields: [transactionId], references: [id])
   
   // Amounts
   saleAmount      Decimal   @db.Decimal(18, 8) // Total sale amount
-  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2%
+  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2% — SECURITY [M18]: app enforces 0-1 range
   earnedAmount    Decimal   @db.Decimal(18, 8) // saleAmount * commissionRate
   
   // Status
@@ -1247,7 +1264,7 @@ model ListingNDA {
 
   // Signer info
   signerId        String
-  signer          User      @relation(fields: [signerId], references: [id], onDelete: Cascade)
+  signer          User      @relation(fields: [signerId], references: [id], onDelete: Restrict)
   signerWallet    String    // Wallet that signed
 
   // Signature proof

@@ -27,9 +27,11 @@ function getCsrfSecret(): string {
   }
 
   // Derive a dedicated CSRF key from the auth secret via HMAC-SHA256
+  // SECURITY [M9]: Use HKDF-like derivation with a proper context string
+  // The HMAC key is the base secret; the info/context is the derivation label
   _derivedCsrfSecret = crypto
-    .createHmac("sha256", "csrf-token-derivation-key")
-    .update(base)
+    .createHmac("sha256", base)
+    .update("app-market:csrf-token:v1")
     .digest("hex");
 
   return _derivedCsrfSecret;

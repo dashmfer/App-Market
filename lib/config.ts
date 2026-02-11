@@ -177,7 +177,11 @@ export const PLATFORM_CONFIG = {
   // ============================================
   // WALLET ADDRESSES
   // ============================================
+  // SECURITY [L12]: Centralized tolerance constant (previously hardcoded in 3 files)
+  lamportTolerance: 10000,
+
   wallets: {
+    // SECURITY [L11]: Treasury wallet address should be read from here, not env vars in 3 places
     // Platform treasury (receives fees)
     treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
 

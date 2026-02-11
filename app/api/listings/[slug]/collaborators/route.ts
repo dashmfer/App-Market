@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
 import { createNotification } from "@/lib/notifications";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/listings/[slug]/collaborators - Get all collaborators for a listing
@@ -97,6 +98,15 @@ export async function POST(
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // SECURITY [L16]: Rate limit collaborator invites
+    const rateLimitResult = await (withRateLimitAsync('write', 'collaborator-invite'))(request, token.id as string);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const userId = token.id as string;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { isValidSolanaAddress } from "@/lib/validation";
+import { ListingStatus } from "@/lib/prisma-enums";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
@@ -93,12 +94,16 @@ export async function POST(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: "RESERVED" as any,
+        status: ListingStatus.RESERVED,
         reservedBuyerWallet: walletAddress,
         reservedBuyerId: existingUser?.id || null,
         reservedAt: new Date(),
-      } as any,
+      },
     });
+
+    // SECURITY [M2]: TODO — reservations should expire after a configurable timeout
+    // (e.g., 48 hours) to prevent indefinite listing lockup. Add a cron job
+    // similar to seller-transfer-deadline to enforce this.
 
     // If the buyer is a registered user, send them a notification
     if (existingUser) {
@@ -194,11 +199,11 @@ export async function DELETE(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: "ACTIVE" as any,
+        status: ListingStatus.ACTIVE,
         reservedBuyerWallet: null,
         reservedBuyerId: null,
         reservedAt: null,
-      } as any,
+      },
     });
 
     return NextResponse.json({

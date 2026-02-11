@@ -19,7 +19,11 @@ export async function getSolPriceUsd(): Promise<number | null> {
 
     const data = await resp.json();
     const price = data?.solana?.usd;
-    if (typeof price === "number" && price > 0) {
+    // SECURITY [H10]: Sanity check — reject extreme prices that indicate API manipulation
+    if (price <= 0 || price > 100000) {
+      console.warn(`[SOL Price] Suspicious price from CoinGecko: ${price}`);
+      // Fall through to cached price
+    } else if (typeof price === "number" && price > 0) {
       cachedPrice = { usd: price, timestamp: Date.now() };
       return price;
     }

@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
           in: ["FUNDED", "IN_ESCROW", "TRANSFER_PENDING"],
         },
       },
+      take: 500, // SECURITY [M13]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {
@@ -183,6 +184,7 @@ export async function GET(request: NextRequest) {
           in: ["FUNDED", "IN_ESCROW", "TRANSFER_PENDING"],
         },
       },
+      take: 500, // SECURITY [M13]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {

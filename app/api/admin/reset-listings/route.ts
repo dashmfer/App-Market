@@ -51,7 +51,7 @@ export async function DELETE(request: NextRequest) {
 
     // SECURITY: Validate admin secret from Authorization header (not query params)
     if (!validateAdminSecret(request)) {
-      return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

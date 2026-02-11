@@ -260,6 +260,8 @@ export async function GET(req: NextRequest) {
           listing: {
             sellerId: token.id as string,
           },
+          // SECURITY [H3]: Exclude offers from soft-deleted users
+          buyer: { deletedAt: null },
         },
         include: {
           buyer: {
@@ -292,6 +294,8 @@ export async function GET(req: NextRequest) {
       const offers = await prisma.offer.findMany({
         where: {
           buyerId: token.id as string,
+          // SECURITY [H3]: Exclude offers from soft-deleted users
+          buyer: { deletedAt: null },
         },
         include: {
           buyer: {

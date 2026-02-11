@@ -25,6 +25,8 @@ const nextConfig = {
       },
     ],
   },
+  // SECURITY [L3]: Next.js default body size limit is 1MB for API routes.
+  // For file upload routes, explicit limits are set in the route handlers.
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

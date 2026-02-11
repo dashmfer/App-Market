@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
     // 4. No dispute has been opened
     const eligibleTransactions = await withRetry(async () => prisma.transaction.findMany({
       where: {
+        // SECURITY [H9]: Exclude PENDING_RELEASE — already processed by a prior run
         status: {
           in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"],
         },

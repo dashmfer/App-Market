@@ -118,8 +118,14 @@ export async function POST(
     const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
     const expectedLamports = Math.floor(Number(partner.depositAmount) * 1e9); // Convert SOL to lamports
     const tolerance = 10000; // Allow small tolerance for tx fees
+    // SECURITY [C10]: Reject under-payments AND over-payments.
+    // Over-payments are silently absorbed if not caught — funds become unrecoverable.
     if (treasuryReceived < expectedLamports - tolerance) {
-      return NextResponse.json({ error: "On-chain transfer amount does not match expected deposit amount" }, { status: 400 });
+      return NextResponse.json({ error: "On-chain transfer amount is less than expected deposit amount" }, { status: 400 });
+    }
+    const maxAcceptable = expectedLamports + tolerance;
+    if (treasuryReceived > maxAcceptable) {
+      return NextResponse.json({ error: `On-chain transfer amount exceeds expected deposit by more than tolerance. Expected ~${expectedLamports} lamports, received ${treasuryReceived}. Refund the excess before retrying.` }, { status: 400 });
     }
 
     // SECURITY [H7]: Use serializable transaction to prevent race condition
@@ -147,7 +153,12 @@ export async function POST(
       // Check if total is 100%
       const totalPercentage = allPartners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
-      if (allDeposited && totalPercentage >= 100) {
+      // SECURITY [C11]: Require exactly 100%. If > 100% something is wrong;
+      // if < 100% the purchase is incomplete and should stay in current state.
+      if (totalPercentage > 100) {
+        throw new Error(`Partner percentages sum to ${totalPercentage}%, exceeding 100%. Data integrity issue.`);
+      }
+      if (allDeposited && totalPercentage === 100) {
         // All deposits complete! Move to next phase
         await tx.transaction.update({
           where: { id: transaction.id },
@@ -176,7 +187,7 @@ export async function POST(
       });
     }
 
-    if (result.allDeposited && result.totalPercentage >= 100) {
+    if (result.allDeposited && result.totalPercentage === 100) {
       // Notify all partners
       for (const p of transaction.partners as Array<{ userId: string | null; id: string; depositStatus: string; isLead: boolean }>) {
         if (p.userId) {

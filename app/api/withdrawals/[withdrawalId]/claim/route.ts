@@ -4,6 +4,7 @@ import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { audit } from '@/lib/audit';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 /**
  * POST /api/withdrawals/[withdrawalId]/claim
@@ -26,6 +27,16 @@ export async function POST(
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // SECURITY [M17]: Rate limit withdrawal claims to prevent RPC spam
+    const rateLimiter = withRateLimitAsync("write", "withdrawal-claim");
+    const rateLimit = await rateLimiter(req, token.id as string);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: rateLimit.error },
+        { status: 429, headers: rateLimit.headers }
       );
     }
 

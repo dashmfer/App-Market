@@ -174,7 +174,8 @@ export async function POST(request: NextRequest) {
     // Create the message
     const message = await prisma.message.create({
       data: {
-        content,
+        // SECURITY [H13]: Escape HTML entities to prevent stored XSS
+        content: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;'),
         senderId,
         conversationId: conversation.id,
       },
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
       where: { id: conversation.id },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: content.substring(0, 100),
+        lastMessagePreview: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 100),
       },
     });
 

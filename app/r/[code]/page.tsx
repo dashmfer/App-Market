@@ -20,5 +20,5 @@ export default async function ReferralPage({
   });
 
   // Redirect to home or signup page
-  redirect("/?ref=" + code);
+  redirect("/?ref=" + encodeURIComponent(code));
 }

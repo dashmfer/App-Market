@@ -21,7 +21,12 @@ export async function GET(request: NextRequest) {
     }
 
     const bids = await prisma.bid.findMany({
-      where: { listingId },
+      where: {
+        listingId,
+        // SECURITY [H3]: Exclude bids from soft-deleted users
+        bidder: { deletedAt: null },
+        listing: { seller: { deletedAt: null } },
+      },
       orderBy: { amount: "desc" },
       take: 100,
       include: {
@@ -103,6 +108,10 @@ export async function POST(request: NextRequest) {
         { error: "Amount must be a positive number" },
         { status: 400 }
       );
+    }
+    // SECURITY [M5]: Guard against Infinity, NaN, and excessively large values
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 1e15) {
+      return NextResponse.json({ error: "Invalid bid amount" }, { status: 400 });
     }
     if (amount > 1_000_000) {
       return NextResponse.json(

@@ -240,6 +240,8 @@ export async function POST(
     }
 
     // Create NDA record
+    // SECURITY [M1]: The signedMessage captures the exact terms at signing time,
+    // so even if the seller modifies ndaTerms later, the signed record is immutable.
     const nda = await prisma.listingNDA.create({
       data: {
         listingId: listing.id,

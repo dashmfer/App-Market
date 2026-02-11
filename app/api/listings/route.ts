@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     );
 
     // Build where clause
-    const where: any = {};
+    const where: any = {
+      // SECURITY [H2]: Exclude listings from soft-deleted sellers
+      seller: { deletedAt: null },
+    };
 
     // SECURITY: Whitelist allowed public statuses to prevent querying internal states
     const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "COMPLETED", "EXPIRED", "ENDED", "SOLD"];

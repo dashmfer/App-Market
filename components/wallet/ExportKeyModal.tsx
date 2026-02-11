@@ -1,3 +1,7 @@
+// SECURITY [H14]: This component exposes private keys in the browser.
+// The key is passed as a prop, stored in a ref, and copyable to clipboard.
+// Users should be warned that clipboard contents may be accessible to other apps.
+// Consider: clearing clipboard after 30 seconds, not showing full key in DOM.
 "use client";
 
 import { useState, useRef, useCallback } from "react";

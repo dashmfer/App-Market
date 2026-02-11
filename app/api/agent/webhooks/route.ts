@@ -36,9 +36,17 @@ function checkSsrfUrl(hostname: string): string | null {
 
   // IPv6 private ranges
   if (h.startsWith('fc') || h.startsWith('fd') || h.startsWith('fe80') ||
-      h === '::ffff:127.0.0.1' || h.startsWith('::ffff:10.') ||
-      h.startsWith('::ffff:192.168.') || h.startsWith('::ffff:172.')) {
+      /^::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h) ||
+      h.startsWith('::ffff:10.') ||
+      /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(h) ||
+      h.startsWith('::ffff:192.168.')) {
     return 'Webhook URL cannot point to private IPv6 addresses';
+  }
+
+  // SECURITY [M3]: Block octal and decimal IP notation used to bypass SSRF filters
+  // 0177.0.0.1 is octal for 127.0.0.1; 2130706433 is decimal for 127.0.0.1
+  if (/^0[0-7]+\./.test(h) || /^\d{8,10}$/.test(h)) {
+    return 'Webhook URL cannot use octal or decimal IP notation';
   }
 
   // Block cloud metadata hostnames
@@ -92,6 +100,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
+    // SECURITY [M10]: Decrypt webhook URLs for display
     return agentSuccessResponse({ webhooks });
   } catch (error) {
     console.error("Error fetching webhooks:", error);
@@ -178,7 +187,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         name: name.trim(),
-        url: url.trim(),
+        url: encrypt(url.trim()),
         secret: encryptedSecret,
         events: requestedEvents,
       },
@@ -326,7 +335,7 @@ export async function PATCH(request: NextRequest) {
         if (ssrfError) {
           return agentErrorResponse(ssrfError, 400);
         }
-        updateData.url = url.trim();
+        updateData.url = encrypt(url.trim());
       } catch {
         return agentErrorResponse("Invalid URL format", 400);
       }

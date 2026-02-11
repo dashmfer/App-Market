@@ -1,6 +1,11 @@
 /**
  * Validation utilities for security and data integrity
  */
+
+// SECURITY [L9]: Error response format varies across routes.
+// TODO: Create a standardized error response helper:
+// export function apiError(message: string, status: number, details?: any)
+
 import crypto from 'crypto';
 
 // SECURITY: Track used wallet signature nonces to prevent replay attacks

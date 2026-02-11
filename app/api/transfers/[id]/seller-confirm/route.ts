@@ -149,6 +149,8 @@ export async function POST(
     }
 
     // Build evidence based on item type
+    // SECURITY [M20]: Auth codes in transfer evidence are stored in plaintext.
+    // Consider encrypting the metadata JSON field for sensitive credentials.
     let evidenceData: string;
     if (itemId === "domain") {
       // Store structured domain transfer data as JSON

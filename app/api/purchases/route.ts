@@ -68,6 +68,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY [H18]: Validate that leadBuyerDepositAmount matches percentage calculation
+    if (withPartners) {
+      if (typeof leadBuyerPercentage !== 'number' || leadBuyerPercentage <= 0 || leadBuyerPercentage >= 100) {
+        return NextResponse.json(
+          { error: "Lead buyer percentage must be between 0 and 100 (exclusive)" },
+          { status: 400 }
+        );
+      }
+      if (typeof leadBuyerDepositAmount !== 'number' || leadBuyerDepositAmount <= 0) {
+        return NextResponse.json(
+          { error: "Lead buyer deposit amount must be a positive number" },
+          { status: 400 }
+        );
+      }
+      const expectedDeposit = amount * leadBuyerPercentage / 100;
+      const depositTolerance = 0.000001; // Small tolerance for floating-point arithmetic
+      if (Math.abs(leadBuyerDepositAmount - expectedDeposit) > depositTolerance) {
+        return NextResponse.json(
+          { error: "Lead buyer deposit amount does not match the expected percentage of the sale price" },
+          { status: 400 }
+        );
+      }
+    }
+
     // SECURITY: On-chain transaction verification is mandatory for purchases.
     // A purchase without a verified on-chain payment must not proceed.
     if (!onChainTx) {

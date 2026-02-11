@@ -20,7 +20,9 @@ import { Button } from "@/components/ui/button";
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  // SECURITY [H1]: Validate callbackUrl is a relative path to prevent open redirects
+  const rawCallback = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/dashboard";
   const error = searchParams.get("error");
 
   const { status } = useSession();

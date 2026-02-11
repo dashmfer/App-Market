@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getAuthToken, revokeAllUserSessions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
@@ -216,17 +217,34 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Soft-delete: set deletedAt and anonymize PII
+    // SECURITY [C2]: Soft-delete — anonymize ALL PII fields.
+    // Preserves the row for FK integrity but removes every piece of
+    // personally-identifiable information (GDPR right-to-erasure).
+    const anonSuffix = crypto.randomBytes(8).toString("hex");
     await prisma.user.update({
       where: { id: userId },
       data: {
         deletedAt: new Date(),
         displayName: "Deleted User",
+        name: null,
         bio: null,
         image: null,
         websiteUrl: null,
         discordHandle: null,
         discordVerified: false,
+        // [C2] Fields that were previously not anonymized:
+        email: null,
+        username: `deleted_${anonSuffix}`,  // Must stay unique, so randomize
+        walletAddress: null,
+        twitterId: null,
+        twitterUsername: null,
+        twitterVerified: false,
+        twitterLinkedAt: null,
+        githubId: null,
+        githubUsername: null,
+        githubVerified: false,
+        walletVerified: false,
+        privyUserId: null,
       },
     });
 

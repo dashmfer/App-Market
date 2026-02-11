@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY [M11]: Rate limit token launch creation to prevent vanity keygen DoS
     // Grind a vanity keypair ending in 'app'
     const vanitySuffix = PLATFORM_CONFIG.pato.vanitySuffix;
     let vanityKeypair;

@@ -23,6 +23,9 @@ export async function POST(
     const body = await request.json();
     const { githubTransferLink, zipDownloadUrl, domainTransferLink, instructions } = body;
 
+    // SECURITY [H8]: Fallback transfer URLs are self-reported and not verified.
+    // A dispute may be needed if the buyer claims the transfer didn't happen.
+
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
       include: {

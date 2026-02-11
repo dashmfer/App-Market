@@ -39,8 +39,13 @@ export function verifyCronSecret(request: NextRequest): boolean {
  * Uses Redis SET NX EX (atomic set-if-not-exists with TTL).
  * Returns an unlock function if the lock was acquired, or null if already held.
  */
+// SECURITY [M14]: Each cron job uses its own lock key. If two different cron jobs
+// (e.g., escrow-auto-release and seller-transfer-deadline) can modify the same
+// transaction, they should share a lock key or use row-level locking in their queries.
 export async function acquireCronLock(
   jobName: string,
+  // SECURITY [L19]: 5-minute TTL. If jobs routinely exceed this, increase per-job
+  // or pass a custom TTL parameter.
   ttlSeconds: number = 300 // 5 minute default
 ): Promise<(() => Promise<void>) | null> {
   const { redis } = await import("@/lib/rate-limit");

@@ -341,6 +341,17 @@ export async function POST(request: NextRequest) {
       ? new Date(Date.now() + 48 * 60 * 60 * 1000)
       : null;
 
+    // SECURITY [H5]: Globally unique on-chain tx — prevents replay across listings
+    if (onChainTx) {
+      const existingTx = await prisma.transaction.findUnique({
+        where: { onChainTx },
+        select: { id: true },
+      });
+      if (existingTx) {
+        return NextResponse.json({ error: "This on-chain transaction has already been used" }, { status: 400 });
+      }
+    }
+
     // SECURITY [H1]: Use serializable transaction to prevent race conditions
     // Re-check listing status, dedup onChainTx, create transaction, and update listing atomically
     const txResult = await prisma.$transaction(async (tx) => {
