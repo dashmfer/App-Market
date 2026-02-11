@@ -1473,7 +1473,7 @@ export const MainnetDelayParody: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: COLORS.bg }}>
       {/* Background music */}
-      <Audio src={staticFile("litesaturation-hard-work-109531.mp3")} volume={0.5} />
+      <Audio src={staticFile("the_mountain-soft-background-music-444049.mp3")} volume={0.5} />
 
       {/* Scene 1: The Announcement */}
       <Sequence from={SCENE.announcement.start} durationInFrames={SCENE.announcement.duration}>
