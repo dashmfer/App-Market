@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
     const watchlist = await prisma.watchlist.findMany({
       where: { userId: auth.userId },
+      take: 100,
       include: {
         listing: {
           include: {

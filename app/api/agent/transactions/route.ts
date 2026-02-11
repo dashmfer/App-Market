@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
     const transactions = await prisma.transaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      take: 100,
       include: {
         listing: {
           select: {

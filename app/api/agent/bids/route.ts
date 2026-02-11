@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const bids = await prisma.bid.findMany({
       where: { bidderId: auth.userId },
       orderBy: { createdAt: "desc" },
+      take: 100,
       include: {
         listing: {
           select: {
