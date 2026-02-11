@@ -26,26 +26,29 @@ async function getNonceRedis() {
   return null;
 }
 
-// Check nonce via Redis if available, else in-memory
-async function hasNonceBeenUsed(nonceKey: string): Promise<boolean> {
+// Atomically check-and-mark nonce as used. Returns { used: false } if newly set, { used: true } if already existed.
+async function checkAndMarkNonce(nonceKey: string): Promise<{ used: boolean; error?: string }> {
   const redis = await getNonceRedis();
   if (redis) {
-    const exists = await redis.get(`nonce:${nonceKey}`);
-    return !!exists;
+    // Atomic SET NX: only sets if key does not exist, with 10 minute TTL
+    const wasSet = await redis.set(`nonce:${nonceKey}`, "1", { ex: 600, nx: true });
+    // wasSet is "OK" or truthy if the key was newly set, null/falsy if it already existed
+    return { used: !wasSet };
   }
-  console.warn('SECURITY: Nonce replay check using in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
-  return usedSignatureNonces.has(nonceKey);
-}
 
-async function markNonceUsed(nonceKey: string): Promise<void> {
-  const redis = await getNonceRedis();
-  if (redis) {
-    // Set with 10 minute TTL (auto-expiry, no cleanup needed)
-    await redis.set(`nonce:${nonceKey}`, "1", { ex: 600 });
-  } else {
-    console.warn('SECURITY: Nonce marked as used in in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
-    usedSignatureNonces.set(nonceKey, Date.now());
+  // SECURITY: Fail closed in production — deny requests if Redis is unavailable
+  if (process.env.NODE_ENV === 'production') {
+    console.error('CRITICAL: Nonce replay check cannot use in-memory fallback in production. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.');
+    return { used: true, error: 'Nonce verification unavailable. Please try again later.' };
   }
+
+  // In-memory fallback for development only: atomic check-and-set
+  console.warn('SECURITY: Nonce replay check using in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
+  if (usedSignatureNonces.has(nonceKey)) {
+    return { used: true };
+  }
+  usedSignatureNonces.set(nonceKey, Date.now());
+  return { used: false };
 }
 
 // Clean up expired in-memory nonces every 10 minutes (dev fallback only)
@@ -266,14 +269,13 @@ export async function validateWalletSignatureMessage(
     return { valid: false, error: 'Signature has expired' };
   }
 
-  // SECURITY: Check for replay attacks - each signature can only be used once
-  // Uses Redis in production for multi-instance consistency
+  // SECURITY: Atomically check for replay attacks - each signature can only be used once
+  // Uses Redis SET NX in production for multi-instance consistency
   const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
-  const alreadyUsed = await hasNonceBeenUsed(nonceKey);
-  if (alreadyUsed) {
-    return { valid: false, error: 'Signature has already been used' };
+  const nonceResult = await checkAndMarkNonce(nonceKey);
+  if (nonceResult.used) {
+    return { valid: false, error: nonceResult.error || 'Signature has already been used' };
   }
-  await markNonceUsed(nonceKey);
 
   return { valid: true };
 }

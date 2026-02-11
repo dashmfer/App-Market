@@ -106,6 +106,36 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // SECURITY [C1]: Verify on-chain transfer amount, recipient, and sender
+      const accountKeys = txInfo.transaction.message.accountKeys.map((k: any) => k.toBase58());
+      const preBalances = txInfo.meta!.preBalances;
+      const postBalances = txInfo.meta!.postBalances;
+
+      // Find treasury/escrow wallet in the transaction
+      const treasuryWallet = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+      if (!treasuryWallet) {
+        return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+      }
+
+      const treasuryIndex = accountKeys.indexOf(treasuryWallet);
+      if (treasuryIndex === -1) {
+        return NextResponse.json({ error: "Transaction does not involve the platform treasury" }, { status: 400 });
+      }
+
+      // Verify the amount received by treasury (in lamports)
+      const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
+      const expectedLamports = Math.floor(amount * 1e9); // Convert SOL to lamports
+      const tolerance = 10000; // Allow small tolerance for tx fees
+      if (treasuryReceived < expectedLamports - tolerance) {
+        return NextResponse.json({ error: "On-chain transfer amount does not match expected amount" }, { status: 400 });
+      }
+
+      // Verify sender is the buyer's wallet
+      const buyerWallet = token.walletAddress;
+      if (buyerWallet && !accountKeys.includes(buyerWallet)) {
+        return NextResponse.json({ error: "Transaction sender does not match buyer wallet" }, { status: 400 });
+      }
     } catch (verifyErr) {
       console.error("Error verifying on-chain tx:", verifyErr);
       // SECURITY: Do NOT proceed without successful verification.

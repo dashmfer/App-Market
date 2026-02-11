@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const CSRF_COOKIE_NAME = "__Host-csrf-token";
+const CSRF_COOKIE_NAME = process.env.NODE_ENV === 'production' ? '__Host-csrf-token' : 'csrf-token';
 const CSRF_HEADER_NAME = "x-csrf-token";
 const TOKEN_LENGTH = 32;
 
@@ -15,8 +15,8 @@ const TOKEN_LENGTH = 32;
  * Get the CSRF secret from environment
  */
 function getCsrfSecret(): string {
-  if (!process.env.CSRF_SECRET && process.env.NODE_ENV === 'production') {
-    console.warn('SECURITY: CSRF_SECRET not set, falling back to NEXTAUTH_SECRET. Set a dedicated CSRF_SECRET for production.');
+  if (process.env.NODE_ENV === 'production' && !process.env.CSRF_SECRET) {
+    throw new Error('CSRF_SECRET must be set in production');
   }
   const secret = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
@@ -98,8 +98,9 @@ export function validateCsrfRequest(request: NextRequest): {
     return { valid: false, error: "Missing CSRF header" };
   }
 
-  // Double-submit validation: cookie and header must match
-  if (cookieToken !== headerToken) {
+  // Double-submit validation: cookie and header must match (timing-safe)
+  if (cookieToken.length !== headerToken.length ||
+      !crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))) {
     return { valid: false, error: "CSRF token mismatch" };
   }
 

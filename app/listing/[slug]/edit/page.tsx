@@ -15,6 +15,7 @@ import {
   Unlock,
   UserCheck,
 } from "lucide-react";
+import { useCsrf } from "@/hooks/useCsrf";
 
 interface Listing {
   id: string;
@@ -61,6 +62,7 @@ export default function EditListingPage() {
   const [reserveWallet, setReserveWallet] = useState("");
   const [isReserved, setIsReserved] = useState(false);
   const [currentReservedWallet, setCurrentReservedWallet] = useState<string | null>(null);
+  const { csrfHeaders } = useCsrf();
 
   useEffect(() => {
     async function fetchListing() {
@@ -108,7 +110,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeaders },
         body: JSON.stringify({
           title,
           tagline,
@@ -143,6 +145,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/cancel`, {
         method: "POST",
+        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {
@@ -169,7 +172,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/reserve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeaders },
         body: JSON.stringify({ walletAddress: reserveWallet.trim() }),
       });
 
@@ -209,6 +212,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/reserve`, {
         method: "DELETE",
+        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {

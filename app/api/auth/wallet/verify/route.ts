@@ -21,15 +21,21 @@ export async function POST(req: NextRequest) {
 
     const { publicKey, signature, message } = await req.json();
 
+    // SECURITY: Validate required fields unconditionally
+    if (!publicKey || !message) {
+      return NextResponse.json(
+        { error: "Missing required fields: publicKey and message are required" },
+        { status: 400 }
+      );
+    }
+
     // SECURITY: Validate message format and timestamp (replay protection)
-    if (publicKey && message) {
-      const messageValidation = await validateWalletSignatureMessage(message, publicKey, 300);
-      if (!messageValidation.valid) {
-        return NextResponse.json(
-          { error: messageValidation.error || "Invalid signature message" },
-          { status: 400 }
-        );
-      }
+    const messageValidation = await validateWalletSignatureMessage(message, publicKey, 300);
+    if (!messageValidation.valid) {
+      return NextResponse.json(
+        { error: messageValidation.error || "Invalid signature message" },
+        { status: 400 }
+      );
     }
 
     // Use shared verification logic

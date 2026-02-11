@@ -52,8 +52,9 @@ export async function audit(entry: AuditLogEntry): Promise<void> {
  * Convenience: extract IP + user agent from request headers for audit logging.
  */
 export function auditContext(headers: Headers) {
+  const forwardedFor = headers.get("x-forwarded-for");
   return {
-    ipAddress: headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    ipAddress: forwardedFor ? forwardedFor.split(",").pop()?.trim() :
       headers.get("x-real-ip") || undefined,
     userAgent: headers.get("user-agent") || undefined,
   };

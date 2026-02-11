@@ -115,11 +115,24 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // Attempt on-chain refund before updating DB.
+        // NOTE: The on-chain program's emergencyRefund requires 30 days of inactivity,
+        // which does not match the 3-day seller transfer deadline enforced here.
+        // A dedicated on-chain instruction (e.g., refund_seller_deadline) is needed.
+        // TODO: Implement a dedicated on-chain refund instruction for seller transfer deadline
+        //   1. Add refund_seller_deadline instruction to the Solana program
+        //   2. Add BACKEND_AUTHORITY_SECRET_KEY env var (JSON array from keypair file)
+        //   3. Build raw transaction instruction (similar to expire-withdrawals cron)
+        //   4. Call the instruction here before DB update
+        //   5. Wrap in try/catch so DB update proceeds even if on-chain fails
+        // WARNING: Until this is implemented, funds remain locked in escrow after seller
+        // misses the transfer deadline. The buyer is notified of a refund but on-chain
+        // escrow is NOT released.
+        console.warn(
+          `[Cron] On-chain refund NOT yet implemented for seller transfer deadline. ` +
+          `Transaction ${transaction.id} will be marked REFUNDED in DB but escrow funds ` +
+          `may still be locked on-chain. Listing: ${transaction.listing.id}`
+        );
 
         // Update transaction to REFUNDED status
         await withRetry(

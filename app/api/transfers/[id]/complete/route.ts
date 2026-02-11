@@ -113,48 +113,84 @@ export async function POST(
       );
     }
 
-    // TODO: Call smart contract to release escrow to seller
-    // This would involve:
-    // 1. Getting the listing PDA
-    // 2. Calling the confirm_receipt instruction on the smart contract
-    // 3. The contract will automatically release funds to seller minus platform fee
-    //
-    // For now, we update the database to mark as completed
-    // In production, this should verify the on-chain transaction succeeded
+    // SECURITY [C6]: Smart contract escrow release is not yet implemented.
+    // This is a critical TODO -- funds are being released without on-chain verification.
+    console.warn(
+      `[SECURITY WARNING] Transfer ${params.id}: Completing transfer WITHOUT on-chain escrow release. ` +
+      `Smart contract integration is required before production use. ` +
+      `Seller: ${transaction.sellerId}, Amount: ${Number(transaction.salePrice)} ${transaction.currency}`
+    );
 
-    // Update transaction status
-    await prisma.transaction.update({
+    // SECURITY [C6]: Verify the transaction was actually confirmed by all parties
+    // before marking complete. Re-read transaction to ensure no stale data.
+    const freshTransaction = await prisma.transaction.findUnique({
       where: { id: params.id },
-      data: {
-        status: "COMPLETED",
-        transferCompletedAt: new Date(),
-        releasedAt: new Date(),
-        verifiedAt: new Date(),
-      },
+      select: { status: true, transferChecklist: true },
     });
 
-    // Update listing status to SOLD
-    await prisma.listing.update({
-      where: { id: transaction.listingId },
-      data: { status: "SOLD" },
-    });
+    if (!freshTransaction || freshTransaction.status === "COMPLETED") {
+      return NextResponse.json(
+        { error: "Transaction already completed or not found" },
+        { status: 400 }
+      );
+    }
 
-    // Update seller stats
-    await prisma.user.update({
-      where: { id: transaction.sellerId },
-      data: {
-        totalSales: { increment: 1 },
-        totalVolume: { increment: Number(transaction.salePrice) },
-      },
-    });
+    const freshChecklist = freshTransaction.transferChecklist as ChecklistItem[] | null;
+    if (!freshChecklist) {
+      return NextResponse.json(
+        { error: "Transfer checklist not found on re-verification" },
+        { status: 400 }
+      );
+    }
 
-    // Update buyer stats
-    await prisma.user.update({
-      where: { id: transaction.buyerId },
-      data: {
-        totalPurchases: { increment: 1 },
-      },
-    });
+    const reVerified = freshChecklist
+      .filter((item) => item.required)
+      .every((item) => item.sellerConfirmed && item.buyerConfirmed);
+
+    if (!reVerified) {
+      return NextResponse.json(
+        { error: "Re-verification failed: not all required items are confirmed" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY [H5]: Wrap all DB writes in an atomic transaction to prevent
+    // partial completion (e.g., transaction marked COMPLETED but listing not SOLD)
+    await prisma.$transaction(async (tx) => {
+      // Update transaction status
+      await tx.transaction.update({
+        where: { id: params.id },
+        data: {
+          status: "COMPLETED",
+          transferCompletedAt: new Date(),
+          releasedAt: new Date(),
+          verifiedAt: new Date(),
+        },
+      });
+
+      // Update listing status to SOLD
+      await tx.listing.update({
+        where: { id: transaction.listingId },
+        data: { status: "SOLD" },
+      });
+
+      // Update seller stats
+      await tx.user.update({
+        where: { id: transaction.sellerId },
+        data: {
+          totalSales: { increment: 1 },
+          totalVolume: { increment: Number(transaction.salePrice) },
+        },
+      });
+
+      // Update buyer stats
+      await tx.user.update({
+        where: { id: transaction.buyerId },
+        data: {
+          totalPurchases: { increment: 1 },
+        },
+      });
+    }, { isolationLevel: 'Serializable' });
 
     // Process referral earnings (2% to referrers on first transaction, from platform fee)
     try {

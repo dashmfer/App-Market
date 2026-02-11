@@ -34,7 +34,7 @@ export async function processReferralEarnings(
   let buyerReferralEarning = 0;
   let sellerReferralEarning = 0;
 
-  // Check if buyer was referred AND this is their first purchase
+  // Check if buyer was referred AND atomically claim first transaction flag
   const buyerReferral = await prisma.referral.findUnique({
     where: { referredUserId: buyerId },
     include: {
@@ -42,61 +42,73 @@ export async function processReferralEarnings(
     },
   });
 
-  if (buyerReferral && !buyerReferral.firstTransactionPaid) {
-    // This is buyer's first transaction - pay the referrer
-    buyerReferralEarning = salePrice * commissionRate;
-
-    // Create the earning record
-    await prisma.referralEarning.create({
-      data: {
-        referralId: buyerReferral.id,
-        transactionId,
-        saleAmount: salePrice,
-        commissionRate,
-        earnedAmount: buyerReferralEarning,
-        status: "AVAILABLE", // Immediately available since transaction is complete
+  if (buyerReferral) {
+    // Atomic check-and-set: only claim if firstTransactionPaid is still false
+    const claimResult = await prisma.referral.updateMany({
+      where: {
+        id: buyerReferral.id,
+        firstTransactionPaid: false, // Atomic: only update if not yet paid
       },
-    });
-
-    // Update the referral record
-    await prisma.referral.update({
-      where: { id: buyerReferral.id },
       data: {
         firstTransactionPaid: true,
         status: "ACTIVE",
         convertedAt: new Date(),
-        totalEarnings: { increment: buyerReferralEarning },
       },
     });
 
-    // Update referrer's total earnings
-    await prisma.user.update({
-      where: { id: buyerReferral.referrerId },
-      data: {
-        referralEarnings: { increment: buyerReferralEarning },
-      },
-    });
+    if (claimResult.count > 0) {
+      // Successfully claimed - this is buyer's first transaction
+      buyerReferralEarning = salePrice * commissionRate;
 
-    // Notify the referrer
-    await prisma.notification.create({
-      data: {
-        userId: buyerReferral.referrerId,
-        type: "REFERRAL_EARNED",
-        title: "Referral Bonus Earned!",
-        message: `You earned ${buyerReferralEarning.toFixed(4)} SOL from your referral's first purchase!`,
+      // Create the earning record
+      await prisma.referralEarning.create({
         data: {
-          transactionId,
-          amount: buyerReferralEarning,
           referralId: buyerReferral.id,
-          type: "buyer_purchase",
+          transactionId,
+          saleAmount: salePrice,
+          commissionRate,
+          earnedAmount: buyerReferralEarning,
+          status: "AVAILABLE", // Immediately available since transaction is complete
         },
-      },
-    });
+      });
 
-    console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} SOL`);
+      // Update the referral total earnings
+      await prisma.referral.update({
+        where: { id: buyerReferral.id },
+        data: {
+          totalEarnings: { increment: buyerReferralEarning },
+        },
+      });
+
+      // Update referrer's total earnings
+      await prisma.user.update({
+        where: { id: buyerReferral.referrerId },
+        data: {
+          referralEarnings: { increment: buyerReferralEarning },
+        },
+      });
+
+      // Notify the referrer
+      await prisma.notification.create({
+        data: {
+          userId: buyerReferral.referrerId,
+          type: "REFERRAL_EARNED",
+          title: "Referral Bonus Earned!",
+          message: `You earned ${buyerReferralEarning.toFixed(4)} SOL from your referral's first purchase!`,
+          data: {
+            transactionId,
+            amount: buyerReferralEarning,
+            referralId: buyerReferral.id,
+            type: "buyer_purchase",
+          },
+        },
+      });
+
+      console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} SOL`);
+    }
   }
 
-  // Check if seller was referred AND this is their first sale
+  // Check if seller was referred AND atomically claim first transaction flag
   const sellerReferral = await prisma.referral.findUnique({
     where: { referredUserId: sellerId },
     include: {
@@ -104,58 +116,70 @@ export async function processReferralEarnings(
     },
   });
 
-  if (sellerReferral && !sellerReferral.firstTransactionPaid) {
-    // This is seller's first transaction - pay the referrer
-    sellerReferralEarning = salePrice * commissionRate;
-
-    // Create the earning record
-    await prisma.referralEarning.create({
-      data: {
-        referralId: sellerReferral.id,
-        transactionId,
-        saleAmount: salePrice,
-        commissionRate,
-        earnedAmount: sellerReferralEarning,
-        status: "AVAILABLE",
+  if (sellerReferral) {
+    // Atomic check-and-set: only claim if firstTransactionPaid is still false
+    const claimResult = await prisma.referral.updateMany({
+      where: {
+        id: sellerReferral.id,
+        firstTransactionPaid: false, // Atomic: only update if not yet paid
       },
-    });
-
-    // Update the referral record
-    await prisma.referral.update({
-      where: { id: sellerReferral.id },
       data: {
         firstTransactionPaid: true,
         status: "ACTIVE",
         convertedAt: new Date(),
-        totalEarnings: { increment: sellerReferralEarning },
       },
     });
 
-    // Update referrer's total earnings
-    await prisma.user.update({
-      where: { id: sellerReferral.referrerId },
-      data: {
-        referralEarnings: { increment: sellerReferralEarning },
-      },
-    });
+    if (claimResult.count > 0) {
+      // Successfully claimed - this is seller's first transaction
+      sellerReferralEarning = salePrice * commissionRate;
 
-    // Notify the referrer
-    await prisma.notification.create({
-      data: {
-        userId: sellerReferral.referrerId,
-        type: "REFERRAL_EARNED",
-        title: "Referral Bonus Earned!",
-        message: `You earned ${sellerReferralEarning.toFixed(4)} SOL from your referral's first sale!`,
+      // Create the earning record
+      await prisma.referralEarning.create({
         data: {
-          transactionId,
-          amount: sellerReferralEarning,
           referralId: sellerReferral.id,
-          type: "seller_sale",
+          transactionId,
+          saleAmount: salePrice,
+          commissionRate,
+          earnedAmount: sellerReferralEarning,
+          status: "AVAILABLE",
         },
-      },
-    });
+      });
 
-    console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} SOL`);
+      // Update the referral total earnings
+      await prisma.referral.update({
+        where: { id: sellerReferral.id },
+        data: {
+          totalEarnings: { increment: sellerReferralEarning },
+        },
+      });
+
+      // Update referrer's total earnings
+      await prisma.user.update({
+        where: { id: sellerReferral.referrerId },
+        data: {
+          referralEarnings: { increment: sellerReferralEarning },
+        },
+      });
+
+      // Notify the referrer
+      await prisma.notification.create({
+        data: {
+          userId: sellerReferral.referrerId,
+          type: "REFERRAL_EARNED",
+          title: "Referral Bonus Earned!",
+          message: `You earned ${sellerReferralEarning.toFixed(4)} SOL from your referral's first sale!`,
+          data: {
+            transactionId,
+            amount: sellerReferralEarning,
+            referralId: sellerReferral.id,
+            type: "seller_sale",
+          },
+        },
+      });
+
+      console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} SOL`);
+    }
   }
 
   const totalReferralPayout = buyerReferralEarning + sellerReferralEarning;

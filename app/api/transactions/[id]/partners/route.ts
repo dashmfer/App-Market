@@ -96,87 +96,105 @@ export async function POST(
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
-      include: {
-        partners: true,
-        listing: { select: { title: true, slug: true } },
-      },
-    });
-
-    if (!transaction) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
-
-    // Only lead buyer can add partners
-    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
-    const isLeadBuyer = leadPartner
-      ? leadPartner.userId === token.id as string
-      : transaction.buyerId === token.id as string;
-
-    if (!isLeadBuyer) {
-      return NextResponse.json({ error: "Only the lead buyer can add partners" }, { status: 403 });
-    }
-
-    // Can only add partners before deposits are complete
-    if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
-      return NextResponse.json({ error: "Cannot add partners after deposit phase" }, { status: 400 });
-    }
-
-    // Check if wallet already added
-    const existingPartner = transaction.partners.find(
-      (p: { walletAddress: string }) => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
-    );
-    if (existingPartner) {
-      return NextResponse.json({ error: "This wallet is already a partner" }, { status: 400 });
-    }
-
-    // Calculate total percentage including new partner
-    const currentTotal = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
-    if (currentTotal + percentage > 100) {
-      return NextResponse.json({
-        error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`
-      }, { status: 400 });
-    }
-
-    // Calculate deposit amount based on percentage
-    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
-
-    // Create the partner
-    const partner = await prisma.transactionPartner.create({
-      data: {
-        transactionId: params.id,
-        walletAddress,
-        userId: userId || null,
-        percentage,
-        depositAmount,
-        isLead: false,
-        depositStatus: "PENDING",
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    // Update transaction to indicate it has partners
-    if (!transaction.hasPartners) {
-      await prisma.transaction.update({
+    // SECURITY [H8]: Wrap partner read + percentage validation + create in an
+    // atomic transaction to prevent race condition where concurrent requests
+    // could exceed 100% total percentage
+    const txResult = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
         where: { id: params.id },
-        data: {
-          hasPartners: true,
-          status: "AWAITING_PARTNER_DEPOSITS",
-          partnerDepositDeadline: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+        include: {
+          partners: true,
+          listing: { select: { title: true, slug: true } },
         },
       });
+
+      if (!transaction) {
+        return { error: "Transaction not found", status: 404 } as const;
+      }
+
+      // Only lead buyer can add partners
+      const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
+      const isLeadBuyer = leadPartner
+        ? leadPartner.userId === token.id as string
+        : transaction.buyerId === token.id as string;
+
+      if (!isLeadBuyer) {
+        return { error: "Only the lead buyer can add partners", status: 403 } as const;
+      }
+
+      // Can only add partners before deposits are complete
+      if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
+        return { error: "Cannot add partners after deposit phase", status: 400 } as const;
+      }
+
+      // Check if wallet already added
+      const existingPartner = transaction.partners.find(
+        (p: { walletAddress: string }) => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
+      );
+      if (existingPartner) {
+        return { error: "This wallet is already a partner", status: 400 } as const;
+      }
+
+      // Calculate total percentage including new partner
+      const currentTotal = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+      if (currentTotal + percentage > 100) {
+        return {
+          error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`,
+          status: 400,
+        } as const;
+      }
+
+      // Calculate deposit amount based on percentage
+      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+
+      // Create the partner
+      const partner = await tx.transactionPartner.create({
+        data: {
+          transactionId: params.id,
+          walletAddress,
+          userId: userId || null,
+          percentage,
+          depositAmount,
+          isLead: false,
+          depositStatus: "PENDING",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      // Update transaction to indicate it has partners
+      if (!transaction.hasPartners) {
+        await tx.transaction.update({
+          where: { id: params.id },
+          data: {
+            hasPartners: true,
+            status: "AWAITING_PARTNER_DEPOSITS",
+            partnerDepositDeadline: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+          },
+        });
+      }
+
+      return { partner, transaction, depositAmount } as const;
+    }, { isolationLevel: 'Serializable' });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
     }
+
+    const { partner, transaction, depositAmount } = txResult;
 
     // Send notification to the invited partner
     if (userId) {

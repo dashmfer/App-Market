@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  SystemProgram,
+} from "@solana/web3.js";
+import {
+  PROGRAM_ID,
+  getConnection,
+  getOfferPDA,
+  getOfferEscrowPDA,
+  getConfigPDA,
+} from "@/lib/solana";
 
 /**
  * Cron Job: Expired Offers Cleanup
@@ -39,6 +54,53 @@ async function withRetry<T>(
   throw lastError;
 }
 
+// Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
+function getBackendAuthority(): Keypair | null {
+  const secretKeyJson = process.env.BACKEND_AUTHORITY_SECRET_KEY;
+  if (!secretKeyJson) {
+    return null;
+  }
+
+  try {
+    const keypairBytes = JSON.parse(secretKeyJson);
+    return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
+  } catch (error) {
+    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY:", error);
+    return null;
+  }
+}
+
+// Build the expire_offer instruction to refund escrowed funds on-chain
+function buildExpireOfferInstruction(
+  listingPubkey: PublicKey,
+  buyerPubkey: PublicKey,
+  offerSeed: number,
+  callerPubkey: PublicKey,
+): TransactionInstruction {
+  const [offerPda] = getOfferPDA(listingPubkey, buyerPubkey, offerSeed);
+  const [offerEscrowPda] = getOfferEscrowPDA(offerPda);
+  const [configPda] = getConfigPDA();
+
+  // Anchor instruction discriminator for expire_offer
+  // SHA256("global:expire_offer")[0..8]
+  const discriminator = Buffer.from([
+    0xc9, 0x52, 0xa1, 0x6a, 0x6a, 0x4b, 0x1d, 0xc1,
+  ]);
+
+  return new TransactionInstruction({
+    programId: PROGRAM_ID,
+    keys: [
+      { pubkey: offerPda, isSigner: false, isWritable: true },              // offer
+      { pubkey: offerEscrowPda, isSigner: false, isWritable: true },        // offer_escrow
+      { pubkey: listingPubkey, isSigner: false, isWritable: false },        // listing
+      { pubkey: buyerPubkey, isSigner: false, isWritable: true },           // buyer (receives refund)
+      { pubkey: configPda, isSigner: false, isWritable: false },            // config
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+    ],
+    data: discriminator,
+  });
+}
+
 export async function GET(request: NextRequest) {
   // Verify authorization
   if (!verifyCronSecret(request)) {
@@ -64,12 +126,14 @@ export async function GET(request: NextRequest) {
         listing: {
           select: {
             title: true,
+            onChainId: true,
           },
         },
         buyer: {
           select: {
             id: true,
             username: true,
+            walletAddress: true,
           },
         },
       },
@@ -84,21 +148,66 @@ export async function GET(request: NextRequest) {
     };
 
     // Process offers to mark as expired
+    // Set up on-chain connection if backend authority is available
+    const authority = getBackendAuthority();
+    let connection: Connection | null = null;
+    if (authority) {
+      try {
+        connection = getConnection();
+      } catch (error) {
+        console.error("[Cron] Failed to get Solana connection:", error);
+      }
+    } else {
+      console.warn("[Cron] BACKEND_AUTHORITY_SECRET_KEY not set — on-chain offer refunds will be skipped");
+    }
+
     for (const offer of expiredOffers) {
       try {
-        // CRITICAL TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. This MUST be implemented before mainnet.
-        // Requires:
-        // 1. BACKEND_AUTHORITY_SECRET_KEY env var (JSON array from keypair file)
-        // 2. Run `anchor build` to generate complete IDL with refund_escrow instruction
-        // 3. Call expireOffer() from lib/solana-contract.ts with backend authority
-        // 4. Only mark as EXPIRED after on-chain refund succeeds
-        // 5. If on-chain refund fails, log error and skip (don't mark as expired)
-        //
-        // WARNING: Without this, expired offers have funds locked in escrow forever.
-        // Users are notified "funds will be returned" but currently they are NOT.
+        // Attempt on-chain refund before marking as expired in DB
+        let onChainRefundSucceeded = false;
+        if (
+          authority &&
+          connection &&
+          offer.onChainId &&
+          offer.listing.onChainId &&
+          offer.buyer.walletAddress
+        ) {
+          try {
+            const listingPubkey = new PublicKey(offer.listing.onChainId);
+            const buyerPubkey = new PublicKey(offer.buyer.walletAddress);
+            const offerSeed = parseInt(offer.onChainId);
 
-        // Update offer status to EXPIRED
+            const instruction = buildExpireOfferInstruction(
+              listingPubkey,
+              buyerPubkey,
+              offerSeed,
+              authority.publicKey,
+            );
+
+            const tx = new Transaction().add(instruction);
+            tx.feePayer = authority.publicKey;
+            tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+            tx.sign(authority);
+
+            const txSig = await connection.sendRawTransaction(tx.serialize());
+            await connection.confirmTransaction(txSig, "confirmed");
+
+            console.log(`[Cron] On-chain expire_offer tx for offer ${offer.id}: ${txSig}`);
+            onChainRefundSucceeded = true;
+            results.refundsInitiated++;
+          } catch (onChainError) {
+            console.warn(
+              `[Cron] On-chain refund failed for offer ${offer.id} — marking as expired in DB anyway. ` +
+              `Funds may still be locked in escrow. Error:`,
+              onChainError
+            );
+          }
+        } else if (!offer.onChainId || !offer.listing.onChainId) {
+          // No on-chain data — offer may have been created off-chain only
+          console.log(`[Cron] Offer ${offer.id} has no on-chain data, skipping on-chain refund`);
+        }
+
+        // Always update offer status to EXPIRED in DB (do NOT block on on-chain success)
         await prisma.offer.update({
           where: { id: offer.id },
           data: {
@@ -110,19 +219,21 @@ export async function GET(request: NextRequest) {
           data: {
             type: "SYSTEM",
             title: "Offer Expired",
-            message: `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
+            message: onChainRefundSucceeded
+              ? `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. Your escrowed funds have been returned to your wallet.`
+              : `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. If you had funds in escrow, please contact support for assistance with your refund.`,
             data: {
               offerId: offer.id,
               listingId: offer.listingId,
               amount: Number(offer.amount),
+              onChainRefundSucceeded,
             },
             userId: offer.buyerId,
           },
         });
 
         results.markedExpired++;
-        results.refundsInitiated++;
-        console.log(`[Cron] Marked offer ${offer.id} as expired`);
+        console.log(`[Cron] Marked offer ${offer.id} as expired (on-chain refund: ${onChainRefundSucceeded ? "success" : "skipped/failed"})`);
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to expire offer ${offer.id}: ${error}`;

@@ -218,33 +218,45 @@ export async function POST(
       .every(item => item.sellerConfirmed && item.buyerConfirmed);
 
     if (allConfirmed) {
-      // All transfers complete - release escrow
-      await prisma.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: "COMPLETED",
-          transferCompletedAt: new Date(),
-          releasedAt: new Date(),
-        },
-      });
+      // Wrap all completion writes in a Serializable transaction to prevent double-increment
+      await prisma.$transaction(async (tx) => {
+        // Guard: re-check the transaction isn't already COMPLETED (prevent double-increment)
+        const freshTransaction = await tx.transaction.findUnique({
+          where: { id: transactionId },
+          select: { status: true },
+        });
+        if (freshTransaction?.status === 'COMPLETED') {
+          return; // Already completed, skip all updates
+        }
 
-      // Update seller stats
-      await prisma.user.update({
-        where: { id: transaction.sellerId },
-        data: {
-          totalSales: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
+        // All transfers complete - release escrow
+        await tx.transaction.update({
+          where: { id: transactionId },
+          data: {
+            status: "COMPLETED",
+            transferCompletedAt: new Date(),
+            releasedAt: new Date(),
+          },
+        });
 
-      // Update buyer stats
-      await prisma.user.update({
-        where: { id: transaction.buyerId },
-        data: {
-          totalPurchases: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
+        // Update seller stats
+        await tx.user.update({
+          where: { id: transaction.sellerId },
+          data: {
+            totalSales: { increment: 1 },
+            totalVolume: { increment: Number(transaction.salePrice) },
+          },
+        });
+
+        // Update buyer stats
+        await tx.user.update({
+          where: { id: transaction.buyerId },
+          data: {
+            totalPurchases: { increment: 1 },
+            totalVolume: { increment: Number(transaction.salePrice) },
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
 
       // Notify seller
       await prisma.notification.create({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
@@ -74,20 +75,59 @@ export async function POST(
       return NextResponse.json({ error: "Already deposited" }, { status: 400 });
     }
 
-    // TODO: Verify the on-chain transaction
-    // In production, we would verify the tx hash and amount on-chain
+    // SECURITY [C5]: Verify on-chain transaction before accepting deposit
+    if (!txHash) {
+      return NextResponse.json({ error: "Transaction hash is required" }, { status: 400 });
+    }
 
-    // Update partner deposit status
-    await prisma.transactionPartner.update({
-      where: { id: params.partnerId },
-      data: {
-        depositStatus: "DEPOSITED",
-        depositedAt: new Date(),
-        depositTxHash: txHash || null,
-      },
-    });
+    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+    const connection = new Connection(rpcUrl, "confirmed");
+    const txInfo = await connection.getTransaction(txHash, { maxSupportedTransactionVersion: 0 });
 
-    // Notify lead buyer
+    if (!txInfo || txInfo.meta?.err) {
+      return NextResponse.json({ error: "Invalid or failed on-chain transaction" }, { status: 400 });
+    }
+
+    // SECURITY [H7]: Use serializable transaction to prevent race condition
+    // in the "all deposited" check
+    const result = await prisma.$transaction(async (tx) => {
+      // Update partner deposit status
+      await tx.transactionPartner.update({
+        where: { id: params.partnerId },
+        data: {
+          depositStatus: "DEPOSITED",
+          depositedAt: new Date(),
+          depositTxHash: txHash || null,
+        },
+      });
+
+      // Re-read all partners inside the transaction to avoid stale data
+      const allPartners = await tx.transactionPartner.findMany({
+        where: { transactionId: transaction.id },
+      });
+
+      const allDeposited = allPartners.every((p: { id: string; depositStatus: string }) =>
+        p.id === params.partnerId ? true : p.depositStatus === "DEPOSITED"
+      );
+
+      // Check if total is 100%
+      const totalPercentage = allPartners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+
+      if (allDeposited && totalPercentage >= 100) {
+        // All deposits complete! Move to next phase
+        await tx.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: "PAID",
+            paidAt: new Date(),
+          },
+        });
+      }
+
+      return { allDeposited, totalPercentage, allPartners };
+    }, { isolationLevel: 'Serializable' });
+
+    // Notify lead buyer (outside the transaction -- non-critical)
     const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     if (leadPartner?.userId && leadPartner.userId !== token.id as string) {
       await createNotification({
@@ -102,24 +142,7 @@ export async function POST(
       });
     }
 
-    // Check if all partners have deposited
-    const allDeposited = transaction.partners.every(
-      (p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED"
-    );
-
-    // Check if total is 100%
-    const totalPercentage = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
-
-    if (allDeposited && totalPercentage >= 100) {
-      // All deposits complete! Move to next phase
-      await prisma.transaction.update({
-        where: { id: params.id },
-        data: {
-          status: "PAID",
-          paidAt: new Date(),
-        },
-      });
-
+    if (result.allDeposited && result.totalPercentage >= 100) {
       // Notify all partners
       for (const p of transaction.partners as Array<{ userId: string | null; id: string; depositStatus: string; isLead: boolean }>) {
         if (p.userId) {
@@ -145,11 +168,11 @@ export async function POST(
     return NextResponse.json({
       success: true,
       allDeposited: false,
-      deposited: transaction.partners.filter((p: { id: string; depositStatus: string }) =>
+      deposited: result.allPartners.filter((p: { id: string; depositStatus: string }) =>
         p.id === params.partnerId || p.depositStatus === "DEPOSITED"
       ).length,
-      total: transaction.partners.length,
-      percentageDeposited: transaction.partners
+      total: result.allPartners.length,
+      percentageDeposited: result.allPartners
         .filter((p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED")
         .reduce((sum: number, p: any) => sum + Number(p.percentage), 0),
     });

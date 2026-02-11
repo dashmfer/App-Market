@@ -200,6 +200,36 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // SECURITY [C1]: Verify on-chain transfer amount, recipient, and sender
+      const accountKeys = txInfo.transaction.message.accountKeys.map((k: any) => k.toBase58());
+      const preBalances = txInfo.meta!.preBalances;
+      const postBalances = txInfo.meta!.postBalances;
+
+      // Find treasury/escrow wallet in the transaction
+      const treasuryWallet = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+      if (!treasuryWallet) {
+        return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+      }
+
+      const treasuryIndex = accountKeys.indexOf(treasuryWallet);
+      if (treasuryIndex === -1) {
+        return NextResponse.json({ error: "Transaction does not involve the platform treasury" }, { status: 400 });
+      }
+
+      // Verify the amount received by treasury (in lamports)
+      const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
+      const expectedLamports = Math.floor(salePrice * 1e9); // Convert SOL to lamports
+      const tolerance = 10000; // Allow small tolerance for tx fees
+      if (treasuryReceived < expectedLamports - tolerance) {
+        return NextResponse.json({ error: "On-chain transfer amount does not match expected amount" }, { status: 400 });
+      }
+
+      // Verify sender is the buyer's wallet
+      const buyerWallet = token.walletAddress;
+      if (buyerWallet && !accountKeys.includes(buyerWallet)) {
+        return NextResponse.json({ error: "Transaction sender does not match buyer wallet" }, { status: 400 });
+      }
     } catch (verifyErr) {
       console.error("Error verifying on-chain tx:", verifyErr);
       return NextResponse.json(
@@ -306,41 +336,85 @@ export async function POST(request: NextRequest) {
       ? new Date(Date.now() + 48 * 60 * 60 * 1000)
       : null;
 
-    // Create transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        salePrice,
-        platformFee,
-        sellerProceeds,
-        currency: listing.currency,
-        paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
-        onChainTx,
-        status: "IN_ESCROW", // Always IN_ESCROW since onChainTx is now required and verified
-        transferChecklist,
-        buyerInfoDeadline,
-        buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",
-        listingId,
-        buyerId: userId,
-        sellerId: listing.sellerId,
-        paidAt: new Date(),
-      },
+    // SECURITY [H1]: Use serializable transaction to prevent race conditions
+    // Re-check listing status, dedup onChainTx, create transaction, and update listing atomically
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Re-check listing status inside transaction to prevent race conditions
+      const currentListing = await tx.listing.findUnique({
+        where: { id: listingId },
+      });
+
+      if (!currentListing || currentListing.status !== "ACTIVE") {
+        return { error: "Listing is no longer available for purchase", status: 400 } as const;
+      }
+
+      // SECURITY: Deduplicate on-chain transaction signatures to prevent
+      // the same on-chain payment from being used for multiple transactions
+      const existingTx = await tx.transaction.findFirst({
+        where: { onChainTx },
+      });
+      if (existingTx) {
+        return { error: "This on-chain transaction has already been used", status: 400 } as const;
+      }
+
+      // SECURITY: Check if transaction already exists for this listing (prevents double-purchase)
+      const existingTransaction = await tx.transaction.findUnique({
+        where: { listingId },
+      });
+      if (existingTransaction) {
+        return { error: "This listing has already been purchased", status: 400 } as const;
+      }
+
+      // Create transaction
+      const transaction = await tx.transaction.create({
+        data: {
+          salePrice,
+          platformFee,
+          sellerProceeds,
+          currency: listing.currency,
+          paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
+          onChainTx,
+          status: "IN_ESCROW", // Always IN_ESCROW since onChainTx is now required and verified
+          transferChecklist,
+          buyerInfoDeadline,
+          buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",
+          listingId,
+          buyerId: userId,
+          sellerId: listing.sellerId,
+          paidAt: new Date(),
+        },
+      });
+
+      // Lock the required buyer info on the listing
+      if (hasRequiredBuyerInfo) {
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { buyerInfoLocked: true },
+        });
+      }
+
+      // Update listing status
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { status: "SOLD" },
+      });
+
+      return { transaction } as const;
+    }, {
+      isolationLevel: 'Serializable',
     });
 
-    // Lock the required buyer info on the listing
-    if (hasRequiredBuyerInfo) {
-      await prisma.listing.update({
-        where: { id: listingId },
-        data: { buyerInfoLocked: true },
-      });
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
     }
 
-    // Update listing status
-    await prisma.listing.update({
-      where: { id: listingId },
-      data: { status: "SOLD" },
-    });
+    const { transaction } = txResult;
 
-    // Notify seller
+    // Notify seller (outside transaction - non-critical)
     await prisma.notification.create({
       data: {
         type: "AUCTION_WON",

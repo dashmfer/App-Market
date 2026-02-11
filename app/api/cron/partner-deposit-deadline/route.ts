@@ -129,11 +129,25 @@ export async function GET(request: NextRequest) {
           (p: { depositStatus: string }) => p.depositStatus === "PENDING"
         );
 
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // Attempt on-chain refund for deposited partners before updating DB.
+        // NOTE: The on-chain program does not currently have a dedicated instruction
+        // for refunding partner deposits when the deposit deadline expires.
+        // TODO: Implement on-chain partner deposit refund
+        //   1. Add refund_partner_deposit instruction to the Solana program
+        //   2. Add BACKEND_AUTHORITY_SECRET_KEY env var (JSON array from keypair file)
+        //   3. Build raw transaction instruction (similar to expire-withdrawals cron)
+        //   4. Call the instruction here for each deposited partner before DB update
+        //   5. Wrap in try/catch so DB update proceeds even if on-chain fails
+        // WARNING: Until this is implemented, partner deposits remain locked in escrow
+        // after the deposit deadline expires. Partners are notified of a refund but
+        // on-chain escrow is NOT released.
+        if (depositedPartners.length > 0) {
+          console.warn(
+            `[Cron] On-chain refund NOT yet implemented for partner deposit deadline. ` +
+            `Transaction ${transaction.id}: ${depositedPartners.length} partner(s) will be ` +
+            `marked REFUNDED in DB but escrow funds may still be locked on-chain.`
+          );
+        }
 
         // Mark deposited partners as REFUNDED
         for (const partner of depositedPartners) {

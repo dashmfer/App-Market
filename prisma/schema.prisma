@@ -507,7 +507,7 @@ model Transaction {
   
   // Payment
   paymentMethod       PaymentMethod
-  onChainTx           String?
+  onChainTx           String?           @unique
   escrowAddress       String?
   
   // Status

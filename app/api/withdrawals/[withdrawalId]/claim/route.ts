@@ -30,7 +30,28 @@ export async function POST(
 
     const { withdrawalId } = params;
 
-    // Get withdrawal
+    // Atomic check-and-update: only claim if not yet claimed and belongs to user
+    const result = await prisma.pendingWithdrawal.updateMany({
+      where: {
+        id: withdrawalId,
+        userId: token.id as string,
+        claimed: false, // Atomic: only update if not yet claimed
+      },
+      data: {
+        claimed: true,
+        claimedAt: new Date(),
+      },
+    });
+
+    if (result.count === 0) {
+      // Either doesn't exist, wrong user, or already claimed
+      return NextResponse.json(
+        { error: 'Withdrawal not found or already claimed' },
+        { status: 404 }
+      );
+    }
+
+    // Fetch the updated withdrawal for audit logging
     const withdrawal = await prisma.pendingWithdrawal.findUnique({
       where: { id: withdrawalId },
       include: {
@@ -42,51 +63,23 @@ export async function POST(
       },
     });
 
-    if (!withdrawal) {
-      return NextResponse.json(
-        { error: 'Withdrawal not found' },
-        { status: 404 }
-      );
-    }
-
-    // Only owner can claim
-    if (withdrawal.userId !== token.id as string) {
-      return NextResponse.json(
-        { error: 'Not authorized to claim this withdrawal' },
-        { status: 403 }
-      );
-    }
-
-    // Already claimed
-    if (withdrawal.claimed) {
-      return NextResponse.json(
-        { error: 'Withdrawal already claimed' },
-        { status: 400 }
-      );
-    }
-
-    // Update withdrawal status
-    const updatedWithdrawal = await prisma.pendingWithdrawal.update({
-      where: { id: withdrawalId },
-      data: {
-        claimed: true,
-        claimedAt: new Date(),
-      },
-    });
+    const updatedWithdrawal = withdrawal;
 
     // NOTE: The actual on-chain withdrawal should be handled by the smart contract
     // This endpoint just marks it as claimed in the database
     // The frontend should call the smart contract's withdraw_funds instruction
 
-    await audit({
-      action: "WITHDRAWAL_CLAIMED",
-      severity: "INFO",
-      userId: token.id as string,
-      targetId: withdrawalId,
-      targetType: "PendingWithdrawal",
-      detail: `Withdrawal claimed: ${Number(withdrawal.amount)} ${withdrawal.currency}`,
-      metadata: { amount: Number(withdrawal.amount), listingId: withdrawal.listingId },
-    });
+    if (withdrawal) {
+      await audit({
+        action: "WITHDRAWAL_CLAIMED",
+        severity: "INFO",
+        userId: token.id as string,
+        targetId: withdrawalId,
+        targetType: "PendingWithdrawal",
+        detail: `Withdrawal claimed: ${Number(withdrawal.amount)} ${withdrawal.currency}`,
+        metadata: { amount: Number(withdrawal.amount), listingId: withdrawal.listingId },
+      });
+    }
 
     return NextResponse.json({
       success: true,

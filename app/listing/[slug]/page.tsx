@@ -44,6 +44,7 @@ import {
 import { startConversation } from "@/hooks/useMessages";
 import { format, formatDistanceToNow } from "date-fns";
 import { useCountdown } from "@/hooks/useCountdown";
+import { useCsrf } from "@/hooks/useCsrf";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
 import { NDAGate } from "@/components/listings/NDAGate";
@@ -241,6 +242,7 @@ export default function ListingPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [acceptingOffer, setAcceptingOffer] = useState<string | null>(null);
   const [decliningOffer, setDecliningOffer] = useState<string | null>(null);
+  const { csrfHeaders } = useCsrf();
 
   // Real-time countdown hook - must be called before any conditional returns
   const { timeLeft, isExpired, isEndingSoon } = useCountdown(listing?.endTime);
@@ -327,6 +329,7 @@ export default function ListingPage() {
     try {
       const response = await fetch(`/api/offers/${offerId}/accept`, {
         method: "POST",
+        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {
@@ -352,6 +355,7 @@ export default function ListingPage() {
     try {
       const response = await fetch(`/api/offers/${offerId}/cancel`, {
         method: "POST",
+        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {
@@ -374,7 +378,7 @@ export default function ListingPage() {
     try {
       const response = await fetch(`/api/collaborators/${collaboratorId}/respond`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeaders },
         body: JSON.stringify({ action }),
       });
 
@@ -484,7 +488,7 @@ export default function ListingPage() {
       // Record bid in database with transaction signature
       const response = await fetch("/api/bids", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeaders },
         body: JSON.stringify({
           listingId: listing.id,
           amount: bidAmount,
@@ -573,7 +577,7 @@ export default function ListingPage() {
       // Record purchase in database
       const response = await fetch("/api/purchases", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...csrfHeaders },
         body: JSON.stringify({
           listingId: listing.id,
           amount: listing.buyNowPrice,

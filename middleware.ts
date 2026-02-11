@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
-    pathname.includes(".") // files with extensions
+    /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|map)$/i.test(pathname) // known static file extensions
   ) {
     return NextResponse.next();
   }
