@@ -438,19 +438,69 @@ const Desk: React.FC = () => (
   <div
     style={{
       position: "absolute",
-      bottom: 160,
+      bottom: 80,
       left: "50%",
       transform: "translateX(-50%)",
-      width: 700,
-      height: 40,
+      width: 800,
+      height: 240,
     }}
   >
-    <svg width="700" height="40" viewBox="0 0 700 40">
-      {/* Desk surface */}
-      <rect x="0" y="0" width="700" height="8" rx="2" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.3" />
-      {/* Legs */}
-      <line x1="40" y1="8" x2="40" y2="40" stroke={`${COLORS.green}50`} strokeWidth="2" />
-      <line x1="660" y1="8" x2="660" y2="40" stroke={`${COLORS.green}50`} strokeWidth="2" />
+    <svg width="800" height="240" viewBox="0 0 800 240">
+      {/* Desk surface - thick slab */}
+      <rect x="30" y="100" width="740" height="14" rx="3" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.35" />
+      {/* Wood grain lines */}
+      <line x1="60" y1="104" x2="740" y2="104" stroke={COLORS.green} strokeWidth="0.5" opacity="0.08" />
+      <line x1="60" y1="107" x2="740" y2="107" stroke={COLORS.green} strokeWidth="0.5" opacity="0.06" />
+      <line x1="60" y1="110" x2="740" y2="110" stroke={COLORS.green} strokeWidth="0.5" opacity="0.08" />
+      {/* Drawer panel */}
+      <rect x="300" y="114" width="200" height="40" rx="3" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.15" />
+      {/* Drawer handle */}
+      <line x1="370" y1="134" x2="430" y2="134" stroke={COLORS.green} strokeWidth="1.5" opacity="0.25" strokeLinecap="round" />
+      {/* Left legs */}
+      <line x1="70" y1="114" x2="70" y2="235" stroke={COLORS.green} strokeWidth="2" opacity="0.3" />
+      <line x1="120" y1="114" x2="120" y2="235" stroke={COLORS.green} strokeWidth="2" opacity="0.3" />
+      <line x1="70" y1="190" x2="120" y2="190" stroke={COLORS.green} strokeWidth="1" opacity="0.15" />
+      {/* Right legs */}
+      <line x1="680" y1="114" x2="680" y2="235" stroke={COLORS.green} strokeWidth="2" opacity="0.3" />
+      <line x1="730" y1="114" x2="730" y2="235" stroke={COLORS.green} strokeWidth="2" opacity="0.3" />
+      <line x1="680" y1="190" x2="730" y2="190" stroke={COLORS.green} strokeWidth="1" opacity="0.15" />
+
+      {/* Monitor */}
+      <rect x="290" y="2" width="220" height="140" rx="6" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.3" />
+      {/* Screen inner */}
+      <rect x="298" y="10" width="204" height="118" rx="3" fill="none" stroke={COLORS.green} strokeWidth="0.8" opacity="0.15" />
+      {/* Window dots */}
+      <circle cx="310" cy="20" r="2.5" fill="none" stroke="#ef4444" strokeWidth="1" opacity="0.4" />
+      <circle cx="320" cy="20" r="2.5" fill="none" stroke="#eab308" strokeWidth="1" opacity="0.4" />
+      <circle cx="330" cy="20" r="2.5" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.4" />
+      {/* Code lines on screen */}
+      <line x1="310" y1="34" x2="380" y2="34" stroke={COLORS.green} strokeWidth="2" opacity="0.2" strokeLinecap="round" />
+      <line x1="318" y1="46" x2="440" y2="46" stroke={COLORS.green} strokeWidth="2" opacity="0.12" strokeLinecap="round" />
+      <line x1="318" y1="58" x2="410" y2="58" stroke={COLORS.green} strokeWidth="2" opacity="0.15" strokeLinecap="round" />
+      <line x1="310" y1="70" x2="460" y2="70" stroke={COLORS.green} strokeWidth="2" opacity="0.1" strokeLinecap="round" />
+      <line x1="318" y1="82" x2="390" y2="82" stroke={COLORS.green} strokeWidth="2" opacity="0.18" strokeLinecap="round" />
+      <line x1="318" y1="94" x2="430" y2="94" stroke={COLORS.green} strokeWidth="2" opacity="0.12" strokeLinecap="round" />
+      <line x1="310" y1="106" x2="370" y2="106" stroke={COLORS.green} strokeWidth="2" opacity="0.15" strokeLinecap="round" />
+      {/* Monitor stand neck */}
+      <rect x="388" y="142" width="24" height="20" rx="2" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.25" />
+      {/* Monitor stand base */}
+      <ellipse cx="400" cy="166" rx="50" ry="6" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.2" />
+
+      {/* Keyboard on desk */}
+      <rect x="330" y="86" width="130" height="12" rx="3" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.2" />
+      <line x1="338" y1="90" x2="452" y2="90" stroke={COLORS.green} strokeWidth="0.5" opacity="0.1" />
+      <line x1="338" y1="94" x2="452" y2="94" stroke={COLORS.green} strokeWidth="0.5" opacity="0.08" />
+
+      {/* Mouse */}
+      <rect x="490" y="86" width="16" height="24" rx="8" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.2" />
+      <line x1="498" y1="88" x2="498" y2="94" stroke={COLORS.green} strokeWidth="0.5" opacity="0.15" />
+
+      {/* Coffee mug */}
+      <rect x="200" y="78" width="22" height="20" rx="2" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.2" />
+      <path d="M 222 83 Q 232 83 232 93 Q 232 98 222 98" fill="none" stroke={COLORS.green} strokeWidth="1" opacity="0.15" />
+      {/* Steam */}
+      <path d="M 207 75 Q 209 68 207 62" fill="none" stroke={COLORS.green} strokeWidth="0.8" opacity="0.1" strokeLinecap="round" />
+      <path d="M 215 75 Q 217 66 215 60" fill="none" stroke={COLORS.green} strokeWidth="0.8" opacity="0.08" strokeLinecap="round" />
     </svg>
   </div>
 );
