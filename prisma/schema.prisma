@@ -79,6 +79,7 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   lastActiveAt    DateTime  @default(now())
+  deletedAt       DateTime? // Soft-delete: non-null means account is deleted
 
   // Relations
   listings        Listing[]        @relation("SellerListings")
@@ -135,6 +136,7 @@ model User {
   @@index([referralCode])
   @@index([twitterUsername])
   @@index([privyUserId])
+  @@index([deletedAt])
 }
 
 model Account {

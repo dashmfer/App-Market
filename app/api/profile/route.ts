@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthToken } from '@/lib/auth';
+import { getAuthToken, revokeAllUserSessions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { audit, auditContext } from '@/lib/audit';
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
@@ -150,6 +151,115 @@ export async function PUT(req: NextRequest) {
     console.error('Error updating profile:', error);
     return NextResponse.json(
       { error: 'Failed to update profile' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/profile
+ * Soft-delete current user's account.
+ * Sets deletedAt, anonymizes PII, revokes all sessions.
+ * Preserves transaction/review/dispute records for financial integrity.
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    const token = await getAuthToken(req);
+
+    if (!token?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const userId = token.id as string;
+
+    // Check for active transactions that would block deletion
+    const activeTransactions = await prisma.transaction.count({
+      where: {
+        OR: [
+          { buyerId: userId },
+          { sellerId: userId },
+        ],
+        status: {
+          in: ['PENDING', 'FUNDED', 'PAID', 'IN_ESCROW', 'TRANSFER_PENDING', 'TRANSFER_IN_PROGRESS', 'AWAITING_CONFIRMATION', 'DISPUTED', 'AWAITING_PARTNER_DEPOSITS'],
+        },
+      },
+    });
+
+    if (activeTransactions > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete account while you have active transactions. Complete or cancel them first.' },
+        { status: 400 }
+      );
+    }
+
+    // Check for active listings
+    const activeListings = await prisma.listing.count({
+      where: {
+        sellerId: userId,
+        status: { in: ['ACTIVE', 'RESERVED', 'PENDING_REVIEW', 'PENDING_COLLABORATORS'] },
+      },
+    });
+
+    if (activeListings > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete account while you have active listings. Cancel them first.' },
+        { status: 400 }
+      );
+    }
+
+    // Soft-delete: set deletedAt and anonymize PII
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        displayName: "Deleted User",
+        bio: null,
+        image: null,
+        websiteUrl: null,
+        discordHandle: null,
+        discordVerified: false,
+      },
+    });
+
+    // Revoke all sessions so the user is logged out everywhere
+    await revokeAllUserSessions(userId, "account_deleted");
+
+    // Deactivate API keys
+    await prisma.apiKey.updateMany({
+      where: { userId },
+      data: { isActive: false },
+    });
+
+    // Deactivate webhooks
+    await prisma.webhook.updateMany({
+      where: { userId },
+      data: { isActive: false },
+    });
+
+    await audit({
+      action: "USER_PROFILE_UPDATED",
+      severity: "WARN",
+      userId,
+      targetId: userId,
+      targetType: "User",
+      detail: "Account soft-deleted by user",
+      ...auditContext(req.headers),
+    });
+
+    return NextResponse.json({ success: true, message: 'Account deleted' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete account' },
       { status: 500 }
     );
   }

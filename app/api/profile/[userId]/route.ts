@@ -12,8 +12,8 @@ export async function GET(
   try {
     const { userId } = params;
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    const user = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
       select: {
         id: true,
         name: true,

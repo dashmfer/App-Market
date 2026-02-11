@@ -259,6 +259,15 @@ export const authOptions: NextAuthOptions = {
           throw new Error(result.error || "Wallet verification failed");
         }
 
+        // Block login for soft-deleted accounts
+        const existingUser = await prisma.user.findUnique({
+          where: { id: result.user.id },
+          select: { deletedAt: true },
+        });
+        if (existingUser?.deletedAt) {
+          throw new Error("This account has been deleted");
+        }
+
         // Generate session ID for revocation support
         // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
@@ -466,6 +475,11 @@ export const authOptions: NextAuthOptions = {
           return txUser;
         }, { isolationLevel: 'Serializable' });
 
+        // Block login for soft-deleted accounts
+        if (user.deletedAt) {
+          throw new Error("This account has been deleted");
+        }
+
         // Generate session ID for revocation support
         // Session ID is stored in JWT, revocations are tracked in database
         const sessionId = generateSessionId();
@@ -553,6 +567,7 @@ export const authOptions: NextAuthOptions = {
                 githubUsername: true,
                 image: true,
                 isAdmin: true,
+                deletedAt: true,
                 wallets: {
                   select: {
                     walletAddress: true,
@@ -561,6 +576,12 @@ export const authOptions: NextAuthOptions = {
                 },
               },
             });
+
+            if (user?.deletedAt) {
+              // Soft-deleted user: return empty session to force logout
+              session.user.id = "";
+              return session;
+            }
 
             if (user) {
               // Determine which wallet to use - prefer Solana over ETH

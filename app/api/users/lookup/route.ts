@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
     let user = null;
 
     if (isWalletAddress) {
-      // Search by exact wallet address
-      user = await prisma.user.findUnique({
-        where: { walletAddress: query },
+      // Search by exact wallet address (exclude soft-deleted)
+      user = await prisma.user.findFirst({
+        where: { walletAddress: query, deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -49,9 +49,9 @@ export async function GET(request: NextRequest) {
         },
       });
     } else {
-      // Search by username (exact match first, then partial)
-      user = await prisma.user.findUnique({
-        where: { username: query.toLowerCase() },
+      // Search by username (exact match first, then partial; exclude soft-deleted)
+      user = await prisma.user.findFirst({
+        where: { username: query.toLowerCase(), deletedAt: null },
         select: {
           id: true,
           username: true,
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       if (!user) {
         user = await prisma.user.findFirst({
           where: {
+            deletedAt: null,
             OR: [
               { username: { contains: query, mode: "insensitive" } },
               { displayName: { contains: query, mode: "insensitive" } },
@@ -158,8 +159,8 @@ export async function POST(request: NextRequest) {
         let user = null;
 
         if (isWalletAddress) {
-          user = await prisma.user.findUnique({
-            where: { walletAddress: trimmed },
+          user = await prisma.user.findFirst({
+            where: { walletAddress: trimmed, deletedAt: null },
             select: {
               id: true,
               username: true,
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
         } else {
           user = await prisma.user.findFirst({
             where: {
+              deletedAt: null,
               OR: [
                 { username: { equals: trimmed, mode: "insensitive" } },
                 { displayName: { equals: trimmed, mode: "insensitive" } },
