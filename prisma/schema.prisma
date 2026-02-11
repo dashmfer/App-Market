@@ -584,6 +584,8 @@ model Transaction {
   @@index([sellerId])
   @@index([status])
   @@index([createdAt])
+  @@index([buyerId, status])
+  @@index([sellerId, status])
 }
 
 // ============================================
@@ -767,6 +769,7 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@index([createdAt])
+  @@index([userId, read])
 }
 
 // ============================================

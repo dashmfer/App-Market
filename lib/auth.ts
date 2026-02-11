@@ -154,7 +154,7 @@ export async function isSessionNotRevoked(sessionId: string, userId?: string, ia
       where: { sessionId: `user:${userId}` },
       select: { revokedAt: true },
     });
-    if (userRevocation && userRevocation.revokedAt && iat < Math.floor(userRevocation.revokedAt.getTime() / 1000)) {
+    if (userRevocation && userRevocation.revokedAt && iat <= Math.floor(userRevocation.revokedAt.getTime() / 1000)) {
       return false;
     }
   }
@@ -189,6 +189,12 @@ export async function getAuthToken(req: NextRequest) {
 
   // SECURITY: Reject tokens without sessionId — all valid tokens must have one
   if (token && !token.sessionId) {
+    return null;
+  }
+
+  // SECURITY: Defense-in-depth explicit expiration check.
+  // NextAuth validates exp internally, but we check here as an extra layer.
+  if (token && token.exp && (token.exp as number) < Math.floor(Date.now() / 1000)) {
     return null;
   }
 

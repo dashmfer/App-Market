@@ -45,7 +45,7 @@ export async function isSessionNotRevokedEdge(
     const revokedAtStr = await redis.get(`${USER_REVOKE_PREFIX}${userId}`);
     if (revokedAtStr) {
       const revokedAtMs = parseInt(revokedAtStr as string, 10);
-      if (iat < Math.floor(revokedAtMs / 1000)) return false;
+      if (iat <= Math.floor(revokedAtMs / 1000)) return false;
     }
   }
 

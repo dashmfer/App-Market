@@ -82,6 +82,9 @@ function createPageResponse(request: NextRequest): NextResponse {
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // NOTE: 'unsafe-inline' is required for style-src because Next.js injects
+    // inline styles for fonts (next/font) and next-themes. Cannot be nonced.
+    // This is safe — CSS injection has no script execution vector in modern browsers.
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https://avatars.githubusercontent.com https://github.com https://raw.githubusercontent.com https://opengraph.githubassets.com https://*.public.blob.vercel-storage.com",
     "font-src 'self' data:",
