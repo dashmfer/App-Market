@@ -202,43 +202,43 @@ const Avatar: React.FC<{
           strokeWidth="2.5"
         />
 
-        {/* Hair based on style - green outline, white fill */}
+        {/* Hair based on style - green outline only */}
         {character.hairStyle === "curly" && (
           <>
-            <ellipse cx="100" cy="62" rx="56" ry="35" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="52" cy="75" r="16" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="148" cy="75" r="16" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="58" cy="58" r="14" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="142" cy="58" r="14" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="75" cy="48" r="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <circle cx="125" cy="48" r="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <ellipse cx="100" cy="62" rx="56" ry="35" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="52" cy="75" r="16" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="148" cy="75" r="16" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="58" cy="58" r="14" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="142" cy="58" r="14" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="75" cy="48" r="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="125" cy="48" r="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "short" && (
           <>
-            <ellipse cx="100" cy="65" rx="54" ry="32" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="48" y="60" width="104" height="20" rx="8" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <ellipse cx="100" cy="65" rx="54" ry="32" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="48" y="60" width="104" height="20" rx="8" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "long" && (
           <>
-            <ellipse cx="100" cy="62" rx="56" ry="34" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="46" y="60" width="20" height="80" rx="10" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="134" y="60" width="20" height="80" rx="10" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <ellipse cx="100" cy="62" rx="56" ry="34" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="46" y="60" width="20" height="80" rx="10" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="134" y="60" width="20" height="80" rx="10" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "fade" && (
           <>
-            <ellipse cx="100" cy="68" rx="50" ry="26" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="52" y="58" width="96" height="16" rx="6" fill="#ffffff" stroke={COLORS.green} strokeWidth="1.5" opacity="0.7" />
-            <rect x="56" y="70" width="88" height="8" rx="4" fill="#ffffff" stroke={COLORS.green} strokeWidth="1.5" opacity="0.4" />
+            <ellipse cx="100" cy="68" rx="50" ry="26" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="52" y="58" width="96" height="16" rx="6" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.7" />
+            <rect x="56" y="70" width="88" height="8" rx="4" fill="none" stroke={COLORS.green} strokeWidth="1.5" opacity="0.4" />
           </>
         )}
         {character.hairStyle === "bob" && (
           <>
-            <ellipse cx="100" cy="62" rx="58" ry="34" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="44" y="60" width="24" height="55" rx="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
-            <rect x="132" y="60" width="24" height="55" rx="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <ellipse cx="100" cy="62" rx="58" ry="34" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="44" y="60" width="24" height="55" rx="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="132" y="60" width="24" height="55" rx="12" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
 

@@ -363,16 +363,16 @@ const DevSilhouette: React.FC<{
         {/* Arms */}
         {posture !== "relieved" && posture !== "thumbsup" && (
           <>
-            {/* Left arm: shoulder to desk */}
+            {/* Left arm */}
             <line
               x1={spineX} y1={shoulderY}
-              x2={spineX - 60} y2={shoulderY + 45 + bodyLean}
+              x2={spineX - 45} y2={shoulderY + 30 + bodyLean}
               stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
             />
-            {/* Right arm: shoulder to desk */}
+            {/* Right arm */}
             <line
               x1={spineX} y1={shoulderY}
-              x2={spineX + 60} y2={shoulderY + 45 + bodyLean}
+              x2={spineX + 45} y2={shoulderY + 30 + bodyLean}
               stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
             />
           </>
@@ -397,7 +397,7 @@ const DevSilhouette: React.FC<{
             {/* Left arm normal */}
             <line
               x1={spineX} y1={shoulderY}
-              x2={spineX - 60} y2={shoulderY + 45}
+              x2={spineX - 45} y2={shoulderY + 30}
               stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
             />
             {/* Right arm up for thumbs up */}
