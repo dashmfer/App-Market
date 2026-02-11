@@ -1,4 +1,5 @@
 import { Composition, registerRoot } from "remotion";
+import React from "react";
 import { AppMarketVideo } from "./AppMarketVideo";
 import { BeatTestVideo } from "./BeatTest";
 import { PromoVideoCall } from "./PromoVideoCall";

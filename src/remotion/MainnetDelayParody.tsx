@@ -1460,8 +1460,6 @@ const Scene7_Punchline: React.FC = () => {
 // MAIN COMPOSITION
 // ============================================
 export const MainnetDelayParody: React.FC = () => {
-  const frame = useCurrentFrame();
-
   return (
     <AbsoluteFill style={{ background: COLORS.dark }}>
       {/* Scene 1: The Announcement */}
