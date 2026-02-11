@@ -227,12 +227,8 @@ export async function POST(
 
     // Calculate payment distribution for collaborators
     // SECURITY: Use integer math to prevent floating-point drift on payment splits
+    // (reuses salePrice, sellerProceeds, currency, decimals, base, proceedsUnits from H4 block above)
     const collaborators = transaction.listing.collaborators || [];
-    const sellerProceeds = Number(transaction.sellerProceeds);
-    const currency = transaction.currency || "SOL";
-    const decimals = currency === "USDC" ? 6 : 9;
-    const base = Math.pow(10, decimals);
-    const proceedsUnits = Math.round(sellerProceeds * base);
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
