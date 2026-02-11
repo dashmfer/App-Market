@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       }
 
       // SECURITY [C1]: Verify on-chain transfer amount, recipient, and sender
-      const accountKeys = txInfo.transaction.message.accountKeys.map((k: any) => k.toBase58());
+      const accountKeys = txInfo.transaction.message.getAccountKeys().staticAccountKeys.map((k: any) => k.toBase58());
       const preBalances = txInfo.meta!.preBalances;
       const postBalances = txInfo.meta!.postBalances;
 

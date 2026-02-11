@@ -49,7 +49,7 @@ export function useCsrf() {
   }, [fetchToken]);
 
   // Headers object to include in requests
-  const csrfHeaders = csrfToken
+  const csrfHeaders: Record<string, string> = csrfToken
     ? { [CSRF_HEADER]: csrfToken }
     : {};
 
