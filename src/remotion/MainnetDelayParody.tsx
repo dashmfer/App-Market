@@ -1,11 +1,13 @@
 import {
   AbsoluteFill,
+  Audio,
   interpolate,
   useCurrentFrame,
   useVideoConfig,
   spring,
   Sequence,
   Easing,
+  staticFile,
 } from "remotion";
 import React from "react";
 
@@ -1478,6 +1480,9 @@ const Scene7_Punchline: React.FC = () => {
 export const MainnetDelayParody: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: COLORS.bg }}>
+      {/* Background music */}
+      <Audio src={staticFile("litesaturation-hard-work-109531.mp3")} volume={0.5} />
+
       {/* Scene 1: The Announcement */}
       <Sequence from={SCENE.announcement.start} durationInFrames={SCENE.announcement.duration}>
         <Scene1_Announcement />
