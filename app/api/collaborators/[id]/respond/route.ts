@@ -267,6 +267,11 @@ export async function GET(
       );
     }
 
+    // SECURITY: Verify the authenticated user is the actual collaborator
+    if (collaborator.userId !== token.id) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+    }
+
     return NextResponse.json({ collaborator });
   } catch (error) {
     console.error("Error fetching collaboration:", error);

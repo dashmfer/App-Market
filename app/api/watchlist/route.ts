@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: 100,
     });
 
     // Transform to return just listings with watchlist info

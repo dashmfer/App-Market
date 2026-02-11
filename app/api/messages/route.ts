@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { lastMessageAt: "desc" },
+      take: 50,
     });
 
     // Transform to include the "other" participant and unread count

@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const bids = await prisma.bid.findMany({
       where: { listingId },
       orderBy: { amount: "desc" },
+      take: 100,
       include: {
         bidder: {
           select: {

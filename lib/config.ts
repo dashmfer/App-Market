@@ -278,38 +278,9 @@ export const PLATFORM_CONFIG = {
 
 // Helper functions for config
 
-// Get fee rate based on currency (APP gets discounted 3%, others 5%)
-export function getFeeRateBps(currency?: string): number {
-  return currency === "APP"
-    ? PLATFORM_CONFIG.fees.appFeeBps
-    : PLATFORM_CONFIG.fees.platformFeeBps;
-}
-
-export function calculatePlatformFee(amount: number, currency?: string): number {
-  const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
-}
-
-export function calculateDisputeFee(amount: number): number {
-  return (amount * PLATFORM_CONFIG.fees.disputeFeeBps) / 10000;
-}
-
-// Calculate seller proceeds with fee breakdown
-export function calculateSellerProceeds(salePrice: number, currency?: string): {
-  fee: number;
-  proceeds: number;
-  feeBps: number;
-  feePercent: string;
-} {
-  const feeBps = getFeeRateBps(currency);
-  const fee = calculatePlatformFee(salePrice, currency);
-  return {
-    fee,
-    proceeds: salePrice - fee,
-    feeBps,
-    feePercent: `${feeBps / 100}%`,
-  };
-}
+// NOTE: getFeeRateBps, calculatePlatformFee, calculateDisputeFee, and
+// calculateSellerProceeds have been removed from this file to eliminate
+// duplication. Use the canonical versions from lib/solana.ts instead.
 
 export function calculateTokenLaunchAllocation(totalSupply: bigint): bigint {
   return (totalSupply * BigInt(PLATFORM_CONFIG.fees.tokenLaunchSupplyBps)) / BigInt(10000);
