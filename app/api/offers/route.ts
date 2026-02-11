@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { audit, auditContext } from '@/lib/audit';
 
 const createOfferSchema = z.object({
   listingId: z.string(),
@@ -162,6 +163,17 @@ export async function POST(req: NextRequest) {
           amount: validatedData.amount,
         },
       },
+    });
+
+    await audit({
+      action: "OFFER_CREATED",
+      severity: "INFO",
+      userId: token.id as string,
+      targetId: offer.id,
+      targetType: "Offer",
+      detail: `Offer of ${validatedData.amount} on listing ${validatedData.listingId}`,
+      metadata: { listingId: validatedData.listingId, amount: validatedData.amount },
+      ...auditContext(req.headers),
     });
 
     return NextResponse.json(offer, { status: 201 });

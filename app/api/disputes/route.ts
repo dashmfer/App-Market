@@ -4,6 +4,7 @@ import { getAuthToken } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { audit, auditContext } from '@/lib/audit';
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
@@ -192,6 +193,18 @@ export async function POST(request: NextRequest) {
 
     const { dispute, transaction, respondentId } = txResult;
 
+    // Update dispute counts for both parties (outside transaction -- non-critical)
+    await Promise.all([
+      prisma.user.update({
+        where: { id: token.id as string },
+        data: { totalDisputes: { increment: 1 }, disputeCount: { increment: 1 } },
+      }),
+      prisma.user.update({
+        where: { id: respondentId },
+        data: { totalDisputes: { increment: 1 }, disputeCount: { increment: 1 } },
+      }),
+    ]).catch(console.error);
+
     // Notify the other party (outside the transaction -- non-critical)
     await prisma.notification.create({
       data: {
@@ -201,6 +214,17 @@ export async function POST(request: NextRequest) {
         data: { disputeId: dispute.id, transactionId },
         userId: respondentId,
       },
+    });
+
+    await audit({
+      action: "DISPUTE_CREATED",
+      severity: "WARN",
+      userId: token.id as string,
+      targetId: dispute.id,
+      targetType: "Dispute",
+      detail: `Dispute opened for transaction ${transactionId}: ${reason}`,
+      metadata: { transactionId, reason },
+      ...auditContext(request.headers),
     });
 
     return NextResponse.json({ dispute }, { status: 201 });

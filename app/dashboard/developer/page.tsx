@@ -50,18 +50,10 @@ interface WebhookItem {
 }
 
 const PERMISSION_OPTIONS = [
-  { value: "LISTINGS_READ", label: "Read Listings" },
-  { value: "LISTINGS_WRITE", label: "Create/Edit Listings" },
-  { value: "BIDS_READ", label: "Read Bids" },
-  { value: "BIDS_WRITE", label: "Place Bids" },
-  { value: "OFFERS_READ", label: "Read Offers" },
-  { value: "OFFERS_WRITE", label: "Create/Manage Offers" },
-  { value: "TRANSACTIONS_READ", label: "Read Transactions" },
-  { value: "TRANSACTIONS_WRITE", label: "Manage Transactions" },
-  { value: "WEBHOOKS_READ", label: "Read Webhooks" },
-  { value: "WEBHOOKS_WRITE", label: "Manage Webhooks" },
-  { value: "PROFILE_READ", label: "Read Profile" },
-  { value: "PROFILE_WRITE", label: "Edit Profile" },
+  { value: "READ", label: "Read", description: "Read listings, bids, offers, profile, transactions" },
+  { value: "WRITE", label: "Write", description: "Create listings, place bids, make offers, edit profile" },
+  { value: "TRANSACTION", label: "Transaction", description: "Execute purchases, sign agreements" },
+  { value: "ADMIN", label: "Admin", description: "Manage API keys and webhooks" },
 ];
 
 const EVENT_OPTIONS = [
@@ -108,7 +100,7 @@ function DeveloperContent() {
   const [showCreateKey, setShowCreateKey] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyPermissions, setNewKeyPermissions] = useState<string[]>([
-    "LISTINGS_READ",
+    "READ",
   ]);
   const [newKeyRateLimit, setNewKeyRateLimit] = useState(1000);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -189,8 +181,8 @@ function DeveloperContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCreatedKey(data.key);
-        setApiKeys((prev) => [data.apiKey, ...prev]);
+        setCreatedKey(data.key.secret);
+        setApiKeys((prev) => [data.key, ...prev]);
       } else {
         const error = await res.json();
         alert(error.error || "Failed to create API key");
@@ -313,7 +305,7 @@ function DeveloperContent() {
   const resetKeyForm = () => {
     setShowCreateKey(false);
     setNewKeyName("");
-    setNewKeyPermissions(["LISTINGS_READ"]);
+    setNewKeyPermissions(["READ"]);
     setNewKeyRateLimit(1000);
     setCreatedKey(null);
   };
@@ -504,11 +496,11 @@ function DeveloperContent() {
                         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                           Permissions
                         </label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                           {PERMISSION_OPTIONS.map((perm) => (
                             <label
                               key={perm.value}
-                              className="flex items-center gap-2 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                              className="flex items-start gap-2 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
                             >
                               <input
                                 type="checkbox"
@@ -525,11 +517,16 @@ function DeveloperContent() {
                                     );
                                   }
                                 }}
-                                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
                               />
-                              <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                                {perm.label}
-                              </span>
+                              <div>
+                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                  {perm.label}
+                                </span>
+                                <p className="text-xs text-zinc-500">
+                                  {perm.description}
+                                </p>
+                              </div>
                             </label>
                           ))}
                         </div>

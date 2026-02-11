@@ -204,6 +204,21 @@ export async function POST(
       },
     });
 
+    // Update disputesWon/disputesLost based on resolution
+    if (resolution === "FULL_REFUND") {
+      // Buyer wins, seller loses
+      await Promise.all([
+        prisma.user.update({ where: { id: transaction.buyerId }, data: { disputesWon: { increment: 1 } } }),
+        prisma.user.update({ where: { id: transaction.sellerId }, data: { disputesLost: { increment: 1 } } }),
+      ]).catch(console.error);
+    } else if (resolution === "RELEASE_TO_SELLER") {
+      // Seller wins, buyer loses
+      await Promise.all([
+        prisma.user.update({ where: { id: transaction.sellerId }, data: { disputesWon: { increment: 1 } } }),
+        prisma.user.update({ where: { id: transaction.buyerId }, data: { disputesLost: { increment: 1 } } }),
+      ]).catch(console.error);
+    }
+
     await audit({
       action: "ADMIN_DISPUTE_RESOLUTION",
       severity: "WARN",

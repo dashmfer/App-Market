@@ -222,7 +222,7 @@ model ListingCollaborator {
   // Collaborator identification (wallet is required for payment, userId is optional)
   walletAddress     String              // Required for payment distribution
   userId            String?             // Optional: linked if they're a registered user
-  user              User?               @relation(fields: [userId], references: [id])
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Role & Description
   role              CollaboratorRole    // PARTNER or COLLABORATOR
@@ -481,7 +481,7 @@ model Upload {
 
   // Relations
   transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime   @default(now())
@@ -602,7 +602,7 @@ model TransactionPartner {
   // Partner identification (wallet required for payment, userId optional)
   walletAddress     String                // Required for deposits/refunds
   userId            String?               // Optional: linked if registered user
-  user              User?                 @relation(fields: [userId], references: [id])
+  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Percentage & Amount
   percentage        Decimal               @db.Decimal(5, 2) // Their share (e.g., 40 for 40%)
@@ -885,11 +885,11 @@ model TokenLaunch {
 
   // Related Transaction (the acquisition that triggered this PATO)
   transactionId   String            @unique
-  transaction     Transaction       @relation(fields: [transactionId], references: [id])
+  transaction     Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   // Related Listing (the acquired project)
   listingId       String
-  listing         Listing           @relation(fields: [listingId], references: [id])
+  listing         Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   // Social Links (for token metadata)
   website         String?
@@ -1245,7 +1245,7 @@ model ListingNDA {
 
   // Signer info
   signerId        String
-  signer          User      @relation(fields: [signerId], references: [id])
+  signer          User      @relation(fields: [signerId], references: [id], onDelete: Cascade)
   signerWallet    String    // Wallet that signed
 
   // Signature proof
@@ -1382,7 +1382,7 @@ model ReviewReport {
   // Admin resolution
   status          ReportStatus @default(PENDING)
   resolvedById    String?
-  resolvedBy      User?     @relation("ReviewReportResolver", fields: [resolvedById], references: [id])
+  resolvedBy      User?     @relation("ReviewReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
   resolution      String?   @db.Text
 
   // Timestamps
@@ -1677,6 +1677,11 @@ enum AuditAction {
   // User
   USER_PROFILE_UPDATED
   USER_WALLET_LINKED
+
+  // Offers & Reviews
+  OFFER_CREATED
+  REVIEW_CREATED
+  DISPUTE_CREATED
 
   // Security
   RATE_LIMIT_EXCEEDED

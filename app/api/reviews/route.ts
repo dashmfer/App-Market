@@ -3,6 +3,7 @@ import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { audit, auditContext } from '@/lib/audit';
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -391,6 +392,17 @@ export async function POST(request: NextRequest) {
           authorId,
         },
       },
+    });
+
+    await audit({
+      action: "REVIEW_CREATED",
+      severity: "INFO",
+      userId: authorId,
+      targetId: review.id,
+      targetType: "Review",
+      detail: `${rating}-star review for user ${subjectId}${transactionId ? ` on transaction ${transactionId}` : ''}`,
+      metadata: { subjectId, transactionId, rating, type },
+      ...auditContext(request.headers),
     });
 
     return NextResponse.json({ review }, { status: 201 });
