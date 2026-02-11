@@ -1457,17 +1457,9 @@ const Scene7_Punchline: React.FC = () => {
             opacity: badgeOpacity,
             letterSpacing: 2,
             textTransform: "uppercase",
-            display: "flex",
-            justifyContent: "center",
-            gap: 24,
-            alignItems: "center",
           }}
         >
-          <span>Secured by Solana</span>
-          <span style={{ color: `${COLORS.green}30` }}>|</span>
-          <span>Trustless Escrow</span>
-          <span style={{ color: `${COLORS.green}30` }}>|</span>
-          <span>Worth The Wait</span>
+          Powered by Solana
         </div>
       </div>
     </AbsoluteFill>
