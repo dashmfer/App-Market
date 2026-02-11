@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Partner Deposit Deadline Enforcement
@@ -48,6 +48,12 @@ export async function GET(request: NextRequest) {
       { error: "Unauthorized" },
       { status: 401 }
     );
+  }
+
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("partner-deposit-deadline");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   try {
@@ -248,5 +254,7 @@ export async function GET(request: NextRequest) {
       { error: "Failed to process partner deadline check" },
       { status: 500 }
     );
+  } finally {
+    await unlock();
   }
 }

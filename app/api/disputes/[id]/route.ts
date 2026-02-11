@@ -112,13 +112,17 @@ export async function POST(
         feeCharged = true;
         break;
 
-      case "PARTIAL_REFUND":
-        // Split 50/50, dispute fee split proportionally
-        buyerRefund = Number(transaction.salePrice) * 0.5 - (disputeFeeAmount * 0.5);
-        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5 - (disputeFeeAmount * 0.5);
+      case "PARTIAL_REFUND": {
+        // SECURITY [M1]: Integer-safe 50/50 split using lamport arithmetic
+        const saleLamports = Math.round(Number(transaction.salePrice) * 1e9);
+        const feeLamports = Math.round(disputeFeeAmount * 1e9);
+        const platFeeLamports = Math.round(Number(transaction.platformFee) * 1e9);
+        buyerRefund = Math.floor((saleLamports - feeLamports) / 2) / 1e9;
+        sellerPayout = Math.floor((saleLamports - platFeeLamports - feeLamports) / 2) / 1e9;
         newTransactionStatus = "COMPLETED";
         feeCharged = disputeFeeAmount > 0;
         break;
+      }
 
       case "RELEASE_TO_SELLER":
         // Seller gets proceeds; dispute fee charged to buyer (loser)

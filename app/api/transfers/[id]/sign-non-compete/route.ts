@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import nacl from "tweetnacl";
+import bs58 from "bs58";
 
 export async function POST(
   request: NextRequest,
@@ -19,6 +21,17 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // SECURITY [L5]: Require wallet signature for non-compete
+    const body = await request.json();
+    const { signature, walletAddress } = body;
+
+    if (!signature || !walletAddress) {
+      return NextResponse.json(
+        { error: "Wallet signature and address are required" },
+        { status: 400 }
+      );
+    }
+
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
       include: {
@@ -28,6 +41,9 @@ export async function POST(
             nonCompeteDurationYears: true,
             title: true,
           },
+        },
+        seller: {
+          select: { walletAddress: true },
         },
       },
     });
@@ -40,6 +56,14 @@ export async function POST(
     if (transaction.sellerId !== token.id as string) {
       return NextResponse.json(
         { error: "Only the seller can sign the Non-Compete Agreement" },
+        { status: 403 }
+      );
+    }
+
+    // Verify the wallet belongs to the seller
+    if (transaction.seller.walletAddress !== walletAddress) {
+      return NextResponse.json(
+        { error: "Wallet address does not match seller's wallet" },
         { status: 403 }
       );
     }
@@ -60,10 +84,35 @@ export async function POST(
       );
     }
 
-    // Sign the Non-Compete
+    // SECURITY [L5]: Verify the cryptographic wallet signature
     const duration = transaction.listing.nonCompeteDurationYears || 2;
-    const signature = `NC-${transaction.id}-${token.id as string}-${duration}y-${Date.now()}`;
+    const expectedMessage = `I agree to the Non-Compete Agreement for "${transaction.listing.title}" (Transaction: ${transaction.id}, Duration: ${duration} years)`;
 
+    try {
+      const messageBytes = new TextEncoder().encode(expectedMessage);
+      const signatureBytes = bs58.decode(signature);
+      const publicKeyBytes = bs58.decode(walletAddress);
+
+      const isValid = nacl.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        publicKeyBytes
+      );
+
+      if (!isValid) {
+        return NextResponse.json(
+          { error: "Invalid wallet signature" },
+          { status: 400 }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to verify wallet signature" },
+        { status: 400 }
+      );
+    }
+
+    // Store the cryptographic signature (base58-encoded)
     await prisma.transaction.update({
       where: { id: params.id },
       data: {

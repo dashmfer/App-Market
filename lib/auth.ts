@@ -65,90 +65,133 @@ function generateSessionId(): string {
 }
 
 /**
- * Revoke a specific session (database-backed for multi-instance/serverless support)
- * Session revocations persist in the database to work across serverless function instances
+ * SECURITY [M5]: Redis keys for Edge-compatible session revocation.
+ * Individual revocations are stored as `revoked:session:{id}` with 7-day TTL.
+ * Bulk revocations use `revoked:user:{userId}` storing a timestamp — any JWT
+ * issued before that timestamp is considered revoked (M7).
+ */
+const SESSION_REVOKE_PREFIX = "revoked:session:";
+const USER_REVOKE_PREFIX = "revoked:user:";
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days (matches JWT maxAge)
+
+// Lazy-import Redis to avoid circular deps at module level
+async function getRedis() {
+  const { redis } = await import("@/lib/rate-limit");
+  return redis;
+}
+
+/**
+ * Revoke a specific session (database + Redis for Edge compatibility)
  */
 export async function revokeSession(sessionId: string, reason?: string): Promise<void> {
-  // Session revocations expire after 7 days (max JWT lifetime)
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
 
+  // Database: durable record
   await prisma.revokedSession.upsert({
     where: { sessionId },
+    create: { sessionId, reason, expiresAt },
+    update: { reason, revokedAt: new Date() },
+  });
+
+  // SECURITY [M5]: Also write to Redis so Edge middleware can check revocation
+  const redis = await getRedis();
+  if (redis) {
+    await redis.set(`${SESSION_REVOKE_PREFIX}${sessionId}`, "1", { ex: SESSION_TTL_SECONDS });
+  }
+}
+
+/**
+ * SECURITY [M7]: Revoke ALL sessions for a user via timestamp-based approach.
+ * Instead of looking up sessions from the (empty) Session table, store a
+ * "revoked before" timestamp in Redis and DB. Any JWT with iat < this timestamp
+ * is considered revoked, regardless of whether we tracked its sessionId.
+ */
+export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
+  const revokedAt = Date.now();
+  const expiresAt = new Date(revokedAt + SESSION_TTL_SECONDS * 1000);
+
+  // Store the revocation timestamp in DB for durability
+  // Any existing per-session revocations for this user are redundant now
+  await prisma.revokedSession.upsert({
+    where: { sessionId: `user:${userId}` },
     create: {
-      sessionId,
-      reason,
+      sessionId: `user:${userId}`,
+      userId,
+      reason: reason || "revoke_all_sessions",
       expiresAt,
     },
     update: {
-      reason,
+      reason: reason || "revoke_all_sessions",
       revokedAt: new Date(),
+      expiresAt,
     },
   });
+
+  // SECURITY [M5/M7]: Write timestamp to Redis for Edge middleware
+  const redis = await getRedis();
+  if (redis) {
+    await redis.set(`${USER_REVOKE_PREFIX}${userId}`, revokedAt.toString(), { ex: SESSION_TTL_SECONDS });
+  }
+
+  return 1; // Always succeeds — timestamp-based, not session-count-based
 }
 
 /**
- * Revoke all sessions for a user (database-backed)
- * Creates revocation records for all active sessions belonging to the user
+ * Check if a session has been revoked (database-backed, used by API routes)
+ * Checks both individual session revocation AND user-wide timestamp revocation.
  */
-export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
-  // Get all active JWT sessions for this user from the Session table
-  const sessions = await prisma.session.findMany({
-    where: { userId },
-    select: { sessionToken: true },
-  });
-
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-  // Revoke each session
-  const revocations = sessions.map((session: { sessionToken: string }) =>
-    prisma.revokedSession.upsert({
-      where: { sessionId: session.sessionToken },
-      create: {
-        sessionId: session.sessionToken,
-        userId,
-        reason: reason || 'revoke_all_sessions',
-        expiresAt,
-      },
-      update: {
-        reason: reason || 'revoke_all_sessions',
-        revokedAt: new Date(),
-      },
-    })
-  );
-
-  await Promise.all(revocations);
-
-  // Also delete from Session table to prevent re-use
-  await prisma.session.deleteMany({
-    where: { userId },
-  });
-
-  return sessions.length;
-}
-
-/**
- * Check if a session has been revoked (database-backed)
- * NOTE: This only checks the revocation blacklist - it does NOT validate
- * that a session ID was ever created. For JWT-based auth, session validity
- * is determined by the JWT itself; this function only checks revocation.
- */
-export async function isSessionNotRevoked(sessionId: string): Promise<boolean> {
+export async function isSessionNotRevoked(sessionId: string, userId?: string, iat?: number): Promise<boolean> {
+  // Check individual session revocation
   const revoked = await prisma.revokedSession.findUnique({
     where: { sessionId },
     select: { id: true },
   });
-  return !revoked;
+  if (revoked) return false;
+
+  // SECURITY [M7]: Check user-wide timestamp revocation
+  if (userId && iat) {
+    const userRevocation = await prisma.revokedSession.findUnique({
+      where: { sessionId: `user:${userId}` },
+      select: { revokedAt: true },
+    });
+    if (userRevocation && userRevocation.revokedAt && iat < Math.floor(userRevocation.revokedAt.getTime() / 1000)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**
- * Clean up expired revocation records (call from cron job or scheduled task)
- * Should be run periodically to prevent the revocation table from growing indefinitely
+ * SECURITY [M5]: Edge-compatible revocation check using Redis only.
+ * Called from middleware (Edge Runtime) where Prisma is unavailable.
+ */
+export async function isSessionNotRevokedEdge(sessionId: string, userId?: string, iat?: number): Promise<boolean> {
+  const redis = await getRedis();
+  if (!redis) return true; // If Redis is unavailable, let API-level checks handle it
+
+  // Check individual session revocation
+  const revoked = await redis.get(`${SESSION_REVOKE_PREFIX}${sessionId}`);
+  if (revoked) return false;
+
+  // Check user-wide timestamp revocation
+  if (userId && iat) {
+    const revokedAtStr = await redis.get(`${USER_REVOKE_PREFIX}${userId}`);
+    if (revokedAtStr) {
+      const revokedAtMs = parseInt(revokedAtStr as string, 10);
+      if (iat < Math.floor(revokedAtMs / 1000)) return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Clean up expired revocation records
  */
 export async function cleanupExpiredRevocations(): Promise<number> {
   const result = await prisma.revokedSession.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-    },
+    where: { expiresAt: { lt: new Date() } },
   });
   return result.count;
 }
@@ -166,7 +209,12 @@ export async function getAuthToken(req: NextRequest) {
   });
 
   // SECURITY: Check if session has been revoked (database lookup)
-  if (token?.sessionId && !(await isSessionNotRevoked(token.sessionId as string))) {
+  // Passes userId + iat for M7 timestamp-based bulk revocation
+  if (token?.sessionId && !(await isSessionNotRevoked(
+    token.sessionId as string,
+    token.id as string,
+    token.iat as number | undefined
+  ))) {
     return null;
   }
 

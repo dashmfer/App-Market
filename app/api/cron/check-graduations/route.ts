@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { hasPoolGraduated, getPoolState } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 // GET /api/cron/check-graduations
 //
@@ -13,6 +13,12 @@ export async function GET(request: NextRequest) {
   // Verify cron secret using timing-safe comparison
   if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("check-graduations");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   try {
@@ -105,5 +111,7 @@ export async function GET(request: NextRequest) {
       { error: "Failed to check graduations" },
       { status: 500 }
     );
+  } finally {
+    await unlock();
   }
 }

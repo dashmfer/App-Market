@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Escrow Auto-Release
@@ -48,8 +48,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("escrow-auto-release");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
+  }
+
   // Check if auto-release is enabled
   if (!PLATFORM_CONFIG.escrow.autoReleaseEnabled) {
+    await unlock();
     return NextResponse.json({
       success: true,
       message: "Auto-release is disabled",
@@ -180,5 +187,7 @@ export async function GET(request: NextRequest) {
       { error: "Failed to process auto-release" },
       { status: 500 }
     );
+  } finally {
+    await unlock();
   }
 }

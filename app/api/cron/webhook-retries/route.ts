@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("webhook-retries");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   try {
@@ -115,5 +121,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Webhook Retry Cron] Error:", error);
     return NextResponse.json({ error: "Failed to process retries" }, { status: 500 });
+  } finally {
+    await unlock();
   }
 }

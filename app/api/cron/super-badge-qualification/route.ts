@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Super Badge Qualification
@@ -63,6 +63,12 @@ export async function GET(request: NextRequest) {
       { error: "Unauthorized" },
       { status: 401 }
     );
+  }
+
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("super-badge-qualification");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   console.log("[Cron] Starting super badge qualification check...");
@@ -359,5 +365,7 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    await unlock();
   }
 }

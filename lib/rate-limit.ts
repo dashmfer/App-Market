@@ -12,8 +12,8 @@ const isUpstashConfigured = !!(
   process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-// Create Redis client if configured
-const redis = isUpstashConfigured
+// Create Redis client if configured (exported for use by session revocation, cron locks, etc.)
+export const redis = isUpstashConfigured
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,

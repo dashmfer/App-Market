@@ -30,3 +30,40 @@ export function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 }
+
+/**
+ * SECURITY [M10]: Distributed lock for cron jobs via Redis.
+ * Prevents duplicate execution when multiple serverless instances
+ * receive the same cron trigger simultaneously.
+ *
+ * Uses Redis SET NX EX (atomic set-if-not-exists with TTL).
+ * Returns an unlock function if the lock was acquired, or null if already held.
+ */
+export async function acquireCronLock(
+  jobName: string,
+  ttlSeconds: number = 300 // 5 minute default
+): Promise<(() => Promise<void>) | null> {
+  const { redis } = await import("@/lib/rate-limit");
+  if (!redis) {
+    // No Redis — allow execution (single instance assumed in dev)
+    return async () => {};
+  }
+
+  const lockKey = `cron:lock:${jobName}`;
+  const lockValue = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Atomic SET NX EX — only succeeds if key doesn't exist
+  const result = await redis.set(lockKey, lockValue, { nx: true, ex: ttlSeconds });
+
+  if (result !== "OK") {
+    return null; // Lock already held by another instance
+  }
+
+  // Return unlock function (only deletes if we still own the lock)
+  return async () => {
+    const current = await redis.get(lockKey);
+    if (current === lockValue) {
+      await redis.del(lockKey);
+    }
+  };
+}

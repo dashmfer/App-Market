@@ -137,24 +137,38 @@ export const getFeeRateBps = (currency?: string): number => {
   return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;
 };
 
+// SECURITY [M1]: Integer-safe fee math to avoid IEEE 754 floating-point drift.
+// Convert to smallest unit (lamports/microUSDC), do integer arithmetic, convert back.
+function getDecimals(currency?: string): number {
+  return currency === "USDC" ? 6 : 9;
+}
+
 // Calculate platform fee (with optional currency for APP discount)
 export const calculatePlatformFee = (amount: number, currency?: string): number => {
   const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
+  const base = Math.pow(10, getDecimals(currency));
+  const amountUnits = Math.round(amount * base); // to smallest unit (integer)
+  const feeUnits = Math.floor(amountUnits * feeBps / 10000); // integer division
+  return feeUnits / base;
 };
 
 // Calculate dispute fee
-export const calculateDisputeFee = (amount: number): number => {
-  return (amount * DISPUTE_FEE_BPS) / 10000;
+export const calculateDisputeFee = (amount: number, currency?: string): number => {
+  const base = Math.pow(10, getDecimals(currency));
+  const amountUnits = Math.round(amount * base);
+  const feeUnits = Math.floor(amountUnits * DISPUTE_FEE_BPS / 10000);
+  return feeUnits / base;
 };
 
 // Calculate seller proceeds after fees (with optional currency for APP discount)
 export const calculateSellerProceeds = (salePrice: number, currency?: string): { fee: number; proceeds: number; feeBps: number } => {
   const feeBps = getFeeRateBps(currency);
-  const fee = calculatePlatformFee(salePrice, currency);
+  const base = Math.pow(10, getDecimals(currency));
+  const salePriceUnits = Math.round(salePrice * base);
+  const feeUnits = Math.floor(salePriceUnits * feeBps / 10000);
   return {
-    fee,
-    proceeds: salePrice - fee,
+    fee: feeUnits / base,
+    proceeds: (salePriceUnits - feeUnits) / base,
     feeBps,
   };
 };
@@ -254,9 +268,10 @@ export const getProgram = (provider: AnchorProvider): Program => {
 };
 
 // Convert token amount to raw units based on decimals
+// SECURITY [M1]: Use Math.round to avoid floating-point truncation (e.g. 1.1 * 1e9 = 1099999999.9999999)
 export const toTokenUnits = (amount: number, currency: "SOL" | "APP" | "USDC"): BN => {
   const decimals = TOKEN_DECIMALS[currency];
-  return new BN(Math.floor(amount * Math.pow(10, decimals)));
+  return new BN(Math.round(amount * Math.pow(10, decimals)));
 };
 
 // Convert raw units to token amount
