@@ -14,22 +14,34 @@ import { PLATFORM_CONFIG } from "@/lib/config";
  * @param salePrice - The total sale price
  * @param buyerId - The buyer's user ID
  * @param sellerId - The seller's user ID
+ * @param currency - The transaction currency (SOL, USDC, APP)
  * @returns Object with referral earnings details
  */
+
+// SECURITY: Integer-safe referral math — same pattern as lib/solana.ts
+function getDecimals(currency?: string): number {
+  return currency === "USDC" ? 6 : 9;
+}
+
 export async function processReferralEarnings(
   transactionId: string,
   salePrice: number,
   buyerId: string,
-  sellerId: string
+  sellerId: string,
+  currency?: string
 ): Promise<{
   buyerReferralEarning: number;
   sellerReferralEarning: number;
   totalReferralPayout: number;
   platformFeeAfterReferrals: number;
 }> {
-  const commissionRate = PLATFORM_CONFIG.referral.commissionRateBps / 10000; // 0.02 = 2%
-  const platformFeeRate = PLATFORM_CONFIG.fees.platformFeeBps / 10000; // 0.05 = 5%
-  const platformFee = salePrice * platformFeeRate;
+  const commissionRateBps = PLATFORM_CONFIG.referral.commissionRateBps; // 200 = 2%
+  const platformFeeBps = PLATFORM_CONFIG.fees.platformFeeBps; // 500 = 5%
+  const base = Math.pow(10, getDecimals(currency));
+  const salePriceUnits = Math.round(salePrice * base);
+  const platformFeeUnits = Math.floor(salePriceUnits * platformFeeBps / 10000);
+  const platformFee = platformFeeUnits / base;
+  const currencyLabel = currency || "SOL";
 
   // SECURITY [M3]: Wrap entire referral processing in a Serializable transaction
   // to prevent double-processing of referral payouts under concurrent requests
@@ -61,7 +73,9 @@ export async function processReferralEarnings(
 
       if (claimResult.count > 0) {
         // Successfully claimed - this is buyer's first transaction
-        buyerReferralEarning = salePrice * commissionRate;
+        // SECURITY: Integer-safe commission calculation
+        const earningUnits = Math.floor(salePriceUnits * commissionRateBps / 10000);
+        buyerReferralEarning = earningUnits / base;
 
         // Create the earning record
         await tx.referralEarning.create({
@@ -69,7 +83,7 @@ export async function processReferralEarnings(
             referralId: buyerReferral.id,
             transactionId,
             saleAmount: salePrice,
-            commissionRate,
+            commissionRate: commissionRateBps / 10000,
             earnedAmount: buyerReferralEarning,
             status: "AVAILABLE", // Immediately available since transaction is complete
           },
@@ -97,7 +111,7 @@ export async function processReferralEarnings(
             userId: buyerReferral.referrerId,
             type: "REFERRAL_EARNED",
             title: "Referral Bonus Earned!",
-            message: `You earned ${buyerReferralEarning.toFixed(4)} SOL from your referral's first purchase!`,
+            message: `You earned ${buyerReferralEarning.toFixed(4)} ${currencyLabel} from your referral's first purchase!`,
             data: {
               transactionId,
               amount: buyerReferralEarning,
@@ -107,7 +121,7 @@ export async function processReferralEarnings(
           },
         });
 
-        console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} SOL`);
+        if (process.env.NODE_ENV === 'development') console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} ${currencyLabel}`);
       }
     }
 
@@ -135,7 +149,9 @@ export async function processReferralEarnings(
 
       if (claimResult.count > 0) {
         // Successfully claimed - this is seller's first transaction
-        sellerReferralEarning = salePrice * commissionRate;
+        // SECURITY: Integer-safe commission calculation
+        const earningUnits = Math.floor(salePriceUnits * commissionRateBps / 10000);
+        sellerReferralEarning = earningUnits / base;
 
         // Create the earning record
         await tx.referralEarning.create({
@@ -143,7 +159,7 @@ export async function processReferralEarnings(
             referralId: sellerReferral.id,
             transactionId,
             saleAmount: salePrice,
-            commissionRate,
+            commissionRate: commissionRateBps / 10000,
             earnedAmount: sellerReferralEarning,
             status: "AVAILABLE",
           },
@@ -171,7 +187,7 @@ export async function processReferralEarnings(
             userId: sellerReferral.referrerId,
             type: "REFERRAL_EARNED",
             title: "Referral Bonus Earned!",
-            message: `You earned ${sellerReferralEarning.toFixed(4)} SOL from your referral's first sale!`,
+            message: `You earned ${sellerReferralEarning.toFixed(4)} ${currencyLabel} from your referral's first sale!`,
             data: {
               transactionId,
               amount: sellerReferralEarning,
@@ -181,7 +197,7 @@ export async function processReferralEarnings(
           },
         });
 
-        console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} SOL`);
+        if (process.env.NODE_ENV === 'development') console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} ${currencyLabel}`);
       }
     }
 
@@ -191,8 +207,9 @@ export async function processReferralEarnings(
   const totalReferralPayout = buyerReferralEarning + sellerReferralEarning;
   const platformFeeAfterReferrals = platformFee - totalReferralPayout;
 
-  console.log(`[Referral] Transaction ${transactionId} referral summary:`, {
+  if (process.env.NODE_ENV === 'development') console.log(`[Referral] Transaction ${transactionId} referral summary:`, {
     salePrice,
+    currency: currencyLabel,
     platformFee,
     buyerReferralEarning,
     sellerReferralEarning,

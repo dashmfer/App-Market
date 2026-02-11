@@ -13,8 +13,8 @@ const TOKEN_LENGTH = 32;
 
 /**
  * Get the CSRF secret, cryptographically derived from NEXTAUTH_SECRET.
- * SECURITY [M9]: Uses HKDF to derive a separate key so CSRF tokens can't
- * be used to forge JWTs and vice-versa. No extra env var needed.
+ * SECURITY [M9]: Uses HMAC-SHA256 to derive a separate key so CSRF tokens
+ * can't be used to forge JWTs and vice-versa. No extra env var needed.
  */
 let _derivedCsrfSecret: string | null = null;
 
@@ -26,7 +26,7 @@ function getCsrfSecret(): string {
     throw new Error("NEXTAUTH_SECRET must be set");
   }
 
-  // HKDF-derive a dedicated CSRF key from the auth secret
+  // Derive a dedicated CSRF key from the auth secret via HMAC-SHA256
   _derivedCsrfSecret = crypto
     .createHmac("sha256", "csrf-token-derivation-key")
     .update(base)

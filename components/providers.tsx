@@ -4,7 +4,7 @@ import { ReactNode, useMemo } from "react";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
-import { clusterApiUrl } from "@solana/web3.js";
+// clusterApiUrl removed — no devnet fallback allowed
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
 import { PrivyAuthProvider } from "./providers/PrivyAuthProvider";
@@ -18,8 +18,13 @@ export function Providers({ children }: ProvidersProps) {
   // SECURITY [H10]: NEXT_PUBLIC_SOLANA_RPC_URL is exposed to the client bundle.
   // Ensure this URL does not contain a private API key. Use a rate-limited
   // or public-tier RPC endpoint for client-side usage.
+  // SECURITY: Never fall back to devnet — require explicit RPC URL configuration.
   const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
+    const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpc) {
+      throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be configured");
+    }
+    return rpc;
   }, []);
 
   const wallets = useMemo(() => [

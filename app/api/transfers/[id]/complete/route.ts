@@ -198,7 +198,8 @@ export async function POST(
         transaction.id,
         Number(transaction.salePrice),
         transaction.buyerId,
-        transaction.sellerId
+        transaction.sellerId,
+        transaction.currency || undefined
       );
       console.log("[Transfer Complete] Referral earnings processed:", referralResult);
     } catch (referralError) {

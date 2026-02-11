@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(

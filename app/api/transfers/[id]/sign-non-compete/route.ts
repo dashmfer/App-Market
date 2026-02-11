@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { checkAndMarkNonce } from "@/lib/validation";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
 
@@ -23,13 +24,23 @@ export async function POST(
 
     // SECURITY [L5]: Require wallet signature for non-compete
     const body = await request.json();
-    const { signature, walletAddress } = body;
+    const { signature, walletAddress, timestamp } = body;
 
-    if (!signature || !walletAddress) {
+    if (!signature || !walletAddress || !timestamp) {
       return NextResponse.json(
-        { error: "Wallet signature and address are required" },
+        { error: "Wallet signature, address, and timestamp are required" },
         { status: 400 }
       );
+    }
+
+    // SECURITY: Validate timestamp is recent (5 minute window)
+    const messageDate = new Date(timestamp);
+    if (isNaN(messageDate.getTime())) {
+      return NextResponse.json({ error: "Invalid timestamp" }, { status: 400 });
+    }
+    const ageSeconds = (Date.now() - messageDate.getTime()) / 1000;
+    if (ageSeconds > 300 || ageSeconds < -30) {
+      return NextResponse.json({ error: "Signature expired" }, { status: 400 });
     }
 
     const transaction = await prisma.transaction.findUnique({
@@ -86,7 +97,7 @@ export async function POST(
 
     // SECURITY [L5]: Verify the cryptographic wallet signature
     const duration = transaction.listing.nonCompeteDurationYears || 2;
-    const expectedMessage = `I agree to the Non-Compete Agreement for "${transaction.listing.title}" (Transaction: ${transaction.id}, Duration: ${duration} years)`;
+    const expectedMessage = `I agree to the Non-Compete Agreement for "${transaction.listing.title}" (Transaction: ${transaction.id}, Duration: ${duration} years)\n\nTimestamp: ${timestamp}`;
 
     try {
       const messageBytes = new TextEncoder().encode(expectedMessage);
@@ -108,6 +119,16 @@ export async function POST(
     } catch {
       return NextResponse.json(
         { error: "Failed to verify wallet signature" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Prevent signature replay attacks
+    const nonceKey = `non-compete:${params.id}:${signature.slice(0, 32)}`;
+    const nonceResult = await checkAndMarkNonce(nonceKey);
+    if (nonceResult.used) {
+      return NextResponse.json(
+        { error: "This signature has already been used" },
         { status: 400 }
       );
     }
