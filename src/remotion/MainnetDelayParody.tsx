@@ -1420,33 +1420,29 @@ const Scene7_Punchline: React.FC = () => {
           App Market
         </div>
 
-        {/* Tagline */}
+        {/* URL in green button */}
         <div
           style={{
-            fontFamily: FONT,
-            fontSize: 30,
-            fontWeight: 500,
-            color: COLORS.text,
-            marginTop: 24,
+            display: "inline-block",
+            padding: "18px 56px",
+            background: `linear-gradient(135deg, ${COLORS.green}, ${COLORS.emerald})`,
+            borderRadius: 100,
+            marginTop: 36,
             opacity: tagline1,
-            letterSpacing: -0.5,
+            boxShadow: `0 12px 40px ${COLORS.green}30`,
           }}
         >
-          Delayed twice. Deployed right.
-        </div>
-
-        {/* URL */}
-        <div
-          style={{
-            fontFamily: MONO,
-            fontSize: 24,
-            color: COLORS.teal,
-            marginTop: 20,
-            opacity: tagline2,
-            letterSpacing: 1,
-          }}
-        >
-          appmrkt.xyz
+          <div
+            style={{
+              fontFamily: FONT,
+              fontSize: 32,
+              fontWeight: 700,
+              color: "#ffffff",
+              letterSpacing: 1,
+            }}
+          >
+            appmrkt.xyz
+          </div>
         </div>
 
         {/* Badge line */}
