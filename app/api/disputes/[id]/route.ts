@@ -113,12 +113,14 @@ export async function POST(
         break;
 
       case "PARTIAL_REFUND": {
-        // SECURITY [M1]: Integer-safe 50/50 split using lamport arithmetic
-        const saleLamports = Math.round(Number(transaction.salePrice) * 1e9);
-        const feeLamports = Math.round(disputeFeeAmount * 1e9);
-        const platFeeLamports = Math.round(Number(transaction.platformFee) * 1e9);
-        buyerRefund = Math.floor((saleLamports - feeLamports) / 2) / 1e9;
-        sellerPayout = Math.floor((saleLamports - platFeeLamports - feeLamports) / 2) / 1e9;
+        // SECURITY [M1]: Integer-safe 50/50 split using currency-aware base units
+        const decimals = transaction.currency === "USDC" ? 6 : 9;
+        const base = Math.pow(10, decimals);
+        const saleLamports = Math.round(Number(transaction.salePrice) * base);
+        const feeLamports = Math.round(disputeFeeAmount * base);
+        const platFeeLamports = Math.round(Number(transaction.platformFee) * base);
+        buyerRefund = Math.floor((saleLamports - feeLamports) / 2) / base;
+        sellerPayout = Math.floor((saleLamports - platFeeLamports - feeLamports) / 2) / base;
         newTransactionStatus = "COMPLETED";
         feeCharged = disputeFeeAmount > 0;
         break;

@@ -338,75 +338,91 @@ export async function PATCH(
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
-      include: { partners: true },
-    });
+    // SECURITY [M1]: Wrap percentage read + validation + update in a serializable
+    // transaction to prevent race conditions where concurrent PATCH requests
+    // could exceed 100% total percentage
+    const txResult = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
+        where: { id: params.id },
+        include: { partners: true },
+      });
 
-    if (!transaction) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
+      if (!transaction) {
+        return { error: "Transaction not found", status: 404 } as const;
+      }
 
-    // Only lead buyer can update percentages
-    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
-    const isLeadBuyer = leadPartner
-      ? leadPartner.userId === token.id as string
-      : transaction.buyerId === token.id as string;
+      // Only lead buyer can update percentages
+      const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
+      const isLeadBuyer = leadPartner
+        ? leadPartner.userId === token.id as string
+        : transaction.buyerId === token.id as string;
 
-    if (!isLeadBuyer) {
-      return NextResponse.json({ error: "Only the lead buyer can update percentages" }, { status: 403 });
-    }
+      if (!isLeadBuyer) {
+        return { error: "Only the lead buyer can update percentages", status: 403 } as const;
+      }
 
-    // Can only update before deposits are complete
-    if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
-      return NextResponse.json({ error: "Cannot update percentages after deposit phase" }, { status: 400 });
-    }
+      // Can only update before deposits are complete
+      if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
+        return { error: "Cannot update percentages after deposit phase", status: 400 } as const;
+      }
 
-    const partnerToUpdate = transaction.partners.find((p: { id: string }) => p.id === partnerId);
-    if (!partnerToUpdate) {
-      return NextResponse.json({ error: "Partner not found" }, { status: 404 });
-    }
+      const partnerToUpdate = transaction.partners.find((p: { id: string }) => p.id === partnerId);
+      if (!partnerToUpdate) {
+        return { error: "Partner not found", status: 404 } as const;
+      }
 
-    // Can't update if already deposited
-    if (partnerToUpdate.depositStatus === "DEPOSITED") {
-      return NextResponse.json({ error: "Cannot update percentage after deposit" }, { status: 400 });
-    }
+      // Can't update if already deposited
+      if (partnerToUpdate.depositStatus === "DEPOSITED") {
+        return { error: "Cannot update percentage after deposit", status: 400 } as const;
+      }
 
-    // Calculate total percentage excluding this partner
-    const otherTotal = transaction.partners
-      .filter((p: { id: string }) => p.id !== partnerId)
-      .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+      // Calculate total percentage excluding this partner
+      const otherTotal = transaction.partners
+        .filter((p: { id: string }) => p.id !== partnerId)
+        .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
-    if (otherTotal + percentage > 100) {
-      return NextResponse.json({
-        error: `Total percentage would exceed 100%. Other partners: ${otherTotal}%, Trying to set: ${percentage}%`
-      }, { status: 400 });
-    }
+      if (otherTotal + percentage > 100) {
+        return {
+          error: `Total percentage would exceed 100%. Other partners: ${otherTotal}%, Trying to set: ${percentage}%`,
+          status: 400,
+        } as const;
+      }
 
-    // Calculate new deposit amount
-    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+      // Calculate new deposit amount
+      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
-    // Update the partner
-    const updatedPartner = await prisma.transactionPartner.update({
-      where: { id: partnerId },
-      data: {
-        percentage,
-        depositAmount,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            name: true,
-            image: true,
+      // Update the partner
+      const updatedPartner = await tx.transactionPartner.update({
+        where: { id: partnerId },
+        data: {
+          percentage,
+          depositAmount,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              name: true,
+              image: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return NextResponse.json({ partner: updatedPartner });
+      return { partner: updatedPartner } as const;
+    }, { isolationLevel: 'Serializable' });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
+    }
+
+    return NextResponse.json({ partner: txResult.partner });
   } catch (error) {
     console.error("Error updating partner:", error);
     return NextResponse.json({ error: "Failed to update partner" }, { status: 500 });

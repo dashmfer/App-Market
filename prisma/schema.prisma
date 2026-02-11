@@ -612,7 +612,7 @@ model TransactionPartner {
   // Deposit status
   depositStatus     PartnerDepositStatus  @default(PENDING)
   depositedAt       DateTime?
-  depositTxHash     String?               // On-chain transaction hash
+  depositTxHash     String?               @unique // On-chain transaction hash
 
   // Transfer confirmation (for majority vote)
   hasConfirmedTransfer Boolean            @default(false)

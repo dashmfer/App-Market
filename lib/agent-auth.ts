@@ -177,6 +177,11 @@ async function verifyWalletSignature(
   timestamp: string,
   nonce?: string
 ): Promise<AgentAuthResult> {
+  // SECURITY [C2]: Require nonce to prevent signature replay attacks
+  if (!nonce) {
+    return { success: false, error: "Nonce is required for wallet signature auth", statusCode: 400 };
+  }
+
   // Validate timestamp
   const timestampNum = parseInt(timestamp, 10);
   if (isNaN(timestampNum)) {
@@ -190,6 +195,14 @@ async function verifyWalletSignature(
       error: "Timestamp expired. Generate a new signature.",
       statusCode: 401
     };
+  }
+
+  // SECURITY [C2]: Atomically check-and-mark nonce as used (Redis-backed)
+  const { checkAndMarkNonce } = await import("@/lib/validation");
+  const nonceKey = `agent:${walletAddress}:${nonce}`;
+  const nonceResult = await checkAndMarkNonce(nonceKey);
+  if (nonceResult.used) {
+    return { success: false, error: nonceResult.error || "Nonce already used", statusCode: 401 };
   }
 
   // Reconstruct the message

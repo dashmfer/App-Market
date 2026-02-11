@@ -75,70 +75,83 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("Amount must be a positive number", 400);
     }
 
-    // Get listing
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      include: {
-        bids: {
-          orderBy: { amount: "desc" },
-          take: 1,
+    // SECURITY [H9]: Wrap listing read + bid validation + bid creation + previous
+    // winner update in a serializable transaction to prevent race conditions
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Get listing inside the serializable block
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        include: {
+          bids: {
+            orderBy: { amount: "desc" },
+            take: 1,
+          },
         },
-      },
-    });
-
-    if (!listing) {
-      return agentErrorResponse("Listing not found", 404);
-    }
-
-    if (listing.status !== "ACTIVE") {
-      return agentErrorResponse("Listing is not active", 400);
-    }
-
-    if (new Date() > listing.endTime) {
-      return agentErrorResponse("Auction has ended", 400);
-    }
-
-    if (listing.sellerId === userId) {
-      return agentErrorResponse("Seller cannot bid on their own listing", 400);
-    }
-
-    // Check minimum bid
-    const currentHighBid = listing.bids[0]?.amount || null;
-    if (currentHighBid !== null) {
-      if (amount <= Number(currentHighBid)) {
-        return agentErrorResponse(`Bid must be higher than ${currentHighBid} ${listing.currency}`, 400);
-      }
-    } else {
-      if (amount < Number(listing.startingPrice)) {
-        return agentErrorResponse(`Bid must be at least ${listing.startingPrice} ${listing.currency}`, 400);
-      }
-    }
-
-    // Mark previous winning bid as outbid
-    if (listing.bids[0]) {
-      await prisma.bid.update({
-        where: { id: listing.bids[0].id },
-        data: { isWinning: false, isOutbid: true },
       });
+
+      if (!listing) {
+        return { error: "Listing not found", statusCode: 404 } as const;
+      }
+
+      if (listing.status !== "ACTIVE") {
+        return { error: "Listing is not active", statusCode: 400 } as const;
+      }
+
+      if (new Date() > listing.endTime) {
+        return { error: "Auction has ended", statusCode: 400 } as const;
+      }
+
+      if (listing.sellerId === userId) {
+        return { error: "Seller cannot bid on their own listing", statusCode: 400 } as const;
+      }
+
+      // Check minimum bid
+      const currentHighBid = listing.bids[0]?.amount || null;
+      if (currentHighBid !== null) {
+        if (amount <= Number(currentHighBid)) {
+          return { error: `Bid must be higher than ${currentHighBid} ${listing.currency}`, statusCode: 400 } as const;
+        }
+      } else {
+        if (amount < Number(listing.startingPrice)) {
+          return { error: `Bid must be at least ${listing.startingPrice} ${listing.currency}`, statusCode: 400 } as const;
+        }
+      }
+
+      // Mark previous winning bid as outbid
+      if (listing.bids[0]) {
+        await tx.bid.update({
+          where: { id: listing.bids[0].id },
+          data: { isWinning: false, isOutbid: true },
+        });
+      }
+
+      // Create new bid
+      const bid = await tx.bid.create({
+        data: {
+          amount,
+          currency: currency || listing.currency,
+          isWinning: true,
+          listingId,
+          bidderId: userId,
+        },
+        include: {
+          bidder: {
+            select: { id: true, username: true },
+          },
+        },
+      });
+
+      return { bid, listing } as const;
+    }, { isolationLevel: 'Serializable' });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return agentErrorResponse(txResult.error as string, txResult.statusCode as number);
     }
 
-    // Create new bid
-    const bid = await prisma.bid.create({
-      data: {
-        amount,
-        currency: currency || listing.currency,
-        isWinning: true,
-        listingId,
-        bidderId: userId,
-      },
-      include: {
-        bidder: {
-          select: { id: true, username: true },
-        },
-      },
-    });
+    const { bid, listing } = txResult;
 
-    // Notify seller
+    // Notify seller (outside the transaction -- non-critical)
     await prisma.notification.create({
       data: {
         type: "BID_PLACED",

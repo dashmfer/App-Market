@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/layout/navbar";
@@ -52,9 +53,16 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // SECURITY [H7]: Read CSP nonce from the request header set by middleware
+  // and pass it to script elements so they satisfy the Content-Security-Policy.
+  const nonce = headers().get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <head>
+        <meta name="csp-nonce" content={nonce ?? ""} />
+      </head>
+      <body className={`${inter.variable} font-sans antialiased`} nonce={nonce}>
         <Providers>
           <ScrollToTop />
           {/* Devnet Banner */}

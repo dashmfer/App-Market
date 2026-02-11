@@ -187,6 +187,11 @@ export async function getAuthToken(req: NextRequest) {
     cookieName,
   });
 
+  // SECURITY: Reject tokens without sessionId — all valid tokens must have one
+  if (token && !token.sessionId) {
+    return null;
+  }
+
   // SECURITY: Check if session has been revoked (database lookup)
   // Passes userId + iat for M7 timestamp-based bulk revocation
   if (token?.sessionId && !(await isSessionNotRevoked(

@@ -118,77 +118,81 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get transaction
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: transactionId },
-      include: {
-        listing: true,
-        buyer: true,
-        seller: true,
-        dispute: true,
-      },
-    });
+    // SECURITY [H3]: Wrap transaction read + dispute creation + status update
+    // in a serializable transaction to prevent race conditions (e.g., double disputes)
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Get transaction inside the serializable block
+      const transaction = await tx.transaction.findUnique({
+        where: { id: transactionId },
+        include: {
+          listing: true,
+          buyer: true,
+          seller: true,
+          dispute: true,
+        },
+      });
 
-    if (!transaction) {
+      if (!transaction) {
+        return { error: "Transaction not found", status: 404 } as const;
+      }
+
+      // Check if user is part of transaction
+      const isBuyer = transaction.buyerId === token.id as string;
+      const isSeller = transaction.sellerId === token.id as string;
+
+      if (!isBuyer && !isSeller) {
+        return { error: "Not authorized for this transaction", status: 403 } as const;
+      }
+
+      // Check if dispute already exists
+      if (transaction.dispute) {
+        return { error: "Dispute already exists for this transaction", status: 400 } as const;
+      }
+
+      // Check transaction status
+      const validStatuses = ["IN_ESCROW", "TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"];
+      if (!validStatuses.includes(transaction.status)) {
+        return { error: "Cannot dispute a transaction in this status", status: 400 } as const;
+      }
+
+      // Calculate dispute fee (2% of sale price)
+      const disputeFee = calculateDisputeFee(Number(transaction.salePrice), transaction.currency);
+
+      // Create dispute with standard 2% fee
+      const dispute = await tx.dispute.create({
+        data: {
+          reason,
+          description,
+          initiatorEvidence: evidence ? { items: evidence } : undefined,
+          status: "OPEN",
+          disputeFee,
+          transactionId,
+          initiatorId: token.id as string,
+          respondentId: isBuyer ? transaction.sellerId : transaction.buyerId,
+        },
+      });
+
+      // Update transaction status
+      await tx.transaction.update({
+        where: { id: transactionId },
+        data: { status: "DISPUTED" },
+      });
+
+      const respondentId = isBuyer ? transaction.sellerId : transaction.buyerId;
+      return { dispute, transaction, respondentId } as const;
+    }, { isolationLevel: 'Serializable' });
+
+    // Handle transaction errors
+    if ('error' in txResult) {
       return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
+        { error: txResult.error },
+        { status: txResult.status }
       );
     }
 
-    // Check if user is part of transaction
-    const isBuyer = transaction.buyerId === token.id as string;
-    const isSeller = transaction.sellerId === token.id as string;
+    const { dispute, transaction, respondentId } = txResult;
 
-    if (!isBuyer && !isSeller) {
-      return NextResponse.json(
-        { error: "Not authorized for this transaction" },
-        { status: 403 }
-      );
-    }
-
-    // Check if dispute already exists
-    if (transaction.dispute) {
-      return NextResponse.json(
-        { error: "Dispute already exists for this transaction" },
-        { status: 400 }
-      );
-    }
-
-    // Check transaction status
-    const validStatuses = ["IN_ESCROW", "TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"];
-    if (!validStatuses.includes(transaction.status)) {
-      return NextResponse.json(
-        { error: "Cannot dispute a transaction in this status" },
-        { status: 400 }
-      );
-    }
-
-    // Calculate dispute fee (2% of sale price)
-    const disputeFee = calculateDisputeFee(Number(transaction.salePrice));
-
-    // Create dispute with standard 2% fee
-    const dispute = await prisma.dispute.create({
-      data: {
-        reason,
-        description,
-        initiatorEvidence: evidence ? { items: evidence } : undefined,
-        status: "OPEN",
-        disputeFee,
-        transactionId,
-        initiatorId: token.id as string,
-        respondentId: isBuyer ? transaction.sellerId : transaction.buyerId,
-      },
-    });
-
-    // Update transaction status
-    await prisma.transaction.update({
-      where: { id: transactionId },
-      data: { status: "DISPUTED" },
-    });
-
-    // Notify the other party
-    const respondentId = isBuyer ? transaction.sellerId : transaction.buyerId;
+    // Notify the other party (outside the transaction -- non-critical)
     await prisma.notification.create({
       data: {
         type: "DISPUTE_OPENED",

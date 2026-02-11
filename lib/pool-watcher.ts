@@ -1,6 +1,8 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+// SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
+// via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
+const RPC_URL = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_WEBHOOK_ID = process.env.HELIUS_WEBHOOK_ID;
 

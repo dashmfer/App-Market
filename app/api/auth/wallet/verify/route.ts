@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     const { publicKey, signature, message } = await req.json();
 
     // SECURITY: Validate required fields unconditionally
-    if (!publicKey || !message) {
+    if (!publicKey || !signature || !message) {
       return NextResponse.json(
         { error: "Missing required fields: publicKey and message are required" },
         { status: 400 }

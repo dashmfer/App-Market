@@ -80,12 +80,43 @@ export async function POST(
       return NextResponse.json({ error: "Transaction hash is required" }, { status: 400 });
     }
 
-    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+    // SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
+    // via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
+    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     const connection = new Connection(rpcUrl, "confirmed");
     const txInfo = await connection.getTransaction(txHash, { maxSupportedTransactionVersion: 0 });
 
     if (!txInfo || txInfo.meta?.err) {
       return NextResponse.json({ error: "Invalid or failed on-chain transaction" }, { status: 400 });
+    }
+
+    // SECURITY [H1]: Verify on-chain transfer amount, recipient, and sender
+    const accountKeys = txInfo.transaction.message.getAccountKeys().staticAccountKeys.map((k: any) => k.toBase58());
+    const preBalances = txInfo.meta!.preBalances;
+    const postBalances = txInfo.meta!.postBalances;
+
+    // Verify treasury wallet is in the transaction
+    const treasuryWallet = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+    if (!treasuryWallet) {
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
+
+    const treasuryIndex = accountKeys.indexOf(treasuryWallet);
+    if (treasuryIndex === -1) {
+      return NextResponse.json({ error: "Transaction does not involve the platform treasury" }, { status: 400 });
+    }
+
+    // Verify the partner's wallet is the sender
+    if (!accountKeys.includes(partner.walletAddress)) {
+      return NextResponse.json({ error: "Transaction sender does not match partner wallet" }, { status: 400 });
+    }
+
+    // Verify the transferred amount matches the partner's deposit amount
+    const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
+    const expectedLamports = Math.floor(Number(partner.depositAmount) * 1e9); // Convert SOL to lamports
+    const tolerance = 10000; // Allow small tolerance for tx fees
+    if (treasuryReceived < expectedLamports - tolerance) {
+      return NextResponse.json({ error: "On-chain transfer amount does not match expected deposit amount" }, { status: 400 });
     }
 
     // SECURITY [H7]: Use serializable transaction to prevent race condition

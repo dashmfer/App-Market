@@ -27,7 +27,7 @@ async function getNonceRedis() {
 }
 
 // Atomically check-and-mark nonce as used. Returns { used: false } if newly set, { used: true } if already existed.
-async function checkAndMarkNonce(nonceKey: string): Promise<{ used: boolean; error?: string }> {
+export async function checkAndMarkNonce(nonceKey: string): Promise<{ used: boolean; error?: string }> {
   const redis = await getNonceRedis();
   if (redis) {
     // Atomic SET NX: only sets if key does not exist, with 10 minute TTL

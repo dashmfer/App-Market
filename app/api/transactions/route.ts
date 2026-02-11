@@ -171,8 +171,9 @@ export async function POST(request: NextRequest) {
       salePrice = Number(winningBid.amount);
     }
 
-    // SECURITY: Verify the on-chain transaction before creating any DB records.
-    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    // SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
+    // via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
+    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
     if (!rpcUrl) {
       return NextResponse.json(
         { error: "Server configuration error" },
@@ -227,7 +228,10 @@ export async function POST(request: NextRequest) {
 
       // Verify sender is the buyer's wallet
       const buyerWallet = token.walletAddress;
-      if (buyerWallet && !accountKeys.includes(buyerWallet)) {
+      if (!buyerWallet) {
+        return NextResponse.json({ error: "Wallet address required for on-chain purchases" }, { status: 400 });
+      }
+      if (!accountKeys.includes(buyerWallet)) {
         return NextResponse.json({ error: "Transaction sender does not match buyer wallet" }, { status: 400 });
       }
     } catch (verifyErr) {
