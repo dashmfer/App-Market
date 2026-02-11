@@ -277,6 +277,14 @@ const DevSilhouette: React.FC<{
   const bodyLean = posture === "leaning" ? 6 : posture === "slouched" ? -3 : 0;
   const shoulderDrop = posture === "relieved" ? 8 : posture === "slouched" ? 4 : 0;
 
+  // Stick figure center
+  const cx = 160 + headTilt * 0.5;
+  const headY = 85 + headBob + headTilt * 0.2;
+  const neckY = headY + 30;
+  const shoulderY = neckY + 15 + shoulderDrop;
+  const hipY = shoulderY + 70;
+  const spineX = cx + bodyLean;
+
   return (
     <div
       style={{
@@ -288,176 +296,135 @@ const DevSilhouette: React.FC<{
       }}
     >
       <svg width={size} height={size} viewBox="0 0 320 320">
-        {/* Chair back */}
-        <path
-          d="M 100 280 Q 95 230 100 200 Q 115 180 160 175 Q 205 180 220 200 Q 225 230 220 280"
-          fill="none"
-          stroke={`${strokeColor}30`}
-          strokeWidth="2"
-        />
-
-        {/* Body / torso */}
-        <path
-          d={`M 110 ${225 + shoulderDrop} Q 110 ${200 + shoulderDrop} 125 190
-              L 160 ${185 + bodyLean} L 195 190
-              Q 210 ${200 + shoulderDrop} 210 ${225 + shoulderDrop}
-              L 210 280 Q 160 290 110 280 Z`}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={sw}
-          strokeLinejoin="round"
-        />
-
-        {/* Hoodie pocket line */}
-        <path
-          d={`M 130 ${240 + shoulderDrop} Q 160 ${248 + shoulderDrop} 190 ${240 + shoulderDrop}`}
-          fill="none"
-          stroke={`${strokeColor}60`}
-          strokeWidth="1.5"
-        />
-
-        {/* Arms extending to desk */}
-        <path
-          d={`M 112 ${205 + shoulderDrop} Q 80 ${215 + shoulderDrop} 55 ${230 + bodyLean}`}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={sw}
-          strokeLinecap="round"
-        />
-        <path
-          d={`M 208 ${205 + shoulderDrop} Q 240 ${215 + shoulderDrop} 265 ${230 + bodyLean}`}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth={sw}
-          strokeLinecap="round"
-        />
-
-        {/* Hands / fingers at keyboard level */}
-        {posture !== "relieved" && posture !== "thumbsup" && (
-          <>
-            <circle cx={52 + bodyLean} cy={232 + bodyLean} r="6" fill="none" stroke={strokeColor} strokeWidth="1.5" />
-            <circle cx={268 + bodyLean} cy={232 + bodyLean} r="6" fill="none" stroke={strokeColor} strokeWidth="1.5" />
-          </>
-        )}
-
-        {/* Thumbs up (right hand) */}
-        {posture === "thumbsup" && (
-          <g transform="translate(250, 195)">
-            <rect x="-6" y="5" width="14" height="20" rx="4" fill="none" stroke={strokeColor} strokeWidth={sw} />
-            <rect x="-3" y="-12" width="8" height="20" rx="3" fill="none" stroke={strokeColor} strokeWidth={sw} />
-          </g>
-        )}
-
-        {/* Relieved - arms dropped */}
-        {posture === "relieved" && (
-          <>
-            <path d="M 112 215 Q 90 250 85 275" fill="none" stroke={strokeColor} strokeWidth={sw} strokeLinecap="round" />
-            <path d="M 208 215 Q 230 250 235 275" fill="none" stroke={strokeColor} strokeWidth={sw} strokeLinecap="round" />
-          </>
-        )}
-
-        {/* Neck */}
-        <line x1="150" y1={170 + headTilt * 0.3} x2="150" y2={185 + bodyLean} stroke={strokeColor} strokeWidth={sw} />
-        <line x1="170" y1={170 + headTilt * 0.3} x2="170" y2={185 + bodyLean} stroke={strokeColor} strokeWidth={sw} />
-
         {/* Head */}
         <circle
-          cx={160 + headTilt * 0.5}
-          cy={125 + headBob + headTilt * 0.2}
-          r="48"
+          cx={cx}
+          cy={headY}
+          r="30"
           fill="none"
           stroke={strokeColor}
           strokeWidth={sw}
         />
 
         {/* Eyes - two dots */}
-        <circle cx={145 + headTilt * 0.5} cy={120 + headBob + headTilt * 0.2} r="3" fill="none" stroke={strokeColor} strokeWidth="2" />
-        <circle cx={175 + headTilt * 0.5} cy={120 + headBob + headTilt * 0.2} r="3" fill="none" stroke={strokeColor} strokeWidth="2" />
+        <circle cx={cx - 10} cy={headY - 3} r="2.5" fill={strokeColor} />
+        <circle cx={cx + 10} cy={headY - 3} r="2.5" fill={strokeColor} />
 
-        {/* Mouth - small line, varies by posture */}
+        {/* Mouth */}
         {posture === "composed" && (
           <line
-            x1={152 + headTilt * 0.5}
-            y1={138 + headBob + headTilt * 0.2}
-            x2={168 + headTilt * 0.5}
-            y2={138 + headBob + headTilt * 0.2}
-            stroke={strokeColor}
-            strokeWidth="1.5"
-            strokeLinecap="round"
+            x1={cx - 8} y1={headY + 10}
+            x2={cx + 8} y2={headY + 10}
+            stroke={strokeColor} strokeWidth="2" strokeLinecap="round"
           />
         )}
         {posture === "leaning" && (
-          <circle
-            cx={160 + headTilt * 0.5}
-            cy={140 + headBob + headTilt * 0.2}
-            r="5"
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth="1.5"
-          />
+          <circle cx={cx} cy={headY + 12} r="4" fill="none" stroke={strokeColor} strokeWidth="1.5" />
         )}
         {(posture === "slouched" || posture === "relieved") && (
           <path
-            d={`M ${150 + headTilt * 0.5} ${140 + headBob + headTilt * 0.2} Q ${160 + headTilt * 0.5} ${145 + headBob + headTilt * 0.2} ${170 + headTilt * 0.5} ${140 + headBob + headTilt * 0.2}`}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth="1.5"
-            strokeLinecap="round"
+            d={`M ${cx - 8} ${headY + 10} Q ${cx} ${headY + 16} ${cx + 8} ${headY + 10}`}
+            fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round"
           />
         )}
         {posture === "thumbsup" && (
           <path
-            d={`M ${150 + headTilt * 0.5} ${137 + headBob} Q ${160 + headTilt * 0.5} ${133 + headBob} ${170 + headTilt * 0.5} ${137 + headBob}`}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth="1.5"
-            strokeLinecap="round"
+            d={`M ${cx - 8} ${headY + 12} Q ${cx} ${headY + 7} ${cx + 8} ${headY + 12}`}
+            fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round"
           />
         )}
 
         {/* Hood */}
         {hoodUp && (
           <path
-            d={`M ${108 + headTilt * 0.5} ${155 + headBob + headTilt * 0.2}
-                Q ${108 + headTilt * 0.5} ${80 + headBob + headTilt * 0.2}
-                  ${160 + headTilt * 0.5} ${68 + headBob + headTilt * 0.2}
-                Q ${212 + headTilt * 0.5} ${80 + headBob + headTilt * 0.2}
-                  ${212 + headTilt * 0.5} ${155 + headBob + headTilt * 0.2}`}
+            d={`M ${cx - 34} ${headY + 20}
+                Q ${cx - 34} ${headY - 30} ${cx} ${headY - 38}
+                Q ${cx + 34} ${headY - 30} ${cx + 34} ${headY + 20}`}
             fill="none"
             stroke={strokeColor}
             strokeWidth={sw}
           />
         )}
 
-        {/* Headphones around neck */}
-        <path
-          d={`M 130 ${168 + bodyLean} Q 130 ${178 + bodyLean} 145 ${182 + bodyLean}
-              L 175 ${182 + bodyLean} Q 190 ${178 + bodyLean} 190 ${168 + bodyLean}`}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="2"
-          strokeLinecap="round"
+        {/* Neck - single line */}
+        <line
+          x1={cx} y1={neckY - 2}
+          x2={spineX} y2={shoulderY}
+          stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
         />
-        {/* Ear cups dangling */}
-        <rect
-          x="122"
-          y={175 + bodyLean}
-          width="14"
-          height="14"
-          rx="4"
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="1.5"
+
+        {/* Spine / torso - single line */}
+        <line
+          x1={spineX} y1={shoulderY}
+          x2={spineX} y2={hipY}
+          stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
         />
-        <rect
-          x="184"
-          y={175 + bodyLean}
-          width="14"
-          height="14"
-          rx="4"
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="1.5"
+
+        {/* Arms */}
+        {posture !== "relieved" && posture !== "thumbsup" && (
+          <>
+            {/* Left arm: shoulder to desk */}
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX - 60} y2={shoulderY + 45 + bodyLean}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+            {/* Right arm: shoulder to desk */}
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX + 60} y2={shoulderY + 45 + bodyLean}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+          </>
+        )}
+        {posture === "relieved" && (
+          <>
+            {/* Arms hanging down */}
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX - 35} y2={hipY + 10}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX + 35} y2={hipY + 10}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+          </>
+        )}
+        {posture === "thumbsup" && (
+          <>
+            {/* Left arm normal */}
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX - 60} y2={shoulderY + 45}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+            {/* Right arm up for thumbs up */}
+            <line
+              x1={spineX} y1={shoulderY}
+              x2={spineX + 50} y2={shoulderY - 20}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+            {/* Thumb */}
+            <line
+              x1={spineX + 50} y1={shoulderY - 20}
+              x2={spineX + 50} y2={shoulderY - 40}
+              stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+            />
+          </>
+        )}
+
+        {/* Legs */}
+        <line
+          x1={spineX} y1={hipY}
+          x2={spineX - 35} y2={hipY + 55}
+          stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
+        />
+        <line
+          x1={spineX} y1={hipY}
+          x2={spineX + 35} y2={hipY + 55}
+          stroke={strokeColor} strokeWidth={sw} strokeLinecap="round"
         />
       </svg>
     </div>

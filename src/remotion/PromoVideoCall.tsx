@@ -168,13 +168,15 @@ const Avatar: React.FC<{
       }}
     >
       <svg width={size} height={size} viewBox="0 0 200 200">
-        {/* Body / Shirt */}
+        {/* Body / Shirt - green outline, white fill */}
         <ellipse
           cx="100"
           cy="195"
           rx="65"
           ry="40"
-          fill={character.shirtColor}
+          fill="#ffffff"
+          stroke={COLORS.green}
+          strokeWidth="2.5"
         />
 
         {/* Neck */}
@@ -184,7 +186,9 @@ const Avatar: React.FC<{
           width="24"
           height="30"
           rx="8"
-          fill={character.skinTone}
+          fill="#ffffff"
+          stroke={COLORS.green}
+          strokeWidth="2"
         />
 
         {/* Head */}
@@ -193,64 +197,64 @@ const Avatar: React.FC<{
           cy="100"
           rx="52"
           ry="58"
-          fill={character.skinTone}
+          fill="#ffffff"
+          stroke={COLORS.green}
+          strokeWidth="2.5"
         />
 
-        {/* Hair based on style */}
+        {/* Hair based on style - green outline, white fill */}
         {character.hairStyle === "curly" && (
           <>
-            <ellipse cx="100" cy="62" rx="56" ry="35" fill={character.hairColor} />
-            <circle cx="52" cy="75" r="16" fill={character.hairColor} />
-            <circle cx="148" cy="75" r="16" fill={character.hairColor} />
-            <circle cx="58" cy="58" r="14" fill={character.hairColor} />
-            <circle cx="142" cy="58" r="14" fill={character.hairColor} />
-            <circle cx="75" cy="48" r="12" fill={character.hairColor} />
-            <circle cx="125" cy="48" r="12" fill={character.hairColor} />
+            <ellipse cx="100" cy="62" rx="56" ry="35" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="52" cy="75" r="16" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="148" cy="75" r="16" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="58" cy="58" r="14" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="142" cy="58" r="14" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="75" cy="48" r="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="125" cy="48" r="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "short" && (
           <>
-            <ellipse cx="100" cy="65" rx="54" ry="32" fill={character.hairColor} />
-            <rect x="48" y="60" width="104" height="20" rx="8" fill={character.hairColor} />
+            <ellipse cx="100" cy="65" rx="54" ry="32" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="48" y="60" width="104" height="20" rx="8" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "long" && (
           <>
-            <ellipse cx="100" cy="62" rx="56" ry="34" fill={character.hairColor} />
-            <rect x="46" y="60" width="20" height="80" rx="10" fill={character.hairColor} />
-            <rect x="134" y="60" width="20" height="80" rx="10" fill={character.hairColor} />
+            <ellipse cx="100" cy="62" rx="56" ry="34" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="46" y="60" width="20" height="80" rx="10" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="134" y="60" width="20" height="80" rx="10" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.hairStyle === "fade" && (
           <>
-            <ellipse cx="100" cy="68" rx="50" ry="26" fill={character.hairColor} />
-            <rect x="52" y="58" width="96" height="16" rx="6" fill={character.hairColor} opacity="0.7" />
-            <rect x="56" y="70" width="88" height="8" rx="4" fill={character.hairColor} opacity="0.4" />
+            <ellipse cx="100" cy="68" rx="50" ry="26" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="52" y="58" width="96" height="16" rx="6" fill="#ffffff" stroke={COLORS.green} strokeWidth="1.5" opacity="0.7" />
+            <rect x="56" y="70" width="88" height="8" rx="4" fill="#ffffff" stroke={COLORS.green} strokeWidth="1.5" opacity="0.4" />
           </>
         )}
         {character.hairStyle === "bob" && (
           <>
-            <ellipse cx="100" cy="62" rx="58" ry="34" fill={character.hairColor} />
-            <rect x="44" y="60" width="24" height="55" rx="12" fill={character.hairColor} />
-            <rect x="132" y="60" width="24" height="55" rx="12" fill={character.hairColor} />
+            <ellipse cx="100" cy="62" rx="58" ry="34" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="44" y="60" width="24" height="55" rx="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="132" y="60" width="24" height="55" rx="12" fill="#ffffff" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
 
-        {/* Eyes */}
-        <ellipse cx="80" cy="102" rx="6" ry="7" fill="#1a1a1a" />
-        <ellipse cx="120" cy="102" rx="6" ry="7" fill="#1a1a1a" />
-        <circle cx="82" cy="100" r="2" fill="white" />
-        <circle cx="122" cy="100" r="2" fill="white" />
+        {/* Eyes - green outline */}
+        <ellipse cx="80" cy="102" rx="6" ry="7" fill="none" stroke={COLORS.green} strokeWidth="2" />
+        <ellipse cx="120" cy="102" rx="6" ry="7" fill="none" stroke={COLORS.green} strokeWidth="2" />
 
         {/* Eyebrows */}
-        <line x1="72" y1="90" x2="88" y2="88" stroke="#1a1a1a" strokeWidth="3" strokeLinecap="round" />
-        <line x1="112" y1="88" x2="128" y2="90" stroke="#1a1a1a" strokeWidth="3" strokeLinecap="round" />
+        <line x1="72" y1="90" x2="88" y2="88" stroke={COLORS.green} strokeWidth="2.5" strokeLinecap="round" />
+        <line x1="112" y1="88" x2="128" y2="90" stroke={COLORS.green} strokeWidth="2.5" strokeLinecap="round" />
 
         {/* Smile */}
         <path
           d="M 82 120 Q 100 138 118 120"
-          stroke="#1a1a1a"
-          strokeWidth="3"
+          stroke={COLORS.green}
+          strokeWidth="2.5"
           fill="none"
           strokeLinecap="round"
         />
@@ -258,26 +262,25 @@ const Avatar: React.FC<{
         {/* Nose */}
         <path
           d="M 100 106 Q 96 116 100 118 Q 104 116 100 106"
-          fill={character.skinTone}
-          stroke={character.skinTone}
-          strokeWidth="1"
-          filter="brightness(0.9)"
+          fill="none"
+          stroke={COLORS.green}
+          strokeWidth="1.5"
         />
 
-        {/* Accessories */}
+        {/* Accessories - green outlined */}
         {character.accessory === "glasses" && (
           <>
-            <circle cx="80" cy="102" r="16" fill="none" stroke="#333" strokeWidth="2.5" />
-            <circle cx="120" cy="102" r="16" fill="none" stroke="#333" strokeWidth="2.5" />
-            <line x1="96" y1="102" x2="104" y2="102" stroke="#333" strokeWidth="2.5" />
-            <line x1="64" y1="100" x2="52" y2="96" stroke="#333" strokeWidth="2" />
-            <line x1="136" y1="100" x2="148" y2="96" stroke="#333" strokeWidth="2" />
+            <circle cx="80" cy="102" r="16" fill="none" stroke={COLORS.green} strokeWidth="2.5" />
+            <circle cx="120" cy="102" r="16" fill="none" stroke={COLORS.green} strokeWidth="2.5" />
+            <line x1="96" y1="102" x2="104" y2="102" stroke={COLORS.green} strokeWidth="2.5" />
+            <line x1="64" y1="100" x2="52" y2="96" stroke={COLORS.green} strokeWidth="2" />
+            <line x1="136" y1="100" x2="148" y2="96" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.accessory === "earrings" && (
           <>
-            <circle cx="50" cy="112" r="5" fill="#fbbf24" />
-            <circle cx="150" cy="112" r="5" fill="#fbbf24" />
+            <circle cx="50" cy="112" r="5" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="150" cy="112" r="5" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.accessory === "headphones" && (
@@ -285,21 +288,19 @@ const Avatar: React.FC<{
             <path
               d="M 48 90 Q 48 50 100 50 Q 152 50 152 90"
               fill="none"
-              stroke="#333"
-              strokeWidth="6"
+              stroke={COLORS.green}
+              strokeWidth="4"
               strokeLinecap="round"
             />
-            <rect x="40" y="85" width="16" height="28" rx="6" fill="#333" />
-            <rect x="144" y="85" width="16" height="28" rx="6" fill="#333" />
-            <rect x="42" y="88" width="12" height="22" rx="5" fill="#555" />
-            <rect x="146" y="88" width="12" height="22" rx="5" fill="#555" />
+            <rect x="40" y="85" width="16" height="28" rx="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="144" y="85" width="16" height="28" rx="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
         {character.accessory === "beanie" && (
           <>
-            <ellipse cx="100" cy="60" rx="58" ry="28" fill="#e11d48" />
-            <rect x="42" y="55" width="116" height="18" rx="4" fill="#be123c" />
-            <circle cx="100" cy="34" r="6" fill="#e11d48" />
+            <ellipse cx="100" cy="60" rx="58" ry="28" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <rect x="42" y="55" width="116" height="18" rx="4" fill="none" stroke={COLORS.green} strokeWidth="2" />
+            <circle cx="100" cy="34" r="6" fill="none" stroke={COLORS.green} strokeWidth="2" />
           </>
         )}
       </svg>
@@ -1109,7 +1110,7 @@ const CTAFinal: React.FC = () => {
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(${gradAngle}deg, #0f0f23 0%, #0a1628 50%, #0f0f23 100%)`,
+        background: `linear-gradient(${gradAngle}deg, #ffffff 0%, #f0fdf4 50%, #ecfdf5 100%)`,
         justifyContent: "center",
         alignItems: "center",
       }}
@@ -1123,7 +1124,7 @@ const CTAFinal: React.FC = () => {
           width: 600,
           height: 600,
           borderRadius: "50%",
-          background: `radial-gradient(circle, ${COLORS.green}10 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${COLORS.green}15 0%, transparent 70%)`,
           transform: "translate(-50%, -50%)",
         }}
       />
@@ -1301,7 +1302,7 @@ export const PromoVideoCall: React.FC = () => {
 
       {/* Transition to CTA */}
       <Sequence from={ctaStart - TRANSITION} durationInFrames={TRANSITION}>
-        <TransitionWipe color="#0f0f23" />
+        <TransitionWipe color={COLORS.green} />
       </Sequence>
 
       {/* CTA */}
