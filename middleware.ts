@@ -218,9 +218,11 @@ export async function middleware(request: NextRequest) {
 
   // Protected API routes
   if (PROTECTED_API_ROUTES.some(route => pathname.startsWith(route))) {
+    // SECURITY [M11]: Restrict public read to exact list/detail paths only.
+    // Prevents unauthenticated access to deeper sub-paths like /api/listings/[id]/edit.
     const isPublicRead =
-      (method === "GET" && pathname.startsWith("/api/listings") && !pathname.includes("/my-listings")) ||
-      (method === "GET" && pathname.startsWith("/api/reviews")) ||
+      (method === "GET" && (pathname === "/api/listings" || /^\/api\/listings\/[^/]+$/.test(pathname)) && !pathname.includes("/my-listings")) ||
+      (method === "GET" && (pathname === "/api/reviews" || /^\/api\/reviews\/[^/]+$/.test(pathname))) ||
       (method === "GET" && pathname.startsWith("/api/stats")) ||
       (method === "GET" && pathname.startsWith("/api/leaderboard")) ||
       (method === "GET" && pathname.startsWith("/api/users")) ||

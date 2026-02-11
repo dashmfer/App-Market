@@ -92,8 +92,8 @@ export async function POST(
       return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
     }
 
-    if (!percentage || percentage <= 0 || percentage >= 100) {
-      return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
+    if (typeof percentage !== 'number' || !Number.isFinite(percentage) || percentage <= 0 || percentage >= 100) {
+      return NextResponse.json({ error: "Percentage must be a number between 0 (exclusive) and 100 (exclusive)" }, { status: 400 });
     }
 
     // SECURITY [H8]: Wrap partner read + percentage validation + create in an
@@ -146,6 +146,11 @@ export async function POST(
 
       // Calculate deposit amount based on percentage
       const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+
+      // SECURITY [M4]: Validate computed deposit amount is positive and finite
+      if (!Number.isFinite(depositAmount) || depositAmount <= 0) {
+        return { error: "Computed deposit amount is invalid. Sale price or percentage may be incorrect.", status: 400 } as const;
+      }
 
       // Create the partner
       const partner = await tx.transactionPartner.create({
@@ -334,8 +339,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Partner ID is required" }, { status: 400 });
     }
 
-    if (!percentage || percentage <= 0 || percentage >= 100) {
-      return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
+    if (typeof percentage !== 'number' || !Number.isFinite(percentage) || percentage <= 0 || percentage >= 100) {
+      return NextResponse.json({ error: "Percentage must be a number between 0 (exclusive) and 100 (exclusive)" }, { status: 400 });
     }
 
     // SECURITY [M1]: Wrap percentage read + validation + update in a serializable
@@ -390,6 +395,11 @@ export async function PATCH(
 
       // Calculate new deposit amount
       const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+
+      // SECURITY [M4]: Validate computed deposit amount is positive and finite
+      if (!Number.isFinite(depositAmount) || depositAmount <= 0) {
+        return { error: "Computed deposit amount is invalid. Sale price or percentage may be incorrect.", status: 400 } as const;
+      }
 
       // Update the partner
       const updatedPartner = await tx.transactionPartner.update({

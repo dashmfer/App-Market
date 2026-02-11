@@ -420,6 +420,7 @@ export async function GET(request: NextRequest) {
     const purchases = await prisma.transaction.findMany({
       where: { buyerId: userId },
       orderBy: { createdAt: "desc" },
+      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {

@@ -799,6 +799,7 @@ model Conversation {
   @@unique([participant1Id, participant2Id])
   @@index([participant1Id])
   @@index([participant2Id])
+  @@index([listingId])
   @@index([lastMessageAt])
 }
 
@@ -1149,7 +1150,7 @@ model Referral {
   referrer        User      @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
   referredUserId  String    @unique
-  referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
 
   // Tracking
   status          ReferralStatus @default(PENDING)

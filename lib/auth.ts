@@ -301,145 +301,154 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid Privy authentication token");
         }
 
-        // Find or create user by Privy ID
-        let user = await prisma.user.findUnique({
-          where: { privyUserId: credentials.privyUserId },
-        });
-
-        if (!user) {
-          // Check if user exists by wallet address
-          if (credentials.walletAddress) {
-            user = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
-            });
-
-            if (user) {
-              // Link existing wallet user to Privy
-              user = await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  privyUserId: credentials.privyUserId,
-                  authMethod: mapAuthMethod(credentials.authMethod),
-                },
-              });
-            }
-          }
-
-          // Check if user exists by email
-          if (!user && credentials.email) {
-            user = await prisma.user.findUnique({
-              where: { email: credentials.email },
-            });
-
-            if (user) {
-              // Link existing email user to Privy
-              user = await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                  privyUserId: credentials.privyUserId,
-                  authMethod: mapAuthMethod(credentials.authMethod),
-                  walletAddress: credentials.walletAddress || user.walletAddress,
-                },
-              });
-            }
-          }
-        }
-
-        if (!user) {
-          // Create new user
-          const referralCode = generateUserReferralCode();
-
-          // Handle referral
-          let referrerId: string | undefined;
-          if (credentials.referralCode) {
-            const referrer = await prisma.user.findUnique({
-              where: { referralCode: credentials.referralCode.toLowerCase() },
-              select: { id: true },
-            });
-            if (referrer) {
-              referrerId = referrer.id;
-            }
-          }
-
-          // Generate username
-          let username = credentials.twitterUsername
-            || credentials.email?.split("@")[0]
-            || `user_${Date.now().toString(36)}`;
-
-          // Ensure username is unique
-          const existingUser = await prisma.user.findUnique({ where: { username } });
-          if (existingUser) {
-            username = `${username}_${Date.now().toString(36)}`;
-          }
-
-          user = await prisma.user.create({
-            data: {
-              privyUserId: credentials.privyUserId,
-              walletAddress: credentials.walletAddress || null,
-              email: credentials.email || null,
-              twitterUsername: credentials.twitterUsername || null,
-              twitterVerified: !!credentials.twitterUsername,
-              username,
-              referralCode,
-              authMethod: mapAuthMethod(credentials.authMethod),
-              referredBy: referrerId,
-            },
+        // SECURITY [H11]: Wrap entire find-or-create flow in a Serializable
+        // transaction to prevent TOCTOU race where two concurrent Privy logins
+        // with different privyUserIds but the same walletAddress both claim
+        // the same user.
+        const user = await prisma.$transaction(async (tx) => {
+          // Find or create user by Privy ID
+          let txUser = await tx.user.findUnique({
+            where: { privyUserId: credentials.privyUserId },
           });
 
-          // Create referral record if applicable
-          if (referrerId) {
-            await prisma.referral.create({
+          if (!txUser) {
+            // Check if user exists by wallet address
+            if (credentials.walletAddress) {
+              txUser = await tx.user.findUnique({
+                where: { walletAddress: credentials.walletAddress },
+              });
+
+              if (txUser) {
+                // Link existing wallet user to Privy
+                txUser = await tx.user.update({
+                  where: { id: txUser.id },
+                  data: {
+                    privyUserId: credentials.privyUserId,
+                    authMethod: mapAuthMethod(credentials.authMethod),
+                  },
+                });
+              }
+            }
+
+            // Check if user exists by email
+            if (!txUser && credentials.email) {
+              txUser = await tx.user.findUnique({
+                where: { email: credentials.email },
+              });
+
+              if (txUser) {
+                // Link existing email user to Privy
+                txUser = await tx.user.update({
+                  where: { id: txUser.id },
+                  data: {
+                    privyUserId: credentials.privyUserId,
+                    authMethod: mapAuthMethod(credentials.authMethod),
+                    walletAddress: credentials.walletAddress || txUser.walletAddress,
+                  },
+                });
+              }
+            }
+          }
+
+          if (!txUser) {
+            // Create new user
+            const referralCode = generateUserReferralCode();
+
+            // Handle referral
+            let referrerId: string | undefined;
+            if (credentials.referralCode) {
+              const referrer = await tx.user.findUnique({
+                where: { referralCode: credentials.referralCode.toLowerCase() },
+                select: { id: true },
+              });
+              if (referrer) {
+                referrerId = referrer.id;
+              }
+            }
+
+            // Generate username
+            let username = credentials.twitterUsername
+              || credentials.email?.split("@")[0]
+              || `user_${Date.now().toString(36)}`;
+
+            // Ensure username is unique
+            const existingUser = await tx.user.findUnique({ where: { username } });
+            if (existingUser) {
+              username = `${username}_${Date.now().toString(36)}`;
+            }
+
+            txUser = await tx.user.create({
               data: {
-                referrerId,
-                referredUserId: user.id,
-                status: "REGISTERED",
+                privyUserId: credentials.privyUserId,
+                walletAddress: credentials.walletAddress || null,
+                email: credentials.email || null,
+                twitterUsername: credentials.twitterUsername || null,
+                // SECURITY [L2]: Don't trust client-supplied twitterVerified — verify server-side
+                twitterVerified: false,
+                username,
+                referralCode,
+                authMethod: mapAuthMethod(credentials.authMethod),
+                referredBy: referrerId,
               },
             });
-          }
 
-          console.log("[Privy Auth] Created new user");
-        } else {
-          // Update user with latest info from Privy
-          const updateData: any = {};
+            // Create referral record if applicable
+            if (referrerId) {
+              await tx.referral.create({
+                data: {
+                  referrerId,
+                  referredUserId: txUser.id,
+                  status: "REGISTERED",
+                },
+              });
+            }
 
-          // SECURITY: Check uniqueness before linking wallet/email/twitter
-          // Prevents one Privy account from claiming another user's identity
-          if (credentials.walletAddress && !user.walletAddress) {
-            const existing = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
-              select: { id: true },
-            });
-            if (!existing) {
-              updateData.walletAddress = credentials.walletAddress;
+            console.log("[Privy Auth] Created new user");
+          } else {
+            // Update user with latest info from Privy
+            const updateData: any = {};
+
+            // SECURITY: Check uniqueness before linking wallet/email/twitter
+            // Prevents one Privy account from claiming another user's identity
+            if (credentials.walletAddress && !txUser.walletAddress) {
+              const existing = await tx.user.findUnique({
+                where: { walletAddress: credentials.walletAddress },
+                select: { id: true },
+              });
+              if (!existing) {
+                updateData.walletAddress = credentials.walletAddress;
+              }
+            }
+            if (credentials.email && !txUser.email) {
+              const existing = await tx.user.findUnique({
+                where: { email: credentials.email },
+                select: { id: true },
+              });
+              if (!existing) {
+                updateData.email = credentials.email;
+              }
+            }
+            if (credentials.twitterUsername && !txUser.twitterUsername) {
+              const existing = await tx.user.findFirst({
+                where: { twitterUsername: credentials.twitterUsername },
+                select: { id: true },
+              });
+              if (!existing) {
+                updateData.twitterUsername = credentials.twitterUsername;
+                updateData.twitterVerified = true;
+              }
+            }
+
+            if (Object.keys(updateData).length > 0) {
+              txUser = await tx.user.update({
+                where: { id: txUser.id },
+                data: updateData,
+              });
             }
           }
-          if (credentials.email && !user.email) {
-            const existing = await prisma.user.findUnique({
-              where: { email: credentials.email },
-              select: { id: true },
-            });
-            if (!existing) {
-              updateData.email = credentials.email;
-            }
-          }
-          if (credentials.twitterUsername && !user.twitterUsername) {
-            const existing = await prisma.user.findFirst({
-              where: { twitterUsername: credentials.twitterUsername },
-              select: { id: true },
-            });
-            if (!existing) {
-              updateData.twitterUsername = credentials.twitterUsername;
-              updateData.twitterVerified = true;
-            }
-          }
 
-          if (Object.keys(updateData).length > 0) {
-            user = await prisma.user.update({
-              where: { id: user.id },
-              data: updateData,
-            });
-          }
-        }
+          return txUser;
+        }, { isolationLevel: 'Serializable' });
 
         // Generate session ID for revocation support
         // Session ID is stored in JWT, revocations are tracked in database

@@ -15,6 +15,37 @@ function decryptSecret(secret: string): string {
 }
 
 // ============================================
+// SSRF PROTECTION
+// ============================================
+
+/**
+ * SECURITY [M5]: Reject private/internal IP ranges to prevent SSRF attacks.
+ * Blocks localhost, private IPv4, link-local, and non-http(s) schemes.
+ */
+export function isPrivateUrl(urlStr: string): boolean {
+  try {
+    const url = new URL(urlStr);
+    const hostname = url.hostname;
+    // Block localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]') return true;
+    // Block private IPv4 ranges
+    const parts = hostname.split('.').map(Number);
+    if (parts.length === 4 && parts.every(p => !isNaN(p))) {
+      if (parts[0] === 10) return true;
+      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+      if (parts[0] === 192 && parts[1] === 168) return true;
+      if (parts[0] === 169 && parts[1] === 254) return true;
+      if (parts[0] === 0) return true;
+    }
+    // Block non-http(s) schemes
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return true;
+    return false;
+  } catch {
+    return true; // Invalid URL
+  }
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -157,6 +188,11 @@ async function attemptDelivery(
   payload: string,
   signature: string
 ): Promise<WebhookDeliveryResult> {
+  // SECURITY [M5]: Block SSRF — reject private/internal IPs
+  if (isPrivateUrl(url)) {
+    return { success: false, error: "Webhook URL targets a private or internal address" };
+  }
+
   try {
     const response = await fetch(url, {
       method: "POST",

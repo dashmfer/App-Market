@@ -113,6 +113,8 @@ async function verifyApiKey(key: string): Promise<AgentAuthResult> {
   });
 
   if (apiKeys.length === 0) {
+    // SECURITY [L3]: Constant-time response — compare against dummy hash to prevent timing leak
+    await bcrypt.compare(key, "$2b$12$0000000000000000000000000000000000000000000000000000");
     return { success: false, error: "Invalid API key", statusCode: 401 };
   }
 
@@ -251,12 +253,14 @@ async function verifyWalletSignature(
     };
   }
 
+  // SECURITY [M13]: Wallet signature auth only grants READ permission.
+  // Full WRITE/TRANSACTION access requires an explicit API key.
   return {
     success: true,
     userId: user.id,
     user,
     authMethod: "wallet_signature",
-    permissions: [ApiKeyPermission.READ, ApiKeyPermission.WRITE, ApiKeyPermission.TRANSACTION],
+    permissions: [ApiKeyPermission.READ],
   };
 }
 

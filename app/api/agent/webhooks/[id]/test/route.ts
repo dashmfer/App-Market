@@ -10,6 +10,7 @@ import {
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
+import { isPrivateUrl } from "@/lib/webhooks";
 
 // POST /api/agent/webhooks/[id]/test - Test a webhook by sending a test event
 export async function POST(
@@ -43,6 +44,11 @@ export async function POST(
 
     if (!webhook.isActive) {
       return agentErrorResponse("Webhook is not active", 400);
+    }
+
+    // SECURITY [M5]: Block SSRF — reject private/internal IPs
+    if (isPrivateUrl(webhook.url)) {
+      return agentErrorResponse("Webhook URL targets a private or internal address", 400);
     }
 
     // Send test payload

@@ -19,6 +19,7 @@ import {
   Activity,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { secureFetch } from "@/lib/fetch";
 
 // Types
 interface ApiKey {
@@ -177,7 +178,7 @@ function DeveloperContent() {
     if (!newKeyName.trim()) return;
     setCreatingKey(true);
     try {
-      const res = await fetch("/api/agent/keys", {
+      const res = await secureFetch("/api/agent/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,7 +207,7 @@ function DeveloperContent() {
     if (!confirm("Delete this API key? This cannot be undone.")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/agent/keys?id=${id}`, {
+      const res = await secureFetch(`/api/agent/keys?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -224,7 +225,7 @@ function DeveloperContent() {
 
   const handleToggleKey = async (id: string, isActive: boolean) => {
     try {
-      const res = await fetch(`/api/agent/keys?id=${id}`, {
+      const res = await secureFetch(`/api/agent/keys?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !isActive }),
@@ -247,7 +248,7 @@ function DeveloperContent() {
     }
     setCreatingWebhook(true);
     try {
-      const res = await fetch("/api/agent/webhooks", {
+      const res = await secureFetch("/api/agent/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -276,7 +277,7 @@ function DeveloperContent() {
     if (!confirm("Delete this webhook? This cannot be undone.")) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/agent/webhooks?id=${id}`, {
+      const res = await secureFetch(`/api/agent/webhooks?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -294,7 +295,7 @@ function DeveloperContent() {
 
   const handleToggleWebhook = async (id: string, isActive: boolean) => {
     try {
-      const res = await fetch(`/api/agent/webhooks?id=${id}`, {
+      const res = await secureFetch(`/api/agent/webhooks?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !isActive }),

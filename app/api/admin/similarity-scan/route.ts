@@ -5,10 +5,17 @@ import {
   calculateListingSimilarity,
   SimilarityResult,
 } from "@/lib/similarity-detection";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/admin/similarity-scan - Run similarity scan on all active listings (admin only)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY [M7]: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(

@@ -80,58 +80,88 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("amount must be a positive number", 400);
     }
 
-    // Check if listing exists and is active
-    const listing = await prisma.listing.findUnique({
-      where: { id: listingId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        sellerId: true,
-      },
-    });
+    // SECURITY [M8]: Wrap listing lookup + offer count checks + offer creation
+    // in a Serializable transaction to prevent race conditions (matching /api/offers)
+    const { offer, listing } = await prisma.$transaction(async (tx) => {
+      // Check if listing exists and is active
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          sellerId: true,
+        },
+      });
 
-    if (!listing) {
-      return agentErrorResponse("Listing not found", 404);
-    }
+      if (!listing) {
+        throw new Error("LISTING_NOT_FOUND");
+      }
 
-    if (listing.status !== "ACTIVE") {
-      return agentErrorResponse("Listing is not active", 400);
-    }
+      if (listing.status !== "ACTIVE") {
+        throw new Error("LISTING_NOT_ACTIVE");
+      }
 
-    if (listing.sellerId === userId) {
-      return agentErrorResponse("Cannot make offer on your own listing", 400);
-    }
+      if (listing.sellerId === userId) {
+        throw new Error("OWN_LISTING");
+      }
 
-    // Create offer
-    const offer = await prisma.offer.create({
-      data: {
-        amount,
-        deadline: deadline ? new Date(deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days
-        listingId,
-        buyerId: userId,
-        status: "ACTIVE",
-      },
-      include: {
-        buyer: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            image: true,
+      // Enforce offer limits within the transaction to prevent bypass via race condition
+      const activeOffersOnListing = await tx.offer.count({
+        where: {
+          buyerId: userId,
+          listingId,
+          status: "ACTIVE",
+        },
+      });
+
+      if (activeOffersOnListing >= 3) {
+        throw new Error("MAX_OFFERS_ON_LISTING");
+      }
+
+      const totalActiveOffers = await tx.offer.count({
+        where: {
+          buyerId: userId,
+          status: "ACTIVE",
+        },
+      });
+
+      if (totalActiveOffers >= 10) {
+        throw new Error("MAX_TOTAL_OFFERS");
+      }
+
+      // Create offer
+      const offer = await tx.offer.create({
+        data: {
+          amount,
+          deadline: deadline ? new Date(deadline) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days
+          listingId,
+          buyerId: userId,
+          status: "ACTIVE",
+        },
+        include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+            },
           },
         },
-        listing: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-          },
-        },
-      },
-    });
+      });
 
-    // Notify seller
+      return { offer, listing };
+    }, { isolationLevel: 'Serializable' });
+
+    // Notify seller (outside transaction - notification is non-critical)
     await prisma.notification.create({
       data: {
         userId: listing.sellerId,
@@ -148,6 +178,24 @@ export async function POST(request: NextRequest) {
 
     return agentSuccessResponse({ offer }, 201);
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage === "LISTING_NOT_FOUND") {
+      return agentErrorResponse("Listing not found", 404);
+    }
+    if (errorMessage === "LISTING_NOT_ACTIVE") {
+      return agentErrorResponse("Listing is not active", 400);
+    }
+    if (errorMessage === "OWN_LISTING") {
+      return agentErrorResponse("Cannot make offer on your own listing", 400);
+    }
+    if (errorMessage === "MAX_OFFERS_ON_LISTING") {
+      return agentErrorResponse("You already have the maximum of 3 active offers on this listing", 429);
+    }
+    if (errorMessage === "MAX_TOTAL_OFFERS") {
+      return agentErrorResponse("You have reached the maximum of 10 active offers", 429);
+    }
+
     console.error("[Agent] Error creating offer:", error);
     return agentErrorResponse("Failed to create offer", 500);
   }

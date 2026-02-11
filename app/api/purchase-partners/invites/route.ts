@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
+      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     // Format invites with additional info

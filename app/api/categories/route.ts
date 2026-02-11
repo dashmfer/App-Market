@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       select: {
         categories: true,
       },
+      take: 10000, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     // Count occurrences of each category

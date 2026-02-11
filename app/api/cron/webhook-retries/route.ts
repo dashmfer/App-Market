@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
 import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { isPrivateUrl } from "@/lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,15 @@ export async function GET(req: NextRequest) {
         await prisma.webhookDelivery.update({
           where: { id: delivery.id },
           data: { status: "FAILED", errorMessage: "Webhook deactivated" },
+        });
+        continue;
+      }
+
+      // SECURITY [M5]: Block SSRF — reject private/internal IPs
+      if (isPrivateUrl(delivery.webhook.url)) {
+        await prisma.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: { status: "FAILED", errorMessage: "Webhook URL targets a private or internal address" },
         });
         continue;
       }

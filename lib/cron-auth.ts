@@ -61,9 +61,15 @@ export async function acquireCronLock(
 
   // Return unlock function (only deletes if we still own the lock)
   return async () => {
-    const current = await redis.get(lockKey);
-    if (current === lockValue) {
-      await redis.del(lockKey);
+    try {
+      // SECURITY [L1]: Atomic check-and-delete: only deletes if we still own the lock
+      await redis.eval(
+        `if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end`,
+        [lockKey],
+        [lockValue]
+      );
+    } catch {
+      // Best-effort unlock — lock will expire via TTL anyway
     }
   };
 }
