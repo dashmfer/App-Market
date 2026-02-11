@@ -844,7 +844,7 @@ const IntroScene: React.FC = () => {
             opacity: subtitleOpacity,
           }}
         >
-          The word is spreading...
+          The premier software marketplace.
         </p>
       </div>
     </AbsoluteFill>
@@ -1056,7 +1056,147 @@ const CTAFinal: React.FC = () => {
         }}
       />
 
-      <div style={{ textAlign: "center" }}>
+      {/* Prominent realistic desk with computer */}
+      {(() => {
+        const deskSpring = spring({ frame: frame - 5, fps, config: { damping: 14, stiffness: 100 } });
+        const deskOpacity = interpolate(deskSpring, [0, 1], [0, 1]);
+        const deskY = interpolate(deskSpring, [0, 1], [40, 0]);
+        const screenGlow = 0.6 + Math.sin(frame * 0.08) * 0.15;
+        const cursorBlink = Math.sin(frame * 0.25) > 0 ? 0.8 : 0;
+
+        return (
+          <div style={{ position: "absolute", bottom: 0, left: "50%", transform: `translateX(-50%) translateY(${deskY}px)`, opacity: deskOpacity, width: 1200, height: 520 }}>
+            {/* Monitor glow on wall */}
+            <div style={{ position: "absolute", top: -60, left: "50%", width: 500, height: 200, borderRadius: "50%", background: `radial-gradient(ellipse, ${COLORS.green}08 0%, transparent 70%)`, transform: "translateX(-50%)", opacity: screenGlow }} />
+
+            {/* Monitor */}
+            <div style={{ position: "absolute", left: "50%", top: 20, transform: "translateX(-50%)", width: 480, height: 280 }}>
+              {/* Monitor bezel */}
+              <div style={{
+                width: 480, height: 280, borderRadius: 16,
+                background: "linear-gradient(145deg, #e8e8e8, #d0d0d0)",
+                border: "2px solid #c0c0c0",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.12)",
+                overflow: "hidden", position: "relative",
+              }}>
+                {/* Screen area */}
+                <div style={{
+                  position: "absolute", top: 10, left: 10, right: 10, bottom: 10,
+                  borderRadius: 8,
+                  background: "linear-gradient(180deg, #0f1520, #0a1018)",
+                  border: "1px solid #999",
+                  overflow: "hidden",
+                }}>
+                  {/* Top bar */}
+                  <div style={{ height: 24, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", padding: "0 10px", gap: 5 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#ff5f57", opacity: 0.7 }} />
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#febc2e", opacity: 0.7 }} />
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#28c840", opacity: 0.7 }} />
+                    <div style={{ flex: 1 }} />
+                    <div style={{ width: 120, height: 12, borderRadius: 6, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div style={{ width: 60, height: 3, borderRadius: 2, backgroundColor: `${COLORS.green}30` }} />
+                    </div>
+                    <div style={{ flex: 1 }} />
+                  </div>
+                  {/* Sidebar */}
+                  <div style={{ position: "absolute", top: 24, left: 0, width: 50, bottom: 0, borderRight: `1px solid ${COLORS.green}10` }}>
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div key={i} style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${COLORS.green}${i === 0 ? "25" : "10"}`, margin: "10px auto 0", background: i === 0 ? `${COLORS.green}15` : "transparent" }} />
+                    ))}
+                  </div>
+                  {/* Main content - dashboard */}
+                  <div style={{ position: "absolute", top: 36, left: 58, right: 8, bottom: 8 }}>
+                    <div style={{ width: 100, height: 5, borderRadius: 3, backgroundColor: COLORS.green, opacity: 0.3, marginBottom: 6 }} />
+                    <div style={{ width: 65, height: 3, borderRadius: 2, backgroundColor: COLORS.green, opacity: 0.15, marginBottom: 14 }} />
+                    {/* Dashboard cards */}
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} style={{ flex: 1, height: 48, borderRadius: 6, border: `1px solid ${COLORS.green}${i === 0 ? "18" : "0a"}`, background: "rgba(0,0,0,0.3)", padding: 6 }}>
+                          <div style={{ width: 28, height: 3, borderRadius: 2, backgroundColor: `${COLORS.green}25`, marginBottom: 4 }} />
+                          <div style={{ width: 42, height: 5, borderRadius: 2, backgroundColor: COLORS.green, opacity: 0.2 + i * 0.05 }} />
+                        </div>
+                      ))}
+                    </div>
+                    {/* App listing rows */}
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: `1px solid ${COLORS.green}08` }}>
+                        <div style={{ width: 20, height: 20, borderRadius: 5, border: `1px solid ${COLORS.green}15`, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ width: 70 + i * 12, height: 3, borderRadius: 2, backgroundColor: `${COLORS.green}18`, marginBottom: 3 }} />
+                          <div style={{ width: 40 + i * 8, height: 2, borderRadius: 2, backgroundColor: `${COLORS.green}0a` }} />
+                        </div>
+                        <div style={{ width: 35, height: 14, borderRadius: 4, border: `1px solid ${COLORS.green}18`, flexShrink: 0 }} />
+                      </div>
+                    ))}
+                    <div style={{ position: "absolute", bottom: 12, left: 8, width: 6, height: 14, backgroundColor: COLORS.green, opacity: cursorBlink, borderRadius: 1 }} />
+                  </div>
+                  {/* Screen glow */}
+                  <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse at center, ${COLORS.green}04 0%, transparent 70%)`, pointerEvents: "none" }} />
+                </div>
+              </div>
+              {/* Monitor chin */}
+              <div style={{ width: 30, height: 6, borderRadius: 3, backgroundColor: "#c0c0c0", margin: "-14px auto 0" }} />
+            </div>
+            {/* Monitor stand */}
+            <div style={{ position: "absolute", left: "50%", top: 300, transform: "translateX(-50%)", width: 14, height: 50, background: "linear-gradient(180deg, #d0d0d0, #b8b8b8)", borderRadius: 4 }} />
+            <div style={{ position: "absolute", left: "50%", top: 346, transform: "translateX(-50%)", width: 120, height: 8, background: "linear-gradient(180deg, #c0c0c0, #aaa)", borderRadius: "50%", border: "1px solid #bbb" }} />
+
+            {/* Desk surface */}
+            <div style={{
+              position: "absolute", left: 50, right: 50, top: 360, height: 20,
+              background: "linear-gradient(180deg, #5c3d2a 0%, #4a3020 40%, #3d261a 100%)",
+              borderRadius: "4px 4px 0 0",
+              boxShadow: "0 4px 30px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)",
+              border: "1px solid rgba(0,0,0,0.1)",
+              borderBottom: "none",
+            }}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} style={{ position: "absolute", top: 4 + i * 3, left: 20, right: 20, height: 1, backgroundColor: "rgba(255,255,255,0.025)", borderRadius: 1 }} />
+              ))}
+            </div>
+            {/* Desk front */}
+            <div style={{
+              position: "absolute", left: 50, right: 50, top: 380, height: 60,
+              background: "linear-gradient(180deg, #4a3020 0%, #3a2418 100%)",
+              border: "1px solid rgba(0,0,0,0.1)",
+              borderTop: "none",
+            }}>
+              <div style={{ position: "absolute", top: 22, left: "50%", transform: "translateX(-50%)", width: 80, height: 4, borderRadius: 3, background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)" }} />
+            </div>
+            {/* Desk legs */}
+            <div style={{ position: "absolute", left: 80, top: 440, width: 8, height: 80, background: "linear-gradient(180deg, #3a2418, #2d1c12)", borderRadius: 2 }} />
+            <div style={{ position: "absolute", right: 80, top: 440, width: 8, height: 80, background: "linear-gradient(180deg, #3a2418, #2d1c12)", borderRadius: 2 }} />
+
+            {/* Keyboard */}
+            <div style={{ position: "absolute", left: "50%", top: 330, transform: "translateX(-50%)", width: 200, height: 28 }}>
+              <div style={{ width: 200, height: 28, borderRadius: 5, background: "linear-gradient(180deg, #e0e0e0, #ccc)", border: "1px solid #bbb", padding: 3 }}>
+                {[0, 1, 2].map((row) => (
+                  <div key={row} style={{ display: "flex", gap: 2, marginBottom: 1, justifyContent: "center" }}>
+                    {Array.from({ length: row === 2 ? 8 : 12 }).map((_, col) => (
+                      <div key={col} style={{ width: row === 2 && col === 3 ? 28 : 10, height: 6, borderRadius: 1.5, backgroundColor: "rgba(0,0,0,0.06)", border: "0.5px solid rgba(0,0,0,0.08)" }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Mouse */}
+            <div style={{ position: "absolute", left: "50%", top: 332, marginLeft: 140 }}>
+              <div style={{ width: 22, height: 32, borderRadius: "10px 10px 12px 12px", border: "1px solid #bbb", background: "linear-gradient(180deg, #e0e0e0, #ccc)" }}>
+                <div style={{ width: 1, height: 8, backgroundColor: "rgba(0,0,0,0.1)", margin: "4px auto 0", borderRadius: 1 }} />
+              </div>
+            </div>
+
+            {/* Coffee mug */}
+            <div style={{ position: "absolute", left: "50%", top: 320, marginLeft: -220 }}>
+              <div style={{ width: 26, height: 22, borderRadius: "0 0 5px 5px", border: "1px solid rgba(0,0,0,0.12)", background: "rgba(255,255,255,0.5)" }}>
+                <div style={{ position: "absolute", top: 3, right: -9, width: 9, height: 14, border: "1px solid rgba(0,0,0,0.1)", borderLeft: "none", borderRadius: "0 6px 6px 0" }} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ textAlign: "center", position: "relative", zIndex: 1, marginTop: -200 }}>
         {/* App Market logo */}
         <h1
           style={{
@@ -1068,6 +1208,7 @@ const CTAFinal: React.FC = () => {
             letterSpacing: "-0.03em",
             opacity: logoOpacity,
             transform: `scale(${logoScale})`,
+            textShadow: `0 2px 20px ${COLORS.green}20`,
           }}
         >
           App Market
@@ -1082,7 +1223,7 @@ const CTAFinal: React.FC = () => {
             transform: `translateY(${taglineY}px)`,
           }}
         >
-          Sell what you vibe code. Get paid instantly.
+          Your code has value. Now it has a market.
         </p>
 
         {/* CTA button */}
@@ -1125,7 +1266,7 @@ const CTAFinal: React.FC = () => {
             textTransform: "uppercase",
           }}
         >
-          Secured by Solana &middot; Trustless Escrow &middot; Instant Settlement
+          Powered by Solana
         </p>
       </div>
     </AbsoluteFill>
