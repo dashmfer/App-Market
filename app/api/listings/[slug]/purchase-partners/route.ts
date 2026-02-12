@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getAuthToken } from '@/lib/auth';
 
 // GET - Get purchase partners for a listing with partners
 export async function GET(
@@ -8,6 +9,13 @@ export async function GET(
 ) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // SECURITY: Require auth to view partner details
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const includePending = searchParams.get("includePending") === "true";
 
     // Find the listing by slug

@@ -226,7 +226,7 @@ export async function PATCH(
     const validTransitions: Record<string, string[]> = {
       PENDING: ["LAUNCHING", "CANCELLED"],
       LAUNCHING: ["LIVE", "FAILED"],
-      LIVE: ["GRADUATED"],
+      LIVE: [],  // SECURITY: Graduation only via webhook/cron after on-chain verification
       GRADUATED: ["COMPLETED"],
     };
 

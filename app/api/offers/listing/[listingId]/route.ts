@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getAuthToken } from '@/lib/auth';
 
 /**
  * GET /api/offers/listing/[listingId]
@@ -12,9 +13,25 @@ export async function GET(
   try {
     const { listingId } = params;
 
+    // SECURITY: Require auth — only the listing seller can view all offers
+    const token = await getAuthToken(req);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify caller is the seller
+    const listing = await prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { sellerId: true },
+    });
+    if (!listing || listing.sellerId !== token.id as string) {
+      return NextResponse.json({ error: "Only the seller can view listing offers" }, { status: 403 });
+    }
+
     const offers = await prisma.offer.findMany({
       where: {
         listingId,
+        buyer: { deletedAt: null },
       },
       include: {
         buyer: {
@@ -31,6 +48,7 @@ export async function GET(
       orderBy: {
         amount: 'desc', // Highest offers first
       },
+      take: 100,
     });
 
     return NextResponse.json(offers);

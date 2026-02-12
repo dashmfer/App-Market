@@ -46,8 +46,11 @@ export async function POST(
       return agentErrorResponse("Webhook is not active", 400);
     }
 
+    // Decrypt URL if encrypted
+    const webhookUrl = looksEncrypted(webhook.url) ? decrypt(webhook.url) : webhook.url;
+
     // SECURITY [M5]: Block SSRF — reject private/internal IPs
-    if (isPrivateUrl(webhook.url)) {
+    if (isPrivateUrl(webhookUrl)) {
       return agentErrorResponse("Webhook URL targets a private or internal address", 400);
     }
 
@@ -68,7 +71,7 @@ export async function POST(
     const signature = signWebhookPayload(payloadString, secret);
 
     try {
-      const response = await fetch(webhook.url, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -146,29 +146,35 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check if code is taken
-    const existing = await prisma.user.findUnique({
-      where: { referralCode: cleanCode },
-    });
+    // SECURITY [C7-referral]: Use serializable transaction to prevent TOCTOU race
+    await prisma.$transaction(async (tx) => {
+      // Check if code is taken
+      const existing = await tx.user.findUnique({
+        where: { referralCode: cleanCode },
+      });
 
-    if (existing) {
+      if (existing) {
+        throw new Error("REFERRAL_CODE_TAKEN");
+      }
+
+      // Update code
+      await tx.user.update({
+        where: { id: token.id as string },
+        data: {
+          referralCode: cleanCode,
+          referralCodeCustomized: true,
+        },
+      });
+    }, { isolationLevel: 'Serializable' });
+
+    return NextResponse.json({ success: true, code: cleanCode });
+  } catch (error: any) {
+    if (error?.message === "REFERRAL_CODE_TAKEN") {
       return NextResponse.json(
         { error: "This code is already taken" },
         { status: 400 }
       );
     }
-
-    // Update code
-    await prisma.user.update({
-      where: { id: token.id as string },
-      data: {
-        referralCode: cleanCode,
-        referralCodeCustomized: true,
-      },
-    });
-
-    return NextResponse.json({ success: true, code: cleanCode });
-  } catch (error) {
     console.error("Error updating referral code:", error);
     return NextResponse.json(
       { error: "Internal server error" },

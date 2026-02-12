@@ -461,7 +461,7 @@ model PendingWithdrawal {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   listingId     String
-  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
   // Timestamps
   createdAt     DateTime @default(now())
@@ -498,7 +498,7 @@ model Upload {
 
   // Relations
   transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   // Timestamps
   createdAt     DateTime   @default(now())
@@ -604,6 +604,8 @@ model Transaction {
   @@index([createdAt])
   @@index([buyerId, status])
   @@index([sellerId, status])
+  @@index([paidAt])
+  @@index([transferStartedAt])
 }
 
 // ============================================
@@ -615,7 +617,7 @@ model TransactionPartner {
 
   // Transaction relation
   transactionId     String
-  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   // Partner identification (wallet required for payment, userId optional)
   walletAddress     String                // Required for deposits/refunds
@@ -903,7 +905,7 @@ model TokenLaunch {
 
   // Related Transaction (the acquisition that triggered this PATO)
   transactionId   String            @unique
-  transaction     Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction     Transaction       @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   // Related Listing (the acquired project)
   listingId       String

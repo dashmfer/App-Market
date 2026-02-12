@@ -273,30 +273,48 @@ async function verifyWalletSignature(
  * Supports both API key and wallet signature auth
  */
 export async function authenticateAgent(request: NextRequest): Promise<AgentAuthResult> {
+  let result: AgentAuthResult;
+
   // Check for API key first (Authorization: Bearer ak_live_xxx)
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
     if (token.startsWith(API_KEY_PREFIX)) {
-      return verifyApiKey(token);
+      result = await verifyApiKey(token);
+    } else {
+      result = { success: false, error: "Invalid API key format", statusCode: 401 };
+    }
+  } else {
+    // Check for wallet signature auth
+    const walletAddress = request.headers.get("x-wallet-address");
+    const signature = request.headers.get("x-wallet-signature");
+    const timestamp = request.headers.get("x-auth-timestamp");
+    const nonce = request.headers.get("x-auth-nonce");
+
+    if (walletAddress && signature && timestamp) {
+      result = await verifyWalletSignature(walletAddress, signature, timestamp, nonce || undefined);
+    } else {
+      result = {
+        success: false,
+        error: "Authentication required. Provide API key or wallet signature.",
+        statusCode: 401
+      };
     }
   }
 
-  // Check for wallet signature auth
-  const walletAddress = request.headers.get("x-wallet-address");
-  const signature = request.headers.get("x-wallet-signature");
-  const timestamp = request.headers.get("x-auth-timestamp");
-  const nonce = request.headers.get("x-auth-nonce");
-
-  if (walletAddress && signature && timestamp) {
-    return verifyWalletSignature(walletAddress, signature, timestamp, nonce || undefined);
+  // SECURITY [C1-agent]: Block soft-deleted users from agent API access.
+  // This mirrors the deletedAt check in getAuthToken() for the main auth path.
+  if (result.success && result.userId) {
+    const deletedUser = await prisma.user.findUnique({
+      where: { id: result.userId },
+      select: { deletedAt: true },
+    });
+    if (deletedUser?.deletedAt) {
+      return { success: false, error: "Account has been deleted", statusCode: 401 };
+    }
   }
 
-  return {
-    success: false,
-    error: "Authentication required. Provide API key or wallet signature.",
-    statusCode: 401
-  };
+  return result;
 }
 
 /**

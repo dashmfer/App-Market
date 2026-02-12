@@ -235,7 +235,7 @@ export async function POST(
     // Create the message
     const message = await prisma.message.create({
       data: {
-        content,
+        content: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
         senderId,
         conversationId,
       },
@@ -256,7 +256,7 @@ export async function POST(
       where: { id: conversationId },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: content.substring(0, 100),
+        lastMessagePreview: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').substring(0, 100),
       },
     });
 

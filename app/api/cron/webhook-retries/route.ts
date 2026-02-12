@@ -57,8 +57,11 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
+      // Decrypt URL if encrypted
+      const webhookUrl = looksEncrypted(delivery.webhook.url) ? decrypt(delivery.webhook.url) : delivery.webhook.url;
+
       // SECURITY [M5]: Block SSRF — reject private/internal IPs
-      if (isPrivateUrl(delivery.webhook.url)) {
+      if (isPrivateUrl(webhookUrl)) {
         await prisma.webhookDelivery.update({
           where: { id: delivery.id },
           data: { status: "FAILED", errorMessage: "Webhook URL targets a private or internal address" },
@@ -75,7 +78,7 @@ export async function GET(req: NextRequest) {
         const payloadString = JSON.stringify(delivery.payload);
         const signature = signWebhookPayload(payloadString, secret);
 
-        const response = await fetch(delivery.webhook.url, {
+        const response = await fetch(webhookUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

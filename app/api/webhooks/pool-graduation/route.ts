@@ -117,12 +117,14 @@ export async function POST(request: NextRequest) {
 
     // SECURITY [C13]: Validate webhook freshness — reject payloads older than 5 minutes
     // to prevent replay attacks with stale graduation events.
+    // Also require a unique event ID to prevent exact replays.
     const webhookTimestamp = request.headers.get("x-webhook-timestamp");
-    if (webhookTimestamp) {
-      const ts = parseInt(webhookTimestamp, 10);
-      if (!isNaN(ts) && Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
-        return NextResponse.json({ error: "Stale webhook" }, { status: 400 });
-      }
+    if (!webhookTimestamp) {
+      return NextResponse.json({ error: "Missing webhook timestamp" }, { status: 400 });
+    }
+    const ts = parseInt(webhookTimestamp, 10);
+    if (isNaN(ts) || Math.abs(Date.now() - ts) > 5 * 60 * 1000) {
+      return NextResponse.json({ error: "Stale or invalid webhook timestamp" }, { status: 400 });
     }
 
     // Handle different webhook payload formats

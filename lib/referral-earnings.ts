@@ -214,6 +214,14 @@ export async function processReferralEarnings(
       } // end self-referral guard
     }
 
+    // SECURITY [F-6]: Cap total referral payouts to never exceed platform fee
+    const totalPayout = buyerReferralEarning + sellerReferralEarning;
+    if (totalPayout > platformFee) {
+      const scale = platformFee / totalPayout;
+      buyerReferralEarning = Math.floor(buyerReferralEarning * scale * base) / base;
+      sellerReferralEarning = Math.floor(sellerReferralEarning * scale * base) / base;
+    }
+
     return { buyerReferralEarning, sellerReferralEarning };
   }, { isolationLevel: 'Serializable' });
 

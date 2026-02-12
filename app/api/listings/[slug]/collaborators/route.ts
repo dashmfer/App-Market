@@ -14,6 +14,12 @@ export async function GET(
   try {
     const { slug } = await params;
 
+    // SECURITY: Require auth to view collaborator details
+    const token = await getAuthToken(request);
+    if (!token?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const listing = await prisma.listing.findUnique({
       where: { slug },
       include: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,15 @@ export async function POST(request: NextRequest) {
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit GitHub API requests
+    const rateLimitResult = await (withRateLimitAsync('write', 'github-verify'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
@@ -27,6 +37,12 @@ export async function POST(request: NextRequest) {
         { error: "Owner and repo are required" },
         { status: 400 }
       );
+    }
+
+    // SECURITY [C5-github]: Validate owner/repo format to prevent path traversal
+    const validNameRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!validNameRegex.test(owner) || !validNameRegex.test(repo)) {
+      return NextResponse.json({ error: "Invalid repository owner or name format" }, { status: 400 });
     }
 
     // Use public GitHub API to check if repo exists and is accessible

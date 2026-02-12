@@ -14,6 +14,16 @@ function decryptSecret(secret: string): string {
   return secret;
 }
 
+/**
+ * Decrypt webhook URL (handles both encrypted and legacy plaintext URLs)
+ */
+function decryptField(value: string): string {
+  if (looksEncrypted(value)) {
+    return decrypt(value);
+  }
+  return value;
+}
+
 // ============================================
 // SSRF PROTECTION
 // ============================================
@@ -110,7 +120,7 @@ export async function dispatchWebhookEvent(
 
     // Dispatch to all webhooks in parallel (decrypt secrets before use)
     const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
-      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret), payload)
+      deliverWebhook(webhook.id, decryptField(webhook.url), decryptSecret(webhook.secret), payload)
     );
 
     // Fire and forget - don't await

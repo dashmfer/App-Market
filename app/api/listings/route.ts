@@ -34,11 +34,18 @@ export async function GET(request: NextRequest) {
       seller: { deletedAt: null },
     };
 
+    // SECURITY: Verify the requester is the actual seller before showing internal statuses
+    let isOwner = false;
+    if (sellerId) {
+      const token = await getAuthToken(request);
+      isOwner = token?.id === sellerId;
+    }
+
     // SECURITY: Whitelist allowed public statuses to prevent querying internal states
     const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "COMPLETED", "EXPIRED", "ENDED", "SOLD"];
     if (status) {
       const upper = status.toUpperCase();
-      if (sellerId) {
+      if (sellerId && isOwner) {
         // Sellers can see all their own listing statuses
         where.status = upper;
       } else if (PUBLIC_STATUSES.includes(upper)) {
