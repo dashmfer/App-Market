@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
       message: `Offer cleanup complete: ${results.markedExpired} expired, ${results.deleted} deleted, ${results.refundsInitiated} refunds initiated`,
       processed: {
         activeOffersChecked: expiredOffers.length,
-        staleOffersChecked: offersToDelete.length + cancelledToDelete.length,
+        staleOffersChecked: 0,
       },
       results,
     });
