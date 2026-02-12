@@ -218,7 +218,7 @@ export async function POST(
       // Notify buyer to complete the transfer
       await prisma.notification.create({
         data: {
-          type: "TRANSFER_READY",
+          type: "TRANSFER_STARTED",
           title: "All items confirmed — complete your transfer",
           message: `All assets for "${transaction.listing.title}" have been confirmed by both parties. Please complete the transfer to release funds.`,
           data: { transactionId },
@@ -229,7 +229,7 @@ export async function POST(
       // Notify seller that all items are confirmed
       await prisma.notification.create({
         data: {
-          type: "TRANSFER_READY",
+          type: "TRANSFER_STARTED",
           title: "All items confirmed",
           message: `All assets for "${transaction.listing.title}" have been confirmed. Waiting for buyer to complete the transfer.`,
           data: { transactionId },
@@ -243,7 +243,7 @@ export async function POST(
           if (partner.userId) {
             await prisma.notification.create({
               data: {
-                type: "TRANSFER_READY",
+                type: "TRANSFER_STARTED",
                 title: "All items confirmed",
                 message: `All assets for your group purchase of "${transaction.listing.title}" have been confirmed. Waiting for transfer completion.`,
                 data: { transactionId },
