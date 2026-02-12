@@ -38,8 +38,8 @@ export const PLATFORM_CONFIG = {
     // Master switch for auto-buyback feature
     enabled: process.env.ENABLE_AUTO_BUYBACK === "true",
     
-    // Percentage of revenue used for buyback (0-100)
-    buybackPercentage: parseInt(process.env.BUYBACK_PERCENTAGE || "20"),
+    // Percentage of revenue used for buyback (0-100), clamped to valid range
+    buybackPercentage: Math.max(0, Math.min(100, parseInt(process.env.BUYBACK_PERCENTAGE || "20") || 20)),
     
     // Minimum SOL accumulated before executing buyback
     minimumBuybackAmount: 1, // SOL

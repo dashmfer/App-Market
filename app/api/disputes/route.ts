@@ -159,41 +159,59 @@ export async function POST(request: NextRequest) {
 
     // Calculate dispute fee (2% of sale price)
     const disputeFee = calculateDisputeFee(Number(transaction.salePrice));
-
-    // Create dispute with standard 2% fee
-    const dispute = await prisma.dispute.create({
-      data: {
-        reason,
-        description,
-        initiatorEvidence: evidence ? { items: evidence } : undefined,
-        status: "OPEN",
-        disputeFee,
-        transactionId,
-        initiatorId: session.user.id,
-        respondentId: isBuyer ? transaction.sellerId : transaction.buyerId,
-      },
-    });
-
-    // Update transaction status
-    await prisma.transaction.update({
-      where: { id: transactionId },
-      data: { status: "DISPUTED" },
-    });
-
-    // Notify the other party
     const respondentId = isBuyer ? transaction.sellerId : transaction.buyerId;
-    await prisma.notification.create({
-      data: {
-        type: "DISPUTE_OPENED",
-        title: "Dispute opened",
-        message: `A dispute has been opened for "${transaction.listing.title}". Please respond within 3 days.`,
-        data: { disputeId: dispute.id, transactionId },
-        userId: respondentId,
-      },
-    });
+
+    // Atomically create dispute, update transaction status, and send notification.
+    // This prevents races where two parties both open disputes simultaneously,
+    // or where the transaction status changes between dispute creation and status update.
+    const dispute = await prisma.$transaction(async (tx) => {
+      // Re-check dispute doesn't exist (prevents race between two concurrent requests)
+      const existingDispute = await tx.dispute.findUnique({
+        where: { transactionId },
+      });
+      if (existingDispute) {
+        throw new Error("DISPUTE_EXISTS");
+      }
+
+      const newDispute = await tx.dispute.create({
+        data: {
+          reason,
+          description,
+          initiatorEvidence: evidence ? { items: evidence } : undefined,
+          status: "OPEN",
+          disputeFee,
+          transactionId,
+          initiatorId: session.user.id,
+          respondentId,
+        },
+      });
+
+      await tx.transaction.update({
+        where: { id: transactionId },
+        data: { status: "DISPUTED" },
+      });
+
+      await tx.notification.create({
+        data: {
+          type: "DISPUTE_OPENED",
+          title: "Dispute opened",
+          message: `A dispute has been opened for "${transaction.listing.title}". Please respond within 3 days.`,
+          data: { disputeId: newDispute.id, transactionId },
+          userId: respondentId,
+        },
+      });
+
+      return newDispute;
+    }, { isolationLevel: 'Serializable' });
 
     return NextResponse.json({ dispute }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.message === "DISPUTE_EXISTS") {
+      return NextResponse.json(
+        { error: "Dispute already exists for this transaction" },
+        { status: 400 }
+      );
+    }
     console.error("Error creating dispute:", error);
     return NextResponse.json(
       { error: "Failed to create dispute" },

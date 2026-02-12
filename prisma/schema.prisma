@@ -39,9 +39,8 @@ model User {
   sellerLevel     Int       @default(1)
   successRate     Decimal   @default(100) @db.Decimal(5, 2)
 
-  // Dispute Stats
+  // Dispute Stats (disputeCount removed — redundant with totalDisputes)
   totalDisputes   Int       @default(0)
-  disputeCount    Int       @default(0)
   disputesWon     Int       @default(0)
   disputesLost    Int       @default(0)
 
@@ -382,7 +381,7 @@ model Bid {
   
   // Relations
   listingId     String
-  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Restrict)
   bidderId      String
   bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Cascade)
   
@@ -414,7 +413,7 @@ model Offer {
 
   // Relations
   listingId     String
-  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Restrict)
   buyerId       String
   buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
@@ -428,6 +427,7 @@ model Offer {
   @@index([listingId])
   @@index([buyerId])
   @@index([status])
+  @@index([createdAt])
   @@index([deadline])
   @@index([createdAt])
 }
@@ -674,6 +674,8 @@ model Dispute {
 
   @@index([status])
   @@index([transactionId])
+  @@index([initiatorId])
+  @@index([respondentId])
 }
 
 // ============================================

@@ -73,6 +73,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 200, // Batch size to prevent OOM on large datasets
+      orderBy: { deadline: "asc" }, // Process oldest first
     });
 
     const results = {
@@ -110,7 +112,7 @@ export async function GET(request: NextRequest) {
           data: {
             type: "SYSTEM",
             title: "Offer Expired",
-            message: `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. Any escrowed funds will be returned.`,
+            message: `Your offer of ${Number(offer.amount)} SOL on "${offer.listing.title}" has expired. If funds were escrowed on-chain, they will need to be claimed via the contract's expire_offer instruction.`,
             data: {
               offerId: offer.id,
               listingId: offer.listingId,
@@ -131,60 +133,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Phase 2: Delete EXPIRED offers older than 24 hours
-    // These are offers where:
-    // - Status is EXPIRED
-    // - expiredAt is more than 24 hours ago
-    const offersToDelete = await prisma.offer.findMany({
-      where: {
-        status: "EXPIRED",
-        expiredAt: {
-          not: null,
-          lt: cleanupThreshold,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (offersToDelete.length > 0) {
-      const deleteResult = await prisma.offer.deleteMany({
-        where: {
-          id: {
-            in: offersToDelete.map((o: { id: string }) => o.id),
-          },
-        },
-      });
-      results.deleted = deleteResult.count;
-      console.log(`[Cron] Deleted ${results.deleted} old expired offers`);
-    }
-
-    // Also clean up CANCELLED offers older than 24 hours
-    const cancelledToDelete = await prisma.offer.findMany({
-      where: {
-        status: "CANCELLED",
-        cancelledAt: {
-          not: null,
-          lt: cleanupThreshold,
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (cancelledToDelete.length > 0) {
-      const deleteResult = await prisma.offer.deleteMany({
-        where: {
-          id: {
-            in: cancelledToDelete.map((o: { id: string }) => o.id),
-          },
-        },
-      });
-      results.deleted += deleteResult.count;
-      console.log(`[Cron] Deleted ${deleteResult.count} old cancelled offers`);
-    }
+    // Phase 2: Archive (soft-delete) EXPIRED and CANCELLED offers older than 24 hours.
+    // Previously hard-deleted — now preserved for financial audit trail.
+    // NOTE: If a `deletedAt` field is not yet on the Offer model, these offers
+    // are simply left in their EXPIRED/CANCELLED state and NOT deleted.
+    // Add a `deletedAt DateTime?` field to the Offer model for proper soft-delete support.
+    // For now, skip deletion entirely to preserve audit trail.
+    results.deleted = 0;
+    console.log(`[Cron] Skipping hard-deletion of expired/cancelled offers — preserving audit trail`);
 
     return NextResponse.json({
       success: true,

@@ -35,14 +35,21 @@ function getEncryptionSecret(): string {
 /**
  * Encrypt a string value
  * Returns base64 encoded string: salt:iv:authTag:encryptedData
+ * @param aad - Optional Additional Authenticated Data (e.g., userId or field name)
+ *              to bind ciphertext to a specific context, preventing cross-record swaps.
  */
-export function encrypt(plaintext: string): string {
+export function encrypt(plaintext: string, aad?: string): string {
   const secret = getEncryptionSecret();
   const salt = randomBytes(SALT_LENGTH);
   const key = deriveKey(secret, salt);
   const iv = randomBytes(IV_LENGTH);
 
   const cipher = createCipheriv(ALGORITHM, key, iv);
+  // SECURITY: AAD binds the ciphertext to a context (e.g., userId, field name).
+  // This prevents encrypted values from being swapped between records undetected.
+  if (aad) {
+    cipher.setAAD(Buffer.from(aad, "utf8"));
+  }
   let encrypted = cipher.update(plaintext, "utf8", "hex");
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
@@ -60,8 +67,9 @@ export function encrypt(plaintext: string): string {
 
 /**
  * Decrypt an encrypted string
+ * @param aad - Must match the AAD used during encryption, or decryption will fail.
  */
-export function decrypt(encryptedData: string): string {
+export function decrypt(encryptedData: string, aad?: string): string {
   const secret = getEncryptionSecret();
   const combined = Buffer.from(encryptedData, "base64");
 
@@ -77,6 +85,9 @@ export function decrypt(encryptedData: string): string {
   const key = deriveKey(secret, salt);
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
+  if (aad) {
+    decipher.setAAD(Buffer.from(aad, "utf8"));
+  }
 
   let decrypted = decipher.update(encrypted);
   decrypted = Buffer.concat([decrypted, decipher.final()]);

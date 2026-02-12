@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
+      orderBy: { partnerDepositDeadline: "asc" }, // Process oldest first
     }), "Find expired partner transactions");
 
     if (expiredTransactions.length === 0) {

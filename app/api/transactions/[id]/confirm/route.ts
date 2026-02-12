@@ -203,53 +203,37 @@ export async function POST(
       .every(item => item.sellerConfirmed && item.buyerConfirmed);
 
     if (allConfirmed) {
-      // All transfers complete - release escrow
+      // All items confirmed by both parties — move to AWAITING_CONFIRMATION.
+      // The buyer must explicitly call /api/transfers/[id]/complete to finalize,
+      // which handles: listing SOLD status, user stats, referral earnings,
+      // collaborator payments, and notifications. This single completion path
+      // prevents double-counting of stats and skipped referral/collaborator logic.
       await prisma.transaction.update({
         where: { id: transactionId },
         data: {
-          status: "COMPLETED",
-          transferCompletedAt: new Date(),
-          releasedAt: new Date(),
+          status: "AWAITING_CONFIRMATION",
         },
       });
 
-      // Update seller stats
-      await prisma.user.update({
-        where: { id: transaction.sellerId },
-        data: {
-          totalSales: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
-
-      // Update buyer stats
-      await prisma.user.update({
-        where: { id: transaction.buyerId },
-        data: {
-          totalPurchases: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
-
-      // Notify seller
+      // Notify buyer to complete the transfer
       await prisma.notification.create({
         data: {
-          type: "TRANSFER_COMPLETED",
-          title: "Transfer Complete!",
-          message: `All assets for "${transaction.listing.title}" have been transferred successfully.`,
-          data: { transactionId },
-          userId: transaction.sellerId,
-        },
-      });
-
-      // Notify buyer
-      await prisma.notification.create({
-        data: {
-          type: "TRANSFER_COMPLETED",
-          title: "Transfer Complete!",
-          message: `You now own "${transaction.listing.title}". Funds have been released to the seller.`,
+          type: "TRANSFER_READY",
+          title: "All items confirmed — complete your transfer",
+          message: `All assets for "${transaction.listing.title}" have been confirmed by both parties. Please complete the transfer to release funds.`,
           data: { transactionId },
           userId: transaction.buyerId,
+        },
+      });
+
+      // Notify seller that all items are confirmed
+      await prisma.notification.create({
+        data: {
+          type: "TRANSFER_READY",
+          title: "All items confirmed",
+          message: `All assets for "${transaction.listing.title}" have been confirmed. Waiting for buyer to complete the transfer.`,
+          data: { transactionId },
+          userId: transaction.sellerId,
         },
       });
 
@@ -259,9 +243,9 @@ export async function POST(
           if (partner.userId) {
             await prisma.notification.create({
               data: {
-                type: "TRANSFER_COMPLETED",
-                title: "Transfer Complete!",
-                message: `Your group purchase of "${transaction.listing.title}" is complete. Assets have been transferred.`,
+                type: "TRANSFER_READY",
+                title: "All items confirmed",
+                message: `All assets for your group purchase of "${transaction.listing.title}" have been confirmed. Waiting for transfer completion.`,
                 data: { transactionId },
                 userId: partner.userId,
               },

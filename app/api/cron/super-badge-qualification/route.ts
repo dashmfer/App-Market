@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
           rating: true,
           totalVolume: true,
         },
+        take: 200, // Batch size to prevent OOM on large datasets
       }),
       "Fetch potential super sellers"
     );

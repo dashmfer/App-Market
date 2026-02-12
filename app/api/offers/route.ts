@@ -45,31 +45,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = createOfferSchema.parse(body);
 
-    // Check if listing exists and is active
-    const listing = await prisma.listing.findUnique({
-      where: { id: validatedData.listingId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        sellerId: true,
-      },
-    });
-
-    if (!listing) {
-      return NextResponse.json(
-        { error: 'Listing not found' },
-        { status: 404 }
-      );
-    }
-
-    if (listing.status !== 'ACTIVE') {
-      return NextResponse.json(
-        { error: 'Listing is not active' },
-        { status: 400 }
-      );
-    }
-
     // Deadline must be in the future
     if (new Date(validatedData.deadline) <= new Date()) {
       return NextResponse.json(
@@ -78,60 +53,90 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Can't make offer on own listing
-    if (listing.sellerId === session.user.id) {
+    // CRITICAL TODO: Call Solana contract place_offer instruction to create on-chain escrow.
+    // WITHOUT THIS, OFFERS ARE DATABASE-ONLY AND NOT BACKED BY LOCKED FUNDS.
+    // Sellers accepting these offers are accepting unbacked promises.
+    // Requires: Complete IDL, offer escrow PDA creation, buyer signature.
+    // This MUST be implemented before mainnet launch.
+
+    // Use a serializable transaction to prevent race condition where listing
+    // becomes sold between the check and the offer creation.
+    const result = await prisma.$transaction(async (tx) => {
+      const listing = await tx.listing.findUnique({
+        where: { id: validatedData.listingId },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          sellerId: true,
+        },
+      });
+
+      if (!listing) {
+        return { error: 'Listing not found', status: 404 } as const;
+      }
+
+      if (listing.status !== 'ACTIVE') {
+        return { error: 'Listing is not active', status: 400 } as const;
+      }
+
+      if (listing.sellerId === session.user.id) {
+        return { error: 'Cannot make offer on your own listing', status: 400 } as const;
+      }
+
+      const offer = await tx.offer.create({
+        data: {
+          amount: validatedData.amount,
+          deadline: new Date(validatedData.deadline),
+          listingId: validatedData.listingId,
+          buyerId: session.user.id,
+          status: 'ACTIVE',
+        },
+        include: {
+          buyer: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              image: true,
+            },
+          },
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      // Create notification for seller within the same transaction
+      await tx.notification.create({
+        data: {
+          userId: listing.sellerId,
+          type: 'SYSTEM',
+          title: 'New Offer Received',
+          message: `You received an offer of ${validatedData.amount} SOL on "${listing.title}"`,
+          data: {
+            offerId: offer.id,
+            listingId: listing.id,
+            amount: validatedData.amount,
+          },
+        },
+      });
+
+      return { offer, listing } as const;
+    }, { isolationLevel: 'Serializable' });
+
+    if ('error' in result) {
       return NextResponse.json(
-        { error: 'Cannot make offer on your own listing' },
-        { status: 400 }
+        { error: result.error },
+        { status: result.status }
       );
     }
 
-    // TODO: Call Solana contract place_offer instruction to create on-chain escrow.
-    // Without this, offers are database-only and not backed by locked funds.
-    // Requires: Complete IDL, offer escrow PDA creation, buyer signature.
-
-    // Create offer in database
-    const offer = await prisma.offer.create({
-      data: {
-        amount: validatedData.amount,
-        deadline: new Date(validatedData.deadline),
-        listingId: validatedData.listingId,
-        buyerId: session.user.id,
-        status: 'ACTIVE',
-      },
-      include: {
-        buyer: {
-          select: {
-            id: true,
-            name: true,
-            username: true,
-            image: true,
-          },
-        },
-        listing: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-          },
-        },
-      },
-    });
-
-    // Create notification for seller
-    await prisma.notification.create({
-      data: {
-        userId: listing.sellerId,
-        type: 'SYSTEM',
-        title: 'New Offer Received',
-        message: `You received an offer of ${validatedData.amount} SOL on "${listing.title}"`,
-        data: {
-          offerId: offer.id,
-          listingId: listing.id,
-          amount: validatedData.amount,
-        },
-      },
-    });
+    const { offer } = result;
 
     return NextResponse.json(offer, { status: 201 });
   } catch (error) {

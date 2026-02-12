@@ -421,8 +421,10 @@ export async function POST(request: NextRequest) {
       ? `${baseSlug}-${Date.now().toString(36)}`
       : baseSlug;
 
-    // Calculate end time
-    const durationDays = parseInt(duration) || 7;
+    // Calculate end time — clamp to config min/max to prevent out-of-range durations
+    const { PLATFORM_CONFIG: _cfg } = await import("@/lib/config");
+    const rawDuration = parseInt(duration) || _cfg.auction.defaultDuration;
+    const durationDays = Math.max(_cfg.auction.minDuration, Math.min(_cfg.auction.maxDuration, rawDuration));
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
     // Handle reservation if a buyer wallet is provided

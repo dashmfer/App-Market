@@ -26,24 +26,24 @@ async function getNonceRedis() {
   return null;
 }
 
-// Check nonce via Redis if available, else in-memory
-async function hasNonceBeenUsed(nonceKey: string): Promise<boolean> {
+// Atomically check-and-set nonce via Redis if available, else in-memory.
+// Returns true if nonce was ALREADY used (reject), false if fresh (allow).
+async function checkAndSetNonce(nonceKey: string): Promise<boolean> {
   const redis = await getNonceRedis();
   if (redis) {
-    const exists = await redis.get(`nonce:${nonceKey}`);
-    return !!exists;
+    // SECURITY: Use SET ... NX (set-if-not-exists) for atomic check-and-set.
+    // This prevents the race condition where two concurrent requests both pass
+    // a separate "check" before either "sets" the nonce.
+    const wasSet = await redis.set(`nonce:${nonceKey}`, "1", { ex: 600, nx: true });
+    // wasSet is "OK" if set succeeded (nonce was fresh), null if already existed
+    return wasSet === null;
   }
-  return usedSignatureNonces.has(nonceKey);
-}
-
-async function markNonceUsed(nonceKey: string): Promise<void> {
-  const redis = await getNonceRedis();
-  if (redis) {
-    // Set with 10 minute TTL (auto-expiry, no cleanup needed)
-    await redis.set(`nonce:${nonceKey}`, "1", { ex: 600 });
-  } else {
-    usedSignatureNonces.set(nonceKey, Date.now());
+  // In-memory fallback (dev only — not safe for multi-instance production)
+  if (usedSignatureNonces.has(nonceKey)) {
+    return true; // Already used
   }
+  usedSignatureNonces.set(nonceKey, Date.now());
+  return false; // Fresh
 }
 
 // Clean up expired in-memory nonces every 10 minutes (dev fallback only)
@@ -164,7 +164,10 @@ export function validateMessageContent(content: string): { valid: boolean; error
   if (!content || content.trim().length === 0) {
     return { valid: false, error: 'Message cannot be empty' };
   }
-  if (content.length > MAX_MESSAGE_LENGTH) {
+  // Use spread operator to count actual characters (grapheme-aware for emojis/CJK)
+  // instead of .length which counts UTF-16 code units
+  const charCount = [...content].length;
+  if (charCount > MAX_MESSAGE_LENGTH) {
     return { valid: false, error: `Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters` };
   }
   return { valid: true };
@@ -222,6 +225,9 @@ export function validatePasswordComplexity(password: string): { valid: boolean; 
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
   }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
 
   return { valid: errors.length === 0, errors };
 }
@@ -263,14 +269,13 @@ export async function validateWalletSignatureMessage(
     return { valid: false, error: 'Signature has expired' };
   }
 
-  // SECURITY: Check for replay attacks - each signature can only be used once
-  // Uses Redis in production for multi-instance consistency
+  // SECURITY: Atomically check-and-set nonce to prevent replay attacks.
+  // Uses Redis SET NX in production for atomic multi-instance consistency.
   const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
-  const alreadyUsed = await hasNonceBeenUsed(nonceKey);
+  const alreadyUsed = await checkAndSetNonce(nonceKey);
   if (alreadyUsed) {
     return { valid: false, error: 'Signature has already been used' };
   }
-  await markNonceUsed(nonceKey);
 
   return { valid: true };
 }

@@ -141,11 +141,12 @@ export async function POST(
       },
     });
 
-    // Update buyer stats
+    // Update buyer stats (including volume for consistency)
     await prisma.user.update({
       where: { id: transaction.buyerId },
       data: {
         totalPurchases: { increment: 1 },
+        totalVolume: { increment: Number(transaction.salePrice) },
       },
     });
 
@@ -261,11 +262,12 @@ export async function POST(
           },
         });
 
-        // Update collaborator's stats (increment their volume)
+        // Update collaborator's stats (volume and sales count)
         await prisma.user.update({
           where: { id: payment.userId },
           data: {
             totalVolume: { increment: payment.amount },
+            totalSales: { increment: 1 },
           },
         });
       }

@@ -58,19 +58,19 @@ export function verifyCsrfToken(token: string): boolean {
     .update(data)
     .digest("hex");
 
-  // Timing-safe comparison
-  if (providedSignature.length !== expectedSignature.length) return false;
-
+  // SECURITY: Pad both buffers to equal length before timing-safe comparison.
+  // A length pre-check would leak signature length info via timing side-channel.
+  const maxLen = Math.max(providedSignature.length, expectedSignature.length, 1);
   const isValid = crypto.timingSafeEqual(
-    Buffer.from(providedSignature),
-    Buffer.from(expectedSignature)
+    Buffer.from(providedSignature.padEnd(maxLen, "\0")),
+    Buffer.from(expectedSignature.padEnd(maxLen, "\0"))
   );
 
   if (!isValid) return false;
 
-  // Check token age (valid for 24 hours)
+  // Check token age (valid for 8 hours — reduced from 24 to limit replay window)
   const tokenTime = parseInt(timestamp, 36);
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+  const maxAge = 8 * 60 * 60 * 1000; // 8 hours
   if (Date.now() - tokenTime > maxAge) return false;
 
   return true;
@@ -117,7 +117,7 @@ export function setCsrfCookie(response: NextResponse, token: string): void {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 8 * 60 * 60, // 8 hours (matches token validation maxAge)
   });
 }
 

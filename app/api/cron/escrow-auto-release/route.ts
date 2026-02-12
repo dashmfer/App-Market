@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
+      orderBy: { transferStartedAt: "asc" }, // Process oldest first
     }), "Find eligible transactions");
 
     if (eligibleTransactions.length === 0) {
@@ -116,13 +118,15 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of eligibleTransactions) {
       try {
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // CRITICAL TODO: Execute on-chain escrow release before updating database status.
+        // Currently funds remain locked in on-chain escrow even though DB says COMPLETED.
+        // This MUST be implemented before mainnet launch. Requires:
+        // 1. Backend authority keypair to sign release transactions
+        // 2. Complete IDL for confirm_receipt instruction
+        // 3. Error handling for failed on-chain releases
+        // 4. Only mark COMPLETED after on-chain release succeeds
 
-        // Update transaction to COMPLETED
+        // Update transaction to COMPLETED (DB only — on-chain release pending implementation)
         await withRetry(() => prisma.transaction.update({
           where: { id: transaction.id },
           data: {
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
           data: {
             type: "PAYMENT_RECEIVED",
             title: "Funds Auto-Released",
-            message: `Funds for "${transaction.listing.title}" have been automatically released after the confirmation period expired.`,
+            message: `The transfer for "${transaction.listing.title}" has been automatically confirmed after the confirmation period expired. On-chain fund release is pending.`,
             data: {
               transactionId: transaction.id,
               autoRelease: true,

@@ -127,39 +127,45 @@ export async function PATCH(request: Request) {
       );
     }
 
-    // Check if user already customized
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { referralCodeCustomized: true },
-    });
+    // Atomically check uniqueness and update within a transaction.
+    // Relies on the unique constraint on referralCode — if two users try to
+    // claim the same code concurrently, one will get a Prisma unique constraint error.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: session.user.id },
+          select: { referralCodeCustomized: true },
+        });
 
-    if (user?.referralCodeCustomized) {
-      return NextResponse.json(
-        { error: "You've already customized your referral code" },
-        { status: 400 }
-      );
+        if (user?.referralCodeCustomized) {
+          throw new Error("ALREADY_CUSTOMIZED");
+        }
+
+        // The unique constraint on referralCode will reject duplicates atomically
+        await tx.user.update({
+          where: { id: session.user.id },
+          data: {
+            referralCode: cleanCode,
+            referralCodeCustomized: true,
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
+    } catch (txError: any) {
+      if (txError?.message === "ALREADY_CUSTOMIZED") {
+        return NextResponse.json(
+          { error: "You've already customized your referral code" },
+          { status: 400 }
+        );
+      }
+      // Prisma unique constraint violation
+      if (txError?.code === "P2002") {
+        return NextResponse.json(
+          { error: "This code is already taken" },
+          { status: 400 }
+        );
+      }
+      throw txError;
     }
-
-    // Check if code is taken
-    const existing = await prisma.user.findUnique({
-      where: { referralCode: cleanCode },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "This code is already taken" },
-        { status: 400 }
-      );
-    }
-
-    // Update code
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        referralCode: cleanCode,
-        referralCodeCustomized: true,
-      },
-    });
 
     return NextResponse.json({ success: true, code: cleanCode });
   } catch (error) {

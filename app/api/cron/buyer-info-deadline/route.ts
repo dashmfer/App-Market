@@ -92,6 +92,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
+      orderBy: { buyerInfoDeadline: "asc" }, // Process oldest first
     });
 
     if (expiredTransactions.length === 0) {

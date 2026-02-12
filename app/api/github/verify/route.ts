@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Rate limit to prevent DDoS of external GitHub API via this endpoint
+    const rateLimitResult = await (withRateLimitAsync('write', 'github-verify'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(request);
 

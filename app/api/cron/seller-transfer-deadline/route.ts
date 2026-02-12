@@ -95,6 +95,8 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        take: 100, // Batch size to prevent OOM on large datasets
+        orderBy: { paidAt: "asc" }, // Process oldest first
       }),
       "Find expired transactions"
     );
@@ -115,13 +117,15 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
+        // CRITICAL TODO: Execute on-chain refund transaction before updating database status.
+        // Currently funds remain locked in on-chain escrow even though DB says REFUNDED.
+        // This MUST be implemented before mainnet launch. Requires:
         // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // 2. Complete IDL for emergency_refund instruction
+        // 3. Only mark REFUNDED after on-chain refund succeeds
+        // 4. If on-chain refund fails, log error and skip (don't mark as refunded)
 
-        // Update transaction to REFUNDED status
+        // Update transaction to REFUNDED status (DB only — on-chain refund pending implementation)
         await withRetry(
           () => prisma.transaction.update({
             where: { id: transaction.id },
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
             data: {
               type: "REFUND_PROCESSED",
               title: "Refund Issued - Seller Did Not Transfer",
-              message: `The seller did not start the transfer for "${transaction.listing.title}" within ${SELLER_TRANSFER_DEADLINE_DAYS} days. Your payment has been refunded.`,
+              message: `The seller did not start the transfer for "${transaction.listing.title}" within ${SELLER_TRANSFER_DEADLINE_DAYS} days. A refund has been initiated — on-chain processing may take a moment.`,
               data: {
                 transactionId: transaction.id,
                 listingSlug: transaction.listing.slug,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { hasPoolGraduated, getPoolState } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 // GET /api/cron/check-graduations
 //
@@ -9,9 +10,8 @@ import { PublicKey } from "@solana/web3.js";
 // Primary detection is via /api/webhooks/pool-graduation (instant, Helius).
 // This cron is a fallback — runs hourly to ensure nothing slips through.
 export async function GET(request: NextRequest) {
-  // Verify cron secret to prevent unauthorized access
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // SECURITY: Use timing-safe comparison to prevent timing attacks on cron secret
+  if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
           select: { buyerId: true },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
     });
 
     if (activeLaunches.length === 0) {
