@@ -429,7 +429,6 @@ model Offer {
   @@index([status])
   @@index([createdAt])
   @@index([deadline])
-  @@index([createdAt])
 }
 
 model PendingWithdrawal {
