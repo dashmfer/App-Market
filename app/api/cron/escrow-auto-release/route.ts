@@ -144,12 +144,18 @@ export async function GET(request: NextRequest) {
           results.onChainSkipped++;
         }
 
-        // Validate salePrice before stats increment
+        // Validate salePrice — don't complete transactions with bad financial data
         const salePrice = Number(transaction.salePrice);
         if (isNaN(salePrice) || salePrice <= 0) {
+          await prisma.transaction.updateMany({
+            where: { id: transaction.id, status: "COMPLETING" as any },
+            data: { status: "AWAITING_CONFIRMATION" },
+          });
+          results.failed++;
           results.errors.push(
-            `Invalid salePrice for transaction ${transaction.id}: ${transaction.salePrice}`
+            `Invalid salePrice for transaction ${transaction.id}: ${transaction.salePrice} — reverted`
           );
+          continue;
         }
 
         // Wrap all DB mutations in a transaction for consistency

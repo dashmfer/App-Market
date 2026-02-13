@@ -86,7 +86,11 @@ export async function GET(request: NextRequest) {
   try {
     const authority = getBackendAuthority();
     if (!authority) {
-      console.error("[Cron:expire-withdrawals] CRITICAL: BACKEND_AUTHORITY_SECRET_KEY not set — on-chain withdrawals will NOT be expired. DB-only update is NOT sufficient for mainnet.");
+      console.error("[Cron:expire-withdrawals] CRITICAL: BACKEND_AUTHORITY_SECRET_KEY not set — cannot expire on-chain withdrawals.");
+      return NextResponse.json({
+        error: "Backend authority not configured — skipping to prevent DB/on-chain inconsistency",
+        processed: 0,
+      }, { status: 503 });
     }
 
     // Find unclaimed withdrawals older than 1 hour
@@ -152,7 +156,10 @@ export async function GET(request: NextRequest) {
             tx.sign(authority);
 
             const txSig = await connection.sendRawTransaction(tx.serialize());
-            await connection.confirmTransaction(txSig, "confirmed");
+            const confirmation = await connection.confirmTransaction(txSig, "confirmed");
+            if (confirmation.value.err) {
+              throw new Error(`On-chain tx failed: ${JSON.stringify(confirmation.value.err)}`);
+            }
 
             console.log(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;

@@ -364,6 +364,8 @@ model Listing {
   @@index([featured])
   @@index([reservedBuyerWallet])
   @@index([reservedBuyerId])
+  @@index([status, endTime])                   // Composite for listing expiration checks
+  @@index([sellerId, status])                  // For seller listing queries
 }
 
 model Bid {
@@ -445,7 +447,7 @@ model PendingWithdrawal {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId     String
-  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
   // Timestamps
   createdAt     DateTime @default(now())
@@ -586,6 +588,9 @@ model Transaction {
   @@index([createdAt])
   @@index([status, paidAt])                    // Composite for seller-transfer-deadline cron
   @@index([status, transferStartedAt])         // Composite for escrow-auto-release cron
+  @@index([buyerInfoStatus, buyerInfoDeadline]) // Composite for buyer-info-deadline cron
+  @@index([buyerId, status])                   // For buyer transaction queries
+  @@index([sellerId, status])                  // For seller transaction queries
 }
 
 // ============================================
@@ -1272,7 +1277,7 @@ model TransactionAgreement {
 
   // Transaction relation
   transactionId   String
-  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   // Agreement type
   type            AgreementType
@@ -1483,7 +1488,7 @@ model ApiKey {
   keyPrefix     String    // First 8 chars for identification: "ak_live_7xKX..."
 
   // Permissions
-  permissions   ApiKeyPermission[] @default([READ, WRITE])
+  permissions   ApiKeyPermission[] @default([READ])  // Least privilege: WRITE requires explicit opt-in
 
   // Rate limiting
   rateLimit     Int       @default(100) // Requests per minute

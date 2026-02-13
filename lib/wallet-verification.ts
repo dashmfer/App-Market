@@ -29,6 +29,11 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
+    // Validate message format — must contain expected domain/prefix to prevent arbitrary message signing
+    if (!message.includes("App Market") && !message.includes("app-market")) {
+      return { valid: false, error: "Invalid message format — must be an App Market verification message" };
+    }
+
     // Verify the signature
     const publicKeyObj = new PublicKey(publicKey);
     const signatureUint8 = bs58.decode(signature);

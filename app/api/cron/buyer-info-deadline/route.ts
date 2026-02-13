@@ -113,11 +113,10 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
-        // Update transaction to mark deadline passed and activate fallback
-        await prisma.transaction.update({
-          where: { id: transaction.id },
+        // Idempotency guard: only claim if still PENDING
+        const claimed = await prisma.transaction.updateMany({
+          where: { id: transaction.id, buyerInfoStatus: "PENDING" },
           data: {
-            buyerInfoStatus: "DEADLINE_PASSED",
             fallbackTransferUsed: true,
             transferMethods: {
               ...(transaction.transferMethods as object || {}),
@@ -126,6 +125,8 @@ export async function GET(request: NextRequest) {
             },
           },
         });
+
+        if (claimed.count === 0) continue; // Already processed by concurrent run
 
         // Notify buyer that deadline passed
         await prisma.notification.create({

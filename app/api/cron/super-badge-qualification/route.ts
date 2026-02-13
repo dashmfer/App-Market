@@ -185,8 +185,10 @@ export async function GET(request: NextRequest) {
         );
 
         // Revoke if rating dropped below threshold or lost disputes
+        // Guard against null rating: Number(null) === 0 which would incorrectly revoke
+        const userRating = user.rating !== null ? Number(user.rating) : null;
         const shouldRevoke = (recentDisputesLost as number) > 0 ||
-          (user.ratingCount >= SUPER_SELLER_MIN_REVIEWS && Number(user.rating) < SUPER_SELLER_MIN_RATING);
+          (user.ratingCount >= SUPER_SELLER_MIN_REVIEWS && userRating !== null && userRating < SUPER_SELLER_MIN_RATING);
 
         if (shouldRevoke) {
           await withRetry(

@@ -90,96 +90,102 @@ export async function POST(
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
-      include: {
-        partners: true,
-        listing: { select: { title: true, slug: true } },
-      },
-    });
-
-    if (!transaction) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
-
-    // Only lead buyer can add partners
-    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
-    const isLeadBuyer = leadPartner
-      ? leadPartner.userId === session.user.id
-      : transaction.buyerId === session.user.id;
-
-    if (!isLeadBuyer) {
-      return NextResponse.json({ error: "Only the lead buyer can add partners" }, { status: 403 });
-    }
-
-    // Can only add partners before deposits are complete
-    if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
-      return NextResponse.json({ error: "Cannot add partners after deposit phase" }, { status: 400 });
-    }
-
-    // Check if wallet already added
-    const existingPartner = transaction.partners.find(
-      (p: { walletAddress: string }) => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
-    );
-    if (existingPartner) {
-      return NextResponse.json({ error: "This wallet is already a partner" }, { status: 400 });
-    }
-
-    // Calculate total percentage including new partner
-    const currentTotal = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
-    if (currentTotal + percentage > 100) {
-      return NextResponse.json({
-        error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`
-      }, { status: 400 });
-    }
-
-    // Calculate deposit amount based on percentage
-    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
-
-    // Create the partner
-    const partner = await prisma.transactionPartner.create({
-      data: {
-        transactionId: params.id,
-        walletAddress,
-        userId: userId || null,
-        percentage,
-        depositAmount,
-        isLead: false,
-        depositStatus: "PENDING",
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            name: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    // Update transaction to indicate it has partners
-    if (!transaction.hasPartners) {
-      await prisma.transaction.update({
+    // Wrap in serializable transaction to prevent percentage race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
         where: { id: params.id },
-        data: {
-          hasPartners: true,
-          status: "AWAITING_PARTNER_DEPOSITS",
-          partnerDepositDeadline: new Date(Date.now() + 30 * 60 * 1000), // 30 minutes
+        include: {
+          partners: true,
+          listing: { select: { title: true, slug: true } },
         },
       });
+
+      if (!transaction) {
+        return { error: "Transaction not found", status: 404 } as const;
+      }
+
+      const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
+      const isLeadBuyer = leadPartner
+        ? leadPartner.userId === session.user.id
+        : transaction.buyerId === session.user.id;
+
+      if (!isLeadBuyer) {
+        return { error: "Only the lead buyer can add partners", status: 403 } as const;
+      }
+
+      if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
+        return { error: "Cannot add partners after deposit phase", status: 400 } as const;
+      }
+
+      const existingPartner = transaction.partners.find(
+        (p: { walletAddress: string }) => p.walletAddress.toLowerCase() === walletAddress.toLowerCase()
+      );
+      if (existingPartner) {
+        return { error: "This wallet is already a partner", status: 400 } as const;
+      }
+
+      // Atomic percentage check within transaction — prevents two concurrent adds exceeding 100%
+      const currentTotal = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+      if (currentTotal + percentage > 100) {
+        return {
+          error: `Total percentage would exceed 100%. Current: ${currentTotal}%, Trying to add: ${percentage}%`,
+          status: 400,
+        } as const;
+      }
+
+      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+
+      const partner = await tx.transactionPartner.create({
+        data: {
+          transactionId: params.id,
+          walletAddress,
+          userId: userId || null,
+          percentage,
+          depositAmount,
+          isLead: false,
+          depositStatus: "PENDING",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      if (!transaction.hasPartners) {
+        await tx.transaction.update({
+          where: { id: params.id },
+          data: {
+            hasPartners: true,
+            status: "AWAITING_PARTNER_DEPOSITS",
+            partnerDepositDeadline: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        });
+      }
+
+      return { partner, listing: transaction.listing, depositAmount } as const;
+    }, { isolationLevel: "Serializable" });
+
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    // Send notification to the invited partner
+    const { partner, listing, depositAmount } = result;
+
+    // Send notification outside transaction (non-critical)
     if (userId) {
       await createNotification({
         userId,
         type: "PURCHASE_PARTNER_INVITE",
-        listingTitle: transaction.listing.title,
+        listingTitle: listing.title,
         data: {
-          listingSlug: transaction.listing.slug,
+          listingSlug: listing.slug,
           percentage,
           depositAmount,
           transactionId: params.id,

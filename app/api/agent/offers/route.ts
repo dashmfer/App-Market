@@ -80,6 +80,10 @@ export async function POST(request: NextRequest) {
       return agentErrorResponse("amount must be a positive number", 400);
     }
 
+    if (amount > 1_000_000) {
+      return agentErrorResponse("amount cannot exceed 1,000,000", 400);
+    }
+
     // Check if listing exists and is active
     const listing = await prisma.listing.findUnique({
       where: { id: listingId },

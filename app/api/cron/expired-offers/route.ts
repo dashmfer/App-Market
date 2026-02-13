@@ -76,8 +76,13 @@ export async function GET(request: NextRequest) {
           offer.buyer.walletAddress &&
           offer.onChainId
         ) {
-          const offerSeed = parseInt(offer.onChainId) || 0;
-          onChainTxSig = await executeOnChainExpireOffer(
+          const offerSeed = parseInt(offer.onChainId);
+          if (isNaN(offerSeed)) {
+            console.error(`[Cron:expired-offers] Invalid onChainId "${offer.onChainId}" for offer ${offer.id}`);
+            results.refundsSkipped++;
+            // Skip on-chain but still expire in DB below
+          }
+          onChainTxSig = isNaN(offerSeed) ? null : await executeOnChainExpireOffer(
             connection,
             authority,
             offer.listing.onChainId,

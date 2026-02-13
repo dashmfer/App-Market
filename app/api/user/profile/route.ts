@@ -56,11 +56,12 @@ export async function PUT(req: NextRequest) {
     const updateData: any = {};
 
     if (data.displayName !== undefined) {
-      updateData.displayName = data.displayName.trim().slice(0, 50);
+      // Strip HTML tags to prevent stored XSS
+      updateData.displayName = data.displayName.replace(/<[^>]*>/g, "").trim().slice(0, 50);
     }
 
     if (data.bio !== undefined) {
-      updateData.bio = data.bio.trim().slice(0, 500);
+      updateData.bio = data.bio.replace(/<[^>]*>/g, "").trim().slice(0, 500);
     }
 
     if (data.websiteUrl !== undefined) {
@@ -72,7 +73,7 @@ export async function PUT(req: NextRequest) {
     }
 
     if (data.discordHandle !== undefined) {
-      updateData.discordHandle = data.discordHandle.trim().slice(0, 50);
+      updateData.discordHandle = data.discordHandle.replace(/<[^>]*>/g, "").trim().slice(0, 50);
     }
 
     const updatedUser = await prisma.user.update({

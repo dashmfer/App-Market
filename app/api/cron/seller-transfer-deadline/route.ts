@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
       async () =>
         prisma.transaction.findMany({
           where: {
-            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED"] },
+            // Include REFUNDING to retry stuck transactions from failed previous runs
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
             transferStartedAt: null,
             paidAt: { not: null, lt: deadlineThreshold },
             dispute: null,
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
           orderBy: { paidAt: "asc" },
         }),
       "Find expired transactions"
-    );
+    ) as any[];
 
     if (expiredTransactions.length === 0) {
       return NextResponse.json({
@@ -82,11 +83,11 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
-        // IDEMPOTENCY: Atomically claim
+        // IDEMPOTENCY: Atomically claim (includes REFUNDING for retry of stuck transactions)
         const claimed = await prisma.transaction.updateMany({
           where: {
             id: transaction.id,
-            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED"] },
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
           },
           data: { status: "REFUNDING" as any },
         });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { isValidSolanaAddress } from "@/lib/validation";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/listings/[slug]/reserve
@@ -13,6 +14,9 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
 

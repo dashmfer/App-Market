@@ -51,10 +51,20 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        // Decrypt secret (handles both encrypted and legacy plaintext secrets)
-        const secret = looksEncrypted(delivery.webhook.secret)
-          ? decrypt(delivery.webhook.secret)
-          : delivery.webhook.secret;
+        // Decrypt secret — isolate errors so one bad secret doesn't block all retries
+        let secret: string;
+        try {
+          secret = looksEncrypted(delivery.webhook.secret)
+            ? decrypt(delivery.webhook.secret)
+            : delivery.webhook.secret;
+        } catch (decryptError) {
+          console.error(`[Webhook Retry] Decrypt failed for delivery ${delivery.id}`);
+          await prisma.webhookDelivery.update({
+            where: { id: delivery.id },
+            data: { status: "FAILED", errorMessage: "Failed to decrypt webhook secret" },
+          });
+          continue;
+        }
 
         const payloadString = JSON.stringify(delivery.payload);
         const signature = signWebhookPayload(payloadString, secret);
@@ -91,7 +101,7 @@ export async function GET(req: NextRequest) {
               responseStatus: response.status,
               attempts: newAttempts,
               nextRetryAt: newAttempts < maxAttempts
-                ? new Date(Date.now() + Math.pow(2, newAttempts) * 1000)
+                ? new Date(Date.now() + Math.min(Math.pow(2, newAttempts), 3600) * 1000) // Cap at 1 hour
                 : null,
               errorMessage: `HTTP ${response.status}`,
             },
@@ -100,11 +110,15 @@ export async function GET(req: NextRequest) {
         retried++;
       } catch (error: any) {
         const newAttempts = delivery.attempts + 1;
+        const maxAttempts = delivery.maxAttempts || 3;
         await prisma.webhookDelivery.update({
           where: { id: delivery.id },
           data: {
-            status: newAttempts >= 3 ? "FAILED" : "RETRYING",
+            status: newAttempts >= maxAttempts ? "FAILED" : "RETRYING",
             attempts: newAttempts,
+            nextRetryAt: newAttempts < maxAttempts
+              ? new Date(Date.now() + Math.min(Math.pow(2, newAttempts), 3600) * 1000)
+              : null,
             errorMessage: error.message || "Delivery failed",
           },
         });

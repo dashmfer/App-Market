@@ -151,7 +151,11 @@ export async function executeOnChainRelease(
     tx.sign(authority);
 
     const txSig = await connection.sendRawTransaction(tx.serialize());
-    await connection.confirmTransaction(txSig, "confirmed");
+    const confirmation = await connection.confirmTransaction(txSig, "confirmed");
+    if (confirmation.value.err) {
+      console.error("[Cron] On-chain release tx failed on-chain:", confirmation.value.err);
+      return null;
+    }
     return txSig;
   } catch (error) {
     console.error("[Cron] On-chain release failed:", error);
@@ -201,7 +205,11 @@ export async function executeOnChainRefund(
     tx.sign(authority);
 
     const txSig = await connection.sendRawTransaction(tx.serialize());
-    await connection.confirmTransaction(txSig, "confirmed");
+    const confirmation = await connection.confirmTransaction(txSig, "confirmed");
+    if (confirmation.value.err) {
+      console.error("[Cron] On-chain refund tx failed on-chain:", confirmation.value.err);
+      return null;
+    }
     return txSig;
   } catch (error) {
     console.error("[Cron] On-chain refund failed:", error);
@@ -252,7 +260,11 @@ export async function executeOnChainExpireOffer(
     tx.sign(authority);
 
     const txSig = await connection.sendRawTransaction(tx.serialize());
-    await connection.confirmTransaction(txSig, "confirmed");
+    const confirmation = await connection.confirmTransaction(txSig, "confirmed");
+    if (confirmation.value.err) {
+      console.error("[Cron] On-chain expire offer tx failed on-chain:", confirmation.value.err);
+      return null;
+    }
     return txSig;
   } catch (error) {
     console.error("[Cron] On-chain expire offer failed:", error);

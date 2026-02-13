@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
 import { audit } from "@/lib/audit";
+import { getBackendAuthority, getSolanaConnection, executeOnChainRelease } from "@/lib/cron-helpers";
 
 interface ChecklistItem {
   id: string;
@@ -106,25 +107,67 @@ export async function POST(
       );
     }
 
-    // TODO: Call smart contract to release escrow to seller
-    // This would involve:
-    // 1. Getting the listing PDA
-    // 2. Calling the confirm_receipt instruction on the smart contract
-    // 3. The contract will automatically release funds to seller minus platform fee
-    //
-    // For now, we update the database to mark as completed
-    // In production, this should verify the on-chain transaction succeeded
+    // Execute on-chain escrow release if backend authority and listing on-chain data exist
+    let onChainTxSig: string | null = null;
+    const authority = getBackendAuthority();
+    const connection = authority ? getSolanaConnection() : null;
 
-    // Update transaction status
-    await prisma.transaction.update({
-      where: { id: params.id },
+    if (
+      authority &&
+      connection &&
+      transaction.listing.onChainId &&
+      transaction.seller.walletAddress &&
+      transaction.buyerId
+    ) {
+      // Look up buyer wallet
+      const buyer = await prisma.user.findUnique({
+        where: { id: transaction.buyerId },
+        select: { walletAddress: true },
+      });
+
+      if (buyer?.walletAddress) {
+        onChainTxSig = await executeOnChainRelease(
+          connection,
+          authority,
+          transaction.listing.onChainId,
+          transaction.seller.walletAddress,
+          buyer.walletAddress
+        );
+
+        if (!onChainTxSig) {
+          console.error(`[Transfer Complete] On-chain release failed for transaction ${params.id}`);
+          // Don't block completion if on-chain fails — log for manual resolution
+        }
+      }
+    }
+
+    // Atomic status transition to prevent race conditions
+    const updateResult = await prisma.transaction.updateMany({
+      where: {
+        id: params.id,
+        status: { in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] },
+      },
       data: {
         status: "COMPLETED",
         transferCompletedAt: new Date(),
         releasedAt: new Date(),
-        verifiedAt: new Date(),
       },
     });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json(
+        { error: "Transaction is no longer in a completable state" },
+        { status: 409 }
+      );
+    }
+
+    // Store on-chain tx hash if available
+    if (onChainTxSig) {
+      await prisma.transaction.update({
+        where: { id: params.id },
+        data: { onChainTx: onChainTxSig },
+      });
+    }
 
     // Update listing status to SOLD
     await prisma.listing.update({
@@ -141,7 +184,7 @@ export async function POST(
       },
     });
 
-    // Update buyer stats (including volume for consistency)
+    // Update buyer stats
     await prisma.user.update({
       where: { id: transaction.buyerId },
       data: {

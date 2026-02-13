@@ -534,8 +534,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create collaborators if provided
+    // Create collaborators if provided (validate total percentage)
     if (hasCollaborators) {
+      const totalCollaboratorPercentage = collaborators.reduce(
+        (sum: number, c: any) => sum + (Number(c.percentage) || 0),
+        0
+      );
+      if (totalCollaboratorPercentage > 100) {
+        return NextResponse.json(
+          { error: `Total collaborator percentage (${totalCollaboratorPercentage}%) exceeds 100%` },
+          { status: 400 }
+        );
+      }
       const collaboratorPromises = collaborators.map(async (collab: any) => {
         // Create the collaborator record
         const collaboratorRecord = await prisma.listingCollaborator.create({
