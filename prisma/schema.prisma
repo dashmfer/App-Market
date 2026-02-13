@@ -429,6 +429,7 @@ model Offer {
   @@index([status])
   @@index([createdAt])
   @@index([deadline])
+  @@index([listingId, status, deadline]) // Composite for expired offers cron query
 }
 
 model PendingWithdrawal {
@@ -583,6 +584,8 @@ model Transaction {
   @@index([sellerId])
   @@index([status])
   @@index([createdAt])
+  @@index([status, paidAt])                    // Composite for seller-transfer-deadline cron
+  @@index([status, transferStartedAt])         // Composite for escrow-auto-release cron
 }
 
 // ============================================
@@ -626,6 +629,7 @@ model TransactionPartner {
   @@index([walletAddress])
   @@index([userId])
   @@index([depositStatus])
+  @@index([transactionId, depositStatus]) // Composite for "all partners deposited" checks
 }
 
 enum PartnerDepositStatus {

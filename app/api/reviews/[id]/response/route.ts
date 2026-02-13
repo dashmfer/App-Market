@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/reviews/[id]/response - Get response for a review
 export async function GET(
@@ -45,6 +46,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: CSRF validation for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(

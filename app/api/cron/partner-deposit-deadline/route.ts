@@ -1,89 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import {
+  withRetry,
+  getBackendAuthority,
+  getSolanaConnection,
+  executeOnChainRefund,
+} from "@/lib/cron-helpers";
 
 /**
  * Cron Job: Partner Deposit Deadline Enforcement
  *
  * Enforces the 30-minute deposit deadline for purchase partners.
  * If not all partners have deposited within the deadline:
- * 1. Refund all partners who did deposit
+ * 1. On-chain refund for deposited partners
  * 2. Cancel the transaction
  * 3. Remove reservation from listing
  *
- * Runs every 2 minutes to check for expired deadlines.
+ * Security:
+ * - Executes on-chain refund before DB updates
+ * - Uses idempotent atomic status transition
+ * - Re-fetches partner data for freshness (avoids stale reads)
+ * - Wraps all DB mutations in $transaction
+ *
+ * Runs every 2 minutes.
  */
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-// Retry wrapper for database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  maxRetries = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
-
 export async function GET(request: NextRequest) {
-  // Verify authorization
   if (!verifyCronSecret(request)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const now = new Date();
 
-    // Find transactions with partner purchases where:
-    // 1. Has partners
-    // 2. Status is AWAITING_PARTNER_DEPOSITS
-    // 3. Deposit deadline has passed
-    const expiredTransactions = await withRetry(async () => prisma.transaction.findMany({
-      where: {
-        hasPartners: true,
-        status: "AWAITING_PARTNER_DEPOSITS",
-        partnerDepositDeadline: {
-          not: null,
-          lt: now,
-        },
-      },
-      include: {
-        listing: {
-          select: {
-            id: true,
-            title: true,
+    const authority = getBackendAuthority();
+    const connection = authority ? getSolanaConnection() : null;
+
+    const expiredTransactions = await withRetry(
+      async () =>
+        prisma.transaction.findMany({
+          where: {
+            hasPartners: true,
+            status: "AWAITING_PARTNER_DEPOSITS",
+            partnerDepositDeadline: { not: null, lt: now },
           },
-        },
-        partners: true,
-        buyer: {
-          select: {
-            id: true,
-            username: true,
+          include: {
+            listing: {
+              select: { id: true, title: true, onChainId: true },
+            },
+            partners: true,
+            buyer: {
+              select: { id: true, username: true, walletAddress: true },
+            },
           },
-        },
-      },
-      take: 100, // Batch size to prevent OOM on large datasets
-      orderBy: { partnerDepositDeadline: "asc" }, // Process oldest first
-    }), "Find expired partner transactions");
+          take: 100,
+          orderBy: { partnerDepositDeadline: "asc" },
+        }),
+      "Find expired partner transactions"
+    );
 
     if (expiredTransactions.length === 0) {
       return NextResponse.json({
@@ -95,143 +70,166 @@ export async function GET(request: NextRequest) {
 
     const results = {
       cancelled: 0,
+      funded: 0,
       refunded: 0,
       failed: 0,
+      onChainRefunds: 0,
       errors: [] as string[],
     };
 
     for (const transaction of expiredTransactions) {
       try {
-        // Check if all partners deposited
-        const allDeposited = transaction.partners.every(
-          (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
+        // IDEMPOTENCY: Atomically claim
+        const claimed = await prisma.transaction.updateMany({
+          where: {
+            id: transaction.id,
+            status: "AWAITING_PARTNER_DEPOSITS",
+          },
+          data: { status: "PROCESSING_DEPOSITS" as any },
+        });
+
+        if (claimed.count === 0) continue;
+
+        // Re-fetch fresh partner data to avoid stale state
+        const freshPartners = await prisma.transactionPartner.findMany({
+          where: { transactionId: transaction.id },
+        });
+
+        const allDeposited = freshPartners.every(
+          (p) => p.depositStatus === "DEPOSITED"
         );
 
         if (allDeposited) {
-          // All deposited, move to next status
           await prisma.transaction.update({
             where: { id: transaction.id },
-            data: {
-              status: "FUNDED",
-              paidAt: now,
-            },
+            data: { status: "FUNDED", paidAt: now },
           });
+          results.funded++;
           continue;
         }
 
-        // Not all deposited - time to cancel and refund
-
-        // Find partners who deposited (need refund)
-        const depositedPartners = transaction.partners.filter(
-          (p: { depositStatus: string }) => p.depositStatus === "DEPOSITED"
+        // Not all deposited — cancel and refund
+        const depositedPartners = freshPartners.filter(
+          (p) => p.depositStatus === "DEPOSITED"
+        );
+        const pendingPartners = freshPartners.filter(
+          (p) => p.depositStatus === "PENDING"
         );
 
-        // Find partners who didn't deposit
-        const pendingPartners = transaction.partners.filter(
-          (p: { depositStatus: string }) => p.depositStatus === "PENDING"
-        );
+        // Execute on-chain refund if possible
+        let onChainTxSig: string | null = null;
+        if (
+          authority &&
+          connection &&
+          transaction.listing.onChainId &&
+          transaction.buyer.walletAddress
+        ) {
+          onChainTxSig = await executeOnChainRefund(
+            connection,
+            authority,
+            transaction.listing.onChainId,
+            transaction.buyer.walletAddress
+          );
+          if (onChainTxSig) results.onChainRefunds++;
+        }
 
-        // TODO: Execute on-chain refund transaction before updating database status.
-        // Currently funds remain locked in escrow. Requires:
-        // 1. Backend authority keypair to sign refund transactions
-        // 2. Complete IDL for refund_escrow instruction
-        // 3. Error handling for failed on-chain refunds
+        // Build all DB operations atomically
+        const dbOps = [];
 
-        // Mark deposited partners as REFUNDED
         for (const partner of depositedPartners) {
-          await prisma.transactionPartner.update({
-            where: { id: partner.id },
-            data: {
-              depositStatus: "REFUNDED",
-            },
-          });
+          dbOps.push(
+            prisma.transactionPartner.update({
+              where: { id: partner.id },
+              data: { depositStatus: "REFUNDED" },
+            })
+          );
 
-          // Notify partner of refund
           if (partner.userId) {
-            await prisma.notification.create({
-              data: {
-                type: "PURCHASE_PARTNER_TIMEOUT",
-                title: "Partner Deposit Expired - Refund Issued",
-                message: `The purchase of "${transaction.listing.title}" was cancelled because not all partners deposited in time. Your deposit of ${Number(partner.depositAmount)} SOL has been refunded.`,
+            dbOps.push(
+              prisma.notification.create({
                 data: {
-                  transactionId: transaction.id,
-                  refundAmount: Number(partner.depositAmount),
+                  type: "PURCHASE_PARTNER_TIMEOUT",
+                  title: "Partner Deposit Expired - Refund Issued",
+                  message: `The purchase of "${transaction.listing.title}" was cancelled because not all partners deposited in time. Your deposit of ${Number(partner.depositAmount)} SOL has been refunded.`,
+                  data: {
+                    transactionId: transaction.id,
+                    refundAmount: Number(partner.depositAmount),
+                    onChainTx: onChainTxSig,
+                  },
+                  userId: partner.userId,
                 },
-                userId: partner.userId,
-              },
-            });
+              })
+            );
           }
           results.refunded++;
         }
 
-        // Notify pending partners of timeout
         for (const partner of pendingPartners) {
           if (partner.userId) {
-            await prisma.notification.create({
-              data: {
-                type: "PURCHASE_PARTNER_TIMEOUT",
-                title: "Partner Deposit Expired",
-                message: `The purchase of "${transaction.listing.title}" was cancelled because the deposit deadline passed.`,
+            dbOps.push(
+              prisma.notification.create({
                 data: {
-                  transactionId: transaction.id,
+                  type: "PURCHASE_PARTNER_TIMEOUT",
+                  title: "Partner Deposit Expired",
+                  message: `The purchase of "${transaction.listing.title}" was cancelled because the deposit deadline passed.`,
+                  data: { transactionId: transaction.id },
+                  userId: partner.userId,
                 },
-                userId: partner.userId,
-              },
-            });
+              })
+            );
           }
         }
 
-        // Cancel the transaction
-        await prisma.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            status: "CANCELLED",
-          },
-        });
-
-        // Remove reservation from listing
-        await prisma.listing.update({
-          where: { id: transaction.listingId },
-          data: {
-            status: "ACTIVE",
-            reservedBuyerId: null,
-            reservedBuyerWallet: null,
-            reservedAt: null,
-          },
-        });
-
-        // Notify lead buyer
-        await prisma.notification.create({
-          data: {
-            type: "PURCHASE_PARTNER_TIMEOUT",
-            title: "Group Purchase Cancelled",
-            message: `The group purchase of "${transaction.listing.title}" was cancelled because not all partners deposited within the 30-minute deadline.`,
+        dbOps.push(
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: { status: "CANCELLED" },
+          }),
+          prisma.listing.update({
+            where: { id: transaction.listingId },
             data: {
-              transactionId: transaction.id,
-              pendingPartnerCount: pendingPartners.length,
+              status: "ACTIVE",
+              reservedBuyerId: null,
+              reservedBuyerWallet: null,
+              reservedAt: null,
             },
-            userId: transaction.buyerId,
-          },
-        });
+          }),
+          prisma.notification.create({
+            data: {
+              type: "PURCHASE_PARTNER_TIMEOUT",
+              title: "Group Purchase Cancelled",
+              message: `The group purchase of "${transaction.listing.title}" was cancelled because not all partners deposited within the 30-minute deadline.`,
+              data: {
+                transactionId: transaction.id,
+                pendingPartnerCount: pendingPartners.length,
+              },
+              userId: transaction.buyerId,
+            },
+          })
+        );
+
+        await prisma.$transaction(dbOps);
 
         results.cancelled++;
-        console.log(`[Cron] Cancelled partner transaction ${transaction.id} - deadline expired`);
+        console.log(
+          `[Cron:partner-deposit-deadline] Cancelled transaction ${transaction.id}`
+        );
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
-        console.error(`[Cron] ${errorMsg}`);
+        console.error(`[Cron:partner-deposit-deadline] ${errorMsg}`);
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Partner deadline check complete: ${results.cancelled} cancelled, ${results.refunded} refunds, ${results.failed} failed`,
+      message: `Partner deadline check complete: ${results.cancelled} cancelled, ${results.funded} funded, ${results.refunded} refunds, ${results.failed} failed`,
       processed: expiredTransactions.length,
       results,
     });
   } catch (error) {
-    console.error("[Cron] Partner deposit deadline error:", error);
+    console.error("[Cron:partner-deposit-deadline] Error:", error);
     return NextResponse.json(
       { error: "Failed to process partner deadline check" },
       { status: 500 }

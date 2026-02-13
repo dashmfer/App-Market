@@ -23,8 +23,10 @@ import bs58 from "bs58";
  */
 export function grindVanityKeypair(
   suffix: string,
-  maxAttempts: number = 10_000_000
+  maxAttempts: number = 10_000_000,
+  timeoutMs: number = 30_000
 ): Keypair {
+  const startTime = Date.now();
   // Validate suffix is valid base58
   const base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   for (const char of suffix) {
@@ -36,6 +38,14 @@ export function grindVanityKeypair(
   }
 
   for (let i = 0; i < maxAttempts; i++) {
+    // SECURITY: Timeout to prevent blocking the server indefinitely
+    if (i % 10_000 === 0 && Date.now() - startTime > timeoutMs) {
+      throw new Error(
+        `Vanity address generation timed out after ${timeoutMs}ms (${i} attempts). ` +
+        `Consider using a GPU grinder for suffixes longer than 3 characters.`
+      );
+    }
+
     const keypair = Keypair.generate();
     const address = keypair.publicKey.toBase58();
 

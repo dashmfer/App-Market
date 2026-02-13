@@ -68,8 +68,22 @@ export async function POST(
       return NextResponse.json({ error: "Already deposited" }, { status: 400 });
     }
 
-    // TODO: Verify the on-chain transaction
-    // In production, we would verify the tx hash and amount on-chain
+    // SECURITY: Require and validate tx hash
+    if (!txHash || typeof txHash !== "string" || txHash.length < 32 || txHash.length > 128) {
+      return NextResponse.json({
+        error: "A valid on-chain transaction hash is required to confirm deposit"
+      }, { status: 400 });
+    }
+
+    // SECURITY: Verify the tx hash hasn't been used before (prevent replay)
+    const existingDeposit = await prisma.transactionPartner.findFirst({
+      where: { depositTxHash: txHash },
+    });
+    if (existingDeposit) {
+      return NextResponse.json({
+        error: "This transaction hash has already been used for a deposit"
+      }, { status: 400 });
+    }
 
     // Update partner deposit status
     await prisma.transactionPartner.update({
@@ -77,7 +91,7 @@ export async function POST(
       data: {
         depositStatus: "DEPOSITED",
         depositedAt: new Date(),
-        depositTxHash: txHash || null,
+        depositTxHash: txHash,
       },
     });
 
@@ -96,23 +110,38 @@ export async function POST(
       });
     }
 
-    // Check if all partners have deposited
-    const allDeposited = transaction.partners.every(
-      (p: { id: string; depositStatus: string }) => p.id === params.partnerId || p.depositStatus === "DEPOSITED"
+    // SECURITY: Re-fetch partners from DB for atomic consistency instead of using stale data
+    const freshPartners = await prisma.transactionPartner.findMany({
+      where: { transactionId: params.id },
+    });
+
+    const allDeposited = freshPartners.every(
+      (p) => p.depositStatus === "DEPOSITED"
     );
 
     // Check if total is 100%
-    const totalPercentage = transaction.partners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+    const totalPercentage = freshPartners.reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
     if (allDeposited && totalPercentage >= 100) {
-      // All deposits complete! Move to next phase
-      await prisma.transaction.update({
-        where: { id: params.id },
+      // SECURITY: Atomic status transition — only move to PAID if still awaiting deposits
+      const transitioned = await prisma.transaction.updateMany({
+        where: {
+          id: params.id,
+          status: { in: ["AWAITING_PARTNER_DEPOSITS", "PENDING"] },
+        },
         data: {
           status: "PAID",
           paidAt: new Date(),
         },
       });
+
+      if (transitioned.count === 0) {
+        return NextResponse.json({
+          success: true,
+          allDeposited: true,
+          message: "Deposit recorded but transaction already advanced.",
+        });
+      }
 
       // Notify all partners
       for (const p of transaction.partners as Array<{ userId: string | null; id: string; depositStatus: string; isLead: boolean }>) {

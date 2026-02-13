@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/listings/[slug]/cancel - Cancel a listing
 export async function POST(
@@ -8,6 +9,12 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: CSRF validation for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {

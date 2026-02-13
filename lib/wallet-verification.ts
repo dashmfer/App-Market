@@ -74,8 +74,8 @@ Sign this message to prove you own this wallet and accept the collaboration.`;
  * Generate a unique referral code for new users
  */
 function generateReferralCode(): string {
-  // Generate a short, URL-friendly code (8 characters)
-  return crypto.randomBytes(4).toString("hex").toLowerCase();
+  // SECURITY: 8 bytes = 64 bits of entropy (was 4 bytes / 32 bits — too brute-forceable)
+  return crypto.randomBytes(8).toString("hex").toLowerCase();
 }
 
 /**

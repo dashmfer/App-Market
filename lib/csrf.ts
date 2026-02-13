@@ -10,6 +10,8 @@ import { cookies } from "next/headers";
 const CSRF_COOKIE_NAME = "__Host-csrf-token";
 const CSRF_HEADER_NAME = "x-csrf-token";
 const TOKEN_LENGTH = 32;
+// SECURITY: Single source of truth for token max age (used in both verify and cookie)
+const CSRF_TOKEN_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * Get the CSRF secret from environment
@@ -68,10 +70,9 @@ export function verifyCsrfToken(token: string): boolean {
 
   if (!isValid) return false;
 
-  // Check token age (valid for 8 hours — reduced from 24 to limit replay window)
+  // Check token age — uses CSRF_TOKEN_MAX_AGE_MS for single source of truth
   const tokenTime = parseInt(timestamp, 36);
-  const maxAge = 8 * 60 * 60 * 1000; // 8 hours
-  if (Date.now() - tokenTime > maxAge) return false;
+  if (Date.now() - tokenTime > CSRF_TOKEN_MAX_AGE_MS) return false;
 
   return true;
 }
@@ -117,7 +118,7 @@ export function setCsrfCookie(response: NextResponse, token: string): void {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 8 * 60 * 60, // 8 hours (matches token validation maxAge)
+    maxAge: CSRF_TOKEN_MAX_AGE_MS / 1000, // matches token validation maxAge
   });
 }
 

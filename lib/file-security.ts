@@ -7,7 +7,7 @@
 // Dangerous file extensions that should be blocked
 export const BLOCKED_EXTENSIONS = [
   // Windows executables
-  '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.vbs', '.vbe', '.js', '.jse',
+  '.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.vbs', '.vbe', '.jse',
   '.ws', '.wsf', '.wsc', '.wsh', '.ps1', '.ps1xml', '.ps2', '.ps2xml', '.psc1', '.psc2',
   '.msh', '.msh1', '.msh2', '.mshxml', '.msh1xml', '.msh2xml', '.reg',
   // macOS executables

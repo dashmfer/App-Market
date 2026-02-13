@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "received" or "given"
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
+    // SECURITY: Bound page to prevent excessive DB offset
+    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1") || 1));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10") || 10));
 
     if (!userId) {
       return NextResponse.json(
@@ -166,12 +167,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate rating values (1-5)
-    if (rating < 1 || rating > 5) {
+    // SECURITY: Validate all rating values (1-5), not just the main rating
+    if (typeof rating !== "number" || rating < 1 || rating > 5 || !Number.isFinite(rating)) {
       return NextResponse.json(
         { error: "Rating must be between 1 and 5" },
         { status: 400 }
       );
+    }
+
+    // Validate optional sub-ratings (must be 1-5 if provided)
+    for (const [name, value] of Object.entries({ communicationRating, speedRating, accuracyRating })) {
+      if (value !== undefined && value !== null) {
+        if (typeof value !== "number" || value < 1 || value > 5 || !Number.isFinite(value)) {
+          return NextResponse.json(
+            { error: `${name} must be between 1 and 5` },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     // Can't review yourself

@@ -29,6 +29,13 @@ function getEncryptionSecret(): string {
       "Generate one with: openssl rand -hex 32"
     );
   }
+  // SECURITY: Validate minimum key length (256-bit = 64 hex chars or 32 raw bytes)
+  if (secret.length < 32) {
+    throw new Error(
+      "ENCRYPTION_SECRET is too short — must be at least 32 characters. " +
+      "Generate one with: openssl rand -hex 32"
+    );
+  }
   return secret;
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/offers/[offerId]/cancel
@@ -12,6 +13,12 @@ export async function POST(
   { params }: { params: { offerId: string } }
 ) {
   try {
+    // SECURITY: CSRF validation for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || 'CSRF validation failed');
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

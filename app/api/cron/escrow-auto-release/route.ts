@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { verifyCronSecret } from "@/lib/cron-auth";
+import {
+  withRetry,
+  getBackendAuthority,
+  getSolanaConnection,
+  executeOnChainRelease,
+} from "@/lib/cron-helpers";
 
 /**
  * Cron Job: Escrow Auto-Release
@@ -9,46 +15,19 @@ import { verifyCronSecret } from "@/lib/cron-auth";
  * Automatically releases funds to seller if buyer doesn't confirm receipt
  * or open a dispute within the transfer deadline (7 days by default).
  *
+ * Security:
+ * - Executes on-chain escrow release before updating DB
+ * - Uses idempotent atomic status transition (updateMany WHERE status IN [...])
+ * - Wraps all DB mutations in a $transaction for consistency
+ *
  * Runs every hour to check for expired transfer deadlines.
  */
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-// Retry wrapper for database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  maxRetries = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
-
 export async function GET(request: NextRequest) {
-  // Verify authorization
   if (!verifyCronSecret(request)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Check if auto-release is enabled
   if (!PLATFORM_CONFIG.escrow.autoReleaseEnabled) {
     return NextResponse.json({
       success: true,
@@ -61,46 +40,43 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const deadlineDays = PLATFORM_CONFIG.escrow.transferDeadlineDays;
 
-    // Find transactions that:
-    // 1. Have transfer started (transferStartedAt is set)
-    // 2. Are in a state waiting for buyer confirmation
-    // 3. Transfer deadline has passed
-    // 4. No dispute has been opened
-    const eligibleTransactions = await withRetry(async () => prisma.transaction.findMany({
-      where: {
-        status: {
-          in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"],
-        },
-        transferStartedAt: {
-          not: null,
-          // Transfer started more than X days ago
-          lt: new Date(now.getTime() - deadlineDays * 24 * 60 * 60 * 1000),
-        },
-        // No active dispute
-        dispute: null,
-      },
-      include: {
-        listing: {
-          select: {
-            title: true,
+    const authority = getBackendAuthority();
+    const connection = authority ? getSolanaConnection() : null;
+
+    const eligibleTransactions = await withRetry(
+      async () =>
+        prisma.transaction.findMany({
+          where: {
+            status: {
+              in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"],
+            },
+            transferStartedAt: {
+              not: null,
+              lt: new Date(
+                now.getTime() - deadlineDays * 24 * 60 * 60 * 1000
+              ),
+            },
+            dispute: null,
           },
-        },
-        buyer: {
-          select: {
-            id: true,
-            username: true,
+          include: {
+            listing: {
+              select: {
+                title: true,
+                onChainId: true,
+              },
+            },
+            buyer: {
+              select: { id: true, username: true, walletAddress: true },
+            },
+            seller: {
+              select: { id: true, username: true, walletAddress: true },
+            },
           },
-        },
-        seller: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-      },
-      take: 100, // Batch size to prevent OOM on large datasets
-      orderBy: { transferStartedAt: "asc" }, // Process oldest first
-    }), "Find eligible transactions");
+          take: 100,
+          orderBy: { transferStartedAt: "asc" },
+        }),
+      "Find eligible transactions"
+    );
 
     if (eligibleTransactions.length === 0) {
       return NextResponse.json({
@@ -113,82 +89,133 @@ export async function GET(request: NextRequest) {
     const results = {
       released: 0,
       failed: 0,
+      onChainSuccess: 0,
+      onChainSkipped: 0,
       errors: [] as string[],
     };
 
     for (const transaction of eligibleTransactions) {
       try {
-        // CRITICAL TODO: Execute on-chain escrow release before updating database status.
-        // Currently funds remain locked in on-chain escrow even though DB says COMPLETED.
-        // This MUST be implemented before mainnet launch. Requires:
-        // 1. Backend authority keypair to sign release transactions
-        // 2. Complete IDL for confirm_receipt instruction
-        // 3. Error handling for failed on-chain releases
-        // 4. Only mark COMPLETED after on-chain release succeeds
-
-        // Update transaction to COMPLETED (DB only — on-chain release pending implementation)
-        await withRetry(() => prisma.transaction.update({
-          where: { id: transaction.id },
-          data: {
-            status: "COMPLETED",
-            transferCompletedAt: now,
-            releasedAt: now,
+        // IDEMPOTENCY: Atomically claim this transaction — only succeeds if status is still eligible
+        const claimed = await prisma.transaction.updateMany({
+          where: {
+            id: transaction.id,
+            status: { in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] },
           },
-        }), `Update transaction ${transaction.id}`);
+          data: { status: "COMPLETING" as any },
+        });
 
-        // Update seller stats
-        await withRetry(() => prisma.user.update({
-          where: { id: transaction.sellerId },
-          data: {
-            totalSales: { increment: 1 },
-            totalVolume: { increment: Number(transaction.salePrice) },
-          },
-        }), `Update seller stats ${transaction.sellerId}`);
+        if (claimed.count === 0) {
+          continue; // Already processed by another cron instance
+        }
 
-        // Update buyer stats
-        await withRetry(() => prisma.user.update({
-          where: { id: transaction.buyerId },
-          data: {
-            totalPurchases: { increment: 1 },
-          },
-        }), `Update buyer stats ${transaction.buyerId}`);
+        // Execute on-chain escrow release if we have the authority and listing has on-chain data
+        let onChainTxSig: string | null = null;
+        if (
+          authority &&
+          connection &&
+          transaction.listing.onChainId &&
+          transaction.seller.walletAddress &&
+          transaction.buyer.walletAddress
+        ) {
+          onChainTxSig = await executeOnChainRelease(
+            connection,
+            authority,
+            transaction.listing.onChainId,
+            transaction.seller.walletAddress,
+            transaction.buyer.walletAddress
+          );
 
-        // Notify seller of auto-release
-        await withRetry(() => prisma.notification.create({
-          data: {
-            type: "PAYMENT_RECEIVED",
-            title: "Funds Auto-Released",
-            message: `The transfer for "${transaction.listing.title}" has been automatically confirmed after the confirmation period expired. On-chain fund release is pending.`,
+          if (onChainTxSig) {
+            results.onChainSuccess++;
+          } else {
+            // On-chain release failed — revert the status claim so it can retry next run
+            await prisma.transaction.updateMany({
+              where: { id: transaction.id, status: "COMPLETING" as any },
+              data: { status: "AWAITING_CONFIRMATION" },
+            });
+            results.failed++;
+            results.errors.push(
+              `On-chain release failed for ${transaction.id} — will retry next run`
+            );
+            continue;
+          }
+        } else {
+          results.onChainSkipped++;
+        }
+
+        // Validate salePrice before stats increment
+        const salePrice = Number(transaction.salePrice);
+        if (isNaN(salePrice) || salePrice <= 0) {
+          results.errors.push(
+            `Invalid salePrice for transaction ${transaction.id}: ${transaction.salePrice}`
+          );
+        }
+
+        // Wrap all DB mutations in a transaction for consistency
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
             data: {
-              transactionId: transaction.id,
-              autoRelease: true,
-              amount: Number(transaction.sellerProceeds),
+              status: "COMPLETED",
+              transferCompletedAt: now,
+              releasedAt: now,
+              onChainTx: onChainTxSig || undefined,
             },
-            userId: transaction.sellerId,
-          },
-        }), `Notify seller ${transaction.sellerId}`);
-
-        // Notify buyer that transfer is complete
-        await withRetry(() => prisma.notification.create({
-          data: {
-            type: "TRANSFER_COMPLETED",
-            title: "Transfer Confirmed (Auto)",
-            message: `The transfer for "${transaction.listing.title}" has been automatically confirmed. Funds have been released to the seller.`,
+          }),
+          ...(salePrice > 0
+            ? [
+                prisma.user.update({
+                  where: { id: transaction.sellerId },
+                  data: {
+                    totalSales: { increment: 1 },
+                    totalVolume: { increment: salePrice },
+                  },
+                }),
+              ]
+            : []),
+          prisma.user.update({
+            where: { id: transaction.buyerId },
+            data: { totalPurchases: { increment: 1 } },
+          }),
+          prisma.notification.create({
             data: {
-              transactionId: transaction.id,
-              autoRelease: true,
+              type: "PAYMENT_RECEIVED",
+              title: "Funds Auto-Released",
+              message: `The transfer for "${transaction.listing.title}" has been automatically confirmed after the confirmation period expired.${onChainTxSig ? " Funds released on-chain." : ""}`,
+              data: {
+                transactionId: transaction.id,
+                autoRelease: true,
+                amount: Number(transaction.sellerProceeds),
+                onChainTx: onChainTxSig,
+              },
+              userId: transaction.sellerId,
             },
-            userId: transaction.buyerId,
-          },
-        }), `Notify buyer ${transaction.buyerId}`);
+          }),
+          prisma.notification.create({
+            data: {
+              type: "TRANSFER_COMPLETED",
+              title: "Transfer Confirmed (Auto)",
+              message: `The transfer for "${transaction.listing.title}" has been automatically confirmed. Funds have been released to the seller.`,
+              data: {
+                transactionId: transaction.id,
+                autoRelease: true,
+                onChainTx: onChainTxSig,
+              },
+              userId: transaction.buyerId,
+            },
+          }),
+        ]);
 
         results.released++;
-        console.log(`[Cron] Auto-released transaction ${transaction.id}`);
+        console.log(
+          `[Cron:escrow-auto-release] Released transaction ${transaction.id}${onChainTxSig ? ` (on-chain: ${onChainTxSig})` : ""}`
+        );
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to release transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
-        console.error(`[Cron] ${errorMsg}`);
+        console.error(`[Cron:escrow-auto-release] ${errorMsg}`);
       }
     }
 
@@ -199,7 +226,7 @@ export async function GET(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error("[Cron] Escrow auto-release error:", error);
+    console.error("[Cron:escrow-auto-release] Error:", error);
     return NextResponse.json(
       { error: "Failed to process auto-release" },
       { status: 500 }

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
           select: { url: true, secret: true, isActive: true },
         },
       },
-      take: 50, // Process in batches
+      take: 25, // SECURITY: Reduced batch size to prevent timeout with exponential backoff retries
     });
 
     let retried = 0;

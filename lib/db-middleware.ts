@@ -13,7 +13,7 @@ export function accountEncryptionMiddleware(): Prisma.Middleware {
       if (params.action === "create" && params.args.data) {
         params.args.data = encryptAccountTokens(params.args.data);
       }
-      if (params.action === "update" && params.args.data) {
+      if ((params.action === "update" || params.action === "updateMany") && params.args.data) {
         params.args.data = encryptAccountTokens(params.args.data);
       }
       if (params.action === "upsert") {

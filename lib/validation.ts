@@ -225,7 +225,8 @@ export function validatePasswordComplexity(password: string): { valid: boolean; 
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
   }
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+  // SECURITY: Use negated alphanumeric+space class to catch all special characters
+  if (!/[^A-Za-z0-9\s]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
 

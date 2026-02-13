@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculatePlatformFee } from '@/lib/solana';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 /**
  * POST /api/offers/[offerId]/accept
@@ -13,6 +15,21 @@ export async function POST(
   { params }: { params: { offerId: string } }
 ) {
   try {
+    // SECURITY: CSRF validation
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit financial operations
+    const rateLimitResult = await (withRateLimitAsync('write', 'offer-accept'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

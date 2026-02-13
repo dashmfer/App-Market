@@ -52,9 +52,22 @@ export async function audit(entry: AuditLogEntry): Promise<void> {
  * Convenience: extract IP + user agent from request headers for audit logging.
  */
 export function auditContext(headers: Headers) {
+  // SECURITY: Use x-real-ip first (set by trusted proxy), fall back to
+  // rightmost x-forwarded-for IP (closest to trusted proxy, not spoofable).
+  const realIp = headers.get("x-real-ip");
+  let ipAddress: string | undefined;
+  if (realIp) {
+    ipAddress = realIp.trim();
+  } else {
+    const forwarded = headers.get("x-forwarded-for");
+    if (forwarded) {
+      const ips = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
+      ipAddress = ips.length > 0 ? ips[ips.length - 1] : undefined;
+    }
+  }
+
   return {
-    ipAddress: headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      headers.get("x-real-ip") || undefined,
+    ipAddress,
     userAgent: headers.get("user-agent") || undefined,
   };
 }

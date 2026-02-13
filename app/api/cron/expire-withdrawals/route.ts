@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   try {
     const authority = getBackendAuthority();
     if (!authority) {
-      console.warn("[Cron] BACKEND_AUTHORITY_SECRET_KEY not set — skipping on-chain expiry. DB update only.");
+      console.error("[Cron:expire-withdrawals] CRITICAL: BACKEND_AUTHORITY_SECRET_KEY not set — on-chain withdrawals will NOT be expired. DB-only update is NOT sufficient for mainnet.");
     }
 
     // Find unclaimed withdrawals older than 1 hour
