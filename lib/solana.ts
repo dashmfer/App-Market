@@ -3,22 +3,15 @@ import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 import { PLATFORM_CONFIG } from "@/lib/config";
 
 // Program ID from deployed/generated smart contract
-// In production, NEXT_PUBLIC_PROGRAM_ID MUST be set. Fallback to devnet only in development.
-const programIdStr = process.env.NEXT_PUBLIC_PROGRAM_ID;
-if (!programIdStr && process.env.NODE_ENV === "production") {
-  throw new Error("NEXT_PUBLIC_PROGRAM_ID must be set in production — refusing to use devnet fallback");
-}
+// In production, NEXT_PUBLIC_PROGRAM_ID MUST be set via env-validation.ts startup check.
+// Fallback to devnet only in development.
 export const PROGRAM_ID = new PublicKey(
-  programIdStr || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
+  process.env.NEXT_PUBLIC_PROGRAM_ID || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
 );
 
 // Platform treasury wallet - receives fees
-const treasuryStr = process.env.NEXT_PUBLIC_TREASURY_WALLET;
-if (!treasuryStr && process.env.NODE_ENV === "production") {
-  throw new Error("NEXT_PUBLIC_TREASURY_WALLET must be set in production — refusing to use devnet fallback");
-}
 export const TREASURY_WALLET = new PublicKey(
-  treasuryStr || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6"
+  process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6"
 );
 
 // Platform token mint ($APP) - mainnet address
