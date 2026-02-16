@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST - Transfer lead buyer status to another partner
 export async function POST(
@@ -10,10 +10,15 @@ export async function POST(
   { params }: { params: { id: string; partnerId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
@@ -38,7 +43,7 @@ export async function POST(
     }
 
     // Only current lead can transfer
-    if (currentLead.userId !== session.user.id) {
+    if (currentLead.userId !== currentUserId) {
       return NextResponse.json({ error: "Only the current lead can transfer lead status" }, { status: 403 });
     }
 

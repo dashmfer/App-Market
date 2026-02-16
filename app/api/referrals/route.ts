@@ -1,19 +1,21 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/referrals - Get user's referral info
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const currentUserId = token.id as string;
+
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: currentUserId },
       select: {
         referralCode: true,
         referralCodeCustomized: true,
@@ -90,12 +92,17 @@ export async function GET() {
 }
 
 // PATCH /api/referrals - Update referral code (one time only)
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const { code } = await request.json();
 
@@ -133,7 +140,7 @@ export async function PATCH(request: Request) {
     try {
       await prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({
-          where: { id: session.user.id },
+          where: { id: currentUserId },
           select: { referralCodeCustomized: true },
         });
 
@@ -143,7 +150,7 @@ export async function PATCH(request: Request) {
 
         // The unique constraint on referralCode will reject duplicates atomically
         await tx.user.update({
-          where: { id: session.user.id },
+          where: { id: currentUserId },
           data: {
             referralCode: cleanCode,
             referralCodeCustomized: true,

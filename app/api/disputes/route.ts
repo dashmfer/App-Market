@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
+    const currentUserId = token.id as string;
+
     const disputes = await prisma.dispute.findMany({
       where: {
         OR: [
-          { initiatorId: session.user.id },
-          { respondentId: session.user.id },
+          { initiatorId: currentUserId },
+          { respondentId: currentUserId },
         ],
       },
       orderBy: { createdAt: "desc" },
@@ -77,14 +79,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const currentUserId = token.id as string;
 
     const body = await request.json();
     const { transactionId, reason, description, evidence } = body;
@@ -130,8 +137,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is part of transaction
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
+    const isBuyer = transaction.buyerId === currentUserId;
+    const isSeller = transaction.sellerId === currentUserId;
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json(
@@ -181,7 +188,7 @@ export async function POST(request: NextRequest) {
           status: "OPEN",
           disputeFee,
           transactionId,
-          initiatorId: session.user.id,
+          initiatorId: currentUserId,
           respondentId,
         },
       });

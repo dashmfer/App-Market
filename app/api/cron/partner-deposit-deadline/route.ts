@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
             id: transaction.id,
             status: "AWAITING_PARTNER_DEPOSITS",
           },
-          data: { status: "PROCESSING_DEPOSITS" as any },
+          data: { status: "PROCESSING_DEPOSITS" },
         });
 
         if (claimed.count === 0) continue;

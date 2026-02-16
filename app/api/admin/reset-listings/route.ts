@@ -1,9 +1,9 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { audit, auditContext } from "@/lib/audit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -52,15 +52,20 @@ export async function DELETE(request: NextRequest) {
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
     // Also require authentication AND admin role
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const currentUserId = token.id as string;
+
     // SECURITY: Verify user is an admin in the database
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: currentUserId },
       select: { isAdmin: true },
     });
 
@@ -99,7 +104,7 @@ export async function DELETE(request: NextRequest) {
       await audit({
         action: "ADMIN_RESET_LISTINGS",
         severity: "WARN",
-        userId: session?.user?.id,
+        userId: currentUserId,
         targetId: listingId,
         targetType: "listing",
         detail: `Admin deleted listing "${listing.title}"`,
@@ -131,7 +136,7 @@ export async function DELETE(request: NextRequest) {
       await audit({
         action: "ADMIN_RESET_LISTINGS",
         severity: "CRITICAL",
-        userId: session?.user?.id,
+        userId: currentUserId,
         detail: `Admin deleted ALL listings (${results.listings.count} listings)`,
         metadata: { listings: results.listings.count, transactions: results.transactions.count },
         ...auditContext(request.headers),

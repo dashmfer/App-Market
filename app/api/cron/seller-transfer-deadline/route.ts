@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         prisma.transaction.findMany({
           where: {
             // Include REFUNDING to retry stuck transactions from failed previous runs
-            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] },
             transferStartedAt: null,
             paidAt: { not: null, lt: deadlineThreshold },
             dispute: null,
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
           orderBy: { paidAt: "asc" },
         }),
       "Find expired transactions"
-    ) as any[];
+    );
 
     if (expiredTransactions.length === 0) {
       return NextResponse.json({
@@ -87,9 +87,9 @@ export async function GET(request: NextRequest) {
         const claimed = await prisma.transaction.updateMany({
           where: {
             id: transaction.id,
-            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] },
           },
-          data: { status: "REFUNDING" as any },
+          data: { status: "REFUNDING" },
         });
 
         if (claimed.count === 0) continue;
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
           } else {
             // Revert claim for retry
             await prisma.transaction.updateMany({
-              where: { id: transaction.id, status: "REFUNDING" as any },
+              where: { id: transaction.id, status: "REFUNDING" },
               data: { status: "PAID" },
             });
             results.failed++;

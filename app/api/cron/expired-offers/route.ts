@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
         // IDEMPOTENCY: Atomically claim — only succeeds if still ACTIVE
         const claimed = await prisma.offer.updateMany({
           where: { id: offer.id, status: "ACTIVE" },
-          data: { status: "EXPIRING" as any },
+          data: { status: "EXPIRING" },
         });
 
         if (claimed.count === 0) continue;
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
           } else {
             // On-chain refund failed — revert status for retry
             await prisma.offer.updateMany({
-              where: { id: offer.id, status: "EXPIRING" as any },
+              where: { id: offer.id, status: "EXPIRING" },
               data: { status: "ACTIVE" },
             });
             results.failed++;

@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
             id: transaction.id,
             status: { in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] },
           },
-          data: { status: "COMPLETING" as any },
+          data: { status: "COMPLETING" },
         });
 
         if (claimed.count === 0) {
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
           } else {
             // On-chain release failed — revert the status claim so it can retry next run
             await prisma.transaction.updateMany({
-              where: { id: transaction.id, status: "COMPLETING" as any },
+              where: { id: transaction.id, status: "COMPLETING" },
               data: { status: "AWAITING_CONFIRMATION" },
             });
             results.failed++;
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
         const salePrice = Number(transaction.salePrice);
         if (isNaN(salePrice) || salePrice <= 0) {
           await prisma.transaction.updateMany({
-            where: { id: transaction.id, status: "COMPLETING" as any },
+            where: { id: transaction.id, status: "COMPLETING" },
             data: { status: "AWAITING_CONFIRMATION" },
           });
           results.failed++;

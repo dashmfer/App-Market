@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/transactions/[id]/buyer-info - Get buyer info status
 export async function GET(
@@ -9,10 +9,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
@@ -32,8 +34,8 @@ export async function GET(
     }
 
     // Only buyer or seller can view buyer info
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
+    const isBuyer = transaction.buyerId === currentUserId;
+    const isSeller = transaction.sellerId === currentUserId;
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -70,10 +72,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const body = await request.json();
     const { info } = body;
@@ -105,7 +112,7 @@ export async function POST(
     }
 
     // Only buyer can submit info
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== currentUserId) {
       return NextResponse.json({ error: "Only buyer can submit info" }, { status: 403 });
     }
 

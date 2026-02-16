@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { audit } from '@/lib/audit';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/withdrawals/[withdrawalId]/claim
@@ -13,14 +13,19 @@ export async function POST(
   { params }: { params: { withdrawalId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
-    if (!session?.user?.id) {
+    const token = await getAuthToken(req);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+
+    const currentUserId = token.id as string;
 
     const { withdrawalId } = params;
 
@@ -44,7 +49,7 @@ export async function POST(
     }
 
     // Only owner can claim
-    if (withdrawal.userId !== session.user.id) {
+    if (withdrawal.userId !== currentUserId) {
       return NextResponse.json(
         { error: 'Not authorized to claim this withdrawal' },
         { status: 403 }
@@ -75,7 +80,7 @@ export async function POST(
     await audit({
       action: "WITHDRAWAL_CLAIMED",
       severity: "INFO",
-      userId: session.user.id,
+      userId: currentUserId,
       targetId: withdrawalId,
       targetType: "PendingWithdrawal",
       detail: `Withdrawal claimed: ${Number(withdrawal.amount)} ${withdrawal.currency}`,

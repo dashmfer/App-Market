@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { prisma } from '@/lib/prisma';
 import { Octokit } from '@octokit/rest';
 import { PublicKey, Keypair, Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
@@ -48,10 +48,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(req);
+    if (!token?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const transactionId = params.id;
     const body = await req.json();
@@ -78,7 +83,7 @@ export async function POST(
     }
 
     // 2. Verify user is the seller
-    if (transaction.sellerId !== session.user.id) {
+    if (transaction.sellerId !== currentUserId) {
       return NextResponse.json({ error: 'Only seller can upload assets' }, { status: 403 });
     }
 

@@ -979,15 +979,18 @@ enum PaymentMethod {
 enum TransactionStatus {
   PENDING
   AWAITING_PARTNER_DEPOSITS  // Waiting for all purchase partners to deposit
+  PROCESSING_DEPOSITS        // Cron: checking partner deposits atomically
   FUNDED                     // Funds deposited, ready for transfer
   PAID
   IN_ESCROW
   TRANSFER_PENDING
   TRANSFER_IN_PROGRESS
   AWAITING_CONFIRMATION
+  COMPLETING                 // Cron: escrow auto-release in progress
   DISPUTED
   COMPLETED
   REFUNDED
+  REFUNDING                  // Cron: on-chain refund in progress
   CANCELLED
 }
 
@@ -1220,6 +1223,7 @@ enum OfferStatus {
   ACTIVE
   ACCEPTED
   CANCELLED
+  EXPIRING   // Cron: on-chain offer refund in progress
   EXPIRED
 }
 

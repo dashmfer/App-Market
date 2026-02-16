@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET - Get all partners for a transaction
 export async function GET(
@@ -10,10 +10,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
@@ -44,9 +46,9 @@ export async function GET(
 
     // Only buyer, seller, or partners can view
     const isParticipant =
-      transaction.buyerId === session.user.id ||
-      transaction.sellerId === session.user.id ||
-      transaction.partners.some((p: { userId: string | null }) => p.userId === session.user.id);
+      transaction.buyerId === currentUserId ||
+      transaction.sellerId === currentUserId ||
+      transaction.partners.some((p: { userId: string | null }) => p.userId === currentUserId);
 
     if (!isParticipant) {
       return NextResponse.json({ error: "Not authorized to view this transaction" }, { status: 403 });
@@ -65,10 +67,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const body = await request.json();
     const { walletAddress, percentage } = body;
@@ -106,8 +113,8 @@ export async function POST(
 
       const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
       const isLeadBuyer = leadPartner
-        ? leadPartner.userId === session.user.id
-        : transaction.buyerId === session.user.id;
+        ? leadPartner.userId === currentUserId
+        : transaction.buyerId === currentUserId;
 
       if (!isLeadBuyer) {
         return { error: "Only the lead buyer can add partners", status: 403 } as const;
@@ -206,10 +213,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const { searchParams } = new URL(request.url);
     const partnerId = searchParams.get("partnerId");
@@ -235,9 +247,9 @@ export async function DELETE(
     // Only lead buyer can remove partners (or partner can remove themselves)
     const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     const isLeadBuyer = leadPartner
-      ? leadPartner.userId === session.user.id
-      : transaction.buyerId === session.user.id;
-    const isSelf = partnerToRemove.userId === session.user.id;
+      ? leadPartner.userId === currentUserId
+      : transaction.buyerId === currentUserId;
+    const isSelf = partnerToRemove.userId === currentUserId;
 
     if (!isLeadBuyer && !isSelf) {
       return NextResponse.json({ error: "Not authorized to remove this partner" }, { status: 403 });
@@ -292,10 +304,15 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const currentUserId = token.id as string;
 
     const body = await request.json();
     const { partnerId, percentage } = body;
@@ -308,75 +325,85 @@ export async function PATCH(
       return NextResponse.json({ error: "Percentage must be between 1 and 99" }, { status: 400 });
     }
 
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
-      include: { partners: true },
-    });
+    // Wrap in serializable transaction to prevent percentage race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.findUnique({
+        where: { id: params.id },
+        include: { partners: true },
+      });
 
-    if (!transaction) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
-    }
+      if (!transaction) {
+        return { error: "Transaction not found", status: 404 } as const;
+      }
 
-    // Only lead buyer can update percentages
-    const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
-    const isLeadBuyer = leadPartner
-      ? leadPartner.userId === session.user.id
-      : transaction.buyerId === session.user.id;
+      // Only lead buyer can update percentages
+      const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
+      const isLeadBuyer = leadPartner
+        ? leadPartner.userId === currentUserId
+        : transaction.buyerId === currentUserId;
 
-    if (!isLeadBuyer) {
-      return NextResponse.json({ error: "Only the lead buyer can update percentages" }, { status: 403 });
-    }
+      if (!isLeadBuyer) {
+        return { error: "Only the lead buyer can update percentages", status: 403 } as const;
+      }
 
-    // Can only update before deposits are complete
-    if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
-      return NextResponse.json({ error: "Cannot update percentages after deposit phase" }, { status: 400 });
-    }
+      // Can only update before deposits are complete
+      if (transaction.status !== "PENDING" && transaction.status !== "AWAITING_PARTNER_DEPOSITS") {
+        return { error: "Cannot update percentages after deposit phase", status: 400 } as const;
+      }
 
-    const partnerToUpdate = transaction.partners.find((p: { id: string }) => p.id === partnerId);
-    if (!partnerToUpdate) {
-      return NextResponse.json({ error: "Partner not found" }, { status: 404 });
-    }
+      const partnerToUpdate = transaction.partners.find((p: { id: string }) => p.id === partnerId);
+      if (!partnerToUpdate) {
+        return { error: "Partner not found", status: 404 } as const;
+      }
 
-    // Can't update if already deposited
-    if (partnerToUpdate.depositStatus === "DEPOSITED") {
-      return NextResponse.json({ error: "Cannot update percentage after deposit" }, { status: 400 });
-    }
+      // Can't update if already deposited
+      if (partnerToUpdate.depositStatus === "DEPOSITED") {
+        return { error: "Cannot update percentage after deposit", status: 400 } as const;
+      }
 
-    // Calculate total percentage excluding this partner
-    const otherTotal = transaction.partners
-      .filter((p: { id: string }) => p.id !== partnerId)
-      .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
+      // Atomic percentage check within transaction — prevents concurrent updates exceeding 100%
+      const otherTotal = transaction.partners
+        .filter((p: { id: string }) => p.id !== partnerId)
+        .reduce((sum: number, p: any) => sum + Number(p.percentage), 0);
 
-    if (otherTotal + percentage > 100) {
-      return NextResponse.json({
-        error: `Total percentage would exceed 100%. Other partners: ${otherTotal}%, Trying to set: ${percentage}%`
-      }, { status: 400 });
-    }
+      if (otherTotal + percentage > 100) {
+        return {
+          error: `Total percentage would exceed 100%. Other partners: ${otherTotal}%, Trying to set: ${percentage}%`,
+          status: 400,
+        } as const;
+      }
 
-    // Calculate new deposit amount
-    const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+      // Calculate new deposit amount
+      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
 
-    // Update the partner
-    const updatedPartner = await prisma.transactionPartner.update({
-      where: { id: partnerId },
-      data: {
-        percentage,
-        depositAmount,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            name: true,
-            image: true,
+      // Update the partner
+      const updatedPartner = await tx.transactionPartner.update({
+        where: { id: partnerId },
+        data: {
+          percentage,
+          depositAmount,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              name: true,
+              image: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return NextResponse.json({ partner: updatedPartner });
+      return { partner: updatedPartner } as const;
+    }, { isolationLevel: "Serializable" });
+
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    return NextResponse.json({ partner: result.partner });
   } catch (error) {
     console.error("Error updating partner:", error);
     return NextResponse.json({ error: "Failed to update partner" }, { status: 500 });

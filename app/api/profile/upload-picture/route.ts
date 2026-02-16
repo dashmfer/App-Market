@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/profile/upload-picture
@@ -10,14 +10,19 @@ import { put } from '@vercel/blob';
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
-    if (!session?.user?.id) {
+    const token = await getAuthToken(req);
+
+    if (!token?.id) {
       return NextResponse.json(
-        { error: 'Unauthorized - No active session found. Please sign in again.' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
+
+    const currentUserId = token.id as string;
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Delete old profile picture if it exists
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: currentUserId },
       select: { image: true },
     });
     if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
@@ -78,13 +83,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Upload to Vercel Blob Storage
-    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${file.type.split('/')[1]}`, file, {
+    const blob = await put(`profile-pictures/${currentUserId}-${Date.now()}.${file.type.split('/')[1]}`, file, {
       access: 'public',
     });
 
     // Update user profile with new image URL
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: currentUserId },
       data: { image: blob.url },
       select: {
         id: true,
@@ -111,9 +116,12 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
-    if (!session?.user?.id) {
+    const delToken = await getAuthToken(req);
+
+    if (!delToken?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -122,7 +130,7 @@ export async function DELETE(req: NextRequest) {
 
     // Remove profile picture
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: delToken.id as string },
       data: { image: null },
     });
 
