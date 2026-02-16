@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,7 +60,10 @@ export async function POST(
 
     // Sign the Non-Compete
     const duration = transaction.listing.nonCompeteDurationYears || 2;
-    const signature = `NC-${transaction.id}-${token.id as string}-${duration}y-${Date.now()}`;
+    const signature = crypto
+      .createHash("sha256")
+      .update(JSON.stringify({ transactionId: params.id, userId: token.id, duration, timestamp: Date.now(), type: "NON_COMPETE" }))
+      .digest("hex");
 
     await prisma.transaction.update({
       where: { id: params.id },

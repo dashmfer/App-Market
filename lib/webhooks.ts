@@ -10,7 +10,10 @@ function decryptSecret(secret: string): string {
   if (looksEncrypted(secret)) {
     return decrypt(secret);
   }
-  // Legacy plaintext secret (for backwards compatibility during migration)
+  // SECURITY: Log warning for plaintext secrets — these should be migrated to encrypted
+  console.warn(
+    "[Webhook] Plaintext webhook secret detected — run migration to encrypt all secrets"
+  );
   return secret;
 }
 

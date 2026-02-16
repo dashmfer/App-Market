@@ -10,6 +10,8 @@ import { cookies } from "next/headers";
 const CSRF_COOKIE_NAME = "__Host-csrf-token";
 const CSRF_HEADER_NAME = "x-csrf-token";
 const TOKEN_LENGTH = 32;
+// SECURITY: Single source of truth for token max age (used in both verify and cookie)
+const CSRF_TOKEN_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * Get the CSRF secret from environment
@@ -58,20 +60,19 @@ export function verifyCsrfToken(token: string): boolean {
     .update(data)
     .digest("hex");
 
-  // Timing-safe comparison
-  if (providedSignature.length !== expectedSignature.length) return false;
-
+  // SECURITY: Pad both buffers to equal length before timing-safe comparison.
+  // A length pre-check would leak signature length info via timing side-channel.
+  const maxLen = Math.max(providedSignature.length, expectedSignature.length, 1);
   const isValid = crypto.timingSafeEqual(
-    Buffer.from(providedSignature),
-    Buffer.from(expectedSignature)
+    Buffer.from(providedSignature.padEnd(maxLen, "\0")),
+    Buffer.from(expectedSignature.padEnd(maxLen, "\0"))
   );
 
   if (!isValid) return false;
 
-  // Check token age (valid for 24 hours)
+  // Check token age — uses CSRF_TOKEN_MAX_AGE_MS for single source of truth
   const tokenTime = parseInt(timestamp, 36);
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-  if (Date.now() - tokenTime > maxAge) return false;
+  if (Date.now() - tokenTime > CSRF_TOKEN_MAX_AGE_MS) return false;
 
   return true;
 }
@@ -117,7 +118,7 @@ export function setCsrfCookie(response: NextResponse, token: string): void {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: CSRF_TOKEN_MAX_AGE_MS / 1000, // matches token validation maxAge
   });
 }
 

@@ -33,7 +33,8 @@ function mapAuthMethod(method: string | undefined): AuthMethod {
  * Generate a unique referral code for new users
  */
 function generateUserReferralCode(): string {
-  return crypto.randomBytes(4).toString("hex").toLowerCase();
+  // 8 bytes = 64 bits of entropy (consistent with wallet-verification.ts)
+  return crypto.randomBytes(8).toString("hex").toLowerCase();
 }
 
 // SECURITY: Secret MUST be set in all environments

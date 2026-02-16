@@ -126,10 +126,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prevent purchasing your own listing
+    if (listing.sellerId === userId) {
+      return NextResponse.json(
+        { error: "Cannot purchase your own listing" },
+        { status: 400 }
+      );
+    }
+
     // Determine sale price (winning bid or buy now price)
     let salePrice: number;
-    
+
     if (paymentMethod === "BUY_NOW") {
+      // Verify listing is still active for BUY_NOW purchases
+      if (listing.status !== "ACTIVE" && listing.status !== "RESERVED") {
+        return NextResponse.json(
+          { error: "Listing is no longer available for purchase" },
+          { status: 400 }
+        );
+      }
       if (!listing.buyNowEnabled || !listing.buyNowPrice) {
         return NextResponse.json(
           { error: "Buy Now not available" },

@@ -29,6 +29,11 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
+    // Validate message format — must contain expected domain/prefix to prevent arbitrary message signing
+    if (!message.includes("App Market") && !message.includes("app-market")) {
+      return { valid: false, error: "Invalid message format — must be an App Market verification message" };
+    }
+
     // Verify the signature
     const publicKeyObj = new PublicKey(publicKey);
     const signatureUint8 = bs58.decode(signature);
@@ -74,8 +79,8 @@ Sign this message to prove you own this wallet and accept the collaboration.`;
  * Generate a unique referral code for new users
  */
 function generateReferralCode(): string {
-  // Generate a short, URL-friendly code (8 characters)
-  return crypto.randomBytes(4).toString("hex").toLowerCase();
+  // SECURITY: 8 bytes = 64 bits of entropy (was 4 bytes / 32 bits — too brute-forceable)
+  return crypto.randomBytes(8).toString("hex").toLowerCase();
 }
 
 /**

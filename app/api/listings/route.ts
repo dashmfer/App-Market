@@ -421,8 +421,10 @@ export async function POST(request: NextRequest) {
       ? `${baseSlug}-${Date.now().toString(36)}`
       : baseSlug;
 
-    // Calculate end time
-    const durationDays = parseInt(duration) || 7;
+    // Calculate end time — clamp to config min/max to prevent out-of-range durations
+    const { PLATFORM_CONFIG: _cfg } = await import("@/lib/config");
+    const rawDuration = parseInt(duration) || _cfg.auction.defaultDuration;
+    const durationDays = Math.max(_cfg.auction.minDuration, Math.min(_cfg.auction.maxDuration, rawDuration));
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
     // Handle reservation if a buyer wallet is provided
@@ -532,8 +534,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create collaborators if provided
+    // Create collaborators if provided (validate total percentage)
     if (hasCollaborators) {
+      const totalCollaboratorPercentage = collaborators.reduce(
+        (sum: number, c: any) => sum + (Number(c.percentage) || 0),
+        0
+      );
+      if (totalCollaboratorPercentage > 100) {
+        return NextResponse.json(
+          { error: `Total collaborator percentage (${totalCollaboratorPercentage}%) exceeds 100%` },
+          { status: 400 }
+        );
+      }
       const collaboratorPromises = collaborators.map(async (collab: any) => {
         // Create the collaborator record
         const collaboratorRecord = await prisma.listingCollaborator.create({

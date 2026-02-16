@@ -122,10 +122,11 @@ export async function checkRateLimitAsync(
     };
   }
 
-  // SECURITY: Warn loudly and refuse in production if Upstash is not configured
+  // SECURITY: Refuse to fall back to in-memory in production — serverless instances
+  // each have their own memory, making per-instance rate limiting ineffective.
   if (process.env.NODE_ENV === "production") {
-    console.error(
-      "CRITICAL: Rate limiting falling back to in-memory in production! Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."
+    throw new Error(
+      "CRITICAL: Rate limiting requires Upstash Redis in production. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."
     );
   } else {
     console.warn(

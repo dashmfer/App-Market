@@ -150,14 +150,25 @@ export async function POST(
       .filter((item) => item.required)
       .every((item) => item.sellerConfirmed && item.buyerConfirmed);
 
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: params.id },
+    // SECURITY: Atomic update — use updateMany with status guard to prevent race conditions
+    // on concurrent partner confirmation submissions
+    const updateResult = await prisma.transaction.updateMany({
+      where: {
+        id: params.id,
+        status: { in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] },
+      },
       data: {
         transferChecklist: checklist as any,
         uploadsVerified: allRequiredConfirmed,
       },
     });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json(
+        { error: "Transaction is no longer in a confirmable state" },
+        { status: 409 }
+      );
+    }
 
     // Create notification for seller
     await prisma.notification.create({

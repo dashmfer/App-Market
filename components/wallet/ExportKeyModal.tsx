@@ -42,6 +42,17 @@ export function ExportKeyModal({
     await navigator.clipboard.writeText(privateKeyRef.current);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    // Auto-clear clipboard after 30 seconds to prevent extension snooping
+    setTimeout(async () => {
+      try {
+        const current = await navigator.clipboard.readText();
+        if (current === privateKeyRef.current) {
+          await navigator.clipboard.writeText("");
+        }
+      } catch {
+        // Clipboard read may fail if tab lost focus — that's ok
+      }
+    }, 30000);
   };
 
   const handleReveal = async () => {

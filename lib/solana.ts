@@ -1,7 +1,10 @@
 import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
+import { PLATFORM_CONFIG } from "@/lib/config";
 
 // Program ID from deployed/generated smart contract
+// In production, NEXT_PUBLIC_PROGRAM_ID MUST be set via env-validation.ts startup check.
+// Fallback to devnet only in development.
 export const PROGRAM_ID = new PublicKey(
   process.env.NEXT_PUBLIC_PROGRAM_ID || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
 );
@@ -34,11 +37,11 @@ export const TOKEN_MINTS = {
   USDC: USDC_MINT,
 } as const;
 
-// Fee constants (basis points)
-export const PLATFORM_FEE_BPS = 500; // 5%
-export const APP_FEE_BPS = 300; // 3% - discounted rate for $APP token payments
-export const DISPUTE_FEE_BPS = 200; // 2%
-export const TOKEN_LAUNCH_FEE_BPS = 100; // 1% of token supply
+// Fee constants — single source of truth in config.ts to prevent inconsistency
+export const PLATFORM_FEE_BPS = PLATFORM_CONFIG.fees.platformFeeBps;
+export const APP_FEE_BPS = PLATFORM_CONFIG.fees.appFeeBps;
+export const DISPUTE_FEE_BPS = PLATFORM_CONFIG.fees.disputeFeeBps;
+export const TOKEN_LAUNCH_FEE_BPS = PLATFORM_CONFIG.fees.tokenLaunchSupplyBps;
 
 // Connection to Solana
 export const getConnection = () => {

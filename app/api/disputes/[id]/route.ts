@@ -226,6 +226,29 @@ export async function PUT(
     const body = await request.json();
     const { response, evidence } = body;
 
+    // SECURITY: Validate evidence structure and length
+    if (evidence !== undefined && evidence !== null) {
+      if (!Array.isArray(evidence)) {
+        return NextResponse.json(
+          { error: "Evidence must be an array" },
+          { status: 400 }
+        );
+      }
+      if (evidence.length > 20) {
+        return NextResponse.json(
+          { error: "Maximum 20 evidence items allowed" },
+          { status: 400 }
+        );
+      }
+      const totalSize = JSON.stringify(evidence).length;
+      if (totalSize > 50000) {
+        return NextResponse.json(
+          { error: "Evidence payload too large (max 50KB)" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Get dispute
     const dispute = await prisma.dispute.findUnique({
       where: { id: disputeId },
