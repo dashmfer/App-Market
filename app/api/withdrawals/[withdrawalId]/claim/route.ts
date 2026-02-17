@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { audit } from '@/lib/audit';
+import { audit, auditContext } from '@/lib/audit';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 /**
  * POST /api/withdrawals/[withdrawalId]/claim
@@ -13,6 +15,21 @@ export async function POST(
   { params }: { params: { withdrawalId: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing financial request
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit withdrawal claims
+    const rateLimitResult = await (withRateLimitAsync('write', 'withdrawal-claim'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

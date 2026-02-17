@@ -3,7 +3,7 @@ import prisma from "@/lib/db";
 import { ListingStatus, CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
-import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
+import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES, MAX_LISTING_TITLE_LENGTH, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TAGLINE_LENGTH } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 
@@ -352,6 +352,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate string lengths to prevent storage abuse
+    if (title && title.length > MAX_LISTING_TITLE_LENGTH) {
+      return NextResponse.json(
+        { error: `Title exceeds maximum length of ${MAX_LISTING_TITLE_LENGTH} characters` },
+        { status: 400 }
+      );
+    }
+    if (description && description.length > MAX_LISTING_DESCRIPTION_LENGTH) {
+      return NextResponse.json(
+        { error: `Description exceeds maximum length of ${MAX_LISTING_DESCRIPTION_LENGTH} characters` },
+        { status: 400 }
+      );
+    }
+    if (tagline && tagline.length > MAX_LISTING_TAGLINE_LENGTH) {
+      return NextResponse.json(
+        { error: `Tagline exceeds maximum length of ${MAX_LISTING_TAGLINE_LENGTH} characters` },
+        { status: 400 }
+      );
+    }
+
     // SECURITY: Limit number of categories
     if (finalCategories.length > MAX_CATEGORIES) {
       return NextResponse.json(
@@ -546,6 +566,23 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // SECURITY: Validate collaborator wallet addresses
+      for (const collab of collaborators) {
+        if (!collab.walletAddress || !isValidSolanaAddress(collab.walletAddress)) {
+          return NextResponse.json(
+            { error: `Invalid wallet address for collaborator: ${collab.walletAddress || '(empty)'}` },
+            { status: 400 }
+          );
+        }
+        if (collab.percentage <= 0 || collab.percentage > 100) {
+          return NextResponse.json(
+            { error: "Collaborator percentage must be between 0 and 100" },
+            { status: 400 }
+          );
+        }
+      }
+
       const collaboratorPromises = collaborators.map(async (collab: any) => {
         // Create the collaborator record
         const collaboratorRecord = await prisma.listingCollaborator.create({

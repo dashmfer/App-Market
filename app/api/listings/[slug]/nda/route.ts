@@ -3,6 +3,8 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // Standard NDA template when seller doesn't provide custom terms
 const STANDARD_NDA_TEMPLATE = `NON-DISCLOSURE AGREEMENT
@@ -110,6 +112,21 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit NDA signing
+    const rateLimitResult = await (withRateLimitAsync('write', 'nda-sign'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
+import { isValidUrl } from '@/lib/validation';
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
@@ -81,6 +84,21 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit profile updates
+    const rateLimitResult = await (withRateLimitAsync('write', 'profile-update'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(req);
 
@@ -95,6 +113,20 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     const validatedData = updateProfileSchema.parse(body);
+
+    // SECURITY: Validate URLs have safe protocols
+    if (validatedData.websiteUrl && validatedData.websiteUrl !== '' && !isValidUrl(validatedData.websiteUrl)) {
+      return NextResponse.json(
+        { error: 'Invalid website URL: only http/https allowed' },
+        { status: 400 }
+      );
+    }
+    if (validatedData.image && !isValidUrl(validatedData.image)) {
+      return NextResponse.json(
+        { error: 'Invalid image URL: only http/https allowed' },
+        { status: 400 }
+      );
+    }
 
     // Check username uniqueness if being updated
     if (validatedData.username) {

@@ -21,21 +21,37 @@ function checkSsrfUrl(hostname: string): string | null {
     return "Webhook URL cannot point to localhost";
   }
 
-  // Block private IP ranges (RFC 1918), link-local, CGNAT
+  // Block private IPv4 ranges (RFC 1918), link-local, CGNAT
   const privatePatterns = [
     /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
     /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
     /^192\.168\.\d{1,3}\.\d{1,3}$/,
     /^169\.254\.\d{1,3}\.\d{1,3}$/,           // AWS/cloud metadata
     /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/, // CGNAT
+    /^0\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,         // 0.0.0.0/8
   ];
 
   if (privatePatterns.some(p => p.test(h))) {
     return "Webhook URL cannot point to private/internal IP addresses";
   }
 
-  // Block cloud metadata hostnames
+  // Block private IPv6 ranges (ULA, link-local, loopback, mapped IPv4)
+  if (/^(fc|fd)[0-9a-f]{2}:/i.test(h) ||  // Unique Local Address
+      /^fe[89ab][0-9a-f]:/i.test(h) ||     // Link-local
+      h === "::1" ||                         // Loopback
+      /^::ffff:/i.test(h) ||                // IPv4-mapped IPv6
+      h === "::" ||                          // Unspecified
+      /^\[.*\]$/.test(h)) {                 // Bracketed IPv6
+    return "Webhook URL cannot point to private/internal IP addresses";
+  }
+
+  // Block cloud metadata hostnames and IPs
   if (["metadata.google.internal", "metadata.google", "instance-data"].some(b => h.includes(b))) {
+    return "Webhook URL cannot point to cloud metadata services";
+  }
+
+  // Block AWS metadata IP
+  if (h === "169.254.169.254") {
     return "Webhook URL cannot point to cloud metadata services";
   }
 

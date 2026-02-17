@@ -12,6 +12,8 @@ import {
 import { uploadTokenMetadata } from "@/lib/token-metadata";
 import { watchPoolForGraduation } from "@/lib/pool-watcher";
 import { PublicKey } from "@solana/web3.js";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/token-launch/deploy — Build the on-chain transaction for pool deployment
@@ -25,6 +27,21 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing financial request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit token deployments (strict)
+    const rateLimitResult = await (withRateLimitAsync('auth', 'token-deploy'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

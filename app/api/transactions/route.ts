@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/transactions - Get user's transactions
 export async function GET(request: NextRequest) {
@@ -89,6 +90,15 @@ export async function POST(request: NextRequest) {
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit transaction creation
+    const rateLimitResult = await (withRateLimitAsync('write', 'transactions'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)

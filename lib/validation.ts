@@ -63,6 +63,9 @@ export const MAX_PAGINATION_LIMIT = 100;
 export const MAX_SEARCH_QUERY_LENGTH = 200;
 export const MAX_MESSAGE_LENGTH = 5000;
 export const MAX_CATEGORIES = 3;
+export const MAX_LISTING_TITLE_LENGTH = 200;
+export const MAX_LISTING_DESCRIPTION_LENGTH = 50000;
+export const MAX_LISTING_TAGLINE_LENGTH = 300;
 
 // Valid listing states for editing
 export const EDITABLE_LISTING_STATES = ['ACTIVE', 'RESERVED', 'PENDING_COLLABORATORS', 'DRAFT'];

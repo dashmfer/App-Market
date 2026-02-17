@@ -8,6 +8,8 @@ import {
   getPatoFeeClaimer,
 } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/token-launch/claim-fees — Build transaction to claim trading fees
@@ -20,6 +22,21 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing financial request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit fee claims
+    const rateLimitResult = await (withRateLimitAsync('write', 'token-claim-fees'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 /**
  * POST /api/profile/upload-picture
@@ -10,6 +11,15 @@ import { put } from '@vercel/blob';
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Rate limit file uploads (strict - 5 per minute)
+    const rateLimitResult = await (withRateLimitAsync('auth', 'profile-upload'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -111,6 +121,15 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
+    // SECURITY: Rate limit
+    const rateLimitResult = await (withRateLimitAsync('write', 'profile-upload'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

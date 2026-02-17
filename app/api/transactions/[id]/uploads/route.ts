@@ -8,6 +8,8 @@ import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { verifyUploads } from '@/lib/solana-contract';
 import { getConnection } from '@/lib/solana';
 import { z } from "zod";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 const uploadSchema = z.object({
   type: z.string().min(1),
@@ -48,6 +50,21 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit upload submissions
+    const rateLimitResult = await (withRateLimitAsync('write', 'transaction-uploads'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
