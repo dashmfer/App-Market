@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { getPoolState, calculateFeeBreakdown } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
 import { PLATFORM_CONFIG } from "@/lib/config";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * GET /api/token-launch/[id] — Get detailed info for a specific PATO
@@ -185,6 +187,21 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit token launch updates
+    const rateLimitResult = await (withRateLimitAsync('write', 'token-launch-update'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

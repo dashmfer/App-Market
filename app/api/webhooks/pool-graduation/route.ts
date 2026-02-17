@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { hasPoolGraduated, getPoolState } from "@/lib/meteora-dbc";
 import { unwatchPool } from "@/lib/pool-watcher";
 import { PublicKey } from "@solana/web3.js";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // POST /api/webhooks/pool-graduation
 //
@@ -96,6 +97,15 @@ async function handleGraduation(poolAddressStr: string) {
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Rate limit webhook requests to prevent abuse
+  const rateLimitResult = await (withRateLimitAsync('write', 'webhook-pool-graduation'))(request);
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: rateLimitResult.headers }
+    );
+  }
+
   // SECURITY: Verify webhook secret using timing-safe comparison (prevents timing attacks)
   const authHeader = request.headers.get("authorization");
   const expectedSecret = process.env.WEBHOOK_SECRET;

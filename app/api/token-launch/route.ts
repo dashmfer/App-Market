@@ -14,6 +14,8 @@ import {
 } from "@/lib/meteora-dbc";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { PublicKey } from "@solana/web3.js";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/token-launch — Create a PATO (Post-Acquisition Token Offering)
@@ -24,6 +26,21 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    // SECURITY: Rate limit token launches (strict - financial operation)
+    const rateLimitResult = await (withRateLimitAsync('auth', 'token-launch-create'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

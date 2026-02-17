@@ -40,11 +40,15 @@ export async function unwatchPool(poolAddress: string): Promise<boolean> {
  */
 async function addToHeliusWebhook(address: string): Promise<boolean> {
   try {
+    // SECURITY: Pass API key in Authorization header instead of URL query parameter
     const res = await fetch(
-      `https://api.helius.xyz/v0/webhooks/${HELIUS_WEBHOOK_ID}?api-key=${HELIUS_API_KEY}`,
+      `https://api.helius.xyz/v0/webhooks/${HELIUS_WEBHOOK_ID}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${HELIUS_API_KEY}`,
+        },
         body: JSON.stringify({
           accountAddresses: [address],
           accountAddressesOperation: "APPEND",
@@ -71,11 +75,15 @@ async function addToHeliusWebhook(address: string): Promise<boolean> {
  */
 async function removeFromHeliusWebhook(address: string): Promise<boolean> {
   try {
+    // SECURITY: Pass API key in Authorization header instead of URL query parameter
     const res = await fetch(
-      `https://api.helius.xyz/v0/webhooks/${HELIUS_WEBHOOK_ID}?api-key=${HELIUS_API_KEY}`,
+      `https://api.helius.xyz/v0/webhooks/${HELIUS_WEBHOOK_ID}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${HELIUS_API_KEY}`,
+        },
         body: JSON.stringify({
           accountAddresses: [address],
           accountAddressesOperation: "REMOVE",

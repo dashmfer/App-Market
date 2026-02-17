@@ -10,6 +10,7 @@ import { getConnection } from '@/lib/solana';
 import { z } from "zod";
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 import { withRateLimitAsync } from '@/lib/rate-limit';
+import { encrypt } from '@/lib/encryption';
 
 const uploadSchema = z.object({
   type: z.string().min(1),
@@ -131,6 +132,8 @@ export async function POST(
     }
 
     // 7. Store uploads in database
+    // SECURITY: Encrypt sensitive metadata (credentials, passwords, API keys) before storage
+    const SENSITIVE_TYPES = ['CREDENTIALS', 'SOCIAL_ACCOUNT', 'API_KEYS', 'DATABASE', 'HOSTING', 'DOMAIN'];
     await prisma.upload.createMany({
       data: uploads.map(upload => ({
         transactionId,
@@ -139,7 +142,9 @@ export async function POST(
         fileKey: upload.fileKey,
         fileName: upload.fileName,
         fileSize: upload.fileSize,
-        metadata: upload.metadata,
+        metadata: upload.metadata && SENSITIVE_TYPES.includes(upload.type)
+          ? { encrypted: encrypt(JSON.stringify(upload.metadata)) }
+          : upload.metadata,
         verified: true,
       })),
     });
