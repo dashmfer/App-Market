@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
     // SECURITY: Rate limit to prevent DDoS of external GitHub API via this endpoint
     const rateLimitResult = await (withRateLimitAsync('write', 'github-verify'))(request);
     if (!rateLimitResult.success) {
@@ -34,6 +41,19 @@ export async function POST(request: NextRequest) {
 
     // Use public GitHub API to check if repo exists and is accessible
     // This doesn't require OAuth - works for public repos
+    // SECURITY: Validate owner/repo to prevent path traversal in URL
+    const safeParamRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!safeParamRegex.test(owner) || !safeParamRegex.test(repo)) {
+      return NextResponse.json(
+        { error: "Invalid owner or repo name" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Add timeout to prevent hanging on slow external APIs
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const repoResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
       {
@@ -44,8 +64,10 @@ export async function POST(request: NextRequest) {
             Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
           }),
         },
+        signal: controller.signal,
       }
     );
+    clearTimeout(timeoutId);
 
     if (!repoResponse.ok) {
       if (repoResponse.status === 404) {

@@ -82,14 +82,14 @@ export async function GET() {
     };
   }
 
-  // Env var checks (non-sensitive — just whether they're set)
+  // SECURITY: Only report config status as ok/error, don't enumerate which vars are missing
   checks.config = {
     status: [
       "NEXTAUTH_SECRET",
       "ENCRYPTION_SECRET",
       "CRON_SECRET",
       "DATABASE_URL",
-    ].every(v => !!process.env[v]) ? "ok" : "missing_vars",
+    ].every(v => !!process.env[v]) ? "ok" : "incomplete",
   };
 
   const allHealthy = Object.values(checks).every(c => c.status === "ok" || c.status === "not_configured");
