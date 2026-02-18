@@ -117,6 +117,18 @@ export async function PATCH(request: NextRequest) {
         websiteUrl: true,
         discordHandle: true,
         walletAddress: true,
+        githubUsername: true,
+        githubVerified: true,
+        discordVerified: true,
+        walletVerified: true,
+        twitterUsername: true,
+        twitterVerified: true,
+        totalSales: true,
+        totalPurchases: true,
+        totalVolume: true,
+        rating: true,
+        ratingCount: true,
+        createdAt: true,
       },
     });
 
