@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useConnection } from "@solana/wallet-adapter-react";
+import { apiFetch } from "@/lib/api-client";
 import {
   PublicKey,
   Transaction,
@@ -155,7 +156,7 @@ export function BidModal({
         });
 
         // Record bid in database with transaction signature
-        const response = await fetch("/api/bids", {
+        const response = await apiFetch("/api/bids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -182,7 +183,7 @@ export function BidModal({
 
         // APP token transfer will be implemented with @solana/spl-token
         // For now, record the bid and handle token transfer on backend
-        const response = await fetch("/api/bids", {
+        const response = await apiFetch("/api/bids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -205,7 +206,7 @@ export function BidModal({
           throw new Error("Please connect your wallet first");
         }
 
-        const response = await fetch("/api/bids", {
+        const response = await apiFetch("/api/bids", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

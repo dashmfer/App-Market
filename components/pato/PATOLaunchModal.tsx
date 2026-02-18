@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction, Keypair } from "@solana/web3.js";
+import { apiFetch } from "@/lib/api-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -138,7 +139,7 @@ export function PATOLaunchModal({
     setError(null);
 
     try {
-      const res = await fetch("/api/token-launch", {
+      const res = await apiFetch("/api/token-launch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -181,7 +182,7 @@ export function PATOLaunchModal({
 
     try {
       // Get deployment transactions from API
-      const res = await fetch("/api/token-launch/deploy", {
+      const res = await apiFetch("/api/token-launch/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -234,7 +235,7 @@ export function PATOLaunchModal({
       }
 
       // Update status to LIVE
-      await fetch(`/api/token-launch/${tokenLaunchData.id}`, {
+      await apiFetch(`/api/token-launch/${tokenLaunchData.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

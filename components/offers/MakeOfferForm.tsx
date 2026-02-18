@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DollarSign } from 'lucide-react';
+import { apiFetch } from "@/lib/api-client";
 
 interface MakeOfferFormProps {
   listingId: string;
@@ -43,7 +44,7 @@ export default function MakeOfferForm({
     try {
       setSubmitting(true);
 
-      const response = await fetch('/api/offers', {
+      const response = await apiFetch('/api/offers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

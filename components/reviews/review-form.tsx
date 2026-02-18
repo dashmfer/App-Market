@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Star, X, Loader2, Twitter } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 import Link from "next/link";
 
 interface ReviewableItem {
@@ -110,7 +111,7 @@ export function ReviewForm({ subjectId, subjectName, onClose, onSuccess }: Revie
     setError(null);
 
     try {
-      const response = await fetch("/api/reviews", {
+      const response = await apiFetch("/api/reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

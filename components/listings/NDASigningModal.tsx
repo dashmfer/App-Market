@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Lock, Shield, Check, Loader2, AlertCircle } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Button } from "@/components/ui/button";
+import { apiFetch } from "@/lib/api-client";
 
 interface NDASigningModalProps {
   isOpen: boolean;
@@ -62,7 +63,7 @@ By signing this message, I acknowledge that I have read, understood, and agree t
       const signatureBase58 = bs58.default.encode(signature);
 
       // Submit to API
-      const response = await fetch(`/api/listings/${listingSlug}/nda`, {
+      const response = await apiFetch(`/api/listings/${listingSlug}/nda`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

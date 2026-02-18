@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { apiFetch } from "@/lib/api-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
@@ -95,7 +96,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
       });
 
       // Record purchase
-      const response = await fetch("/api/purchases", {
+      const response = await apiFetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -171,7 +172,7 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
       });
 
       // Create purchase with partners
-      const response = await fetch("/api/purchases", {
+      const response = await apiFetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

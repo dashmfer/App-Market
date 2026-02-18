@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { apiFetch } from "@/lib/api-client";
 import { motion } from "framer-motion";
 import { Clock, Gavel, ShoppingCart, Heart, CheckCircle2, Loader2, Lock, Tag } from "lucide-react";
 import { toast } from "sonner";
@@ -77,7 +78,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
     try {
       if (isWatchlisted) {
         // Remove from watchlist
-        const response = await fetch(`/api/watchlist?listingId=${listing.id}`, {
+        const response = await apiFetch(`/api/watchlist?listingId=${listing.id}`, {
           method: "DELETE",
         });
 
@@ -94,7 +95,7 @@ export function ListingCard({ listing, index = 0, initialWatchlisted }: ListingC
         }
       } else {
         // Add to watchlist
-        const response = await fetch("/api/watchlist", {
+        const response = await apiFetch("/api/watchlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ listingId: listing.id }),

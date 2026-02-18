@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
+import { apiFetch } from "@/lib/api-client";
 import {
   Rocket,
   Loader2,
@@ -85,7 +86,7 @@ export function PATOStatusCard({ tokenLaunch, isBuyer }: PATOStatusCardProps) {
     setClaimSuccess(false);
 
     try {
-      const res = await fetch("/api/token-launch/claim-fees", {
+      const res = await apiFetch("/api/token-launch/claim-fees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

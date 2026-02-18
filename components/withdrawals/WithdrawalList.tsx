@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { DollarSign, Check, Clock, ExternalLink } from 'lucide-react';
+import { apiFetch } from "@/lib/api-client";
 
 interface Withdrawal {
   id: string;
@@ -65,7 +66,7 @@ export default function WithdrawalList() {
     try {
       setClaiming(withdrawalId);
 
-      const response = await fetch(`/api/withdrawals/${withdrawalId}/claim`, {
+      const response = await apiFetch(`/api/withdrawals/${withdrawalId}/claim`, {
         method: 'POST',
       });
 

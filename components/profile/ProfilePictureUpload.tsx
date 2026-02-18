@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { Upload, X, Camera } from 'lucide-react';
+import { apiFetch } from "@/lib/api-client";
 
 interface ProfilePictureUploadProps {
   currentImage?: string | null;
@@ -66,7 +67,7 @@ export default function ProfilePictureUpload({
       formData.append('file', file);
 
       console.log('[ProfilePictureUpload] Sending upload request...');
-      const response = await fetch('/api/profile/upload-picture', {
+      const response = await apiFetch('/api/profile/upload-picture', {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -103,7 +104,7 @@ export default function ProfilePictureUpload({
       setUploading(true);
 
       console.log('[ProfilePictureUpload] Sending remove request...');
-      const response = await fetch('/api/profile/upload-picture', {
+      const response = await apiFetch('/api/profile/upload-picture', {
         method: 'DELETE',
         credentials: 'include',
       });

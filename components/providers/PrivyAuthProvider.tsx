@@ -4,6 +4,7 @@ import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
 import { useEffect, useRef, useCallback, createContext, useContext, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
+import { apiFetch } from "@/lib/api-client";
 
 // Solana wallet connectors - required for Phantom, Solflare, etc.
 const solanaConnectors = toSolanaWalletConnectors();
@@ -130,6 +131,12 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
   // Handle logout
   const handleLogout = useCallback(async () => {
     lastSyncedPrivyId.current = null;
+    // Revoke session server-side so the JWT is invalidated immediately
+    try {
+      await apiFetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // Best-effort: continue logout even if revocation fails
+    }
     await privyLogout();
     await signOut({ redirect: false });
   }, [privyLogout]);
