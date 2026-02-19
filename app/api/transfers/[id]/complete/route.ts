@@ -178,37 +178,42 @@ export async function POST(
       );
     }
 
+    // SECURITY: Batch critical post-completion updates atomically
+    const batchOps = [];
+
     // Store on-chain tx hash if available
     if (onChainTxSig) {
-      await prisma.transaction.update({
-        where: { id: params.id },
-        data: { onChainTx: onChainTxSig },
-      });
+      batchOps.push(
+        prisma.transaction.update({
+          where: { id: params.id },
+          data: { onChainTx: onChainTxSig },
+        })
+      );
     }
 
-    // Update listing status to SOLD
-    await prisma.listing.update({
-      where: { id: transaction.listingId },
-      data: { status: "SOLD" },
-    });
+    // Update listing status, seller stats, and buyer stats atomically
+    batchOps.push(
+      prisma.listing.update({
+        where: { id: transaction.listingId },
+        data: { status: "SOLD" },
+      }),
+      prisma.user.update({
+        where: { id: transaction.sellerId },
+        data: {
+          totalSales: { increment: 1 },
+          totalVolume: { increment: Number(transaction.salePrice) },
+        },
+      }),
+      prisma.user.update({
+        where: { id: transaction.buyerId },
+        data: {
+          totalPurchases: { increment: 1 },
+          totalVolume: { increment: Number(transaction.salePrice) },
+        },
+      })
+    );
 
-    // Update seller stats
-    await prisma.user.update({
-      where: { id: transaction.sellerId },
-      data: {
-        totalSales: { increment: 1 },
-        totalVolume: { increment: Number(transaction.salePrice) },
-      },
-    });
-
-    // Update buyer stats
-    await prisma.user.update({
-      where: { id: transaction.buyerId },
-      data: {
-        totalPurchases: { increment: 1 },
-        totalVolume: { increment: Number(transaction.salePrice) },
-      },
-    });
+    await prisma.$transaction(batchOps);
 
     // Process referral earnings (2% to referrers on first transaction, from platform fee)
     try {

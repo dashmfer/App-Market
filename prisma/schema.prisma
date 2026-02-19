@@ -153,6 +153,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -669,7 +670,7 @@ model Dispute {
 
   // Relations
   transactionId     String        @unique
-  transaction       Transaction   @relation(fields: [transactionId], references: [id])
+  transaction       Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   initiatorId       String
   initiator         User          @relation("DisputeInitiator", fields: [initiatorId], references: [id])
   respondentId      String
@@ -711,7 +712,7 @@ model Review {
 
   // Relations - transactionId is optional for messaging-based reviews
   transactionId   String?
-  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+  transaction     Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   conversationId  String?       // For messaging-based reviews
   authorId        String
   author          User        @relation("ReviewAuthor", fields: [authorId], references: [id])
@@ -734,6 +735,7 @@ model Review {
   @@unique([transactionId, authorId])
   @@unique([conversationId, authorId])
   @@index([subjectId])
+  @@index([authorId])
   @@index([type])
   @@index([rating])
 }
@@ -777,6 +779,7 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@index([createdAt])
+  @@index([userId, read])
 }
 
 // ============================================
@@ -861,7 +864,7 @@ model TokenLaunch {
   bondingCurveStatus   BondingCurveStatus @default(PENDING)
 
   // Graduation / Migration
-  graduationThreshold  Decimal      @default(500) @db.Decimal(18, 8) // SOL needed to graduate
+  graduationThreshold  Decimal      @default(85) @db.Decimal(18, 8) // SOL needed to graduate
   graduatedAt          DateTime?    // When the curve graduated
   dammPoolAddress      String?      // Meteora DAMM v2 pool address post-graduation
   migrationFeeOption   Int          @default(2) // 0=0.25%, 1=0.3%, 2=1%, 3=2%, 4=4%, 5=6%

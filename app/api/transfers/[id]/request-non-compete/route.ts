@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,14 @@ export async function POST(
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'request-non-compete'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const token = await getAuthToken(request);

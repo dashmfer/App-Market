@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
+      take: 50,
     });
 
     // Calculate totals

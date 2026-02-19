@@ -137,26 +137,26 @@ export async function POST(
         break;
     }
 
-    // Update dispute
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: "RESOLVED",
-        resolution,
-        resolutionNotes: notes,
-        feeCharged,
-        resolvedAt: new Date(),
-      },
-    });
-
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: newTransactionStatus,
-        releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
-      },
-    });
+    // SECURITY: Update dispute and transaction atomically to prevent partial state
+    await prisma.$transaction([
+      prisma.dispute.update({
+        where: { id: disputeId },
+        data: {
+          status: "RESOLVED",
+          resolution,
+          resolutionNotes: notes,
+          feeCharged,
+          resolvedAt: new Date(),
+        },
+      }),
+      prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: newTransactionStatus,
+          releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
+        },
+      }),
+    ]);
 
     // Notify both parties
     const resolutionMessages: Record<string, { buyer: string; seller: string }> = {
@@ -230,6 +230,21 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit dispute responses
+    const rateLimitResult = await (withRateLimitAsync('write', 'dispute-respond'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     
     if (!session?.user) {

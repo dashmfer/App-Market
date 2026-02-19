@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SECURITY: Validate amount is positive
-    if (typeof amount !== 'number' || amount <= 0) {
+    if (typeof amount !== 'number' || !isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be a positive number" },
         { status: 400 }

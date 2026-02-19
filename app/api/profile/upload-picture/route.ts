@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
 import { withRateLimitAsync } from '@/lib/rate-limit';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/profile/upload-picture
@@ -11,6 +12,12 @@ import { withRateLimitAsync } from '@/lib/rate-limit';
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit file uploads (strict - 5 per minute)
     const rateLimitResult = await (withRateLimitAsync('auth', 'profile-upload'))(req);
     if (!rateLimitResult.success) {
@@ -121,6 +128,12 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'profile-upload'))(req);
     if (!rateLimitResult.success) {

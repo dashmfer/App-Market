@@ -5,10 +5,27 @@ import {
   calculateListingSimilarity,
   SimilarityResult,
 } from "@/lib/similarity-detection";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // POST /api/admin/similarity-scan - Run similarity scan on all active listings (admin only)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
+    // SECURITY: Rate limit expensive scan operation
+    const rateLimitResult = await (withRateLimitAsync('write', 'admin-scan'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(

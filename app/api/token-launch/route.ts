@@ -76,6 +76,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate initialBuyAmountSOL if provided
+    if (initialBuyAmountSOL !== undefined && initialBuyAmountSOL !== null) {
+      if (typeof initialBuyAmountSOL !== 'number' || !isFinite(initialBuyAmountSOL) || initialBuyAmountSOL <= 0) {
+        return NextResponse.json(
+          { error: "initialBuyAmountSOL must be a positive number" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Verify the user owns this acquisition
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },

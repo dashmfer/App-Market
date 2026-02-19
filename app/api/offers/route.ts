@@ -10,7 +10,7 @@ const MAX_OFFER_AMOUNT = 1_000_000; // 1M SOL cap to prevent overflow in fee cal
 
 const createOfferSchema = z.object({
   listingId: z.string(),
-  amount: z.number().positive().max(MAX_OFFER_AMOUNT, `Offer amount cannot exceed ${MAX_OFFER_AMOUNT}`),
+  amount: z.number().finite().positive().max(MAX_OFFER_AMOUNT, `Offer amount cannot exceed ${MAX_OFFER_AMOUNT}`),
   deadline: z.string().datetime(),
   onChainTx: z.string().min(32).max(128).optional(),
 });
@@ -224,6 +224,7 @@ export async function GET(req: NextRequest) {
         orderBy: {
           createdAt: 'desc',
         },
+        take: 50,
       });
 
       return NextResponse.json({ offers });
@@ -255,6 +256,7 @@ export async function GET(req: NextRequest) {
         orderBy: {
           createdAt: 'desc',
         },
+        take: 50,
       });
 
       return NextResponse.json({ offers });

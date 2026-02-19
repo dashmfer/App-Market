@@ -47,6 +47,7 @@ import { useCountdown } from "@/hooks/useCountdown";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
 import { NDAGate } from "@/components/listings/NDAGate";
+import { apiFetch } from "@/lib/api-client";
 
 // Helper to format currency display
 const formatCurrency = (currency: string): string => {
@@ -350,13 +351,13 @@ export default function ListingPage() {
     setDecliningOffer(offerId);
 
     try {
-      const response = await fetch(`/api/offers/${offerId}/cancel`, {
+      const response = await apiFetch(`/api/offers/${offerId}/cancel`, {
         method: "POST",
       });
 
       if (response.ok) {
-        // Remove offer from list
-        setOffers(offers.filter(o => o.id !== offerId));
+        // Remove offer from list (use functional setState to avoid stale closure)
+        setOffers(prevOffers => prevOffers.filter(o => o.id !== offerId));
       } else {
         const data = await response.json();
         alert(data.error || "Failed to decline offer");
@@ -855,7 +856,7 @@ export default function ListingPage() {
             <div className="aspect-video bg-zinc-100 dark:bg-zinc-900 rounded-2xl overflow-hidden relative">
               {listing.thumbnailUrl ? (
                 <Image src={listing.thumbnailUrl} alt={listing.title} fill className="object-cover" />
-              ) : listing.demoUrl ? (
+              ) : listing.demoUrl && (() => { try { const u = new URL(listing.demoUrl); return u.protocol === 'https:' || u.protocol === 'http:'; } catch { return false; } })() ? (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <a
                     href={listing.demoUrl}

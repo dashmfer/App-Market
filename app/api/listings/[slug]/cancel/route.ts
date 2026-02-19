@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // POST /api/listings/[slug]/cancel - Cancel a listing
 export async function POST(
@@ -13,6 +14,14 @@ export async function POST(
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) {
       return csrfError(csrf.error || "CSRF validation failed");
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'listing-cancel'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const token = await getAuthToken(request);

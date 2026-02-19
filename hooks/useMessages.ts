@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import { apiFetch } from "@/lib/api-client";
 
 export interface MessageUser {
   id: string;
@@ -118,7 +119,7 @@ export function useConversation(conversationId: string | null) {
       if (!conversationId) return null;
 
       try {
-        const res = await fetch(`/api/messages/${conversationId}`, {
+        const res = await apiFetch(`/api/messages/${conversationId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
@@ -164,7 +165,7 @@ export async function startConversation(
   listingId?: string
 ): Promise<{ conversationId: string } | null> {
   try {
-    const res = await fetch("/api/messages", {
+    const res = await apiFetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ recipientId, content: message, listingId }),

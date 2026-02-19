@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/offers/[offerId]/cancel
@@ -17,6 +18,14 @@ export async function POST(
     const csrf = validateCsrfRequest(req);
     if (!csrf.valid) {
       return csrfError(csrf.error || 'CSRF validation failed');
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'offer-cancel'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const session = await getServerSession(authOptions);

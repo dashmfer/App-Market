@@ -426,20 +426,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate slug
+    // Generate slug with collision-safe suffix
     const baseSlug = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-    
+
     const existingSlug = await prisma.listing.findFirst({
       where: { slug: { startsWith: baseSlug } },
       orderBy: { createdAt: "desc" },
     });
 
+    // Always append a unique suffix to prevent TOCTOU race on slug generation
     const slug = existingSlug
       ? `${baseSlug}-${Date.now().toString(36)}`
-      : baseSlug;
+      : `${baseSlug}-${Date.now().toString(36).slice(-4)}`;
 
     // Calculate end time — clamp to config min/max to prevent out-of-range durations
     const { PLATFORM_CONFIG: _cfg } = await import("@/lib/config");

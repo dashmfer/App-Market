@@ -467,7 +467,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user && token) {
         session.user.id = token.id as string;
-        (session.user as any).walletAddress = token.walletAddress;
+        session.user.walletAddress = token.walletAddress;
 
         // Fetch additional user data from database
         if (token.id) {
@@ -517,12 +517,12 @@ export const authOptions: NextAuthOptions = {
 
               // Update session with latest user data
               session.user.name = user.displayName || user.name;
-              (session.user as any).displayName = user.displayName;
-              (session.user as any).username = user.username;
-              (session.user as any).walletAddress = walletAddress;
-              (session.user as any).isVerified = user.isVerified;
-              (session.user as any).githubUsername = user.githubUsername;
-              (session.user as any).isAdmin = user.isAdmin;
+              session.user.displayName = user.displayName;
+              session.user.username = user.username;
+              session.user.walletAddress = walletAddress;
+              session.user.isVerified = user.isVerified;
+              session.user.githubUsername = user.githubUsername;
+              session.user.isAdmin = user.isAdmin;
               session.user.image = user.image;
             }
           } catch (error) {
@@ -543,6 +543,7 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      displayName?: string | null;
       username?: string | null;
       walletAddress?: string | null;
       isVerified?: boolean;

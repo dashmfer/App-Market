@@ -3,6 +3,7 @@ import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -11,6 +12,14 @@ export async function POST(
   try {
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'sign-non-compete'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
 
     const token = await getAuthToken(request);
     if (!token?.id) {

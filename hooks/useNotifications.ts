@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 
 export interface Notification {
   id: string;
@@ -78,7 +79,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
-      await fetch("/api/notifications", {
+      await apiFetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificationId }),
@@ -97,7 +98,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await fetch("/api/notifications", {
+      await apiFetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAll: true }),

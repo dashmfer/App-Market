@@ -357,6 +357,7 @@ export async function GET(request: NextRequest) {
     const purchases = await prisma.transaction.findMany({
       where: { buyerId: userId },
       orderBy: { createdAt: "desc" },
+      take: 50,
       include: {
         listing: {
           select: {

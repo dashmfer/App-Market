@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // POST /api/transfers/[id]/fallback - Activate fallback transfer process
 export async function POST(
@@ -11,6 +12,14 @@ export async function POST(
   try {
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'transfer-fallback'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
 
     const token = await getAuthToken(request);
     if (!token?.id) {

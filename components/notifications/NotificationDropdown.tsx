@@ -63,7 +63,11 @@ function NotificationItem({
   } else if (notification.type === "BUYER_INFO_SUBMITTED" && transactionId) {
     href = `/dashboard/transfers/${transactionId}`;
   } else if (notification.type === "BUYER_INFO_SUBMITTED" && (notification.data as any)?.link) {
-    href = (notification.data as any).link;
+    const link = (notification.data as any).link;
+    // SECURITY: Only allow relative paths to prevent open redirect
+    if (typeof link === 'string' && link.startsWith('/') && !link.startsWith('//')) {
+      href = link;
+    }
   } else if (notification.type === "PAYMENT_RECEIVED" && transactionId) {
     href = `/dashboard/transfers/${transactionId}`;
   } else if (notification.type === "TRANSFER_STARTED" && transactionId) {

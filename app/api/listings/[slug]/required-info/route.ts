@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/listings/[slug]/required-info - Get required buyer info
 export async function GET(
@@ -47,6 +48,14 @@ export async function PATCH(
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'required-info'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const session = await getServerSession(authOptions);

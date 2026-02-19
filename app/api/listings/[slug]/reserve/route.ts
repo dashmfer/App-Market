@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { isValidSolanaAddress } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/listings/[slug]/reserve
@@ -16,6 +17,14 @@ export async function POST(
   try {
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'listing-reserve'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
 
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
@@ -136,6 +145,18 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'listing-unreserve'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
 

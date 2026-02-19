@@ -315,6 +315,14 @@ export async function DELETE(
       return csrfError(csrfValidation.error || 'CSRF validation failed');
     }
 
+    const rateLimitResult = await (withRateLimitAsync('write', 'collaborator-delete'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -414,6 +422,14 @@ export async function PATCH(
     const csrfValidation = validateCsrfRequest(request);
     if (!csrfValidation.valid) {
       return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'collaborator-update'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const token = await getAuthToken(request);

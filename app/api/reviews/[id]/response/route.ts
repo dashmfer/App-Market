@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/reviews/[id]/response - Get response for a review
 export async function GET(
@@ -50,6 +51,14 @@ export async function POST(
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) {
       return csrfError(csrf.error || "CSRF validation failed");
+    }
+
+    const rateLimitResult = await (withRateLimitAsync('write', 'review-response'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const token = await getAuthToken(request);
