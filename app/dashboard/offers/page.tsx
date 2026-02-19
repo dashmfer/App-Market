@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { apiFetch } from "@/lib/api-client";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
@@ -82,7 +83,7 @@ export default function OffersPage() {
     setAcceptingOffer(offerId);
 
     try {
-      const response = await fetch(`/api/offers/${offerId}/accept`, {
+      const response = await apiFetch(`/api/offers/${offerId}/accept`, {
         method: "POST",
       });
 
@@ -107,7 +108,7 @@ export default function OffersPage() {
     setDecliningOffer(offerId);
 
     try {
-      const response = await fetch(`/api/offers/${offerId}/cancel`, {
+      const response = await apiFetch(`/api/offers/${offerId}/cancel`, {
         method: "POST",
       });
 
@@ -132,7 +133,7 @@ export default function OffersPage() {
     setCancellingOffer(offerId);
 
     try {
-      const response = await fetch(`/api/offers/${offerId}/cancel`, {
+      const response = await apiFetch(`/api/offers/${offerId}/cancel`, {
         method: "POST",
       });
 

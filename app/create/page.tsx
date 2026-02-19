@@ -43,6 +43,7 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { CollaboratorInput, type Collaborator } from "@/components/listings/collaborator-input";
+import { apiFetch } from "@/lib/api-client";
 
 // Custom Provider Dropdown with logos and premium badges
 interface ProviderOption {
@@ -483,7 +484,7 @@ export default function CreateListingPage() {
       const [, owner, repo] = match;
       
       // Call API to verify ownership
-      const response = await fetch("/api/github/verify", {
+      const response = await apiFetch("/api/github/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ owner, repo: repo.replace(/\.git$/, "") }),
@@ -601,7 +602,7 @@ export default function CreateListingPage() {
 
       // Submit to API with wallet signature
       // Map form fields to API expected fields
-      const response = await fetch("/api/listings", {
+      const response = await apiFetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

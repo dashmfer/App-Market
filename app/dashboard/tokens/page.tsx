@@ -19,6 +19,7 @@ import {
   AlertCircle,
   ArrowUpRight,
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 interface TokenLaunch {
   id: string;
@@ -103,7 +104,7 @@ export default function TokensPage() {
 
     setClaimingId(launch.id);
     try {
-      const res = await fetch("/api/token-launch/claim-fees", {
+      const res = await apiFetch("/api/token-launch/claim-fees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

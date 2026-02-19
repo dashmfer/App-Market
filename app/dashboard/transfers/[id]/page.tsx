@@ -37,6 +37,7 @@ import { LucideIcon } from "lucide-react";
 import { SecurityNotice } from "@/components/transfers/SecurityNotice";
 import { PATOLaunchModal } from "@/components/pato/PATOLaunchModal";
 import { PATOStatusCard } from "@/components/pato/PATOStatusCard";
+import { apiFetch } from "@/lib/api-client";
 
 interface ChecklistItem {
   id: string;
@@ -346,7 +347,7 @@ export default function TransferPage() {
 
       setIsSubmitting(true);
       try {
-        const res = await fetch(`/api/transfers/${params.id}/seller-confirm`, {
+        const res = await apiFetch(`/api/transfers/${params.id}/seller-confirm`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -417,7 +418,7 @@ export default function TransferPage() {
   const handleBuyerConfirm = async (itemId: string) => {
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/buyer-confirm`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/buyer-confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -446,7 +447,7 @@ export default function TransferPage() {
 
     setCompletingTransfer(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/complete`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/complete`, {
         method: "POST",
         credentials: "include",
       });
@@ -479,7 +480,7 @@ export default function TransferPage() {
 
     setSigningAPA(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/sign-apa`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/sign-apa`, {
         method: "POST",
         credentials: "include",
       });
@@ -507,7 +508,7 @@ export default function TransferPage() {
 
     setSigningNonCompete(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/sign-non-compete`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/sign-non-compete`, {
         method: "POST",
         credentials: "include",
       });
@@ -534,7 +535,7 @@ export default function TransferPage() {
 
     setRequestingAPA(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/request-apa`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/request-apa`, {
         method: "POST",
         credentials: "include",
       });
@@ -561,7 +562,7 @@ export default function TransferPage() {
 
     setRequestingNonCompete(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/request-non-compete`, {
+      const res = await apiFetch(`/api/transfers/${params.id}/request-non-compete`, {
         method: "POST",
         credentials: "include",
       });

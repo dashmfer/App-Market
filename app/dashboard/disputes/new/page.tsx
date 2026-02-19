@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Flag, Loader2, AlertTriangle } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 export default function NewDisputePage() {
   return (
@@ -47,7 +48,7 @@ function NewDisputeContent() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/disputes", {
+      const res = await apiFetch("/api/disputes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

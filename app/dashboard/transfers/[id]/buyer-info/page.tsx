@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { apiFetch } from "@/lib/api-client";
 import {
   ArrowLeft,
   Github,
@@ -150,7 +151,7 @@ export default function BuyerInfoPage() {
     setSubmitError(null);
 
     try {
-      const res = await fetch(`/api/transactions/${params.id}/buyer-info`, {
+      const res = await apiFetch(`/api/transactions/${params.id}/buyer-info`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

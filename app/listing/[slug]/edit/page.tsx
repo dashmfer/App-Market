@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { apiFetch } from "@/lib/api-client";
 import {
   ArrowLeft,
   Save,
@@ -106,7 +107,7 @@ export default function EditListingPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/listings/${slug}`, {
+      const response = await apiFetch(`/api/listings/${slug}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,7 +142,7 @@ export default function EditListingPage() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/listings/${slug}/cancel`, {
+      const response = await apiFetch(`/api/listings/${slug}/cancel`, {
         method: "POST",
       });
 
@@ -167,7 +168,7 @@ export default function EditListingPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/listings/${slug}/reserve`, {
+      const response = await apiFetch(`/api/listings/${slug}/reserve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: reserveWallet.trim() }),
@@ -207,7 +208,7 @@ export default function EditListingPage() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`/api/listings/${slug}/reserve`, {
+      const response = await apiFetch(`/api/listings/${slug}/reserve`, {
         method: "DELETE",
       });
 

@@ -10,6 +10,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { AddFundsModal } from "@/components/wallet/AddFundsModal";
 import { ExportKeyModal } from "@/components/wallet/ExportKeyModal";
+import { apiFetch } from "@/lib/api-client";
 
 // Wrapper component to handle Suspense for useSearchParams
 export default function SettingsPage() {
@@ -135,7 +136,7 @@ function SettingsContent() {
 
     setDisconnectingTwitter(true);
     try {
-      const res = await fetch("/api/auth/twitter/disconnect", {
+      const res = await apiFetch("/api/auth/twitter/disconnect", {
         method: "POST",
         credentials: "include",
       });
@@ -201,7 +202,7 @@ function SettingsContent() {
       formData.append("file", file);
 
       console.log("[Settings] Sending upload request...");
-      const res = await fetch("/api/profile/upload-picture", {
+      const res = await apiFetch("/api/profile/upload-picture", {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -238,7 +239,7 @@ function SettingsContent() {
 
     setUploading(true);
     try {
-      const res = await fetch("/api/profile/upload-picture", {
+      const res = await apiFetch("/api/profile/upload-picture", {
         method: "DELETE",
         credentials: "include",
       });
@@ -261,7 +262,7 @@ function SettingsContent() {
 
   const handleSaveProfile = async () => {
     try {
-      const res = await fetch("/api/profile", {
+      const res = await apiFetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

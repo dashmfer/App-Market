@@ -18,6 +18,7 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 interface PartnerInviteData {
   partner: {
@@ -148,7 +149,7 @@ export default function PartnerInvitePage() {
     try {
       // TODO: Implement actual wallet deposit logic here
       // For now, we'll just call the API to mark as deposited
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/transactions/${data?.transaction.id}/partners/${partnerId}/deposit`,
         {
           method: "POST",

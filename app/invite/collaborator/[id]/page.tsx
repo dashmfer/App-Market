@@ -17,6 +17,7 @@ import {
   Wallet,
   AlertCircle,
 } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 
 interface CollaboratorInvite {
   id: string;
@@ -115,7 +116,7 @@ export default function CollaboratorInvitePage() {
     setResponseError(null);
 
     try {
-      const response = await fetch(`/api/collaborators/${collaboratorId}/respond`, {
+      const response = await apiFetch(`/api/collaborators/${collaboratorId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

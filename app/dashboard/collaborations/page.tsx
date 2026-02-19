@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/api-client";
 
 interface CollaborationInvite {
   id: string;
@@ -95,7 +96,7 @@ export default function CollaborationsPage() {
   const handleRespond = async (inviteId: string, action: "accept" | "decline") => {
     setRespondingTo(inviteId);
     try {
-      const response = await fetch(`/api/collaborators/${inviteId}/respond`, {
+      const response = await apiFetch(`/api/collaborators/${inviteId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

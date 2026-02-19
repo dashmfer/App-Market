@@ -326,7 +326,7 @@ export default function ListingPage() {
     setAcceptingOffer(offerId);
 
     try {
-      const response = await fetch(`/api/offers/${offerId}/accept`, {
+      const response = await apiFetch(`/api/offers/${offerId}/accept`, {
         method: "POST",
       });
 
@@ -373,7 +373,7 @@ export default function ListingPage() {
   // Handler for responding to collaboration invites
   const handleInviteRespond = async (collaboratorId: string, action: "accept" | "decline") => {
     try {
-      const response = await fetch(`/api/collaborators/${collaboratorId}/respond`, {
+      const response = await apiFetch(`/api/collaborators/${collaboratorId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

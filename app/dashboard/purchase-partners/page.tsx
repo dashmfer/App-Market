@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { apiFetch } from "@/lib/api-client";
 
 interface PurchasePartnerInvite {
   id: string;
@@ -151,7 +152,7 @@ export default function PurchasePartnersPage() {
       });
 
       // Record deposit
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/transactions/${invite.transactionId}/partners/${invite.id}/deposit`,
         {
           method: "POST",
