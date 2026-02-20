@@ -79,9 +79,13 @@ export async function POST(
         statusCode: response.status,
       });
     } catch (error: any) {
+      // SECURITY: Don't expose raw error messages that may leak internal infrastructure details
+      const safeError = error.name === "TimeoutError"
+        ? "Request timed out"
+        : "Failed to deliver test webhook";
       return agentSuccessResponse({
         delivered: false,
-        error: error.message || "Failed to deliver test webhook",
+        error: safeError,
       });
     }
   } catch (error) {

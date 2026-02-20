@@ -34,6 +34,17 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Invalid message format — must be an App Market verification message" };
     }
 
+    // SECURITY: Validate timestamp in message to prevent replay attacks
+    const timestampMatch = message.match(/Timestamp:\s*(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)/);
+    if (timestampMatch) {
+      const messageTime = new Date(timestampMatch[1]).getTime();
+      const now = Date.now();
+      const fiveMinutes = 5 * 60 * 1000;
+      if (isNaN(messageTime) || Math.abs(now - messageTime) > fiveMinutes) {
+        return { valid: false, error: "Message timestamp expired — please sign a fresh message" };
+      }
+    }
+
     // Verify the signature
     const publicKeyObj = new PublicKey(publicKey);
     const signatureUint8 = bs58.decode(signature);

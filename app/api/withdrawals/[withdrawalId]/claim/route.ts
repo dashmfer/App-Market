@@ -76,13 +76,25 @@ export async function POST(
       );
     }
 
-    // Update withdrawal status
-    const updatedWithdrawal = await prisma.pendingWithdrawal.update({
-      where: { id: withdrawalId },
+    // SECURITY: Atomic claim - use updateMany with claimed: false condition
+    // to prevent double-claim race condition between concurrent requests
+    const claimResult = await prisma.pendingWithdrawal.updateMany({
+      where: { id: withdrawalId, claimed: false },
       data: {
         claimed: true,
         claimedAt: new Date(),
       },
+    });
+
+    if (claimResult.count === 0) {
+      return NextResponse.json(
+        { error: 'Withdrawal already claimed' },
+        { status: 409 }
+      );
+    }
+
+    const updatedWithdrawal = await prisma.pendingWithdrawal.findUnique({
+      where: { id: withdrawalId },
     });
 
     // NOTE: The actual on-chain withdrawal should be handled by the smart contract

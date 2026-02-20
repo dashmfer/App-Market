@@ -42,8 +42,13 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {};
 
+    // SECURITY: Whitelist valid status values to prevent unexpected Prisma queries
+    const VALID_LISTING_STATUSES = ["ACTIVE", "SOLD", "ENDED", "CANCELLED", "RESERVED", "DRAFT"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upperStatus = status.toUpperCase();
+      if (VALID_LISTING_STATUSES.includes(upperStatus)) {
+        where.status = upperStatus;
+      }
     } else if (!sellerId) {
       where.status = "ACTIVE";
     }
@@ -56,8 +61,13 @@ export async function GET(request: NextRequest) {
       where.sellerId = sellerId;
     }
 
+    // SECURITY: Validate category against known values
+    const VALID_CATEGORIES = ["SAAS", "E_COMMERCE", "SOCIAL_MEDIA", "CONTENT", "GAMING", "DEFI", "NFT", "DAO", "TOOL", "OTHER"];
     if (category && category !== "all") {
-      where.categories = { has: category.toUpperCase().replace("-", "_") };
+      const normalizedCategory = category.toUpperCase().replace("-", "_");
+      if (VALID_CATEGORIES.includes(normalizedCategory)) {
+        where.categories = { has: normalizedCategory };
+      }
     }
 
     const sanitizedSearch = sanitizeSearchQuery(search);

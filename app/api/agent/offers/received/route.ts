@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
           sellerId: auth.userId,
         },
       },
+      take: 100,
       include: {
         buyer: {
           select: {

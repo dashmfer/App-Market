@@ -3,9 +3,16 @@ import { hash } from "bcryptjs";
 import prisma from "@/lib/db";
 import { validatePasswordComplexity } from "@/lib/validation";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit registration attempts (uses Redis in production)
     const rateLimitResult = await (withRateLimitAsync('auth', 'register'))(request);
     if (!rateLimitResult.success) {

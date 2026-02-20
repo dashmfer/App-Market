@@ -63,6 +63,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SECURITY: Validate file content via magic bytes (not just MIME type)
+    const buffer = await file.arrayBuffer();
+    const magicBytes = new Uint8Array(buffer).slice(0, 12);
+    const isJpeg = magicBytes[0] === 0xFF && magicBytes[1] === 0xD8 && magicBytes[2] === 0xFF;
+    const isPng = magicBytes[0] === 0x89 && magicBytes[1] === 0x50 && magicBytes[2] === 0x4E && magicBytes[3] === 0x47;
+    const isGif = magicBytes[0] === 0x47 && magicBytes[1] === 0x49 && magicBytes[2] === 0x46;
+    const isWebp = magicBytes[0] === 0x52 && magicBytes[1] === 0x49 && magicBytes[2] === 0x46 && magicBytes[3] === 0x46
+      && magicBytes[8] === 0x57 && magicBytes[9] === 0x45 && magicBytes[10] === 0x42 && magicBytes[11] === 0x50;
+    if (!isJpeg && !isPng && !isGif && !isWebp) {
+      return NextResponse.json(
+        { error: "File content does not match an allowed image format." },
+        { status: 400 }
+      );
+    }
+
+    // Reconstruct File from validated buffer for upload
+    const validatedFile = new File([buffer], file.name, { type: file.type });
+
     // Delete old profile picture if it exists
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -80,7 +98,7 @@ export async function POST(req: NextRequest) {
 
     // Upload to Vercel Blob
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${ext}`, file, {
+    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${ext}`, validatedFile, {
       access: "public",
     });
 

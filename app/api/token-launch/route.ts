@@ -84,6 +84,12 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+      if (initialBuyAmountSOL > 10000) {
+        return NextResponse.json(
+          { error: "initialBuyAmountSOL cannot exceed 10,000 SOL" },
+          { status: 400 }
+        );
+      }
     }
 
     // Verify the user owns this acquisition

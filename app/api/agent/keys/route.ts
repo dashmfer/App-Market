@@ -268,9 +268,14 @@ export async function PATCH(request: NextRequest) {
     }
     if (permissions !== undefined) {
       const validPermissions = Object.values(ApiKeyPermission);
-      updateData.permissions = permissions.filter((p: string) =>
+      const requestedPermissions = permissions.filter((p: string) =>
         validPermissions.includes(p as ApiKeyPermission)
       );
+      // SECURITY: Prevent privilege escalation - only existing ADMIN keys can grant ADMIN
+      if (requestedPermissions.includes("ADMIN") && !apiKey.permissions.includes("ADMIN")) {
+        return agentErrorResponse("Cannot escalate to ADMIN permission", 403);
+      }
+      updateData.permissions = requestedPermissions;
     }
 
     const updated = await prisma.apiKey.update({

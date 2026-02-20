@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { Transaction, Keypair } from "@solana/web3.js";
+import { Transaction } from "@solana/web3.js";
 import { apiFetch } from "@/lib/api-client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -198,12 +198,8 @@ export function PATOLaunchModal({
         throw new Error(data.error || "Failed to build deploy transaction");
       }
 
-      // Reconstruct the mint keypair for co-signing
-      const mintKeypair = Keypair.fromSecretKey(
-        new Uint8Array(data.mintKeypairBytes)
-      );
-
       // Sign and send each transaction
+      // NOTE: Mint keypair signing happens server-side in the deploy endpoint
       for (const txData of data.transactions) {
         const tx = Transaction.from(
           Buffer.from(txData.serialized, "base64")
@@ -215,10 +211,7 @@ export function PATOLaunchModal({
         tx.recentBlockhash = blockhash;
         tx.feePayer = publicKey;
 
-        // The mint keypair must partially sign
-        tx.partialSign(mintKeypair);
-
-        // User signs
+        // User signs (mint keypair already signed server-side)
         const signed = await signTransaction(tx);
 
         // Send

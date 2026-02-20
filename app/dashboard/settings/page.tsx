@@ -64,7 +64,9 @@ function SettingsContent() {
       window.history.replaceState({}, "", "/dashboard/settings");
     }
 
-    if (twitterConnectedParam === "true" && twitterUsernameParam) {
+    // SECURITY: Validate Twitter username format from OAuth callback
+    const isValidTwitterUsername = /^[a-zA-Z0-9_]{1,15}$/.test(twitterUsernameParam || '');
+    if (twitterConnectedParam === "true" && twitterUsernameParam && isValidTwitterUsername) {
       setTwitterConnected(true);
       setTwitterUsername(twitterUsernameParam);
       setActiveTab("accounts");
@@ -86,16 +88,12 @@ function SettingsContent() {
     }
   }, [searchParams]);
 
-  // Debug session status
+  // Debug session status (development only)
   useEffect(() => {
-    console.log("[Settings] Session status:", status);
-    console.log("[Settings] Session data:", session);
-    console.log("[Settings] Has session:", !!session);
-    console.log("[Settings] Has user:", !!session?.user);
-    console.log("[Settings] User ID:", session?.user?.id);
-    console.log("[Settings] Wallet connected:", connected);
-    console.log("[Settings] Wallet pubkey:", publicKey?.toBase58());
-  }, [session, status, connected, publicKey]);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Settings] Session status:", status);
+    }
+  }, [status]);
 
   // Load initial profile data from API
   useEffect(() => {

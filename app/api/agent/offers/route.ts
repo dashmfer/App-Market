@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
     const offers = await prisma.offer.findMany({
       where: { buyerId: auth.userId },
+      take: 100,
       include: {
         buyer: {
           select: {

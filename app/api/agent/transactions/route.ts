@@ -38,12 +38,18 @@ export async function GET(request: NextRequest) {
       where.OR = [{ buyerId: userId }, { sellerId: userId }];
     }
 
+    // SECURITY: Whitelist valid status values
+    const VALID_TX_STATUSES = ["PENDING", "AWAITING_PAYMENT", "PAID", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION", "COMPLETING", "COMPLETED", "CANCELLED", "DISPUTED", "REFUNDED", "AWAITING_PARTNER_DEPOSITS"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upperStatus = status.toUpperCase();
+      if (VALID_TX_STATUSES.includes(upperStatus)) {
+        where.status = upperStatus;
+      }
     }
 
     const transactions = await prisma.transaction.findMany({
       where,
+      take: 100,
       orderBy: { createdAt: "desc" },
       include: {
         listing: {

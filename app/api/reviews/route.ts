@@ -350,60 +350,64 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create the review
-    const review = await prisma.review.create({
-      data: {
-        type: type as "TRANSACTION" | "MESSAGING",
-        role: reviewerRole,
-        rating,
-        communicationRating: communicationRating || null,
-        speedRating: speedRating || null,
-        accuracyRating: accuracyRating || null,
-        comment: comment || null,
-        transactionId: type === "TRANSACTION" ? transactionId : null,
-        conversationId: type === "MESSAGING" ? conversationId : null,
-        authorId,
-        subjectId,
-      },
-      include: {
-        author: {
-          select: {
-            username: true,
-            displayName: true,
-            image: true,
+    // SECURITY: Create review, update stats, and notify atomically
+    const review = await prisma.$transaction(async (tx) => {
+      const newReview = await tx.review.create({
+        data: {
+          type: type as "TRANSACTION" | "MESSAGING",
+          role: reviewerRole,
+          rating,
+          communicationRating: communicationRating || null,
+          speedRating: speedRating || null,
+          accuracyRating: accuracyRating || null,
+          comment: comment || null,
+          transactionId: type === "TRANSACTION" ? transactionId : null,
+          conversationId: type === "MESSAGING" ? conversationId : null,
+          authorId,
+          subjectId,
+        },
+        include: {
+          author: {
+            select: {
+              username: true,
+              displayName: true,
+              image: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    // Update the subject's rating stats
-    const stats = await prisma.review.aggregate({
-      where: { subjectId, isVisible: true },
-      _avg: { rating: true },
-      _count: true,
-    });
+      // Update the subject's rating stats atomically
+      const stats = await tx.review.aggregate({
+        where: { subjectId, isVisible: true },
+        _avg: { rating: true },
+        _count: true,
+      });
 
-    await prisma.user.update({
-      where: { id: subjectId },
-      data: {
-        rating: stats._avg.rating || 0,
-        ratingCount: stats._count,
-      },
-    });
-
-    // Create notification for the subject
-    await prisma.notification.create({
-      data: {
-        type: "REVIEW_RECEIVED",
-        title: "New Review",
-        message: `${review.author.displayName || review.author.username} left you a ${rating}-star review`,
-        userId: subjectId,
+      await tx.user.update({
+        where: { id: subjectId },
         data: {
-          reviewId: review.id,
-          rating,
-          authorId,
+          rating: stats._avg.rating || 0,
+          ratingCount: stats._count,
         },
-      },
+      });
+
+      // Create notification for the subject
+      await tx.notification.create({
+        data: {
+          type: "REVIEW_RECEIVED",
+          title: "New Review",
+          message: `${newReview.author.displayName || newReview.author.username} left you a ${rating}-star review`,
+          userId: subjectId,
+          data: {
+            reviewId: newReview.id,
+            rating,
+            authorId,
+          },
+        },
+      });
+
+      return newReview;
     });
 
     return NextResponse.json({ review }, { status: 201 });

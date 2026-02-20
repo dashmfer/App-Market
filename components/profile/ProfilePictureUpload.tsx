@@ -21,7 +21,7 @@ export default function ProfilePictureUpload({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  console.log('[ProfilePictureUpload] Session status:', status, 'Has session:', !!session, 'User ID:', session?.user?.id);
+  // Removed: verbose session debug logging (exposed user IDs in production console)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,7 +34,7 @@ export default function ProfilePictureUpload({
       return;
     }
 
-    console.log('[ProfilePictureUpload] Uploading file for user:', session.user.id);
+    // Removed: user ID logging in production
 
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -66,14 +66,11 @@ export default function ProfilePictureUpload({
       const formData = new FormData();
       formData.append('file', file);
 
-      console.log('[ProfilePictureUpload] Sending upload request...');
       const response = await apiFetch('/api/profile/upload-picture', {
         method: 'POST',
         body: formData,
         credentials: 'include',
       });
-
-      console.log('[ProfilePictureUpload] Upload response status:', response.status);
 
       if (!response.ok) {
         const data = await response.json();
@@ -103,13 +100,10 @@ export default function ProfilePictureUpload({
     try {
       setUploading(true);
 
-      console.log('[ProfilePictureUpload] Sending remove request...');
       const response = await apiFetch('/api/profile/upload-picture', {
         method: 'DELETE',
         credentials: 'include',
       });
-
-      console.log('[ProfilePictureUpload] Remove response status:', response.status);
 
       if (!response.ok) {
         throw new Error('Failed to remove image');

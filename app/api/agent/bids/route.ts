@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     const bids = await prisma.bid.findMany({
       where: { bidderId: auth.userId },
+      take: 100,
       orderBy: { createdAt: "desc" },
       include: {
         listing: {
@@ -114,39 +115,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mark previous winning bid as outbid
-    if (listing.bids[0]) {
-      await prisma.bid.update({
-        where: { id: listing.bids[0].id },
-        data: { isWinning: false, isOutbid: true },
-      });
-    }
+    // SECURITY: Atomically mark previous bid as outbid, create new bid, and notify
+    const bid = await prisma.$transaction(async (tx) => {
+      if (listing.bids[0]) {
+        await tx.bid.update({
+          where: { id: listing.bids[0].id },
+          data: { isWinning: false, isOutbid: true },
+        });
+      }
 
-    // Create new bid
-    const bid = await prisma.bid.create({
-      data: {
-        amount,
-        currency: currency || listing.currency,
-        isWinning: true,
-        listingId,
-        bidderId: userId,
-      },
-      include: {
-        bidder: {
-          select: { id: true, username: true },
+      const newBid = await tx.bid.create({
+        data: {
+          amount,
+          currency: currency || listing.currency,
+          isWinning: true,
+          listingId,
+          bidderId: userId,
         },
-      },
-    });
+        include: {
+          bidder: {
+            select: { id: true, username: true },
+          },
+        },
+      });
 
-    // Notify seller
-    await prisma.notification.create({
-      data: {
-        type: "BID_PLACED",
-        title: "New bid received!",
-        message: `New bid of ${amount} ${listing.currency} on "${listing.title}"`,
-        data: { listingId, listingSlug: listing.slug, amount },
-        userId: listing.sellerId,
-      },
+      await tx.notification.create({
+        data: {
+          type: "BID_PLACED",
+          title: "New bid received!",
+          message: `New bid of ${amount} ${listing.currency} on "${listing.title}"`,
+          data: { listingId, listingSlug: listing.slug, amount },
+          userId: listing.sellerId,
+        },
+      });
+
+      return newBid;
     });
 
     return agentSuccessResponse({ bid }, 201);
