@@ -37,18 +37,29 @@ export async function withRetry<T>(
 
 /**
  * Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
+ *
+ * SECURITY: This key should be stored as a "Sensitive" environment variable
+ * in Vercel (encrypted at rest, redacted from logs). For local development,
+ * use a devnet keypair only.
  */
+let _cachedAuthority: Keypair | null | undefined;
+
 export function getBackendAuthority(): Keypair | null {
+  if (_cachedAuthority !== undefined) return _cachedAuthority;
+
   const secretKeyJson = process.env.BACKEND_AUTHORITY_SECRET_KEY;
   if (!secretKeyJson) {
+    _cachedAuthority = null;
     return null;
   }
 
   try {
     const keypairBytes = JSON.parse(secretKeyJson);
-    return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
+    _cachedAuthority = Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
+    return _cachedAuthority;
   } catch (error) {
-    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY:", error);
+    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY");
+    _cachedAuthority = null;
     return null;
   }
 }

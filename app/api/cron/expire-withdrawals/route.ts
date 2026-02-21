@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
+import { getBackendAuthority } from "@/lib/cron-helpers";
 import {
   Connection,
   Keypair,
@@ -31,22 +32,6 @@ import { verifyCronSecret } from "@/lib/cron-auth";
  *
  * Runs every hour. Requires BACKEND_AUTHORITY_SECRET_KEY env var.
  */
-
-// Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
-function getBackendAuthority(): Keypair | null {
-  const secretKeyJson = process.env.BACKEND_AUTHORITY_SECRET_KEY;
-  if (!secretKeyJson) {
-    return null;
-  }
-
-  try {
-    const keypairBytes = JSON.parse(secretKeyJson);
-    return Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
-  } catch (error) {
-    console.error("[Cron] Failed to parse BACKEND_AUTHORITY_SECRET_KEY:", error);
-    return null;
-  }
-}
 
 // Build the expire_withdrawal instruction
 function buildExpireWithdrawalInstruction(
