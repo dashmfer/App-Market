@@ -249,9 +249,12 @@ export const getProgram = (provider: AnchorProvider): Program => {
 };
 
 // Convert token amount to raw units based on decimals
+// Uses string-based conversion to avoid floating-point precision loss
 export const toTokenUnits = (amount: number, currency: "SOL" | "APP" | "USDC"): BN => {
   const decimals = TOKEN_DECIMALS[currency];
-  return new BN(Math.floor(amount * Math.pow(10, decimals)));
+  const [whole, decimal = ""] = amount.toString().split(".");
+  const paddedDecimal = decimal.padEnd(decimals, "0").slice(0, decimals);
+  return new BN(whole + paddedDecimal);
 };
 
 // Convert raw units to token amount

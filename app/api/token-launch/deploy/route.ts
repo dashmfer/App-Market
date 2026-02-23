@@ -95,6 +95,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate initialBuyAmountSOL (same as creation endpoint)
+    if (initialBuyAmountSOL !== undefined && initialBuyAmountSOL !== null) {
+      if (typeof initialBuyAmountSOL !== 'number' || !isFinite(initialBuyAmountSOL) || initialBuyAmountSOL <= 0) {
+        return NextResponse.json(
+          { error: "initialBuyAmountSOL must be a positive number" },
+          { status: 400 }
+        );
+      }
+      if (initialBuyAmountSOL > 10000) {
+        return NextResponse.json(
+          { error: "initialBuyAmountSOL cannot exceed 10,000 SOL" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // SECURITY: Atomically claim PENDING -> LAUNCHING to prevent concurrent deploy race
+    const claimed = await prisma.tokenLaunch.updateMany({
+      where: { id: tokenLaunchId, status: "PENDING" },
+      data: { status: "LAUNCHING" as any },
+    });
+    if (claimed.count === 0) {
+      return NextResponse.json(
+        { error: "Token launch is no longer pending — may be deploying from another session" },
+        { status: 409 }
+      );
+    }
+
     // Decrypt the vanity keypair
     const decryptedKeypair = deserializeKeypair(
       decrypt(tokenLaunch.vanityKeypair)
@@ -147,11 +175,10 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // Update status to LAUNCHING
+    // Update pool address now that we have it
     await prisma.tokenLaunch.update({
       where: { id: tokenLaunchId },
       data: {
-        status: "LAUNCHING",
         dbcPoolAddress: result.poolAddress.toBase58(),
       },
     });

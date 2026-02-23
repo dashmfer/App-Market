@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { TREASURY_WALLET } from "@/lib/solana";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -128,7 +129,7 @@ export default function PurchasePartnersPage() {
     setError(null);
 
     try {
-      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+      const escrowPubkey = TREASURY_WALLET;
       const lamports = Math.floor(Number(invite.depositAmount) * LAMPORTS_PER_SOL);
 
       const transaction = new Transaction().add(

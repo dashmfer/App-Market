@@ -95,15 +95,26 @@ export async function POST(
       select: { id: true },
     });
 
-    // Update the listing to reserved status
-    const updatedListing = await prisma.listing.update({
-      where: { id: listing.id },
+    // SECURITY: Atomic reserve — only transition if still ACTIVE to prevent TOCTOU race
+    const reserveResult = await prisma.listing.updateMany({
+      where: { id: listing.id, status: "ACTIVE" },
       data: {
-        status: "RESERVED" as any,
+        status: "RESERVED",
         reservedBuyerWallet: walletAddress,
         reservedBuyerId: existingUser?.id || null,
         reservedAt: new Date(),
       } as any,
+    });
+
+    if (reserveResult.count === 0) {
+      return NextResponse.json(
+        { error: "Listing is no longer active" },
+        { status: 409 }
+      );
+    }
+
+    const updatedListing = await prisma.listing.findUnique({
+      where: { id: listing.id },
     });
 
     // If the buyer is a registered user, send them a notification

@@ -31,6 +31,9 @@ const nextConfig = {
     },
   },
 
+  // Disable X-Powered-By header to reduce fingerprinting surface
+  poweredByHeader: false,
+
   // Security headers
   async headers() {
     return [
@@ -59,9 +62,9 @@ const nextConfig = {
             value: 'strict-origin-when-cross-origin',
           },
           {
-            // Enforce HTTPS
+            // Enforce HTTPS (with preload for HSTS preload list eligibility)
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            value: 'max-age=31536000; includeSubDomains; preload',
           },
           {
             // Prevent loading in Adobe products
@@ -87,6 +90,10 @@ const nextConfig = {
               "frame-src 'self' https://phantom.app https://solflare.com https://auth.privy.io https://*.privy.io",
               // No plugins/objects
               "object-src 'none'",
+              // Restrict base URI to prevent base tag injection
+              "base-uri 'self'",
+              // Only allow framing from same origin
+              "frame-ancestors 'self'",
               // Form submissions only to self
               "form-action 'self'",
               // Only upgrade insecure requests in production

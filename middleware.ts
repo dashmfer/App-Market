@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
-    pathname.includes(".") // files with extensions
+    /\.[a-zA-Z0-9]{1,10}$/.test(pathname) // files with extensions (strict regex to prevent dot bypass)
   ) {
     return NextResponse.next();
   }

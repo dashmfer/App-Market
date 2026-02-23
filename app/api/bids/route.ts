@@ -96,10 +96,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate amount is positive
+    // SECURITY: Validate amount is positive and within reasonable bounds
     if (typeof amount !== 'number' || !isFinite(amount) || amount <= 0) {
       return NextResponse.json(
         { error: "Amount must be a positive number" },
+        { status: 400 }
+      );
+    }
+    if (amount > 1_000_000) {
+      return NextResponse.json(
+        { error: "Bid amount exceeds maximum allowed" },
         { status: 400 }
       );
     }

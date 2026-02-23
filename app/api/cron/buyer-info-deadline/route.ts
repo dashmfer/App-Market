@@ -117,6 +117,7 @@ export async function GET(request: NextRequest) {
         const claimed = await prisma.transaction.updateMany({
           where: { id: transaction.id, buyerInfoStatus: "PENDING" },
           data: {
+            buyerInfoStatus: "DEADLINE_PASSED",
             fallbackTransferUsed: true,
             transferMethods: {
               ...(transaction.transferMethods as object || {}),

@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { TREASURY_WALLET } from "@/lib/solana";
 import { motion } from "framer-motion";
 import {
   Clock,
@@ -454,8 +455,8 @@ export default function ListingPage() {
     setBidError(null);
 
     try {
-      // Platform escrow wallet - in production this would be a PDA from the smart contract
-      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+      // Use centralized treasury wallet constant
+      const escrowPubkey = TREASURY_WALLET;
 
       // Create transfer transaction
       const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);
@@ -483,7 +484,7 @@ export default function ListingPage() {
       });
 
       // Record bid in database with transaction signature
-      const response = await fetch("/api/bids", {
+      const response = await apiFetch("/api/bids", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -543,8 +544,8 @@ export default function ListingPage() {
     setBuyError(null);
 
     try {
-      // Platform escrow wallet - in production this would be a PDA from the smart contract
-      const escrowPubkey = new PublicKey("AoNbJjD1kKUGpSuJKxPrxVVNLTtSqHVSBm6hLWLWLnwB");
+      // Use centralized treasury wallet constant
+      const escrowPubkey = TREASURY_WALLET;
 
       // Create transfer transaction for buy now price
       const lamports = Math.floor(Number(listing.buyNowPrice) * LAMPORTS_PER_SOL);
@@ -572,7 +573,7 @@ export default function ListingPage() {
       });
 
       // Record purchase in database
-      const response = await fetch("/api/purchases", {
+      const response = await apiFetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
     const results = { processed: 0, onChainSuccess: 0, onChainFailed: 0, dbOnly: 0 };
 
     for (const withdrawal of expiredWithdrawals) {
+      const onChainSuccessBefore = results.onChainSuccess;
       try {
         // Attempt on-chain expiry if we have authority + connection + on-chain data
         if (
@@ -151,13 +152,15 @@ export async function GET(request: NextRequest) {
           } catch (onChainError) {
             console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
             results.onChainFailed++;
-            // Still mark as claimed in DB so we don't retry forever
+            // SECURITY: Do NOT mark as claimed when on-chain refund fails — funds are still locked.
+            // The next cron run will retry. This prevents users from losing access to their SOL.
+            continue;
           }
         } else {
           results.dbOnly++;
         }
 
-        // Mark as claimed in DB regardless
+        // Mark as claimed in DB only after successful on-chain refund (or db-only path)
         await prisma.pendingWithdrawal.update({
           where: { id: withdrawal.id },
           data: {
@@ -166,13 +169,14 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        // Notify the user
+        // Notify the user — use per-withdrawal success flag, not batch counter
+        const thisOnChainOk = results.dbOnly > 0 || results.onChainSuccess > onChainSuccessBefore;
         if (withdrawal.user.walletAddress) {
           await prisma.notification.create({
             data: {
               type: "SYSTEM",
               title: "Expired Bid Refund",
-              message: results.onChainSuccess > 0
+              message: thisOnChainOk
                 ? `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`
                 : `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has expired. Please contact support if you need assistance.`,
               data: {

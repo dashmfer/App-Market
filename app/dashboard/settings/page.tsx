@@ -176,12 +176,6 @@ function SettingsContent() {
       return;
     }
 
-    console.log("[Settings] Starting upload with session:", {
-      status,
-      userId: session.user.id,
-      hasSession: !!session
-    });
-
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert("File too large. Maximum size is 5MB.");
