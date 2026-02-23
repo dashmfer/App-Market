@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
 import { withRateLimitAsync } from '@/lib/rate-limit';
@@ -27,9 +26,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getAuthToken(req);
 
-    if (!session?.user?.id) {
+    if (!session?.id) {
       return NextResponse.json(
         { error: 'Unauthorized - No active session found. Please sign in again.' },
         { status: 401 }
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // Delete old profile picture if it exists
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       select: { image: true },
     });
     if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
@@ -95,13 +94,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Upload to Vercel Blob Storage
-    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${file.type.split('/')[1]}`, file, {
+    const blob = await put(`profile-pictures/${session.id as string}-${Date.now()}.${file.type.split('/')[1]}`, file, {
       access: 'public',
     });
 
     // Update user profile with new image URL
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       data: { image: blob.url },
       select: {
         id: true,
@@ -143,9 +142,9 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getAuthToken(req);
 
-    if (!session?.user?.id) {
+    if (!session?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -154,7 +153,7 @@ export async function DELETE(req: NextRequest) {
 
     // Remove profile picture
     await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       data: { image: null },
     });
 

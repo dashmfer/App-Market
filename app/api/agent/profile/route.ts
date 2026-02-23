@@ -81,11 +81,24 @@ export async function PATCH(request: NextRequest) {
     const { displayName, username, bio, websiteUrl, discordHandle } = body;
 
     // Build update data (only include provided fields)
+    // SECURITY: Sanitize inputs to match browser endpoint (strip HTML, enforce length limits)
     const updateData: any = {};
-    if (displayName !== undefined) updateData.displayName = displayName;
-    if (bio !== undefined) updateData.bio = bio;
-    if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
-    if (discordHandle !== undefined) updateData.discordHandle = discordHandle;
+    if (displayName !== undefined) {
+      updateData.displayName = String(displayName).replace(/<[^>]*>/g, "").trim().slice(0, 50);
+    }
+    if (bio !== undefined) {
+      updateData.bio = String(bio).replace(/<[^>]*>/g, "").trim().slice(0, 500);
+    }
+    if (websiteUrl !== undefined) {
+      const url = String(websiteUrl).trim().slice(0, 200);
+      if (url && !/^https?:\/\//i.test(url)) {
+        return agentErrorResponse("Website URL must start with http:// or https://", 400);
+      }
+      updateData.websiteUrl = url || null;
+    }
+    if (discordHandle !== undefined) {
+      updateData.discordHandle = String(discordHandle).replace(/<[^>]*>/g, "").trim().slice(0, 50);
+    }
 
     // Validate username uniqueness if being updated
     if (username !== undefined) {

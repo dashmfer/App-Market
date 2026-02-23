@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { decrypt } from "@/lib/encryption";
 import { deserializeKeypair } from "@/lib/vanity-keygen";
 import {
@@ -42,8 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (tokenLaunch.transaction.buyerId !== session.user.id) {
+    if (tokenLaunch.transaction.buyerId !== session.id as string) {
       return NextResponse.json(
         { error: "Only the acquisition buyer can deploy this token" },
         { status: 403 }

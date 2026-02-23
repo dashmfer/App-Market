@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 
@@ -11,8 +10,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -34,8 +33,8 @@ export async function GET(
     }
 
     // Only buyer or seller can view buyer info
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
+    const isBuyer = transaction.buyerId === session.id as string;
+    const isSeller = transaction.sellerId === session.id as string;
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -87,8 +86,8 @@ export async function POST(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -122,7 +121,7 @@ export async function POST(
     }
 
     // Only buyer can submit info
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== session.id as string) {
       return NextResponse.json({ error: "Only buyer can submit info" }, { status: 403 });
     }
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
@@ -36,9 +35,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getAuthToken(req);
 
-    if (!session?.user?.id) {
+    if (!session?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -82,7 +81,7 @@ export async function POST(req: NextRequest) {
         return { error: 'Listing is not active', status: 400 } as const;
       }
 
-      if (listing.sellerId === session.user.id) {
+      if (listing.sellerId === (session.id as string)) {
         return { error: 'Cannot make offer on your own listing', status: 400 } as const;
       }
 
@@ -91,7 +90,7 @@ export async function POST(req: NextRequest) {
           amount: validatedData.amount,
           deadline: new Date(validatedData.deadline),
           listingId: validatedData.listingId,
-          buyerId: session.user.id,
+          buyerId: session.id as string,
           status: 'ACTIVE',
           ...(onChainTx ? { onChainTx } : {}),
         },
@@ -182,9 +181,9 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthToken(req);
 
-    if (!session?.user?.id) {
+    if (!session?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -199,7 +198,7 @@ export async function GET(req: NextRequest) {
       const offers = await prisma.offer.findMany({
         where: {
           listing: {
-            sellerId: session.user.id,
+            sellerId: session.id as string,
           },
         },
         include: {
@@ -232,7 +231,7 @@ export async function GET(req: NextRequest) {
       // Get offers made by the user
       const offers = await prisma.offer.findMany({
         where: {
-          buyerId: session.user.id,
+          buyerId: session.id as string,
         },
         include: {
           buyer: {

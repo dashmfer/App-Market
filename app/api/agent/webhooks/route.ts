@@ -11,6 +11,7 @@ import {
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission, WebhookEventType } from "@/lib/prisma-enums";
 import { encrypt } from "@/lib/encryption";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // SECURITY: SSRF protection — block private/internal IPs in webhook URLs
 function checkSsrfUrl(hostname: string): string | null {
@@ -112,10 +113,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     let userId: string | undefined;
+    let isSessionAuth = false;
 
     const token = await getAuthToken(request);
     if (token?.id) {
       userId = token.id as string;
+      isSessionAuth = true;
     } else {
       const agentAuth = await authenticateAgent(request);
       if (agentAuth.success && hasPermission(agentAuth, ApiKeyPermission.ADMIN)) {
@@ -125,6 +128,14 @@ export async function POST(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Require CSRF token when authenticated via session cookie
+    if (isSessionAuth) {
+      const csrfValidation = validateCsrfRequest(request);
+      if (!csrfValidation.valid) {
+        return csrfError(csrfValidation.error || "CSRF validation failed");
+      }
     }
 
     // SECURITY: Rate limit
@@ -219,10 +230,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     let userId: string | undefined;
+    let isSessionAuth = false;
 
     const token = await getAuthToken(request);
     if (token?.id) {
       userId = token.id as string;
+      isSessionAuth = true;
     } else {
       const agentAuth = await authenticateAgent(request);
       if (agentAuth.success && hasPermission(agentAuth, ApiKeyPermission.ADMIN)) {
@@ -232,6 +245,14 @@ export async function DELETE(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Require CSRF token when authenticated via session cookie
+    if (isSessionAuth) {
+      const csrfValidation = validateCsrfRequest(request);
+      if (!csrfValidation.valid) {
+        return csrfError(csrfValidation.error || "CSRF validation failed");
+      }
     }
 
     // SECURITY: Rate limit
@@ -276,10 +297,12 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     let userId: string | undefined;
+    let isSessionAuth = false;
 
     const token = await getAuthToken(request);
     if (token?.id) {
       userId = token.id as string;
+      isSessionAuth = true;
     } else {
       const agentAuth = await authenticateAgent(request);
       if (agentAuth.success && hasPermission(agentAuth, ApiKeyPermission.ADMIN)) {
@@ -289,6 +312,14 @@ export async function PATCH(request: NextRequest) {
 
     if (!userId) {
       return agentErrorResponse("Unauthorized", 401);
+    }
+
+    // SECURITY: Require CSRF token when authenticated via session cookie
+    if (isSessionAuth) {
+      const csrfValidation = validateCsrfRequest(request);
+      if (!csrfValidation.valid) {
+        return csrfError(csrfValidation.error || "CSRF validation failed");
+      }
     }
 
     // SECURITY: Rate limit

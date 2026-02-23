@@ -5,6 +5,7 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
+import { checkAndSetNonce } from "@/lib/validation";
 
 // Bcrypt cost factor for API key hashing (higher = slower but more secure)
 const BCRYPT_ROUNDS = 12;
@@ -177,6 +178,11 @@ async function verifyWalletSignature(
   timestamp: string,
   nonce?: string
 ): Promise<AgentAuthResult> {
+  // SECURITY: Nonce is required to prevent replay attacks within the timestamp window
+  if (!nonce) {
+    return { success: false, error: "Nonce is required (x-auth-nonce header)", statusCode: 400 };
+  }
+
   // Validate timestamp
   const timestampNum = parseInt(timestamp, 10);
   if (isNaN(timestampNum)) {
@@ -190,6 +196,13 @@ async function verifyWalletSignature(
       error: "Timestamp expired. Generate a new signature.",
       statusCode: 401
     };
+  }
+
+  // SECURITY: Check nonce uniqueness to prevent replay attacks
+  const nonceKey = `agent:${walletAddress}:${timestamp}:${nonce}`;
+  const alreadyUsed = await checkAndSetNonce(nonceKey);
+  if (alreadyUsed) {
+    return { success: false, error: "Signature has already been used", statusCode: 401 };
   }
 
   // Reconstruct the message

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Octokit } from '@octokit/rest';
 import { PublicKey, Keypair, Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
@@ -66,8 +65,8 @@ export async function POST(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getAuthToken(req);
+    if (!session?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -96,7 +95,7 @@ export async function POST(
     }
 
     // 2. Verify user is the seller
-    if (transaction.sellerId !== session.user.id) {
+    if (transaction.sellerId !== session.id as string) {
       return NextResponse.json({ error: 'Only seller can upload assets' }, { status: 403 });
     }
 

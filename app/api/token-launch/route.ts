@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
 import {
@@ -41,8 +40,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -108,7 +107,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== session.id as string) {
       return NextResponse.json(
         { error: "Only the buyer of this acquisition can launch a token" },
         { status: 403 }
@@ -143,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     // Get the buyer's wallet address
     const buyer = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       select: { walletAddress: true },
     });
 
@@ -206,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Notify the buyer
     await prisma.notification.create({
       data: {
-        userId: session.user.id,
+        userId: session.id as string,
         type: "PATO_LAUNCHED",
         title: "PATO Ready to Launch",
         message: `Your token "${tokenName}" ($${tokenSymbol.toUpperCase()}) is ready. Sign the transaction to deploy.`,
@@ -265,8 +264,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -293,10 +292,10 @@ export async function GET(request: NextRequest) {
     // Only return launches the user is involved in (as buyer/creator)
     where.OR = [
       { creatorWallet: (await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: session.id as string },
         select: { walletAddress: true },
       }))?.walletAddress },
-      { transaction: { buyerId: session.user.id } },
+      { transaction: { buyerId: session.id as string } },
     ];
 
     const tokenLaunches = await prisma.tokenLaunch.findMany({

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { hashEvidence, isValidUUID } from "@/lib/validation";
 import { audit, auditContext } from "@/lib/audit";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
@@ -28,9 +27,9 @@ export async function POST(
       );
     }
 
-    const session = await getServerSession(authOptions);
+    const session = await getAuthToken(request);
 
-    if (!session?.user) {
+    if (!session?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -66,7 +65,7 @@ export async function POST(
 
     // SECURITY: Only admin can resolve disputes
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       select: { isAdmin: true },
     });
 
@@ -201,7 +200,7 @@ export async function POST(
     await audit({
       action: "ADMIN_DISPUTE_RESOLUTION",
       severity: "WARN",
-      userId: session.user.id,
+      userId: session.id as string,
       targetId: disputeId,
       targetType: "dispute",
       detail: `Dispute resolved: ${resolution}`,
@@ -245,9 +244,9 @@ export async function PUT(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const session = await getAuthToken(request);
+
+    if (!session?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -294,7 +293,7 @@ export async function PUT(
     }
 
     // Only respondent can respond
-    if (dispute.respondentId !== session.user.id) {
+    if (dispute.respondentId !== session.id as string) {
       return NextResponse.json(
         { error: "Only the respondent can respond to this dispute" },
         { status: 403 }

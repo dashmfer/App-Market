@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 
@@ -58,8 +57,8 @@ export async function PATCH(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -81,7 +80,7 @@ export async function PATCH(
     }
 
     // Only seller can update
-    if (listing.sellerId !== session.user.id) {
+    if (listing.sellerId !== session.id as string) {
       return NextResponse.json({ error: "Only seller can update" }, { status: 403 });
     }
 

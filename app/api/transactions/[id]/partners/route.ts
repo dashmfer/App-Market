@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync } from "@/lib/rate-limit";
@@ -12,8 +11,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -46,9 +45,9 @@ export async function GET(
 
     // Only buyer, seller, or partners can view
     const isParticipant =
-      transaction.buyerId === session.user.id ||
-      transaction.sellerId === session.user.id ||
-      transaction.partners.some((p: { userId: string | null }) => p.userId === session.user.id);
+      transaction.buyerId === session.id as string ||
+      transaction.sellerId === session.id as string ||
+      transaction.partners.some((p: { userId: string | null }) => p.userId === session.id as string);
 
     if (!isParticipant) {
       return NextResponse.json({ error: "Not authorized to view this transaction" }, { status: 403 });
@@ -82,8 +81,8 @@ export async function POST(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -123,8 +122,8 @@ export async function POST(
 
       const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
       const isLeadBuyer = leadPartner
-        ? leadPartner.userId === session.user.id
-        : transaction.buyerId === session.user.id;
+        ? leadPartner.userId === session.id as string
+        : transaction.buyerId === session.id as string;
 
       if (!isLeadBuyer) {
         return { error: "Only the lead buyer can add partners", status: 403 } as const;
@@ -237,8 +236,8 @@ export async function DELETE(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -266,9 +265,9 @@ export async function DELETE(
     // Only lead buyer can remove partners (or partner can remove themselves)
     const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
     const isLeadBuyer = leadPartner
-      ? leadPartner.userId === session.user.id
-      : transaction.buyerId === session.user.id;
-    const isSelf = partnerToRemove.userId === session.user.id;
+      ? leadPartner.userId === session.id as string
+      : transaction.buyerId === session.id as string;
+    const isSelf = partnerToRemove.userId === session.id as string;
 
     if (!isLeadBuyer && !isSelf) {
       return NextResponse.json({ error: "Not authorized to remove this partner" }, { status: 403 });
@@ -337,8 +336,8 @@ export async function PATCH(
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(request);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -367,8 +366,8 @@ export async function PATCH(
       // Only lead buyer can update percentages
       const leadPartner = transaction.partners.find((p: { isLead: boolean }) => p.isLead);
       const isLeadBuyer = leadPartner
-        ? leadPartner.userId === session.user.id
-        : transaction.buyerId === session.user.id;
+        ? leadPartner.userId === session.id as string
+        : transaction.buyerId === session.id as string;
 
       if (!isLeadBuyer) {
         return { error: "Only the lead buyer can update percentages", status: 403 } as const;

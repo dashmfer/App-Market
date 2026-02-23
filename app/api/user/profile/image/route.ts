@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import { validateFile, isImageFile } from "@/lib/file-security";
@@ -24,8 +23,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(req);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -83,7 +82,7 @@ export async function POST(req: NextRequest) {
 
     // Delete old profile picture if it exists
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       select: { image: true },
     });
     if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
@@ -98,13 +97,13 @@ export async function POST(req: NextRequest) {
 
     // Upload to Vercel Blob
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const blob = await put(`profile-pictures/${session.user.id}-${Date.now()}.${ext}`, validatedFile, {
+    const blob = await put(`profile-pictures/${session.id as string}-${Date.now()}.${ext}`, validatedFile, {
       access: "public",
     });
 
     // Update user profile with new image URL
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       data: { image: blob.url },
       select: {
         id: true,
@@ -140,14 +139,14 @@ export async function DELETE(req: NextRequest) {
       return csrfError(csrfValidation.error || 'CSRF validation failed');
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const session = await getAuthToken(req);
+    if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Remove profile picture
     const updatedUser = await prisma.user.update({
-      where: { id: session.user.id },
+      where: { id: session.id as string },
       data: { image: null },
       select: {
         id: true,

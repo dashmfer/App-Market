@@ -245,12 +245,26 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing Privy authentication token");
         }
 
+        // SECURITY: Verify Privy token AND fetch server-side user data
+        // Never trust client-supplied wallet/email/twitter — only use Privy-verified values
+        let verifiedWallet: string | null = null;
+        let verifiedEmail: string | null = null;
+        let verifiedTwitter: string | null = null;
+
         try {
           const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
           // Ensure the verified Privy user ID matches the claimed one
           if (verifiedClaims.userId !== credentials.privyUserId) {
             throw new Error("Privy user ID mismatch");
           }
+
+          // SECURITY: Fetch the user's linked accounts from Privy's server
+          // This is the authoritative source — client-supplied values are IGNORED
+          const privyUser = await privyClient.getUser(verifiedClaims.userId);
+
+          verifiedWallet = privyUser.wallet?.address || null;
+          verifiedEmail = privyUser.email?.address || null;
+          verifiedTwitter = privyUser.twitter?.username || null;
         } catch (verifyError: any) {
           console.error("[Privy Auth] Token verification failed:", verifyError.message);
           throw new Error("Invalid Privy authentication token");
@@ -262,10 +276,10 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          // Check if user exists by wallet address
-          if (credentials.walletAddress) {
+          // Check if user exists by wallet address (only use Privy-verified wallet)
+          if (verifiedWallet) {
             user = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
+              where: { walletAddress: verifiedWallet },
             });
 
             if (user) {
@@ -280,10 +294,10 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
-          // Check if user exists by email
-          if (!user && credentials.email) {
+          // Check if user exists by email (only use Privy-verified email)
+          if (!user && verifiedEmail) {
             user = await prisma.user.findUnique({
-              where: { email: credentials.email },
+              where: { email: verifiedEmail },
             });
 
             if (user) {
@@ -293,7 +307,7 @@ export const authOptions: NextAuthOptions = {
                 data: {
                   privyUserId: credentials.privyUserId,
                   authMethod: mapAuthMethod(credentials.authMethod),
-                  walletAddress: credentials.walletAddress || user.walletAddress,
+                  walletAddress: verifiedWallet || user.walletAddress,
                 },
               });
             }
@@ -316,9 +330,9 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
-          // Generate username
-          let username = credentials.twitterUsername
-            || credentials.email?.split("@")[0]
+          // Generate username from Privy-verified sources only
+          let username = verifiedTwitter
+            || verifiedEmail?.split("@")[0]
             || `user_${Date.now().toString(36)}`;
 
           // Ensure username is unique
@@ -330,10 +344,10 @@ export const authOptions: NextAuthOptions = {
           user = await prisma.user.create({
             data: {
               privyUserId: credentials.privyUserId,
-              walletAddress: credentials.walletAddress || null,
-              email: credentials.email || null,
-              twitterUsername: credentials.twitterUsername || null,
-              twitterVerified: !!credentials.twitterUsername,
+              walletAddress: verifiedWallet,
+              email: verifiedEmail,
+              twitterUsername: verifiedTwitter,
+              twitterVerified: !!verifiedTwitter,
               username,
               referralCode,
               authMethod: mapAuthMethod(credentials.authMethod),
@@ -351,39 +365,36 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
-
-          console.log("[Privy Auth] Created new user");
         } else {
-          // Update user with latest info from Privy
+          // Update user with latest Privy-verified info
           const updateData: any = {};
 
-          // SECURITY: Check uniqueness before linking wallet/email/twitter
-          // Prevents one Privy account from claiming another user's identity
-          if (credentials.walletAddress && !user.walletAddress) {
+          // SECURITY: Only use Privy-verified values, check uniqueness before linking
+          if (verifiedWallet && !user.walletAddress) {
             const existing = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
+              where: { walletAddress: verifiedWallet },
               select: { id: true },
             });
             if (!existing) {
-              updateData.walletAddress = credentials.walletAddress;
+              updateData.walletAddress = verifiedWallet;
             }
           }
-          if (credentials.email && !user.email) {
+          if (verifiedEmail && !user.email) {
             const existing = await prisma.user.findUnique({
-              where: { email: credentials.email },
+              where: { email: verifiedEmail },
               select: { id: true },
             });
             if (!existing) {
-              updateData.email = credentials.email;
+              updateData.email = verifiedEmail;
             }
           }
-          if (credentials.twitterUsername && !user.twitterUsername) {
+          if (verifiedTwitter && !user.twitterUsername) {
             const existing = await prisma.user.findFirst({
-              where: { twitterUsername: credentials.twitterUsername },
+              where: { twitterUsername: verifiedTwitter },
               select: { id: true },
             });
             if (!existing) {
-              updateData.twitterUsername = credentials.twitterUsername;
+              updateData.twitterUsername = verifiedTwitter;
               updateData.twitterVerified = true;
             }
           }

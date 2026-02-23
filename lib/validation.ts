@@ -28,7 +28,7 @@ async function getNonceRedis() {
 
 // Atomically check-and-set nonce via Redis if available, else in-memory.
 // Returns true if nonce was ALREADY used (reject), false if fresh (allow).
-async function checkAndSetNonce(nonceKey: string): Promise<boolean> {
+export async function checkAndSetNonce(nonceKey: string): Promise<boolean> {
   const redis = await getNonceRedis();
   if (redis) {
     // SECURITY: Use SET ... NX (set-if-not-exists) for atomic check-and-set.
