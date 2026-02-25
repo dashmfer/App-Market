@@ -430,8 +430,9 @@ export async function hasPoolGraduated(poolAddress: PublicKey): Promise<boolean>
  * Calculate the fee breakdown for a given trade amount
  */
 export function calculateFeeBreakdown(tradeAmountSOL: number) {
-  const totalFeePct = PATO_CONFIG.tradingFeeBps / 100; // 1%
-  const totalFee = tradeAmountSOL * (totalFeePct / 100);
+  // SECURITY FIX WA-5: Single-step BPS conversion to avoid intermediate rounding
+  const totalFeePct = PATO_CONFIG.tradingFeeBps / 100; // 1% (kept for display)
+  const totalFee = (tradeAmountSOL * PATO_CONFIG.tradingFeeBps) / 10000;
   const meteoraCut = totalFee * 0.2; // 20% to Meteora
   const partnerPool = totalFee * 0.8; // 80% to partner pool
   const creatorCut =

@@ -213,15 +213,26 @@ export async function DELETE(
       );
     }
 
-    // Update the listing back to active
-    const updatedListing = await prisma.listing.update({
-      where: { id: listing.id },
+    // SECURITY FIX WA-3: Atomic unreserve — only transition if still RESERVED to prevent TOCTOU race
+    const unreserveResult = await prisma.listing.updateMany({
+      where: { id: listing.id, status: "RESERVED" },
       data: {
-        status: "ACTIVE" as any,
+        status: "ACTIVE",
         reservedBuyerWallet: null,
         reservedBuyerId: null,
         reservedAt: null,
       } as any,
+    });
+
+    if (unreserveResult.count === 0) {
+      return NextResponse.json(
+        { error: "Listing is no longer reserved" },
+        { status: 409 }
+      );
+    }
+
+    const updatedListing = await prisma.listing.findUnique({
+      where: { id: listing.id },
     });
 
     return NextResponse.json({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api-client";
 import {
   Users,
   DollarSign,
@@ -107,7 +108,8 @@ export default function ReferralsPage() {
     setIsSaving(true);
     setError("");
     try {
-      const response = await fetch("/api/referrals", {
+      // SECURITY FIX WA-4: Use apiFetch instead of raw fetch to include CSRF token
+      const response = await apiFetch("/api/referrals", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: newCode }),

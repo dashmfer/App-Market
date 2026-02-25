@@ -226,6 +226,29 @@ export async function POST(
 
     // Verify signature if provided
     if (signature && signedMessage && walletAddress) {
+      // SECURITY FIX WA-1: Verify wallet belongs to authenticated user (same pattern as NDA signing)
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { walletAddress: true },
+      });
+
+      if (user?.walletAddress !== walletAddress) {
+        // Also check in UserWallet table for linked wallets
+        const userWallet = await prisma.userWallet.findFirst({
+          where: {
+            userId,
+            walletAddress,
+          },
+        });
+
+        if (!userWallet) {
+          return NextResponse.json(
+            { error: "Wallet address does not match your account" },
+            { status: 400 }
+          );
+        }
+      }
+
       try {
         const messageBytes = new TextEncoder().encode(signedMessage);
         const signatureBytes = bs58.decode(signature);

@@ -74,13 +74,24 @@ export async function POST(
       );
     }
 
-    // Update offer status
-    const updatedOffer = await prisma.offer.update({
-      where: { id: offerId },
+    // SECURITY FIX WA-7: Atomic update with status guard to prevent TOCTOU race
+    const cancelResult = await prisma.offer.updateMany({
+      where: { id: offerId, status: 'ACTIVE' },
       data: {
         status: 'CANCELLED',
         cancelledAt: new Date(),
       },
+    });
+
+    if (cancelResult.count === 0) {
+      return NextResponse.json(
+        { error: 'Offer is no longer active' },
+        { status: 409 }
+      );
+    }
+
+    const updatedOffer = await prisma.offer.findUnique({
+      where: { id: offerId },
     });
 
     // Notify seller

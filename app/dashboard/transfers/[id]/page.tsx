@@ -391,7 +391,8 @@ export default function TransferPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/transfers/${params.id}/seller-confirm`, {
+      // SECURITY FIX WA-2: Use apiFetch instead of raw fetch to include CSRF token
+      const res = await apiFetch(`/api/transfers/${params.id}/seller-confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

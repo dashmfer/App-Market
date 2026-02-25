@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { audit, auditContext } from "@/lib/audit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // ADMIN SECRET - Must be set in environment variables
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -45,6 +46,15 @@ export async function DELETE(request: NextRequest) {
     // SECURITY: Validate admin secret from Authorization header (not query params)
     if (!validateAdminSecret(request)) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
+    }
+
+    // SECURITY FIX WA-9: Add rate limiting even for admin endpoints
+    const rateLimitResult = await (withRateLimitAsync('write', 'admin-reset'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const { searchParams } = new URL(request.url);

@@ -229,18 +229,21 @@ export async function POST(
       console.error("[Transfer Complete] Failed to process referral earnings:", referralError);
     }
 
-    // Calculate payment distribution for collaborators
+    // SECURITY FIX WA-5: Use BigInt to avoid floating-point precision loss on financial calculations
     const collaborators = transaction.listing.collaborators || [];
     const sellerProceeds = Number(transaction.sellerProceeds);
+    const sellerProceedsBig = BigInt(Math.round(sellerProceeds));
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
     let collaboratorTotalPercentage = 0;
+    let collaboratorTotalAmount = 0n;
 
     for (const collab of collaborators) {
       const collabPct = Number(collab.percentage);
-      const collaboratorAmount = (sellerProceeds * collabPct) / 100;
+      const collaboratorAmount = Number((sellerProceedsBig * BigInt(Math.round(collabPct))) / 100n);
       collaboratorTotalPercentage += collabPct;
+      collaboratorTotalAmount += BigInt(Math.round(collaboratorAmount));
 
       collaboratorPayments.push({
         collaboratorId: collab.id,
@@ -252,9 +255,9 @@ export async function POST(
       });
     }
 
-    // Seller gets the remainder
+    // Seller gets the remainder (avoids rounding errors where sum != total)
     const sellerPercentage = 100 - collaboratorTotalPercentage;
-    const sellerFinalAmount = (sellerProceeds * sellerPercentage) / 100;
+    const sellerFinalAmount = Number(sellerProceedsBig - collaboratorTotalAmount);
 
     // Store the payment distribution in the transaction data
     const paymentDistribution = {

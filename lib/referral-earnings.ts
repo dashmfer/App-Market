@@ -27,9 +27,11 @@ export async function processReferralEarnings(
   totalReferralPayout: number;
   platformFeeAfterReferrals: number;
 }> {
-  const commissionRate = PLATFORM_CONFIG.referral.commissionRateBps / 10000; // 0.02 = 2%
-  const platformFeeRate = PLATFORM_CONFIG.fees.platformFeeBps / 10000; // 0.05 = 5%
-  const platformFee = salePrice * platformFeeRate;
+  // SECURITY FIX WA-5: Compute as single expression to avoid intermediate float rounding
+  const commissionRateBps = PLATFORM_CONFIG.referral.commissionRateBps;
+  const platformFeeBps = PLATFORM_CONFIG.fees.platformFeeBps;
+  const commissionRate = commissionRateBps / 10000; // kept for DB storage
+  const platformFee = Math.floor((salePrice * platformFeeBps) / 10000);
 
   let buyerReferralEarning = 0;
   let sellerReferralEarning = 0;
@@ -44,7 +46,7 @@ export async function processReferralEarnings(
 
   if (buyerReferral && !buyerReferral.firstTransactionPaid) {
     // This is buyer's first transaction - pay the referrer
-    buyerReferralEarning = salePrice * commissionRate;
+    buyerReferralEarning = Math.floor((salePrice * commissionRateBps) / 10000);
 
     // Create the earning record
     await prisma.referralEarning.create({
@@ -106,7 +108,7 @@ export async function processReferralEarnings(
 
   if (sellerReferral && !sellerReferral.firstTransactionPaid) {
     // This is seller's first transaction - pay the referrer
-    sellerReferralEarning = salePrice * commissionRate;
+    sellerReferralEarning = Math.floor((salePrice * commissionRateBps) / 10000);
 
     // Create the earning record
     await prisma.referralEarning.create({

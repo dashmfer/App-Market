@@ -149,7 +149,8 @@ export async function POST(
         } as const;
       }
 
-      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+      // SECURITY FIX WA-5: Use BigInt for precise financial calculation
+      const depositAmount = Number((BigInt(Math.round(Number(transaction.salePrice))) * BigInt(Math.round(percentage))) / 100n);
 
       const partner = await tx.transactionPartner.create({
         data: {
@@ -400,8 +401,8 @@ export async function PATCH(
         } as const;
       }
 
-      // Calculate new deposit amount
-      const depositAmount = (Number(transaction.salePrice) * percentage) / 100;
+      // SECURITY FIX WA-5: Use BigInt for precise financial calculation
+      const depositAmount = Number((BigInt(Math.round(Number(transaction.salePrice))) * BigInt(Math.round(percentage))) / 100n);
 
       // Update the partner atomically
       const updatedPartner = await tx.transactionPartner.update({

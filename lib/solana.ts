@@ -132,15 +132,15 @@ export const getFeeRateBps = (currency?: string): number => {
   return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;
 };
 
-// Calculate platform fee (with optional currency for APP discount)
+// SECURITY FIX WA-11: Use Math.floor to ensure integer result for lamport amounts
 export const calculatePlatformFee = (amount: number, currency?: string): number => {
   const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
+  return Math.floor((amount * feeBps) / 10000);
 };
 
 // Calculate dispute fee
 export const calculateDisputeFee = (amount: number): number => {
-  return (amount * DISPUTE_FEE_BPS) / 10000;
+  return Math.floor((amount * DISPUTE_FEE_BPS) / 10000);
 };
 
 // Calculate seller proceeds after fees (with optional currency for APP discount)

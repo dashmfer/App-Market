@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -12,6 +13,15 @@ export async function POST(request: NextRequest) {
     const csrf = validateCsrfRequest(request);
     if (!csrf.valid) {
       return csrfError(csrf.error || "CSRF validation failed");
+    }
+
+    // SECURITY FIX WA-6: Add rate limiting
+    const rateLimitResult = await (withRateLimitAsync('auth', 'twitter-disconnect'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
     }
 
     const token = await getAuthToken(request);

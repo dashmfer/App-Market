@@ -113,13 +113,20 @@ export async function POST(
         feeCharged = true;
         break;
 
-      case "PARTIAL_REFUND":
-        // Split 50/50, dispute fee split proportionally
-        buyerRefund = Number(transaction.salePrice) * 0.5 - (disputeFeeAmount * 0.5);
-        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5 - (disputeFeeAmount * 0.5);
+      case "PARTIAL_REFUND": {
+        // SECURITY FIX WA-5: Use BigInt integer math to avoid floating-point precision loss
+        const salePriceBig = BigInt(Math.round(Number(transaction.salePrice)));
+        const platformFeeBig = BigInt(Math.round(Number(transaction.platformFee)));
+        const disputeFeeBig = BigInt(Math.round(disputeFeeAmount));
+        const halfSale = salePriceBig / 2n;
+        const halfDisputeFee = disputeFeeBig / 2n;
+        const halfPlatformFee = platformFeeBig / 2n;
+        buyerRefund = Number(halfSale - halfDisputeFee);
+        sellerPayout = Number(halfSale - halfPlatformFee - (disputeFeeBig - halfDisputeFee));
         newTransactionStatus = "COMPLETED";
         feeCharged = disputeFeeAmount > 0;
         break;
+      }
 
       case "RELEASE_TO_SELLER":
         // Seller gets proceeds; dispute fee charged to buyer (loser)
@@ -316,17 +323,27 @@ export async function PUT(
     };
     const evidenceHash = hashEvidence(evidenceData);
 
-    // Update dispute with response and hash
-    await prisma.dispute.update({
-      where: { id: disputeId },
+    // SECURITY FIX WA-8: Atomic update with status guard to prevent TOCTOU race
+    const updateResult = await prisma.dispute.updateMany({
+      where: {
+        id: disputeId,
+        status: { not: "RESOLVED" },
+      },
       data: {
         respondentEvidence: {
           ...evidenceData,
           integrityHash: evidenceHash,
         },
         status: "UNDER_REVIEW",
-      },
+      } as any,
     });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json(
+        { error: "Dispute was resolved while you were responding" },
+        { status: 409 }
+      );
+    }
 
     // Notify initiator
     await prisma.notification.create({

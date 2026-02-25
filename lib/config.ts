@@ -285,13 +285,14 @@ export function getFeeRateBps(currency?: string): number {
     : PLATFORM_CONFIG.fees.platformFeeBps;
 }
 
+// SECURITY FIX WA-11: Use Math.floor to ensure integer result for lamport amounts
 export function calculatePlatformFee(amount: number, currency?: string): number {
   const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
+  return Math.floor((amount * feeBps) / 10000);
 }
 
 export function calculateDisputeFee(amount: number): number {
-  return (amount * PLATFORM_CONFIG.fees.disputeFeeBps) / 10000;
+  return Math.floor((amount * PLATFORM_CONFIG.fees.disputeFeeBps) / 10000);
 }
 
 // Calculate seller proceeds with fee breakdown

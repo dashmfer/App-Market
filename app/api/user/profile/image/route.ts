@@ -139,6 +139,15 @@ export async function DELETE(req: NextRequest) {
       return csrfError(csrfValidation.error || 'CSRF validation failed');
     }
 
+    // SECURITY FIX WA-10: Add rate limiting to DELETE handler (POST already has it)
+    const rateLimitResult = await (withRateLimitAsync('write', 'profile-image-delete'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const session = await getAuthToken(req);
     if (!session?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
