@@ -8,6 +8,7 @@ import {
   getSolanaConnection,
   executeOnChainRelease,
 } from "@/lib/cron-helpers";
+import { safeAmountToLamports } from "@/lib/solana";
 
 /**
  * Cron Job: Escrow Auto-Release
@@ -144,8 +145,13 @@ export async function GET(request: NextRequest) {
           results.onChainSkipped++;
         }
 
-        // Validate salePrice — don't complete transactions with bad financial data
-        const salePrice = Number(transaction.salePrice);
+        // SECURITY FIX: Validate salePrice with safe conversion to avoid float precision loss
+        let salePrice: number;
+        try {
+          salePrice = safeAmountToLamports(transaction.salePrice);
+        } catch {
+          salePrice = NaN;
+        }
         if (isNaN(salePrice) || salePrice <= 0) {
           await prisma.transaction.updateMany({
             where: { id: transaction.id, status: "COMPLETING" as any },

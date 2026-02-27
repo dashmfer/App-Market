@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/users/lookup?q=<wallet_or_username>
 // Lookup a user by wallet address or username for collaborator auto-population
@@ -121,6 +122,12 @@ export async function GET(request: NextRequest) {
 // POST /api/users/lookup - Search multiple users at once
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY FIX: CSRF validation for mutating endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     // SECURITY: Rate limit to prevent user enumeration
     const rateLimitResult = await (withRateLimitAsync('write', 'user-lookup-batch'))(request);
     if (!rateLimitResult.success) {

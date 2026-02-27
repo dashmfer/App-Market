@@ -29,6 +29,31 @@ export async function POST(
     const body = await request.json();
     const { githubTransferLink, zipDownloadUrl, domainTransferLink, instructions } = body;
 
+    // SECURITY FIX: Validate URLs to prevent javascript: URI injection
+    const urlFields = [
+      { name: 'githubTransferLink', value: githubTransferLink },
+      { name: 'zipDownloadUrl', value: zipDownloadUrl },
+      { name: 'domainTransferLink', value: domainTransferLink },
+    ];
+    for (const { name, value } of urlFields) {
+      if (value) {
+        try {
+          const parsed = new URL(value);
+          if (!['http:', 'https:'].includes(parsed.protocol)) {
+            return NextResponse.json(
+              { error: `${name} must use http or https protocol` },
+              { status: 400 }
+            );
+          }
+        } catch {
+          return NextResponse.json(
+            { error: `${name} is not a valid URL` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
       include: {

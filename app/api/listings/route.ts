@@ -473,6 +473,23 @@ export async function POST(request: NextRequest) {
       listingStatus = ListingStatus.RESERVED;
     }
 
+    // SECURITY FIX: Validate price bounds to prevent overflow/abuse
+    const MAX_PRICE = 1_000_000_000; // 1 billion lamports (~1000 SOL)
+    const parsedStartingPrice = startingPrice ? parseFloat(startingPrice) : 0;
+    const parsedBuyNowPrice = buyNowPrice ? parseFloat(buyNowPrice) : null;
+    if (parsedStartingPrice < 0 || parsedStartingPrice > MAX_PRICE) {
+      return NextResponse.json(
+        { error: "Starting price must be between 0 and 1,000,000,000" },
+        { status: 400 }
+      );
+    }
+    if (parsedBuyNowPrice !== null && (parsedBuyNowPrice <= 0 || parsedBuyNowPrice > MAX_PRICE)) {
+      return NextResponse.json(
+        { error: "Buy now price must be between 0 and 1,000,000,000" },
+        { status: 400 }
+      );
+    }
+
     // Create listing
     const listing = await prisma.listing.create({
       data: {
@@ -525,9 +542,9 @@ export async function POST(request: NextRequest) {
         monthlyUsers: monthlyUsers ? parseInt(monthlyUsers) : null,
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
         githubStars: githubStars ? parseInt(githubStars) : null,
-        startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
+        startingPrice: parsedStartingPrice,
         buyNowEnabled,
-        buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,
+        buyNowPrice: parsedBuyNowPrice,
         currency,
         endTime,
         status: listingStatus,

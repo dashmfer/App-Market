@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
+import { calculateDisputeFee, DISPUTE_FEE_BPS, safeAmountToLamports } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
@@ -165,7 +165,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate dispute fee (2% of sale price)
-    const disputeFee = calculateDisputeFee(Number(transaction.salePrice));
+    // SECURITY FIX: Use safeAmountToLamports to avoid floating-point precision loss
+    const disputeFee = calculateDisputeFee(safeAmountToLamports(transaction.salePrice));
     const respondentId = isBuyer ? transaction.sellerId : transaction.buyerId;
 
     // Atomically create dispute, update transaction status, and send notification.

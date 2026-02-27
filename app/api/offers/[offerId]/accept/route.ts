@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { calculatePlatformFee } from '@/lib/solana';
+import { calculatePlatformFee, safeAmountToLamports } from '@/lib/solana';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 import { withRateLimitAsync } from '@/lib/rate-limit';
 
@@ -111,9 +111,10 @@ export async function POST(
       );
     }
 
-    // Calculate fees (3% for APP token, 5% for others)
-    const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
-    const sellerProceeds = Number(offer.amount) - platformFee;
+    // SECURITY FIX: Use safeAmountToLamports to avoid floating-point precision loss
+    const offerAmount = safeAmountToLamports(offer.amount);
+    const platformFee = calculatePlatformFee(offerAmount, offer.listing.currency);
+    const sellerProceeds = offerAmount - platformFee;
 
     // Get buyer's wallet address for reservation tracking
     const buyerWithWallet = await prisma.user.findUnique({
@@ -132,9 +133,17 @@ export async function POST(
         throw new Error('LISTING_NO_LONGER_ACTIVE');
       }
 
-      const updatedOffer = await tx.offer.update({
-        where: { id: offerId },
+      // SECURITY FIX: Atomic offer status guard inside transaction to prevent double-accept race
+      const offerGuard = await tx.offer.updateMany({
+        where: { id: offerId, status: 'ACTIVE' },
         data: { status: 'ACCEPTED', acceptedAt: new Date() },
+      });
+      if (offerGuard.count === 0) {
+        throw new Error('OFFER_NO_LONGER_ACTIVE');
+      }
+
+      const updatedOffer = await tx.offer.findUnique({
+        where: { id: offerId },
       });
 
       const transaction = await tx.transaction.create({
@@ -142,7 +151,7 @@ export async function POST(
           listingId: offer.listingId,
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
-          salePrice: Number(offer.amount),
+          salePrice: offerAmount,
           platformFee,
           sellerProceeds,
           currency: offer.listing.currency,

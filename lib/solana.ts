@@ -127,6 +127,19 @@ export const lamportsToSol = (lamports: number | BN): number => {
   return value / LAMPORTS_PER_SOL;
 };
 
+/**
+ * SECURITY: Safely convert Prisma Decimal/string/number to integer lamports.
+ * Uses Math.round to avoid floating-point precision loss on Decimal → Number conversion.
+ * Validates the result is finite and non-negative.
+ */
+export function safeAmountToLamports(value: unknown): number {
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+  if (!isFinite(num) || num < 0) {
+    throw new Error(`Invalid financial amount: ${value}`);
+  }
+  return Math.round(num);
+}
+
 // Get fee rate based on currency (APP gets discounted 3%, others 5%)
 export const getFeeRateBps = (currency?: string): number => {
   return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;

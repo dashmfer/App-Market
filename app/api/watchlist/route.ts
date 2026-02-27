@@ -150,6 +150,15 @@ export async function DELETE(request: NextRequest) {
       return csrfError(csrfValidation.error || "CSRF validation failed");
     }
 
+    // SECURITY FIX: Rate limit DELETE to prevent abuse
+    const rateLimitResult = await (withRateLimitAsync('write', 'watchlist-delete'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/db";
-import { calculatePlatformFee } from "@/lib/solana";
+import { calculatePlatformFee, safeAmountToLamports } from "@/lib/solana";
 import {
   authenticateAgent,
   hasPermission,
@@ -66,8 +66,10 @@ export async function POST(
       return agentErrorResponse("Offer has expired", 400);
     }
 
-    const platformFee = calculatePlatformFee(Number(offer.amount), offer.listing.currency);
-    const sellerProceeds = Number(offer.amount) - platformFee;
+    // SECURITY FIX: Use safeAmountToLamports to avoid floating-point precision loss
+    const offerAmount = safeAmountToLamports(offer.amount);
+    const platformFee = calculatePlatformFee(offerAmount, offer.listing.currency);
+    const sellerProceeds = offerAmount - platformFee;
 
     // SECURITY: Use interactive transaction to prevent race conditions
     // Re-check listing status inside transaction to prevent concurrent acceptances
@@ -89,7 +91,7 @@ export async function POST(
           listingId: offer.listingId,
           buyerId: offer.buyerId,
           sellerId: offer.listing.sellerId,
-          salePrice: Number(offer.amount),
+          salePrice: offerAmount,
           platformFee,
           sellerProceeds,
           currency: offer.listing.currency,

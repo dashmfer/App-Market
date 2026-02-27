@@ -218,7 +218,7 @@ async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<v
  * Generate a unique event ID
  */
 function generateEventId(): string {
-  return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `evt_${Date.now()}_${require('crypto').randomBytes(12).toString('base64url')}`;
 }
 
 // ============================================

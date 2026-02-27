@@ -142,7 +142,7 @@ export async function verifyWalletSignature(
       });
 
       const username = existingUser
-        ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+        ? `${baseUsername}_${crypto.randomBytes(4).toString('hex')}`
         : baseUsername;
 
       // Generate a unique referral code for the new user

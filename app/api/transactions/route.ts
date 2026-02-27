@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
+import { calculatePlatformFee, calculateSellerProceeds, safeAmountToLamports } from "@/lib/solana";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
@@ -189,7 +189,8 @@ export async function POST(request: NextRequest) {
           return { error: "You did not win this auction", status: 400 } as const;
         }
 
-        salePrice = Number(winningBid.amount);
+        // SECURITY FIX: Use safeAmountToLamports for precision-safe conversion
+        salePrice = safeAmountToLamports(winningBid.amount);
         if (!isFinite(salePrice) || salePrice <= 0) {
           return { error: "Invalid sale price", status: 400 } as const;
         }

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     });
 
     const username = existingUsername
-      ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+      ? `${baseUsername}_${require('crypto').randomBytes(4).toString('hex')}`
       : baseUsername;
 
     // Create user

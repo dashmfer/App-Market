@@ -811,10 +811,9 @@ pub mod app_market {
         // CHECKS
         require!(listing.status == ListingStatus::Active, AppMarketError::ListingNotActive);
         require!(clock.unix_timestamp < listing.end_time, AppMarketError::ListingExpired);
-        require!(listing.buy_now_price.is_some(), AppMarketError::BuyNowNotEnabled);
         require!(ctx.accounts.buyer.key() != listing.seller, AppMarketError::SellerCannotBuy);
 
-        let buy_now_price = listing.buy_now_price.unwrap();
+        let buy_now_price = listing.buy_now_price.ok_or(AppMarketError::BuyNowNotEnabled)?;
 
         // SECURITY: Validate payment mint matches actual payment method
         // buy_now uses SOL transfer via SystemProgram - APP token fee discount
@@ -979,13 +978,12 @@ pub mod app_market {
             AppMarketError::NotAnAuction
         );
 
-        // Only require auction to be ended if it was started
-        if listing.auction_started {
-            require!(
-                clock.unix_timestamp >= listing.end_time,
-                AppMarketError::AuctionNotEnded
-            );
-        }
+        // SECURITY: Require auction to have started (invariant: current_bidder.is_some() implies auction_started)
+        require!(listing.auction_started, AppMarketError::AuctionNotEnded);
+        require!(
+            clock.unix_timestamp >= listing.end_time,
+            AppMarketError::AuctionNotEnded
+        );
 
         // SECURITY: Only allow seller, winner, or admin to settle
         let is_seller = ctx.accounts.payer.key() == listing.seller;
@@ -1000,15 +998,12 @@ pub mod app_market {
         );
 
         // SECURITY: Must have bids to settle - use cancel_auction for no-bid scenarios
-        require!(
-            listing.current_bidder.is_some(),
-            AppMarketError::NoBidsToSettle
-        );
+        let current_bidder = listing.current_bidder.ok_or(AppMarketError::NoBidsToSettle)?;
 
         // SECURITY FIX M-1: Validate bidder account matches listing.current_bidder
         // This prevents passing an arbitrary account as the bidder
         require!(
-            ctx.accounts.bidder.key() == listing.current_bidder.unwrap(),
+            ctx.accounts.bidder.key() == current_bidder,
             AppMarketError::InvalidBidder
         );
 
@@ -1018,7 +1013,7 @@ pub mod app_market {
         let transaction = &mut ctx.accounts.transaction;
         transaction.listing = listing.key();
         transaction.seller = listing.seller;
-        transaction.buyer = listing.current_bidder.unwrap();
+        transaction.buyer = current_bidder;
         transaction.sale_price = listing.current_bid;
 
         // SECURITY: Use LOCKED fees from listing, not current config
@@ -2045,6 +2040,7 @@ pub mod app_market {
         } else {
             transaction.buyer
         };
+        require!(reason.len() <= 500, AppMarketError::StringTooLong);
         dispute.reason = reason.clone();
         dispute.status = DisputeStatus::Open;
         dispute.created_at = clock.unix_timestamp;
@@ -2096,6 +2092,7 @@ pub mod app_market {
             dispute.pending_seller_amount = None;
         }
 
+        require!(notes.len() <= 1000, AppMarketError::StringTooLong);
         // Store pending resolution (starts 48hr timelock)
         dispute.pending_resolution = Some(resolution.clone());
         dispute.pending_resolution_at = Some(clock.unix_timestamp);
@@ -2518,7 +2515,7 @@ pub mod app_market {
         // Only allow closing listings in terminal states
         require!(
             listing.status == ListingStatus::Cancelled ||
-            listing.status == ListingStatus::Expired ||
+            listing.status == ListingStatus::Ended ||
             listing.status == ListingStatus::Sold,
             AppMarketError::ListingNotActive
         );
@@ -3387,6 +3384,7 @@ pub struct CloseListing<'info> {
     #[account(
         mut,
         close = seller,
+        constraint = listing.seller == seller.key() @ AppMarketError::NotSeller
     )]
     pub listing: Account<'info, Listing>,
 
@@ -4005,4 +4003,6 @@ pub enum AppMarketError {
     PlatformPaused,
     #[msg("Withdrawal has not expired yet")]
     WithdrawalNotExpired,
+    #[msg("String exceeds maximum allowed length")]
+    StringTooLong,
 }

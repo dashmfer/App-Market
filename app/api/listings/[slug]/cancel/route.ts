@@ -61,14 +61,6 @@ export async function POST(
       );
     }
 
-    // Check if listing can be cancelled
-    if (listing.status !== "ACTIVE") {
-      return NextResponse.json(
-        { error: "Only active listings can be cancelled" },
-        { status: 400 }
-      );
-    }
-
     // Check if there are any bids
     if (listing._count.bids > 0) {
       return NextResponse.json(
@@ -77,12 +69,23 @@ export async function POST(
       );
     }
 
-    // Cancel the listing
-    const cancelledListing = await prisma.listing.update({
-      where: { slug },
+    // SECURITY FIX: Atomic cancel with status guard to prevent TOCTOU race
+    const cancelResult = await prisma.listing.updateMany({
+      where: { slug, status: "ACTIVE", sellerId: userId },
       data: {
         status: "CANCELLED",
       },
+    });
+
+    if (cancelResult.count === 0) {
+      return NextResponse.json(
+        { error: "Listing is no longer active or does not belong to you" },
+        { status: 409 }
+      );
+    }
+
+    const cancelledListing = await prisma.listing.findUnique({
+      where: { slug },
     });
 
     return NextResponse.json({
