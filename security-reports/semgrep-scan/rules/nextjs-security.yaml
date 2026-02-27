@@ -1,0 +1,561 @@
+rules:
+  # === SQL Injection / Prisma Injection ===
+  - id: prisma-raw-query-injection
+    patterns:
+      - pattern-either:
+          - pattern: $PRISMA.$queryRaw(...)
+          - pattern: $PRISMA.$executeRaw(...)
+          - pattern: $PRISMA.$queryRawUnsafe(...)
+          - pattern: $PRISMA.$executeRawUnsafe(...)
+    message: >-
+      Raw SQL query detected via Prisma. If user input is interpolated into
+      the query string, this can lead to SQL injection. Use parameterized
+      queries with Prisma.sql tagged template literals instead.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A03:2021"]
+      category: security
+
+  - id: prisma-raw-unsafe-with-input
+    patterns:
+      - pattern-either:
+          - pattern: $PRISMA.$queryRawUnsafe($STR, ...)
+          - pattern: $PRISMA.$executeRawUnsafe($STR, ...)
+    message: >-
+      Unsafe raw query function used. $queryRawUnsafe and $executeRawUnsafe
+      do not provide parameterized query safety by default. Ensure no user
+      input is concatenated into the query string.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89"]
+      category: security
+
+  # === Authentication / Authorization ===
+  - id: missing-auth-check-api-route
+    patterns:
+      - pattern: |
+          export async function $METHOD($REQ: ..., ...) {
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD($REQ: ..., ...) {
+            ...
+            getServerSession(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD($REQ: ..., ...) {
+            ...
+            auth(...)
+            ...
+          }
+      - pattern-not: |
+          export async function $METHOD($REQ: ..., ...) {
+            ...
+            validateApiKey(...)
+            ...
+          }
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (POST|PUT|PATCH|DELETE)
+    message: >-
+      API route handler for mutating method ($METHOD) may be missing
+      authentication check. Ensure getServerSession(), auth(), or
+      validateApiKey() is called.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-306"]
+      category: security
+
+  # === XSS / dangerouslySetInnerHTML ===
+  - id: react-dangerously-set-inner-html
+    pattern: dangerouslySetInnerHTML={...}
+    message: >-
+      Usage of dangerouslySetInnerHTML detected. This can lead to XSS
+      if the HTML content is not properly sanitized. Ensure input is
+      sanitized with a library like DOMPurify before rendering.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      category: security
+
+  # === Hardcoded Secrets ===
+  - id: hardcoded-secret-in-code
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $KEY = "..."
+          - pattern: |
+              $KEY = '...'
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: .*(secret|password|api_key|apikey|api_secret|private_key|token|auth_token|access_token).*
+      - pattern-not: |
+          $KEY = ""
+      - pattern-not: |
+          $KEY = "..."
+    message: >-
+      Possible hardcoded secret or credential found in variable '$KEY'.
+      Use environment variables instead of hardcoding secrets.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-798"]
+      category: security
+
+  - id: hardcoded-private-key
+    pattern-either:
+      - pattern: |
+          "-----BEGIN RSA PRIVATE KEY-----"
+      - pattern: |
+          "-----BEGIN PRIVATE KEY-----"
+      - pattern: |
+          "-----BEGIN EC PRIVATE KEY-----"
+    message: >-
+      Hardcoded private key detected. Private keys should never be
+      embedded in source code. Use environment variables or a secrets manager.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-321"]
+      category: security
+
+  # === Environment Variable Usage ===
+  - id: env-variable-no-validation
+    pattern: process.env.$VAR
+    message: >-
+      Direct access to process.env.$VAR without validation. Environment
+      variables can be undefined at runtime. Use validated configuration
+      or check for undefined values.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-20"]
+      category: security
+
+  # === Insecure Cryptography ===
+  - id: weak-crypto-algorithm
+    patterns:
+      - pattern-either:
+          - pattern: createHash("md5")
+          - pattern: createHash("sha1")
+          - pattern: createHash('md5')
+          - pattern: createHash('sha1')
+    message: >-
+      Weak cryptographic hash algorithm (MD5 or SHA1) detected. These
+      algorithms are considered insecure. Use SHA-256 or stronger.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-328"]
+      category: security
+
+  - id: insecure-random
+    patterns:
+      - pattern: Math.random()
+    message: >-
+      Math.random() is not cryptographically secure. For security-sensitive
+      operations (tokens, keys, nonces), use crypto.randomBytes() or
+      crypto.getRandomValues() instead.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-338"]
+      category: security
+
+  # === SSRF ===
+  - id: ssrf-fetch-user-input
+    patterns:
+      - pattern-either:
+          - pattern: fetch($URL, ...)
+          - pattern: axios.get($URL, ...)
+          - pattern: axios.post($URL, ...)
+      - pattern-not: fetch("...", ...)
+      - pattern-not: fetch(`...`, ...)
+      - pattern-not: axios.get("...", ...)
+      - pattern-not: axios.post("...", ...)
+    message: >-
+      Server-side request with potentially user-controlled URL. This may
+      lead to SSRF attacks. Validate and allowlist the URL before making
+      the request.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-918"]
+      owasp: ["A10:2021"]
+      category: security
+
+  # === Path Traversal ===
+  - id: path-traversal-join
+    patterns:
+      - pattern-either:
+          - pattern: path.join(..., $INPUT, ...)
+          - pattern: path.resolve(..., $INPUT, ...)
+      - pattern-not: path.join(..., "...", ...)
+      - pattern-not: path.resolve(..., "...", ...)
+    message: >-
+      File path construction with potentially user-controlled input.
+      Validate that the resulting path does not escape the intended
+      directory (path traversal).
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-22"]
+      category: security
+
+  # === JWT / Token Issues ===
+  - id: jwt-no-verify
+    patterns:
+      - pattern-either:
+          - pattern: jwt.decode($TOKEN)
+          - pattern: jwt.decode($TOKEN, { complete: true })
+          - pattern: jsonwebtoken.decode($TOKEN)
+    message: >-
+      JWT decoded without verification. Use jwt.verify() instead of
+      jwt.decode() to ensure the token signature is validated.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-345"]
+      category: security
+
+  - id: jwt-none-algorithm
+    patterns:
+      - pattern-either:
+          - pattern: |
+              jwt.sign($PAYLOAD, ..., { ..., algorithm: "none", ... })
+          - pattern: |
+              jwt.verify($TOKEN, ..., { ..., algorithms: ["none"], ... })
+    message: >-
+      JWT configured with 'none' algorithm. This effectively disables
+      signature verification and is a critical security vulnerability.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-327"]
+      category: security
+
+  # === CORS Misconfiguration ===
+  - id: cors-wildcard-origin
+    patterns:
+      - pattern-either:
+          - pattern: |
+              "Access-Control-Allow-Origin": "*"
+          - pattern: |
+              'Access-Control-Allow-Origin': '*'
+    message: >-
+      CORS header set to wildcard (*). This allows any origin to make
+      requests. Consider restricting to specific trusted origins.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-942"]
+      category: security
+
+  # === Eval / Code Injection ===
+  - id: eval-usage
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+    message: >-
+      Usage of eval() or new Function() detected. These can lead to
+      code injection if user input reaches them. Avoid using eval.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-94"]
+      category: security
+
+  # === Prototype Pollution ===
+  - id: prototype-pollution-merge
+    patterns:
+      - pattern-either:
+          - pattern: Object.assign({}, ..., $INPUT)
+          - pattern: "{ ...$A, ...$INPUT }"
+    message: >-
+      Object merge with potentially user-controlled input may be
+      vulnerable to prototype pollution. Validate input keys.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-1321"]
+      category: security
+
+  # === Unvalidated Redirect ===
+  - id: open-redirect
+    patterns:
+      - pattern-either:
+          - pattern: redirect($URL)
+          - pattern: NextResponse.redirect($URL)
+      - pattern-not: redirect("...")
+      - pattern-not: NextResponse.redirect("...")
+    message: >-
+      Redirect with potentially user-controlled URL. Validate the
+      redirect destination to prevent open redirect attacks.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-601"]
+      category: security
+
+  # === Solana/Blockchain Specific ===
+  - id: solana-unchecked-account-owner
+    patterns:
+      - pattern-either:
+          - pattern: $ACCOUNT.publicKey
+          - pattern: $ACCOUNT.data
+      - pattern-not-inside: |
+          if ($ACCOUNT.owner.equals(...)) { ... }
+    message: >-
+      Solana account accessed without verifying account owner. Always
+      verify the program owner of an account before trusting its data.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-284"]
+      category: security
+
+  # === Information Disclosure ===
+  - id: error-info-leak
+    patterns:
+      - pattern-either:
+          - pattern: |
+              return NextResponse.json({ ..., error: $ERR.message, ... }, ...)
+          - pattern: |
+              return NextResponse.json({ ..., error: $ERR.stack, ... }, ...)
+          - pattern: |
+              return new Response($ERR.stack, ...)
+    message: >-
+      Error details (message/stack) returned in API response. This can
+      leak sensitive implementation details. Return generic error messages
+      to clients.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-209"]
+      category: security
+
+  # === Insecure Cookie ===
+  - id: insecure-cookie-flags
+    patterns:
+      - pattern: |
+          { ..., httpOnly: false, ... }
+      - pattern-inside: |
+          cookies(...)
+    message: >-
+      Cookie set without httpOnly flag. Cookies containing sensitive data
+      should have httpOnly, secure, and sameSite flags set.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-614"]
+      category: security
+
+  # === Command Injection ===
+  - id: command-injection
+    pattern-either:
+      - pattern: exec($CMD, ...)
+      - pattern: execSync($CMD, ...)
+      - pattern: spawn($CMD, ...)
+      - pattern: child_process.exec($CMD, ...)
+    message: >-
+      Command execution detected. If user input reaches the command
+      string, this leads to command injection. Use parameterized
+      commands and avoid shell interpretation.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78"]
+      category: security
+
+  # === Timing Attack ===
+  - id: timing-attack-string-comparison
+    patterns:
+      - pattern-either:
+          - pattern: $SECRET === $INPUT
+          - pattern: $SECRET == $INPUT
+          - pattern: $INPUT === $SECRET
+          - pattern: $INPUT == $SECRET
+      - metavariable-regex:
+          metavariable: $SECRET
+          regex: .*(token|secret|key|hash|signature|password|apiKey|api_key).*
+    message: >-
+      String comparison of secret value may be vulnerable to timing
+      attacks. Use crypto.timingSafeEqual() for constant-time comparison.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-208"]
+      category: security
+
+  # === Logging Sensitive Data ===
+  - id: logging-sensitive-data
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $SENSITIVE, ...)
+          - pattern: console.error(..., $SENSITIVE, ...)
+          - pattern: console.warn(..., $SENSITIVE, ...)
+      - metavariable-regex:
+          metavariable: $SENSITIVE
+          regex: .*(password|secret|private_key|privateKey|token|apiKey|api_key|creditCard|ssn).*
+    message: >-
+      Potentially sensitive data logged to console. Avoid logging
+      passwords, tokens, private keys, and other secrets.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-532"]
+      category: security
+
+  # === Mass Assignment ===
+  - id: mass-assignment-prisma
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $PRISMA.$MODEL.create({ data: $BODY })
+          - pattern: |
+              $PRISMA.$MODEL.update({ ..., data: $BODY })
+      - pattern-not: |
+          $PRISMA.$MODEL.create({ data: { ... } })
+      - pattern-not: |
+          $PRISMA.$MODEL.update({ ..., data: { ... } })
+    message: >-
+      Prisma create/update with potentially unvalidated input object.
+      Directly passing request body to Prisma can lead to mass
+      assignment. Explicitly pick allowed fields.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-915"]
+      category: security
+
+  # === CSRF ===
+  - id: missing-csrf-check
+    patterns:
+      - pattern: |
+          export async function POST($REQ: ..., ...) {
+            ...
+          }
+      - pattern-not: |
+          export async function POST($REQ: ..., ...) {
+            ...
+            csrf(...)
+            ...
+          }
+      - pattern-not: |
+          export async function POST($REQ: ..., ...) {
+            ...
+            verifyCsrf(...)
+            ...
+          }
+      - pattern-not: |
+          export async function POST($REQ: ..., ...) {
+            ...
+            validateCsrf(...)
+            ...
+          }
+    message: >-
+      POST handler may be missing CSRF token validation. Ensure CSRF
+      protection is applied to state-changing endpoints.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-352"]
+      category: security
+
+  # === Regex DoS ===
+  - id: regex-dos
+    patterns:
+      - pattern-either:
+          - pattern: new RegExp($PATTERN)
+      - pattern-not: new RegExp("...")
+    message: >-
+      Dynamic regular expression construction. If user input is used
+      in the pattern, this may be vulnerable to ReDoS (Regular
+      Expression Denial of Service).
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-1333"]
+      category: security
+
+  # === Unsafe Deserialization ===
+  - id: unsafe-json-parse
+    patterns:
+      - pattern: JSON.parse($INPUT)
+      - pattern-not: JSON.parse("...")
+    message: >-
+      JSON.parse() with external input. Ensure the input is validated
+      and that the parsed result is type-checked before use.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-502"]
+      category: security
+
+  # === Next.js Specific ===
+  - id: nextjs-api-no-rate-limit
+    patterns:
+      - pattern: |
+          export async function POST($REQ: ..., ...) {
+            ...
+          }
+      - pattern-not: |
+          export async function POST($REQ: ..., ...) {
+            ...
+            rateLimit(...)
+            ...
+          }
+      - pattern-not: |
+          export async function POST($REQ: ..., ...) {
+            ...
+            rateLimiter(...)
+            ...
+          }
+    message: >-
+      API POST handler may be missing rate limiting. Apply rate limiting
+      to prevent abuse.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-770"]
+      category: security
+
+  # === Encryption Issues ===
+  - id: weak-encryption-ecb-mode
+    patterns:
+      - pattern-either:
+          - pattern: createCipheriv("aes-...-ecb", ...)
+          - pattern: createCipheriv('aes-...-ecb', ...)
+    message: >-
+      ECB mode encryption detected. ECB mode does not provide semantic
+      security. Use CBC, GCM, or another secure mode instead.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-327"]
+      category: security
+
+  # === File Upload ===
+  - id: unrestricted-file-upload
+    patterns:
+      - pattern: |
+          $FILE = await $REQ.formData()
+      - pattern-not-inside: |
+          ... $FILE.type ...
+      - pattern-not-inside: |
+          ... contentType ...
+    message: >-
+      File upload without apparent content type validation. Validate
+      file type, size, and content before processing uploads.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-434"]
+      category: security
