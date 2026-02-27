@@ -52,6 +52,26 @@ function generateSessionId(): string {
 }
 
 /**
+ * SECURITY: Write session revocation to Upstash Redis for Edge Runtime middleware checks.
+ * This is in addition to the Prisma-based revocation — Redis enables the middleware
+ * to enforce revocations immediately (Prisma is unavailable in Edge Runtime).
+ */
+async function markSessionRevokedInRedis(sessionId: string): Promise<void> {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken) return;
+
+  try {
+    // SET with EX (7 days TTL matching JWT max age)
+    await fetch(`${redisUrl}/set/session:revoked:${sessionId}/1/EX/604800`, {
+      headers: { Authorization: `Bearer ${redisToken}` },
+    });
+  } catch {
+    // Non-blocking — Prisma is the authoritative source
+  }
+}
+
+/**
  * Revoke a specific session (database-backed for multi-instance/serverless support)
  * Session revocations persist in the database to work across serverless function instances
  */
@@ -71,6 +91,9 @@ export async function revokeSession(sessionId: string, reason?: string): Promise
       revokedAt: new Date(),
     },
   });
+
+  // SECURITY: Also write to Redis for Edge Runtime middleware enforcement
+  await markSessionRevokedInRedis(sessionId);
 }
 
 /**
@@ -104,6 +127,13 @@ export async function revokeAllUserSessions(userId: string, reason?: string): Pr
   );
 
   await Promise.all(revocations);
+
+  // SECURITY: Also write all revocations to Redis for Edge Runtime middleware enforcement
+  await Promise.all(
+    sessions.map((session: { sessionToken: string }) =>
+      markSessionRevokedInRedis(session.sessionToken)
+    )
+  );
 
   // Also delete from Session table to prevent re-use
   await prisma.session.deleteMany({

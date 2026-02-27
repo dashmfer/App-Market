@@ -4,6 +4,30 @@ import { getToken } from "next-auth/jwt";
 import { timingSafeEqual } from "crypto";
 
 /**
+ * SECURITY: Check session revocation via Upstash Redis REST API.
+ * Prisma is NOT available in Edge Runtime, but Upstash REST works via fetch.
+ * Returns true if session is revoked (should be blocked).
+ */
+async function isSessionRevokedViaRedis(sessionId: string): Promise<boolean> {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken || !sessionId) return false;
+
+  try {
+    const resp = await fetch(`${redisUrl}/get/session:revoked:${sessionId}`, {
+      headers: { Authorization: `Bearer ${redisToken}` },
+    });
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    // Upstash returns { result: null } for non-existent keys
+    return data.result !== null;
+  } catch {
+    // If Redis is unavailable, fail open — API route handlers have the authoritative check via Prisma
+    return false;
+  }
+}
+
+/**
  * Middleware for route protection and security
  *
  * Protects:
@@ -85,10 +109,15 @@ export async function middleware(request: NextRequest) {
   const method = request.method;
 
   // Skip static files and public assets
+  // SECURITY: Only bypass middleware for known static paths — NOT for /api/* routes.
+  // The previous extension regex could bypass auth for paths like /api/admin/data.json
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
-    /\.[a-zA-Z0-9]{1,10}$/.test(pathname) // files with extensions (strict regex to prevent dot bypass)
+    (
+      !pathname.startsWith("/api/") &&
+      /\.(ico|png|jpg|jpeg|gif|svg|webp|css|js|woff|woff2|ttf|eot|map)$/.test(pathname)
+    )
   ) {
     return NextResponse.next();
   }
@@ -137,10 +166,21 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // NOTE: Session revocation is checked in API route handlers via getAuthToken().
-  // Middleware uses getToken() which does not check revocation because Prisma
-  // is not available in Edge Runtime. This is defense-in-depth - routes should
-  // always use getAuthToken() for the authoritative session check.
+  // SECURITY: Check session revocation via Redis (Edge Runtime compatible).
+  // API route handlers also check via Prisma for authoritative enforcement.
+  if (token?.sessionId) {
+    const revoked = await isSessionRevokedViaRedis(token.sessionId as string);
+    if (revoked) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Session revoked" },
+          { status: 401 }
+        );
+      }
+      // Redirect to sign-in for page routes
+      return NextResponse.redirect(new URL("/auth/signin", request.url));
+    }
+  }
 
   // Admin route protection
   if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {

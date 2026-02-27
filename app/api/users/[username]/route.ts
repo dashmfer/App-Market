@@ -22,6 +22,7 @@ export async function GET(
     }
 
     // Try to find by username first, then by ID
+    // SECURITY: Omit disputesWon/disputesLost (detailed dispute outcomes are private)
     let user = await (prisma.user.findUnique as any)({
       where: { username },
       select: {
@@ -39,8 +40,6 @@ export async function GET(
         sellerLevel: true,
         successRate: true,
         totalDisputes: true,
-        disputesWon: true,
-        disputesLost: true,
         twitterUsername: true,
         twitterVerified: true,
         createdAt: true,
@@ -96,8 +95,6 @@ export async function GET(
           sellerLevel: true,
           successRate: true,
           totalDisputes: true,
-          disputesWon: true,
-          disputesLost: true,
           twitterUsername: true,
           twitterVerified: true,
           createdAt: true,

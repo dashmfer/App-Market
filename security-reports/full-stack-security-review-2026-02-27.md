@@ -26,7 +26,7 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 | CRITICAL | 3 | 3 | 0 |
 | HIGH | 4 | 4 | 0 |
 | MEDIUM | 12 | 10 | 2 |
-| LOW | ~22 | 14 | ~8 |
+| LOW | ~22 | 22 | 0 |
 
 ---
 
@@ -131,17 +131,17 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 
 | ID | Finding | Status |
 |----|---------|--------|
-| L-1 | Middleware session revocation timing gap | Documented |
-| L-2 | Admin JWT claim without revocation check | Documented |
-| L-3 | CSRF secret fallback to NEXTAUTH_SECRET | Documented |
-| L-4 | Health endpoint exposes config status | Documented |
-| L-5 | Placeholder secrets in .env.example | Documented |
+| L-1 | Middleware session revocation timing gap | **FIXED** |
+| L-2 | Admin JWT claim without revocation check | **FIXED** |
+| L-3 | CSRF secret fallback to NEXTAUTH_SECRET | **FIXED** |
+| L-4 | Health endpoint exposes config status | **FIXED** |
+| L-5 | Placeholder secrets in .env.example | **FIXED** |
 | L-6 | Message content not HTML-stripped in DB | **FIXED** |
 | L-7 | Listing/review text not HTML-stripped | **FIXED** |
-| L-8 | Partial wallet exposure in bid data | Documented |
-| L-9 | Public profile exposes discord/financial fields | Documented |
-| L-10 | Middleware file extension bypass for static assets | Documented |
-| L-11 | Unwhitelisted status values in listing query params | Documented |
+| L-8 | Partial wallet exposure in bid data | **FIXED** |
+| L-9 | Public profile exposes discord/financial fields | **FIXED** |
+| L-10 | Middleware file extension bypass for static assets | **FIXED** |
+| L-11 | Unwhitelisted status values in listing query params | **FIXED** |
 | L-12 | GitHub API calls missing timeout | **FIXED** |
 | L-13 | Cron endpoints return detailed error arrays | **FIXED** |
 | L-14 | Agent bid GET leaks other users' bid details | **FIXED** |

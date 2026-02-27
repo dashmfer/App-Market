@@ -15,11 +15,16 @@ const CSRF_TOKEN_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
  * Get the CSRF secret from environment
+ * SECURITY: Requires a dedicated CSRF_SECRET — never falls back to NEXTAUTH_SECRET
+ * to prevent a single secret compromise from breaking both auth and CSRF protection.
  */
 function getCsrfSecret(): string {
-  const secret = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET;
+  const secret = process.env.CSRF_SECRET;
   if (!secret) {
-    throw new Error("CSRF_SECRET or NEXTAUTH_SECRET must be set");
+    throw new Error(
+      "CSRF_SECRET must be set as a dedicated environment variable. " +
+      "Generate with: openssl rand -hex 32"
+    );
   }
   return secret;
 }

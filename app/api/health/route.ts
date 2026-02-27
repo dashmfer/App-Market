@@ -82,24 +82,24 @@ export async function GET() {
     };
   }
 
-  // SECURITY: Only report config status as ok/error, don't enumerate which vars are missing
-  checks.config = {
-    status: [
-      "NEXTAUTH_SECRET",
-      "ENCRYPTION_SECRET",
-      "CRON_SECRET",
-      "DATABASE_URL",
-    ].every(v => !!process.env[v]) ? "ok" : "incomplete",
-  };
+  // SECURITY: Do not expose config status — enumerating which env vars are
+  // present/missing helps attackers map the deployment configuration.
 
   const allHealthy = Object.values(checks).every(c => c.status === "ok" || c.status === "not_configured");
   const statusCode = allHealthy ? 200 : 503;
+
+  // SECURITY: Only expose per-service status (ok/error), strip latency and error details
+  // from public responses to prevent information leakage about infrastructure.
+  const sanitizedChecks: Record<string, { status: string }> = {};
+  for (const [key, value] of Object.entries(checks)) {
+    sanitizedChecks[key] = { status: value.status === "ok" ? "ok" : "error" };
+  }
 
   return NextResponse.json(
     {
       status: allHealthy ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
-      checks,
+      checks: sanitizedChecks,
     },
     { status: statusCode },
   );

@@ -40,7 +40,9 @@ export async function GET(request: NextRequest) {
       id: bid.id,
       amount: bid.amount,
       currency: bid.currency,
-      bidder: bid.bidder.username || bid.bidder.walletAddress?.slice(0, 8) || "Anonymous",
+      // SECURITY: Use username or heavily truncated wallet (4 chars + ellipsis)
+      // to prevent full address lookup from partial exposure
+      bidder: bid.bidder.username || (bid.bidder.walletAddress ? `${bid.bidder.walletAddress.slice(0, 4)}...` : "Anonymous"),
       isWinning: bid.isWinning,
       createdAt: bid.createdAt,
     }));
