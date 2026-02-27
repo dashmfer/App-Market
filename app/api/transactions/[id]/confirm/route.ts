@@ -203,15 +203,25 @@ export async function POST(
     // Update the item in the array
     checklist[itemIndex] = item;
 
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: transactionId },
+    // SECURITY: Atomic update with status guard to prevent TOCTOU race condition
+    const confirmResult = await prisma.transaction.updateMany({
+      where: {
+        id: transactionId,
+        status: { in: allowedStates },
+      },
       data: {
         transferChecklist: checklist,
         status: "TRANSFER_IN_PROGRESS",
         transferStartedAt: transaction.transferStartedAt || new Date(),
       },
     });
+
+    if (confirmResult.count === 0) {
+      return NextResponse.json(
+        { error: "Transaction status has changed. Please refresh and try again." },
+        { status: 409 }
+      );
+    }
 
     // Check if all required items confirmed by both parties
     const allConfirmed = checklist

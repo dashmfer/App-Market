@@ -31,9 +31,13 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {};
 
-    // Only filter by status if provided (allows getting all statuses for seller's own listings)
+    // SECURITY: Whitelist valid status values to prevent arbitrary enum injection
+    const VALID_LISTING_STATUSES = ["ACTIVE", "SOLD", "CANCELLED", "ENDED", "RESERVED", "COMPLETED", "REFUNDED"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upperStatus = status.toUpperCase();
+      if (VALID_LISTING_STATUSES.includes(upperStatus)) {
+        where.status = upperStatus;
+      }
     } else if (!sellerId) {
       // Default to ACTIVE only for public listings
       where.status = "ACTIVE";
@@ -490,13 +494,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Strip HTML tags from user-facing text to prevent stored XSS
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const sanitizedTitle = stripHtml(title);
+    const sanitizedTagline = tagline ? stripHtml(tagline) : null;
+    const sanitizedDescription = stripHtml(description);
+
     // Create listing
     const listing = await prisma.listing.create({
       data: {
         slug,
-        title,
-        tagline,
-        description,
+        title: sanitizedTitle,
+        tagline: sanitizedTagline,
+        description: sanitizedDescription,
         categories: finalCategories,
         blockchain: blockchain || null,
         techStack,

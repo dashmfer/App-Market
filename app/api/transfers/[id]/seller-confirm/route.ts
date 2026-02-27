@@ -194,9 +194,13 @@ export async function POST(
       .filter((item) => item.required)
       .every((item) => item.sellerConfirmed);
 
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: params.id },
+    // SECURITY: Atomic update with status guard to prevent TOCTOU race condition
+    const allowedStatuses = ["FUNDED", "PAID", "IN_ESCROW", "TRANSFER_PENDING", "TRANSFER_IN_PROGRESS"];
+    const updateResult = await prisma.transaction.updateMany({
+      where: {
+        id: params.id,
+        status: { in: allowedStatuses },
+      },
       data: {
         transferChecklist: checklist as any,
         sellerConfirmedTransfer: allRequiredSellerConfirmed,
@@ -204,6 +208,13 @@ export async function POST(
         transferStartedAt: transaction.transferStartedAt || new Date(),
       },
     });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json(
+        { error: "Transaction status has changed. Please refresh and try again." },
+        { status: 409 }
+      );
+    }
 
     // Create notification for buyer
     await prisma.notification.create({

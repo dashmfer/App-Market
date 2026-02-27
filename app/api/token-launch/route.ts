@@ -16,6 +16,19 @@ import { PublicKey } from "@solana/web3.js";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 
+// SECURITY: Validate social link URLs — prevent javascript: URI injection
+function validateSocialUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * POST /api/token-launch — Create a PATO (Post-Acquisition Token Offering)
  *
@@ -192,10 +205,10 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
         transactionId: transaction.id,
         listingId: transaction.listingId,
-        website: website || null,
-        twitter: twitter || null,
-        telegram: telegram || null,
-        discord: discord || null,
+        website: website ? validateSocialUrl(website) : null,
+        twitter: twitter ? validateSocialUrl(twitter) : null,
+        telegram: telegram ? validateSocialUrl(telegram) : null,
+        discord: discord ? validateSocialUrl(discord) : null,
       },
     });
 

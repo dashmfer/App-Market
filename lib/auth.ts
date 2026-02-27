@@ -451,6 +451,21 @@ export const authOptions: NextAuthOptions = {
         token.walletAddress = (user as any).walletAddress;
         token.sessionId = (user as any).sessionId; // For session revocation
 
+        // SECURITY: Track session in database for revokeAllUserSessions() support
+        // Without this, the Session table is empty and revoke-all is a no-op
+        try {
+          const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          await prisma.session.create({
+            data: {
+              sessionToken: (user as any).sessionId,
+              userId: user.id,
+              expires: sessionExpiry,
+            },
+          });
+        } catch {
+          // Non-blocking — session tracking failure should not prevent login
+        }
+
         // Fetch isAdmin status at sign-in
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },

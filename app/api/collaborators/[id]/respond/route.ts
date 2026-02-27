@@ -167,8 +167,9 @@ export async function POST(
     // Update the collaborator status
     const newStatus = action === "accept" ? "ACCEPTED" : "DECLINED";
 
-    const updatedCollaborator = await prisma.listingCollaborator.update({
-      where: { id: collaboratorId },
+    // SECURITY: Atomic update with PENDING guard to prevent double-response race condition
+    const respondResult = await prisma.listingCollaborator.updateMany({
+      where: { id: collaboratorId, status: "PENDING" },
       data: {
         status: newStatus,
         respondedAt: new Date(),
@@ -180,6 +181,18 @@ export async function POST(
           acceptanceMessage: message,
         } : {}),
       },
+    });
+
+    if (respondResult.count === 0) {
+      return NextResponse.json(
+        { error: "This invitation has already been responded to" },
+        { status: 409 }
+      );
+    }
+
+    // Fetch the updated collaborator for response
+    const updatedCollaborator = await prisma.listingCollaborator.findUnique({
+      where: { id: collaboratorId },
     });
 
     // Notify the listing owner

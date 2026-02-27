@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
       where: { id: transactionId },
       include: {
         listing: true,
-        buyer: true,
-        seller: true,
+        buyer: { select: { id: true, username: true, displayName: true, image: true, walletAddress: true } },
+        seller: { select: { id: true, username: true, displayName: true, image: true, walletAddress: true } },
         dispute: true,
       },
     });

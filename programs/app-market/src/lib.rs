@@ -437,6 +437,11 @@ pub mod app_market {
             AppMarketError::NotAnAuction
         );
 
+        // SECURITY: Validate payment mint — SOL-only transfer path cannot claim APP token discount
+        if listing.payment_mint == Some(APP_TOKEN_MINT) {
+            return Err(AppMarketError::InvalidPaymentMint.into());
+        }
+
         // Check auction timing
         if listing.auction_started {
             require!(
@@ -1225,6 +1230,12 @@ pub mod app_market {
             AppMarketError::NotBuyer
         );
 
+        // SECURITY: Must be in escrow state — prevent state corruption on disputed/refunded transactions
+        require!(
+            transaction.status == TransactionStatus::InEscrow,
+            AppMarketError::InvalidTransactionStatus
+        );
+
         require!(
             transaction.seller_confirmed_transfer,
             AppMarketError::SellerNotConfirmed
@@ -1269,6 +1280,12 @@ pub mod app_market {
         require!(
             ctx.accounts.admin.key() == ctx.accounts.config.admin,
             AppMarketError::NotAdmin
+        );
+
+        // SECURITY: Must be in escrow state — prevent state corruption on disputed/refunded transactions
+        require!(
+            transaction.status == TransactionStatus::InEscrow,
+            AppMarketError::InvalidTransactionStatus
         );
 
         require!(
@@ -1558,6 +1575,12 @@ pub mod app_market {
             listing.status == ListingStatus::Active,
             AppMarketError::ListingNotActive
         );
+
+        // SECURITY: Validate payment mint — SOL-only transfer path cannot claim APP token discount
+        if listing.payment_mint == Some(APP_TOKEN_MINT) {
+            return Err(AppMarketError::InvalidPaymentMint.into());
+        }
+
         require!(amount > 0, AppMarketError::InvalidPrice);
         require!(
             deadline > clock.unix_timestamp,
@@ -1822,6 +1845,12 @@ pub mod app_market {
             listing.status == ListingStatus::Active,
             AppMarketError::ListingNotActive
         );
+
+        // SECURITY: Validate payment mint — SOL-only transfer path cannot claim APP token discount
+        if listing.payment_mint == Some(APP_TOKEN_MINT) {
+            return Err(AppMarketError::InvalidPaymentMint.into());
+        }
+
         require!(
             offer.status == OfferStatus::Active,
             AppMarketError::OfferNotActive

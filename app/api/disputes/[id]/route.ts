@@ -47,12 +47,12 @@ export async function POST(
         transaction: {
           include: {
             listing: true,
-            buyer: true,
-            seller: true,
+            buyer: { select: { id: true, username: true, displayName: true, image: true, walletAddress: true, email: true } },
+            seller: { select: { id: true, username: true, displayName: true, image: true, walletAddress: true, email: true } },
           },
         },
-        initiator: true,
-        respondent: true,
+        initiator: { select: { id: true, username: true, displayName: true, image: true } },
+        respondent: { select: { id: true, username: true, displayName: true, image: true } },
       },
     });
 

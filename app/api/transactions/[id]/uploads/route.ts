@@ -210,15 +210,25 @@ export async function POST(
       }
     }
 
-    // 10. Update transaction in database
-    await prisma.transaction.update({
-      where: { id: transactionId },
+    // 10. SECURITY: Atomic update with guard to prevent double-upload race condition
+    const verifyResult = await prisma.transaction.updateMany({
+      where: {
+        id: transactionId,
+        uploadsVerified: false,
+      },
       data: {
         uploadsVerified: true,
         verificationHash,
         verifiedAt: new Date(),
       },
     });
+
+    if (verifyResult.count === 0) {
+      return NextResponse.json(
+        { error: "Uploads already verified by a concurrent request" },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
