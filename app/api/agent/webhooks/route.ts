@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, url, events } = body;
 
-    if (!name || typeof name !== "string") {
-      return agentErrorResponse("Name is required", 400);
+    if (!name || typeof name !== "string" || name.length < 1 || name.length > 100) {
+      return agentErrorResponse("Name is required and must be 100 characters or less", 400);
     }
 
     if (!url || typeof url !== "string") {
@@ -352,6 +352,9 @@ export async function PATCH(request: NextRequest) {
     const updateData: any = {};
 
     if (name !== undefined) {
+      if (typeof name !== "string" || name.length < 1 || name.length > 100) {
+        return agentErrorResponse("Name must be 100 characters or less", 400);
+      }
       updateData.name = name.trim();
     }
 

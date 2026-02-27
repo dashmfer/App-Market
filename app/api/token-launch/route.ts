@@ -80,6 +80,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate tokenName length (prevent storage abuse)
+    if (typeof tokenName !== "string" || tokenName.length < 1 || tokenName.length > 50) {
+      return NextResponse.json(
+        { error: "Token name must be between 1 and 50 characters" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate tokenDescription length if provided
+    if (tokenDescription !== undefined && tokenDescription !== null) {
+      if (typeof tokenDescription !== "string" || tokenDescription.length > 500) {
+        return NextResponse.json(
+          { error: "Token description must be 500 characters or less" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validate token symbol length (standard is 3-10 chars)
     if (tokenSymbol.length < 2 || tokenSymbol.length > 10) {
       return NextResponse.json(

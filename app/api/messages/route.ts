@@ -129,6 +129,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Strip HTML from message content to prevent stored XSS
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const sanitizedContent = stripHtml(content);
+
     if (recipientId === senderId) {
       return NextResponse.json(
         { error: "Cannot message yourself" },
@@ -174,7 +178,7 @@ export async function POST(request: NextRequest) {
     // Create the message
     const message = await prisma.message.create({
       data: {
-        content,
+        content: sanitizedContent,
         senderId,
         conversationId: conversation.id,
       },
@@ -195,7 +199,7 @@ export async function POST(request: NextRequest) {
       where: { id: conversation.id },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: content.substring(0, 100),
+        lastMessagePreview: sanitizedContent.substring(0, 100),
       },
     });
 
@@ -216,7 +220,7 @@ export async function POST(request: NextRequest) {
         data: {
           conversationId: conversation.id,
           senderId,
-          messagePreview: content.substring(0, 50),
+          messagePreview: sanitizedContent.substring(0, 50),
         },
         userId: recipientId,
       },

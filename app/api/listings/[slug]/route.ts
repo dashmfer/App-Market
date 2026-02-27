@@ -216,6 +216,29 @@ export async function PUT(
     const body = await request.json();
     const { title, tagline, description, demoUrl, videoUrl, websiteUrl } = body;
 
+    // SECURITY: Strip HTML from user-provided text fields
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+
+    // SECURITY: Validate length limits (matching POST handler constraints)
+    if (title && (typeof title !== "string" || title.length > 100)) {
+      return NextResponse.json(
+        { error: "Title must be 100 characters or less" },
+        { status: 400 }
+      );
+    }
+    if (tagline && (typeof tagline !== "string" || tagline.length > 200)) {
+      return NextResponse.json(
+        { error: "Tagline must be 200 characters or less" },
+        { status: 400 }
+      );
+    }
+    if (description && (typeof description !== "string" || description.length > 10000)) {
+      return NextResponse.json(
+        { error: "Description must be 10000 characters or less" },
+        { status: 400 }
+      );
+    }
+
     // SECURITY: Validate URLs have safe protocols
     const urlFields = { demoUrl, videoUrl, websiteUrl };
     for (const [field, url] of Object.entries(urlFields)) {
@@ -227,13 +250,13 @@ export async function PUT(
       }
     }
 
-    // Update the listing
+    // Update the listing with sanitized values
     const updatedListing = await prisma.listing.update({
       where: { slug },
       data: {
-        ...(title && { title }),
-        ...(tagline !== undefined && { tagline }),
-        ...(description && { description }),
+        ...(title && { title: stripHtml(title) }),
+        ...(tagline !== undefined && { tagline: tagline ? stripHtml(tagline) : null }),
+        ...(description && { description: stripHtml(description) }),
         ...(demoUrl !== undefined && { demoUrl }),
         ...(videoUrl !== undefined && { videoUrl }),
       },

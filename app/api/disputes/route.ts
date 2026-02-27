@@ -111,6 +111,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Strip HTML from user-provided text to prevent stored XSS
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const sanitizedReason = stripHtml(reason);
+    const sanitizedDescription = stripHtml(description);
+
+    // SECURITY: Validate reason length
+    if (sanitizedReason.length > 200) {
+      return NextResponse.json(
+        { error: "Reason must be 200 characters or less" },
+        { status: 400 }
+      );
+    }
+
     if (evidence && (!Array.isArray(evidence) || evidence.length > 20)) {
       return NextResponse.json(
         { error: "Evidence must be an array of at most 20 items" },
@@ -183,8 +196,8 @@ export async function POST(request: NextRequest) {
 
       const newDispute = await tx.dispute.create({
         data: {
-          reason,
-          description,
+          reason: sanitizedReason,
+          description: sanitizedDescription,
           initiatorEvidence: evidence ? { items: evidence } : undefined,
           status: "OPEN",
           disputeFee,

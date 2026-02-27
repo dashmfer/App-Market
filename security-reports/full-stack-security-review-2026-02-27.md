@@ -26,7 +26,7 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 | CRITICAL | 3 | 3 | 0 |
 | HIGH | 4 | 4 | 0 |
 | MEDIUM | 12 | 10 | 2 |
-| LOW | ~22 | 6 | ~16 |
+| LOW | ~22 | 14 | ~8 |
 
 ---
 
@@ -136,17 +136,17 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 | L-3 | CSRF secret fallback to NEXTAUTH_SECRET | Documented |
 | L-4 | Health endpoint exposes config status | Documented |
 | L-5 | Placeholder secrets in .env.example | Documented |
-| L-6 | Message content not HTML-stripped in DB | Documented |
-| L-7 | Listing/review text not HTML-stripped | Documented |
+| L-6 | Message content not HTML-stripped in DB | **FIXED** |
+| L-7 | Listing/review text not HTML-stripped | **FIXED** |
 | L-8 | Partial wallet exposure in bid data | Documented |
 | L-9 | Public profile exposes discord/financial fields | Documented |
 | L-10 | Middleware file extension bypass for static assets | Documented |
 | L-11 | Unwhitelisted status values in listing query params | Documented |
-| L-12 | GitHub API calls missing timeout | Documented |
-| L-13 | Cron endpoints return detailed error arrays | Documented |
-| L-14 | Agent bid GET leaks other users' bid details | Documented |
-| L-15 | Webhook/API key name fields not length-limited | Documented |
-| L-16 | Missing CSRF on wallet/verify endpoint | Documented |
+| L-12 | GitHub API calls missing timeout | **FIXED** |
+| L-13 | Cron endpoints return detailed error arrays | **FIXED** |
+| L-14 | Agent bid GET leaks other users' bid details | **FIXED** |
+| L-15 | Webhook/API key name fields not length-limited | **FIXED** |
+| L-16 | Missing CSRF on wallet/verify endpoint | **FIXED** |
 
 ---
 
@@ -199,6 +199,24 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 - `app/api/disputes/[id]/route.ts` — Replace `include: true` with select clauses
 - `app/api/listings/route.ts` — HTML stripping + status whitelist
 - `lib/auth.ts` — Session tracking for revokeAllUserSessions() support
+
+### Commit 4 (14 files - LOW findings remediation):
+- `app/api/cron/expired-offers/route.ts` — Strip error arrays from response (L-13)
+- `app/api/cron/seller-transfer-deadline/route.ts` — Strip error arrays from response (L-13)
+- `app/api/cron/escrow-auto-release/route.ts` — Strip error arrays from response (L-13)
+- `app/api/cron/buyer-info-deadline/route.ts` — Strip error arrays from response (L-13)
+- `app/api/cron/partner-deposit-deadline/route.ts` — Strip error arrays from response (L-13)
+- `app/api/cron/super-badge-qualification/route.ts` — Strip error details from 500 response (L-13)
+- `app/api/reviews/route.ts` — HTML stripping + comment length limit (L-7)
+- `app/api/messages/route.ts` — HTML stripping on message content (L-6)
+- `app/api/disputes/route.ts` — HTML stripping on reason/description + reason length limit
+- `app/api/agent/bids/[id]/route.ts` — BOLA ownership check (L-14)
+- `app/api/agent/webhooks/route.ts` — Name field length limits on POST/PATCH (L-15)
+- `app/api/agent/keys/route.ts` — Name field length limits on PATCH (L-15)
+- `app/api/auth/wallet/verify/route.ts` — CSRF validation (L-16)
+- `app/api/token-launch/route.ts` — tokenName/tokenDescription length limits
+- `app/api/transactions/[id]/uploads/route.ts` — GitHub API timeout (L-12)
+- `app/api/listings/[slug]/route.ts` — PUT handler: length limits + HTML stripping
 
 ---
 
@@ -291,14 +309,14 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 
 ### CSRF Protection
 - 57/68 mutating routes have CSRF validation. 11 correctly exempt (agent HMAC, webhook secret, admin secret, pre-auth).
-- **LOW**: `/api/auth/wallet/verify` missing CSRF (mitigated by signature requirement). DOCUMENTED.
+- **LOW (FIXED)**: `/api/auth/wallet/verify` missing CSRF. Added `validateCsrfRequest()` check.
 - Double-submit cookie pattern is robust: `__Host-` prefix, `SameSite=strict`, HMAC-signed tokens with timing-safe comparison.
 
 ### XSS Scanning
 - **No `dangerouslySetInnerHTML`**, no `innerHTML`, no `eval()` anywhere in codebase.
 - **MEDIUM**: CSP `unsafe-inline` for scripts (deferred — requires nonce-based CSP migration).
 - **LOW (FIXED)**: Listing title/description not HTML-stripped on storage. Added `stripHtml()` in listing creation.
-- **LOW**: Review comments, messages not HTML-stripped. DOCUMENTED (React JSX auto-escapes).
+- **LOW (FIXED)**: Review comments, messages not HTML-stripped. Added `stripHtml()` to reviews, messages, and disputes.
 
 ### SQL Injection Detection
 - **PASS**: All DB access via Prisma ORM. No `$queryRawUnsafe`. Two `$queryRaw` usages are tagged template literals with no user input.
@@ -313,7 +331,7 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 
 ### Access Control Audit
 - 111 routes audited across 5 auth mechanisms (session, agent, cron, webhook, admin).
-- **HIGH**: BOLA in `GET /api/agent/bids/[id]` — no ownership check. DOCUMENTED.
+- **HIGH (FIXED)**: BOLA in `GET /api/agent/bids/[id]` — no ownership check. Added `bid.bidder.id !== auth.userId` guard.
 - **MEDIUM**: Public endpoints expose collaborator revenue splits and partner financial details. DOCUMENTED.
 - All admin routes have triple-layer protection (middleware + DB check + secret).
 - All cron routes have double-layer protection (middleware + handler).
@@ -331,9 +349,9 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 
 ### Input Validation
 - **HIGH**: Missing UUID format validation on path params across many routes. DOCUMENTED.
-- **HIGH**: Token-launch `tokenName`, `tokenDescription` have no length limits. DOCUMENTED.
-- **MEDIUM**: Listing PUT handler lacks length limits (unlike POST). DOCUMENTED.
-- **MEDIUM**: `dispute.reason` field has no enum/length validation. DOCUMENTED.
+- **HIGH (FIXED)**: Token-launch `tokenName`, `tokenDescription` have no length limits. Added 50/500 char limits.
+- **MEDIUM (FIXED)**: Listing PUT handler lacks length limits (unlike POST). Added title/tagline/description limits + HTML stripping.
+- **MEDIUM (FIXED)**: `dispute.reason` field has no enum/length validation. Added 200-char limit + HTML stripping.
 
 ### Spec-to-Code Compliance
 - Rules 1-5, 8-9: **COMPLIANT**
@@ -364,7 +382,5 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 - CI/CD pipeline setup (GitHub Actions)
 - Web application security test suite
 - BigInt migration for all remaining `Number()` on Decimal fields
-- HTML stripping on reviews, messages, disputes
 - Missing UUID validation on path parameters
-- Agent bids BOLA ownership check
 - Public endpoint wallet address truncation

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 import { validateWalletSignatureMessage } from "@/lib/validation";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * Wallet signature verification endpoint
@@ -9,6 +10,12 @@ import { validateWalletSignatureMessage } from "@/lib/validation";
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token for state-changing request (L-16)
+    const csrfValidation = validateCsrfRequest(req);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || "CSRF validation failed");
+    }
+
     // SECURITY: Rate limit verification attempts
     const identifier = getClientIp(req.headers);
     const rateLimit = await (withRateLimitAsync('auth', 'wallet-verify'))(req, identifier);

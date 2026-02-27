@@ -440,7 +440,8 @@ async function verifyGithubRepo(
       };
     }
 
-    const octokit = new Octokit({ auth: account.access_token });
+    // SECURITY: Set request timeout to prevent hanging on GitHub API calls (L-12)
+    const octokit = new Octokit({ auth: account.access_token, request: { timeout: 10000 } });
     const { data } = await octokit.repos.get({
       owner: repoOwner,
       repo: repoName.replace('.git', ''),

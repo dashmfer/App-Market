@@ -147,6 +147,9 @@ export async function GET(request: NextRequest) {
       `[Cron:expired-offers] Skipping hard-deletion — preserving audit trail`
     );
 
+    // SECURITY: Strip internal error details from response (L-13)
+    const { errors: _errors, ...safeResults } = results;
+
     return NextResponse.json({
       success: true,
       message: `Offer cleanup complete: ${results.markedExpired} expired, ${results.refundsOnChain} on-chain refunds, ${results.failed} failed`,
@@ -154,7 +157,7 @@ export async function GET(request: NextRequest) {
         activeOffersChecked: expiredOffers.length,
         staleOffersChecked: 0,
       },
-      results,
+      results: safeResults,
     });
   } catch (error) {
     console.error("[Cron:expired-offers] Error:", error);

@@ -231,11 +231,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // SECURITY: Strip internal error details from response (L-13)
+    const { errors: _errors, ...safeResults } = results;
+
     return NextResponse.json({
       success: true,
       message: `Auto-release complete: ${results.released} released, ${results.failed} failed`,
       processed: eligibleTransactions.length,
-      results,
+      results: safeResults,
     });
   } catch (error) {
     console.error("[Cron:escrow-auto-release] Error:", error);

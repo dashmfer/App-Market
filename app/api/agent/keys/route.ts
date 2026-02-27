@@ -292,7 +292,12 @@ export async function PATCH(request: NextRequest) {
 
     // Build update data
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name.trim();
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.length < 1 || name.length > 100) {
+        return agentErrorResponse("Name must be 100 characters or less", 400);
+      }
+      updateData.name = name.trim();
+    }
     if (isActive !== undefined) updateData.isActive = Boolean(isActive);
     if (rateLimit !== undefined) {
       updateData.rateLimit = Math.min(Math.max(rateLimit, 10), 1000);

@@ -222,11 +222,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // SECURITY: Strip internal error details from response (L-13)
+    const { errors: _errors, ...safeResults } = results;
+
     return NextResponse.json({
       success: true,
       message: `Partner deadline check complete: ${results.cancelled} cancelled, ${results.funded} funded, ${results.refunded} refunds, ${results.failed} failed`,
       processed: expiredTransactions.length,
-      results,
+      results: safeResults,
     });
   } catch (error) {
     console.error("[Cron:partner-deposit-deadline] Error:", error);

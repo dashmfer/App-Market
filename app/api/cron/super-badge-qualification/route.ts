@@ -347,9 +347,12 @@ export async function GET(request: NextRequest) {
 
     console.log("[Cron] Super badge qualification completed:", results);
 
+    // SECURITY: Strip internal error details from response (L-13)
+    const { errors: _errors, ...safeResults } = results;
+
     return NextResponse.json({
       success: true,
-      ...results,
+      ...safeResults,
     });
   } catch (error) {
     console.error("[Cron] Super badge qualification failed:", error);
@@ -357,8 +360,6 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: "Super badge qualification failed",
-        details: error instanceof Error ? error.message : String(error),
-        partialResults: results,
       },
       { status: 500 }
     );

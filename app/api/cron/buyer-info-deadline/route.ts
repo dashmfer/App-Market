@@ -226,12 +226,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // SECURITY: Strip internal error details from response (L-13)
+    const { errors: _errors, ...safeResults } = results;
+
     return NextResponse.json({
       success: true,
       message: `Buyer info deadline check complete: ${results.processed} deadlines enforced, ${remindersSent} reminders sent`,
       processed: expiredTransactions.length,
       remindersSent,
-      results,
+      results: safeResults,
     });
   } catch (error) {
     console.error("[Cron] Buyer info deadline error:", error);

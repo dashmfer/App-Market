@@ -350,6 +350,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // SECURITY: Strip HTML from comment to prevent stored XSS
+    const stripHtml = (s: string) => s.replace(/<[^>]*>/g, "").trim();
+    const sanitizedComment = comment ? stripHtml(comment) : null;
+
+    // SECURITY: Validate comment length
+    if (sanitizedComment && sanitizedComment.length > 2000) {
+      return NextResponse.json(
+        { error: "Comment must be 2000 characters or less" },
+        { status: 400 }
+      );
+    }
+
     // SECURITY: Create review, update stats, and notify atomically
     const review = await prisma.$transaction(async (tx) => {
       const newReview = await tx.review.create({
@@ -360,7 +372,7 @@ export async function POST(request: NextRequest) {
           communicationRating: communicationRating || null,
           speedRating: speedRating || null,
           accuracyRating: accuracyRating || null,
-          comment: comment || null,
+          comment: sanitizedComment,
           transactionId: type === "TRANSACTION" ? transactionId : null,
           conversationId: type === "MESSAGING" ? conversationId : null,
           authorId,

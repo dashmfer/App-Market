@@ -52,6 +52,11 @@ export async function GET(
       return agentErrorResponse("Bid not found", 404);
     }
 
+    // SECURITY: BOLA fix — only allow the bid owner to view their own bid details
+    if (bid.bidder.id !== auth.userId) {
+      return agentErrorResponse("Not authorized to view this bid", 403);
+    }
+
     return agentSuccessResponse({ bid });
   } catch (error) {
     console.error("[Agent] Error fetching bid:", error);
