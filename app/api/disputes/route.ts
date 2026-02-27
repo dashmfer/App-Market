@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/disputes - Get user's disputes
 export async function GET(request: NextRequest) {
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest) {
         { error: rateLimitResult.error },
         { status: 429, headers: rateLimitResult.headers }
       );
+    }
+
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const session = await getServerSession(authOptions);

@@ -20,12 +20,17 @@ export function verifyCronSecret(request: NextRequest): boolean {
 
   const expected = `Bearer ${cronSecret}`;
 
-  if (authHeader.length !== expected.length) {
-    return false;
-  }
+  // SECURITY: Pad both buffers to the same length to prevent length-leaking timing attacks.
+  // A length pre-check before timingSafeEqual leaks secret length via timing.
+  const maxLen = Math.max(authHeader.length, expected.length);
+  const paddedAuth = Buffer.alloc(maxLen);
+  const paddedExpected = Buffer.alloc(maxLen);
+  Buffer.from(authHeader).copy(paddedAuth);
+  Buffer.from(expected).copy(paddedExpected);
 
   try {
-    return timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected));
+    const match = timingSafeEqual(paddedAuth, paddedExpected);
+    return match && authHeader.length === expected.length;
   } catch {
     return false;
   }

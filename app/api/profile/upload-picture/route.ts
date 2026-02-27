@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { put } from '@vercel/blob';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/profile/upload-picture
@@ -10,6 +11,12 @@ import { put } from '@vercel/blob';
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
@@ -111,6 +118,12 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

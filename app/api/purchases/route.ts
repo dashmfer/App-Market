@@ -64,8 +64,15 @@ export async function POST(request: NextRequest) {
     // Verify on-chain transaction if provided (outside DB transaction to avoid holding lock)
     if (onChainTx) {
       try {
-        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
-        const connection = new Connection(rpcUrl, "confirmed");
+        // SECURITY: Require explicit RPC URL — never fall back to devnet in production
+        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+        if (!rpcUrl) {
+          return NextResponse.json(
+            { error: "Solana RPC not configured" },
+            { status: 500 }
+          );
+        }
+        const connection = new Connection(rpcUrl!, "confirmed");
         const txInfo = await connection.getTransaction(onChainTx, {
           maxSupportedTransactionVersion: 0,
           commitment: "confirmed",

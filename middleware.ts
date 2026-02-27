@@ -106,16 +106,19 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // SECURITY: Use constant-time comparison to prevent timing attacks
+    // SECURITY: Use constant-time comparison with buffer padding to prevent
+    // timing attacks. Padding avoids leaking secret length via early return.
     const expectedHeader = `Bearer ${cronSecret}`;
     let isValid = false;
 
-    if (authHeader && authHeader.length === expectedHeader.length) {
+    if (authHeader) {
       try {
-        isValid = timingSafeEqual(
-          Buffer.from(authHeader),
-          Buffer.from(expectedHeader)
-        );
+        const maxLen = Math.max(authHeader.length, expectedHeader.length);
+        const paddedAuth = Buffer.alloc(maxLen);
+        const paddedExpected = Buffer.alloc(maxLen);
+        Buffer.from(authHeader).copy(paddedAuth);
+        Buffer.from(expectedHeader).copy(paddedExpected);
+        isValid = timingSafeEqual(paddedAuth, paddedExpected) && authHeader.length === expectedHeader.length;
       } catch {
         isValid = false;
       }

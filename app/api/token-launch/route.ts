@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
 import {
   buildCreatePoolTransaction,
@@ -24,6 +25,12 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -120,26 +120,28 @@ export async function POST(
         break;
     }
 
-    // Update dispute
-    await prisma.dispute.update({
-      where: { id: disputeId },
-      data: {
-        status: "RESOLVED",
-        resolution,
-        resolutionNotes: notes,
-        feeCharged,
-        resolvedAt: new Date(),
-      },
-    });
-
-    // Update transaction
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: {
-        status: newTransactionStatus,
-        releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
-      },
-    });
+    // SECURITY: Wrap dispute resolution and transaction status update in a
+    // Prisma transaction for atomicity. Prevents inconsistent state where
+    // the dispute is resolved but the transaction status is not updated.
+    await prisma.$transaction([
+      prisma.dispute.update({
+        where: { id: disputeId },
+        data: {
+          status: "RESOLVED",
+          resolution,
+          resolutionNotes: notes,
+          feeCharged,
+          resolvedAt: new Date(),
+        },
+      }),
+      prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: newTransactionStatus,
+          releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
+        },
+      }),
+    ]);
 
     // Notify both parties
     const resolutionMessages: Record<string, { buyer: string; seller: string }> = {

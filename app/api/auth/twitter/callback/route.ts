@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
-const TWITTER_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/twitter/callback`;
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// SECURITY: HTTP fallback only in development; production requires NEXT_PUBLIC_SITE_URL (validated as HTTPS)
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
+const TWITTER_REDIRECT_URI = `${SITE_URL}/api/auth/twitter/callback`;
 
 interface TwitterUser {
   id: string;
@@ -57,8 +58,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify state matches
-    if (state !== oauthData.state) {
+    // SECURITY: Verify state matches using constant-time comparison to prevent timing attacks
+    const { timingSafeEqual: tsEqual } = await import("crypto");
+    const stateMatches = (() => {
+      try {
+        const maxLen = Math.max(state!.length, oauthData.state.length);
+        const paddedA = Buffer.alloc(maxLen);
+        const paddedB = Buffer.alloc(maxLen);
+        Buffer.from(state!).copy(paddedA);
+        Buffer.from(oauthData.state).copy(paddedB);
+        return tsEqual(paddedA, paddedB) && state!.length === oauthData.state.length;
+      } catch { return false; }
+    })();
+    if (!stateMatches) {
       return NextResponse.redirect(
         `${SITE_URL}/dashboard/settings?twitter_error=state_mismatch`
       );

@@ -4,6 +4,7 @@ import { getAuthToken } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
 import { audit } from "@/lib/audit";
 import { getBackendAuthority, getSolanaConnection, executeOnChainRelease } from "@/lib/cron-helpers";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 interface ChecklistItem {
   id: string;
@@ -26,6 +27,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: CSRF protection for financial state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -107,19 +114,21 @@ export async function POST(
       );
     }
 
-    // Execute on-chain escrow release if backend authority and listing on-chain data exist
+    // SECURITY: Execute on-chain escrow release BEFORE marking as completed.
+    // If on-chain release fails, the transaction stays in its current state
+    // so funds remain safely in escrow for manual resolution.
     let onChainTxSig: string | null = null;
     const authority = getBackendAuthority();
     const connection = authority ? getSolanaConnection() : null;
-
-    if (
+    const requiresOnChainRelease = !!(
       authority &&
       connection &&
       transaction.listing.onChainId &&
       transaction.seller.walletAddress &&
       transaction.buyerId
-    ) {
-      // Look up buyer wallet
+    );
+
+    if (requiresOnChainRelease) {
       const buyer = await prisma.user.findUnique({
         where: { id: transaction.buyerId },
         select: { walletAddress: true },
@@ -127,16 +136,22 @@ export async function POST(
 
       if (buyer?.walletAddress) {
         onChainTxSig = await executeOnChainRelease(
-          connection,
-          authority,
-          transaction.listing.onChainId,
+          connection!,
+          authority!,
+          transaction.listing.onChainId!,
           transaction.seller.walletAddress,
           buyer.walletAddress
         );
 
         if (!onChainTxSig) {
+          // SECURITY: Block completion if on-chain release fails.
+          // Funds must be released before marking as completed to prevent
+          // silent failures where the seller never receives payment.
           console.error(`[Transfer Complete] On-chain release failed for transaction ${params.id}`);
-          // Don't block completion if on-chain fails — log for manual resolution
+          return NextResponse.json(
+            { error: "On-chain escrow release failed. Please try again or contact support." },
+            { status: 502 }
+          );
         }
       }
     }
@@ -151,6 +166,7 @@ export async function POST(
         status: "COMPLETED",
         transferCompletedAt: new Date(),
         releasedAt: new Date(),
+        ...(onChainTxSig ? { onChainTx: onChainTxSig } : {}),
       },
     });
 
@@ -159,14 +175,6 @@ export async function POST(
         { error: "Transaction is no longer in a completable state" },
         { status: 409 }
       );
-    }
-
-    // Store on-chain tx hash if available
-    if (onChainTxSig) {
-      await prisma.transaction.update({
-        where: { id: params.id },
-        data: { onChainTx: onChainTxSig },
-      });
     }
 
     // Update listing status to SOLD

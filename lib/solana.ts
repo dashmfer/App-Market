@@ -132,24 +132,48 @@ export const getFeeRateBps = (currency?: string): number => {
   return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;
 };
 
+/**
+ * SECURITY: All fee calculations use integer arithmetic (lamports) to avoid
+ * IEEE 754 floating-point precision loss in financial calculations.
+ */
+const LAMPORTS_BIGINT = BigInt(LAMPORTS_PER_SOL);
+
+function _solToLamportsBigInt(sol: number): bigint {
+  const [whole, decimal = ""] = sol.toString().split(".");
+  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  return BigInt(whole + paddedDecimal);
+}
+
+function _lamportsToSolNumber(lamports: bigint): number {
+  const whole = lamports / LAMPORTS_BIGINT;
+  const remainder = lamports % LAMPORTS_BIGINT;
+  return Number(whole) + Number(remainder) / Number(LAMPORTS_BIGINT);
+}
+
 // Calculate platform fee (with optional currency for APP discount)
 export const calculatePlatformFee = (amount: number, currency?: string): number => {
   const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
+  const amountLamports = _solToLamportsBigInt(amount);
+  const feeLamports = (amountLamports * BigInt(feeBps)) / BigInt(10000);
+  return _lamportsToSolNumber(feeLamports);
 };
 
 // Calculate dispute fee
 export const calculateDisputeFee = (amount: number): number => {
-  return (amount * DISPUTE_FEE_BPS) / 10000;
+  const amountLamports = _solToLamportsBigInt(amount);
+  const feeLamports = (amountLamports * BigInt(DISPUTE_FEE_BPS)) / BigInt(10000);
+  return _lamportsToSolNumber(feeLamports);
 };
 
 // Calculate seller proceeds after fees (with optional currency for APP discount)
 export const calculateSellerProceeds = (salePrice: number, currency?: string): { fee: number; proceeds: number; feeBps: number } => {
   const feeBps = getFeeRateBps(currency);
-  const fee = calculatePlatformFee(salePrice, currency);
+  const priceLamports = _solToLamportsBigInt(salePrice);
+  const feeLamports = (priceLamports * BigInt(feeBps)) / BigInt(10000);
+  const proceedsLamports = priceLamports - feeLamports;
   return {
-    fee,
-    proceeds: salePrice - fee,
+    fee: _lamportsToSolNumber(feeLamports),
+    proceeds: _lamportsToSolNumber(proceedsLamports),
     feeBps,
   };
 };
@@ -249,9 +273,12 @@ export const getProgram = (provider: AnchorProvider): Program => {
 };
 
 // Convert token amount to raw units based on decimals
+// SECURITY: Uses string parsing to avoid floating-point multiplication errors
 export const toTokenUnits = (amount: number, currency: "SOL" | "APP" | "USDC"): BN => {
   const decimals = TOKEN_DECIMALS[currency];
-  return new BN(Math.floor(amount * Math.pow(10, decimals)));
+  const [whole, decimal = ""] = amount.toString().split(".");
+  const paddedDecimal = decimal.padEnd(decimals, "0").slice(0, decimals);
+  return new BN(whole + paddedDecimal);
 };
 
 // Convert raw units to token amount

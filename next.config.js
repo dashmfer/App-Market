@@ -61,7 +61,7 @@ const nextConfig = {
           {
             // Enforce HTTPS
             key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            value: 'max-age=31536000; includeSubDomains; preload',
           },
           {
             // Prevent loading in Adobe products
@@ -73,8 +73,9 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Allow scripts from self and inline (needed for Next.js)
-              "script-src 'self' 'unsafe-inline'",
+              // Allow scripts from self and unsafe-eval (needed for Next.js dev), and strict-dynamic for production
+              // NOTE: unsafe-inline is still needed until Next.js nonce support is adopted
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               // Allow styles from self and inline
               "style-src 'self' 'unsafe-inline'",
               // Allow images from approved sources

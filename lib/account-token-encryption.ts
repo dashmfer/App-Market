@@ -20,8 +20,11 @@ export function encryptAccountTokens<T extends Record<string, any>>(data: T): T 
           encrypted[field] = encrypt(encrypted[field]);
         }
       } catch (error) {
-        console.error(`[Token Encryption] Failed to encrypt ${field}:`, error);
-        // Continue without encryption rather than breaking auth
+        // SECURITY: Log structured warning for monitoring — token will be stored in plaintext
+        console.error(`[Token Encryption] SECURITY WARNING: Failed to encrypt ${field}:`, error);
+        if (process.env.NODE_ENV === "production") {
+          console.error(`[Token Encryption] ALERT: ${field} stored UNENCRYPTED — investigate immediately`);
+        }
       }
     }
   }
@@ -40,7 +43,11 @@ export function decryptAccountTokens<T extends Record<string, any>>(data: T): T 
           decrypted[field] = decrypt(decrypted[field]);
         }
       } catch (error) {
-        console.error(`[Token Encryption] Failed to decrypt ${field}:`, error);
+        // SECURITY: Log structured warning — may indicate key rotation issue or corruption
+        console.error(`[Token Encryption] SECURITY WARNING: Failed to decrypt ${field}:`, error);
+        if (process.env.NODE_ENV === "production") {
+          console.error(`[Token Encryption] ALERT: ${field} decryption failed — possible key mismatch or corruption`);
+        }
         // Return the raw value if decryption fails (may be unencrypted legacy data)
       }
     }

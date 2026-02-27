@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+// SECURITY: Require explicit RPC URL in production — never fall back to public endpoints
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || (process.env.NODE_ENV === "production" ? (() => { throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be set in production"); })() : "https://api.devnet.solana.com");
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_WEBHOOK_ID = process.env.HELIUS_WEBHOOK_ID;
 

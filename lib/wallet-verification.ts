@@ -29,8 +29,13 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
-    // Validate message format — must contain expected domain/prefix to prevent arbitrary message signing
-    if (!message.includes("App Market") && !message.includes("app-market")) {
+    // SECURITY: Validate message format with strict prefix/line match instead of substring.
+    // Substring matching (includes) could be bypassed by embedding "App Market" in an attacker-crafted message.
+    const validPrefixes = [
+      'Accept collaboration for "',
+      "Sign this message to prove you own this wallet",
+    ];
+    if (!validPrefixes.some(prefix => message.startsWith(prefix) || message.includes(`\n${prefix}`))) {
       return { valid: false, error: "Invalid message format — must be an App Market verification message" };
     }
 
@@ -139,8 +144,9 @@ export async function verifyWalletSignature(
         where: { username: { startsWith: baseUsername } },
       });
 
+      // SECURITY: Use crypto.randomBytes instead of Math.random for username suffix
       const username = existingUser
-        ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+        ? `${baseUsername}_${crypto.randomBytes(3).toString("hex")}`
         : baseUsername;
 
       // Generate a unique referral code for the new user

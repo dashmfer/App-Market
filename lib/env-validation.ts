@@ -51,6 +51,18 @@ const ENV_VARS: EnvVar[] = [
     required: process.env.NODE_ENV === "production",
     description: "Platform treasury wallet address",
   },
+  {
+    name: "ADMIN_SECRET",
+    required: process.env.NODE_ENV === "production",
+    minLength: 32,
+    description: "Admin API authentication secret",
+  },
+  {
+    name: "NEXT_PUBLIC_SITE_URL",
+    required: process.env.NODE_ENV === "production",
+    validate: (v: string) => v.startsWith("https://"),
+    description: "Public site URL (must use HTTPS in production)",
+  },
 ];
 
 export interface ValidationResult {

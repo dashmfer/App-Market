@@ -65,7 +65,9 @@ export default function DashboardPage() {
       const walletAddress = (session?.user as any)?.walletAddress;
       if (walletAddress) {
         try {
-          const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.devnet.solana.com";
+          // SECURITY: Only fetch balance if RPC URL is configured (no devnet fallback)
+          const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+          if (!rpcUrl) return;
           const response = await fetch(rpcUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
