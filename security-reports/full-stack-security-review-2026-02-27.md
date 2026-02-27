@@ -19,11 +19,11 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 
 ## Summary
 
-**Total unique findings: ~40** (deduplicated from ~70 raw findings across 10 scans)
+**Total unique findings: ~48** (deduplicated from ~70+ raw findings across 10 scans + Trail of Bits skills)
 
 | Severity | Count | Fixed | Deferred |
 |----------|-------|-------|----------|
-| CRITICAL | 2 | 2 | 0 |
+| CRITICAL | 3 | 3 | 0 |
 | HIGH | 4 | 4 | 0 |
 | MEDIUM | 12 | 10 | 2 |
 | LOW | ~22 | 6 | ~16 |
@@ -185,3 +185,36 @@ Comprehensive 10-scan security audit covering the entire App Market codebase:
 - `app/api/transfers/[id]/fallback/route.ts` — URL protocol validation
 - `app/api/users/lookup/route.ts` — CSRF validation
 - `app/api/watchlist/route.ts` — Rate limiting on DELETE
+
+---
+
+## Appendix: Trail of Bits Skills Scan Results
+
+### Solana Vulnerability Scanner (6 patterns)
+- **Arbitrary CPI**: PASS — No raw invoke/invoke_signed. All CPI via Anchor typed CpiContext.
+- **Improper PDA Validation**: PASS — All PDAs use seeds+bump constraints or find_program_address.
+- **Missing Ownership Check**: PASS — All Account<T> fields auto-validated; UncheckedAccounts verified via PDA derivation.
+- **Missing Signer Check**: PASS — All privileged operations use Signer<'info>.
+- **Sysvar Account Check**: N/A — Clock accessed via Clock::get() (safe Solana 1.8.1+ method).
+- **Instruction Introspection**: PASS — No instruction introspection used.
+
+### Entry Point Analysis (33 state-changing functions)
+- 5 public/permissionless (expire_withdrawal, close_escrow, expire_listing, expire_offer, execute_dispute_resolution)
+- 9 seller-restricted, 7 buyer/bidder-restricted, 7 admin-restricted, 3 backend-authority, 2 party-restricted
+
+### Sharp Edges Analysis
+- **SE-1 CRITICAL**: close_listing accepted Sold status → permanent fund lock (FIXED)
+- **SE-2 MEDIUM**: PartialRefund bypasses platform fee vs ReleaseToSeller (DOCUMENTED)
+- **SE-3 MEDIUM**: seller_confirm_transfer missing deadline → griefing (FIXED)
+- **SE-4 LOW**: Dispute resolution not subject to pause (DOCUMENTED)
+- **SE-5 LOW**: close_transaction before close_escrow orphans rent (DOCUMENTED)
+
+### Additional Findings from Background Scanner
+- **NEW-1 HIGH**: close_listing on Sold permanently locks buyer funds (FIXED — removed Sold from allowed states)
+- **NEW-2 MEDIUM**: PartialRefund bypasses platform fee (same as SE-2, DOCUMENTED)
+- **NEW-3 MEDIUM**: seller_confirm_transfer missing deadline (same as SE-3, FIXED)
+- **NEW-4 MEDIUM**: verify_uploads missing transaction status check (FIXED)
+- **NEW-5 LOW**: listing_id max_len(64) too small for max pubkey+salt (FIXED → 66)
+- **NEW-6 LOW**: close_transaction before close_escrow orphans rent (same as SE-5, DOCUMENTED)
+- **NEW-7 LOW**: Dispute pipeline not paused (same as SE-4, DOCUMENTED)
+- **NEW-8 LOW**: verification_hash length not validated (FIXED)

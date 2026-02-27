@@ -1145,6 +1145,14 @@ pub mod app_market {
             AppMarketError::AlreadyConfirmed
         );
 
+        // SECURITY FIX: Prevent seller from confirming after transfer deadline.
+        // Without this, seller can front-run emergency_refund by confirming late,
+        // forcing buyer into the costly dispute path instead of clean refund.
+        require!(
+            clock.unix_timestamp <= transaction.transfer_deadline,
+            AppMarketError::DeadlineNotPassed
+        );
+
         transaction.seller_confirmed_transfer = true;
         transaction.seller_confirmed_at = Some(clock.unix_timestamp);
 
@@ -1171,6 +1179,12 @@ pub mod app_market {
             AppMarketError::NotBackendAuthority
         );
 
+        // SECURITY FIX: Verify transaction is still in escrow (not already refunded/disputed)
+        require!(
+            transaction.status == TransactionStatus::InEscrow,
+            AppMarketError::InvalidTransactionStatus
+        );
+
         require!(
             transaction.seller_confirmed_transfer,
             AppMarketError::SellerNotConfirmed
@@ -1180,6 +1194,9 @@ pub mod app_market {
             !transaction.uploads_verified,
             AppMarketError::AlreadyVerified
         );
+
+        // SECURITY FIX: Validate verification_hash length to prevent account space overflow
+        require!(verification_hash.len() <= 64, AppMarketError::StringTooLong);
 
         transaction.uploads_verified = true;
         transaction.verification_timestamp = Some(clock.unix_timestamp);
@@ -2512,11 +2529,15 @@ pub mod app_market {
     pub fn close_listing(ctx: Context<CloseListing>) -> Result<()> {
         let listing = &ctx.accounts.listing;
 
-        // Only allow closing listings in terminal states
+        // SECURITY FIX: Only allow closing listings in TRUE terminal states.
+        // Sold is NOT terminal — it's the start of escrow flow. Closing a Sold listing
+        // would destroy the PDA needed by finalize/confirm/refund/dispute, permanently
+        // locking buyer funds with no recovery path.
         require!(
             listing.status == ListingStatus::Cancelled ||
             listing.status == ListingStatus::Ended ||
-            listing.status == ListingStatus::Sold,
+            listing.status == ListingStatus::Completed ||
+            listing.status == ListingStatus::Refunded,
             AppMarketError::ListingNotActive
         );
 
@@ -3435,7 +3456,7 @@ pub struct MarketConfig {
 #[derive(InitSpace)]
 pub struct Listing {
     pub seller: Pubkey,
-    #[max_len(64)]
+    #[max_len(66)]
     pub listing_id: String,
     pub listing_type: ListingType,
     pub starting_price: u64,
