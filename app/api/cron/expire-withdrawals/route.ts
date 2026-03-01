@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
+    console.info(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
 
     let connection: Connection | null = null;
     if (authority) {
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
               throw new Error(`On-chain tx failed: ${JSON.stringify(confirmation.value.err)}`);
             }
 
-            console.log(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
+            console.info(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;
           } catch (onChainError) {
             console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log("[Cron] Expire withdrawals results:", results);
+    console.info("[Cron] Expire withdrawals results:", results);
 
     await audit({
       action: "CRON_EXECUTION",

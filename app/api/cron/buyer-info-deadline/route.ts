@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 
         results.processed++;
         results.fallbackActivated++;
-        console.log(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
+        console.info(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;

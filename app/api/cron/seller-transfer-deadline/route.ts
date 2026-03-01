@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
         ]);
 
         results.refunded++;
-        console.log(
+        console.info(
           `[Cron:seller-transfer-deadline] Refunded transaction ${transaction.id}${onChainTxSig ? ` (on-chain: ${onChainTxSig})` : ""}`
         );
       } catch (error) {
