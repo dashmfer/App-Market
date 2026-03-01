@@ -58,8 +58,8 @@ async function handleGraduation(poolAddressStr: string) {
     } else if (stateAny?.dammPool) {
       dammPoolAddress = stateAny.dammPool.toBase58();
     }
-  } catch {
-    // Pool state may not expose DAMM address directly
+  } catch (error) {
+    console.error(`[Webhook] Failed to get pool state for ${poolAddressStr}:`, error);
   }
 
   // Update DB

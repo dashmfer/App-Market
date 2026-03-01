@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get('type') || 'sent';
 
     if (type === 'received') {

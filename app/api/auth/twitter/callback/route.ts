@@ -11,6 +11,25 @@ const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
 const TWITTER_REDIRECT_URI = `${SITE_URL}/api/auth/twitter/callback`;
 
+/**
+ * SECURITY: Validate redirect URLs to prevent open-redirect attacks.
+ * Only allows same-origin redirects; falls back to /dashboard for invalid URLs.
+ */
+function getSafeRedirectUrl(url: string | null, requestUrl: string): string {
+  const fallback = new URL("/dashboard", requestUrl).toString();
+  if (!url) return fallback;
+
+  try {
+    const parsed = new URL(url, requestUrl);
+    const origin = new URL(requestUrl).origin;
+    // Only allow same-origin redirects
+    if (parsed.origin !== origin) return fallback;
+    return parsed.toString();
+  } catch {
+    return fallback;
+  }
+}
+
 interface TwitterUser {
   id: string;
   username: string;
@@ -20,7 +39,7 @@ interface TwitterUser {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
@@ -29,13 +48,13 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("Twitter OAuth error:", error);
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=${encodeURIComponent(error)}`
+        getSafeRedirectUrl(`/dashboard/settings?twitter_error=${encodeURIComponent(error)}`, request.url)
       );
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=missing_params`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=missing_params", request.url)
       );
     }
 
@@ -43,7 +62,7 @@ export async function GET(request: NextRequest) {
     const oauthCookie = request.cookies.get("twitter_oauth_data");
     if (!oauthCookie) {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=session_expired`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=session_expired", request.url)
       );
     }
 
@@ -54,7 +73,7 @@ export async function GET(request: NextRequest) {
       oauthData = JSON.parse(decryptedData);
     } catch {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=invalid_session`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=invalid_session", request.url)
       );
     }
 
@@ -72,13 +91,13 @@ export async function GET(request: NextRequest) {
     })();
     if (!stateMatches) {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=state_mismatch`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=state_mismatch", request.url)
       );
     }
 
     if (!TWITTER_CLIENT_ID || !TWITTER_CLIENT_SECRET) {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=not_configured`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=not_configured", request.url)
       );
     }
 
@@ -104,7 +123,7 @@ export async function GET(request: NextRequest) {
       const errorText = await tokenResponse.text();
       console.error("Twitter token exchange failed:", errorText);
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=token_exchange_failed`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=token_exchange_failed", request.url)
       );
     }
 
@@ -121,7 +140,7 @@ export async function GET(request: NextRequest) {
     if (!userResponse.ok) {
       console.error("Failed to fetch Twitter user:", await userResponse.text());
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=user_fetch_failed`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=user_fetch_failed", request.url)
       );
     }
 
@@ -136,7 +155,7 @@ export async function GET(request: NextRequest) {
 
     if (existingLink && existingLink.id !== oauthData.userId) {
       return NextResponse.redirect(
-        `${SITE_URL}/dashboard/settings?twitter_error=already_linked`
+        getSafeRedirectUrl("/dashboard/settings?twitter_error=already_linked", request.url)
       );
     }
 
@@ -153,9 +172,12 @@ export async function GET(request: NextRequest) {
 
     // Clear OAuth cookie and redirect to success
     const response = NextResponse.redirect(
-      `${SITE_URL}/dashboard/settings?twitter_connected=true&twitter_username=${encodeURIComponent(
-        twitterUser.username
-      )}`
+      getSafeRedirectUrl(
+        `/dashboard/settings?twitter_connected=true&twitter_username=${encodeURIComponent(
+          twitterUser.username
+        )}`,
+        request.url
+      )
     );
     response.cookies.delete("twitter_oauth_data");
 
@@ -163,7 +185,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Twitter callback error:", error);
     return NextResponse.redirect(
-      `${SITE_URL}/dashboard/settings?twitter_error=unknown`
+      getSafeRedirectUrl("/dashboard/settings?twitter_error=unknown", request.url)
     );
   }
 }

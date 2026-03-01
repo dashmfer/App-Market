@@ -379,8 +379,8 @@ export function formatTransferEvidence(evidence: string): {
         displayValue: `${parsed.hostname}${parsed.pathname.slice(0, 30)}${parsed.pathname.length > 30 ? '...' : ''}`,
         fullValue: trimmed,
       };
-    } catch {
-      // Not a valid URL, treat as text
+    } catch (error) {
+      console.error("[DomainTransfer] Failed to parse URL from evidence:", error);
     }
   }
 

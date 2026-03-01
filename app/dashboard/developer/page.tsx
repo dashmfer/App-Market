@@ -541,7 +541,7 @@ function DeveloperContent() {
                           type="number"
                           value={newKeyRateLimit}
                           onChange={(e) =>
-                            setNewKeyRateLimit(parseInt(e.target.value) || 1000)
+                            setNewKeyRateLimit(parseInt(e.target.value, 10) || 1000)
                           }
                           min={100}
                           max={10000}

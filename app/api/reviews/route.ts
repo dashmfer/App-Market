@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
 // GET /api/reviews - Get reviews for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "received" or "given"
     // SECURITY: Bound page to prevent excessive DB offset
-    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1") || 1));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10") || 10));
+    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10));
 
     if (!userId) {
       return NextResponse.json(

@@ -33,7 +33,7 @@ export async function GET(
     }
 
     // Get pagination params
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const { page, limit } = sanitizePagination(
       searchParams.get("page"),
       searchParams.get("limit") || String(DEFAULT_MESSAGE_LIMIT)

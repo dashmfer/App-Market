@@ -10,8 +10,8 @@ import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    
+    const searchParams = request.nextUrl.searchParams;
+
     const category = searchParams.get("category");
     const blockchain = searchParams.get("blockchain");
     const status = searchParams.get("status");
@@ -423,7 +423,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate end time — clamp to config min/max to prevent out-of-range durations
     const { PLATFORM_CONFIG: _cfg } = await import("@/lib/config");
-    const rawDuration = parseInt(duration) || _cfg.auction.defaultDuration;
+    const rawDuration = parseInt(duration, 10) || _cfg.auction.defaultDuration;
     const durationDays = Math.max(_cfg.auction.minDuration, Math.min(_cfg.auction.maxDuration, rawDuration));
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
@@ -501,9 +501,9 @@ export async function POST(request: NextRequest) {
         screenshotUrls,
         demoUrl,
         videoUrl,
-        monthlyUsers: monthlyUsers ? parseInt(monthlyUsers) : null,
+        monthlyUsers: monthlyUsers ? parseInt(monthlyUsers, 10) : null,
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
-        githubStars: githubStars ? parseInt(githubStars) : null,
+        githubStars: githubStars ? parseInt(githubStars, 10) : null,
         startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
         buyNowEnabled,
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,

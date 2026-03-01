@@ -23,8 +23,8 @@ export async function getSolPriceUsd(): Promise<number | null> {
       cachedPrice = { usd: price, timestamp: Date.now() };
       return price;
     }
-  } catch {
-    // Return stale cache if available
+  } catch (error) {
+    console.error("[SolPrice] Failed to fetch SOL price from CoinGecko:", error);
   }
 
   return cachedPrice?.usd ?? null;

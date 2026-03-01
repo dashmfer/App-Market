@@ -36,12 +36,12 @@ const nextConfig = {
     return [
       {
         // Apply to all routes
-        source: '/:path*',
+        source: '/(.*)',
         headers: [
           {
             // Prevent clickjacking - only allow framing from same origin
             key: 'X-Frame-Options',
-            value: 'SAMEORIGIN',
+            value: 'DENY',
           },
           {
             // Prevent MIME type sniffing

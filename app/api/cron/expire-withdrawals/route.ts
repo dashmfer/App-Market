@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
           try {
             const listingPubkey = new PublicKey(withdrawal.listing.onChainId);
             const recipientPubkey = new PublicKey(withdrawal.user.walletAddress);
-            const withdrawalId = parseInt(withdrawal.onChainId);
+            const withdrawalId = parseInt(withdrawal.onChainId, 10);
 
             const instruction = buildExpireWithdrawalInstruction(
               listingPubkey,

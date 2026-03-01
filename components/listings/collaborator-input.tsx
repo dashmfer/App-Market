@@ -583,7 +583,7 @@ export function CollaboratorInput({
                     onChange={(e) =>
                       setNewCollaborator({
                         ...newCollaborator,
-                        percentage: parseInt(e.target.value),
+                        percentage: parseInt(e.target.value, 10),
                       })
                     }
                     className="flex-1 accent-green-500"
@@ -599,7 +599,7 @@ export function CollaboratorInput({
                             1,
                             Math.min(
                               remainingPercentage - 1,
-                              parseInt(e.target.value) || 1
+                              parseInt(e.target.value, 10) || 1
                             )
                           ),
                         })

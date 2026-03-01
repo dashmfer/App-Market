@@ -226,7 +226,7 @@ export function PurchasePartnerInput({
               min={1}
               max={100 - partnersTotalPercentage}
               value={currentUserPercentage}
-              onChange={(e) => onCurrentUserPercentageChange(parseInt(e.target.value))}
+              onChange={(e) => onCurrentUserPercentageChange(parseInt(e.target.value, 10))}
               disabled={disabled}
               className="w-full accent-green-500"
             />
@@ -236,7 +236,7 @@ export function PurchasePartnerInput({
               type="number"
               value={currentUserPercentage}
               onChange={(e) => {
-                const val = Math.max(1, Math.min(100 - partnersTotalPercentage, parseInt(e.target.value) || 1));
+                const val = Math.max(1, Math.min(100 - partnersTotalPercentage, parseInt(e.target.value, 10) || 1));
                 onCurrentUserPercentageChange(val);
               }}
               disabled={disabled}
@@ -292,7 +292,7 @@ export function PurchasePartnerInput({
                 <input
                   type="number"
                   value={partner.percentage}
-                  onChange={(e) => handleUpdatePercentage(partner.id, parseInt(e.target.value) || 1)}
+                  onChange={(e) => handleUpdatePercentage(partner.id, parseInt(e.target.value, 10) || 1)}
                   disabled={disabled}
                   min={1}
                   max={100 - currentUserPercentage - partners.filter(p => p.id !== partner.id).reduce((s, p) => s + p.percentage, 0)}
@@ -393,14 +393,14 @@ export function PurchasePartnerInput({
                       min={1}
                       max={Math.max(1, remainingPercentage)}
                       value={newPartnerPercentage}
-                      onChange={(e) => setNewPartnerPercentage(parseInt(e.target.value))}
+                      onChange={(e) => setNewPartnerPercentage(parseInt(e.target.value, 10))}
                       className="flex-1 accent-blue-500"
                     />
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         value={newPartnerPercentage}
-                        onChange={(e) => setNewPartnerPercentage(Math.max(1, Math.min(remainingPercentage, parseInt(e.target.value) || 1)))}
+                        onChange={(e) => setNewPartnerPercentage(Math.max(1, Math.min(remainingPercentage, parseInt(e.target.value, 10) || 1)))}
                         min={1}
                         max={remainingPercentage}
                         className="w-14 px-2 py-1 text-center text-sm font-medium rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"

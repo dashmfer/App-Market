@@ -61,6 +61,11 @@ export function encrypt(plaintext: string, aad?: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
 
+  // SECURITY: Validate hex string before Buffer.from to prevent unexpected input
+  if (!/^[0-9a-fA-F]*$/.test(encrypted)) {
+    throw new Error("Invalid hex string");
+  }
+
   // Combine salt, iv, authTag, and encrypted data
   const combined = Buffer.concat([
     salt,

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const userId = token.id as string;
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const role = searchParams.get("role") || "all"; // buyer, seller, or all
     const status = searchParams.get("status");
 

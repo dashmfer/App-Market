@@ -10,7 +10,7 @@ import { audit, auditContext } from "@/lib/audit";
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {

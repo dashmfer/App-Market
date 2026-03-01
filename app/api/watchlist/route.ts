@@ -145,7 +145,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const userId = token.id as string;
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {

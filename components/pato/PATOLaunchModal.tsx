@@ -96,8 +96,8 @@ export function PATOLaunchModal({
         }
 
         setPrefilled(true);
-      } catch {
-        // Silent fail — user can still fill manually
+      } catch (error) {
+        console.error("[PATOLaunchModal] Failed to fetch listing for prefill:", error);
       }
     };
 

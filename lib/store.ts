@@ -75,7 +75,7 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const newNotification = {
             ...notification,
-            id: Math.random().toString(36).substring(7),
+            id: crypto.randomUUID(),
             createdAt: new Date(),
           };
           return {

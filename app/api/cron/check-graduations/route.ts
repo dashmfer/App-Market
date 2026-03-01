@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
             } else if (stateAny?.dammPool) {
               dammPoolAddress = stateAny.dammPool.toBase58();
             }
-          } catch {
-            // Pool state may not expose DAMM address directly
+          } catch (error) {
+            console.error(`[Cron] Failed to get pool state for ${launch.dbcPoolAddress}:`, error);
           }
 
           // Update DB

@@ -211,7 +211,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const partnerId = searchParams.get("partnerId");
 
     if (!partnerId) {

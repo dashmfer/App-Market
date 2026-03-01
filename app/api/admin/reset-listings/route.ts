@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 

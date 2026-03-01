@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
           offer.buyer.walletAddress &&
           offer.onChainId
         ) {
-          const offerSeed = parseInt(offer.onChainId);
+          const offerSeed = parseInt(offer.onChainId, 10);
           if (isNaN(offerSeed)) {
             console.error(`[Cron:expired-offers] Invalid onChainId "${offer.onChainId}" for offer ${offer.id}`);
             results.refundsSkipped++;

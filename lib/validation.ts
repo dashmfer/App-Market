@@ -126,8 +126,8 @@ export function isValidUUID(id: string): boolean {
  * Sanitize and limit pagination parameters
  */
 export function sanitizePagination(page: string | null, limit: string | null): { page: number; limit: number } {
-  const parsedPage = Math.max(1, parseInt(page || '1') || 1);
-  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20') || 20));
+  const parsedPage = Math.max(1, parseInt(page || '1', 10) || 1);
+  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20', 10) || 20));
   return { page: parsedPage, limit: parsedLimit };
 }
 

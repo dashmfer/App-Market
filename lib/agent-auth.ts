@@ -208,7 +208,7 @@ async function verifyWalletSignature(
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
       });
     }
-  } catch { /* no redis */ }
+  } catch (error) { console.error("[AgentAuth] Failed to initialize Redis for nonce checking:", error); }
 
   const nonceKey = `agent-nonce:${walletAddress}:${nonce}`;
   if (_nonceRedis) {
