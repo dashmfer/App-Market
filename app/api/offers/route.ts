@@ -182,9 +182,9 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const token = await getAuthToken(req);
 
-    if (!session?.user?.id) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }

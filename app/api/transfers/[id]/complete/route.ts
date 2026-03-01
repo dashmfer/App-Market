@@ -134,7 +134,7 @@ export async function POST(
         select: { walletAddress: true },
       });
 
-      if (buyer?.walletAddress) {
+      if (buyer?.walletAddress && transaction.seller.walletAddress) {
         onChainTxSig = await executeOnChainRelease(
           connection!,
           authority!,
