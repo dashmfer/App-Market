@@ -1,0 +1,157 @@
+rules:
+  - id: yaml-hardcoded-secret
+    patterns:
+      - pattern-regex: "(password|passwd|secret|api_key|apikey|access_key|private_key|token|auth_token|secret_key|client_secret)\\s*[:=]\\s*['\"]?[^\\s'\"{}$<>]+['\"]?"
+    message: >-
+      Possible hardcoded secret detected in YAML file. Avoid storing
+      credentials directly in configuration files. Use environment
+      variables or a secrets manager instead.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - yaml
+      confidence: LOW
+
+  - id: yaml-exposed-port-binding
+    patterns:
+      - pattern-regex: "ports:\\s*\\n\\s*-\\s*['\"]?0\\.0\\.0\\.0:"
+    message: >-
+      Port binding to 0.0.0.0 detected, which exposes the service on all
+      network interfaces. Consider binding to 127.0.0.1 or a specific
+      interface for non-public services.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - docker-compose
+
+  - id: yaml-privileged-container
+    patterns:
+      - pattern-regex: "privileged:\\s*(true|yes)"
+    message: >-
+      Container configured with privileged mode. This grants the container
+      nearly all capabilities of the host machine. Avoid unless absolutely
+      necessary.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - docker-compose
+        - kubernetes
+
+  - id: yaml-run-as-root
+    patterns:
+      - pattern-regex: "runAsUser:\\s*0"
+    message: >-
+      Container configured to run as root (UID 0). Running containers as
+      root increases the attack surface. Use a non-root user instead.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
+
+  - id: yaml-host-network
+    patterns:
+      - pattern-regex: "hostNetwork:\\s*(true|yes)"
+    message: >-
+      Pod configured with hostNetwork, sharing the host network namespace.
+      This can expose the host network stack to the container.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
+
+  - id: yaml-host-pid
+    patterns:
+      - pattern-regex: "hostPID:\\s*(true|yes)"
+    message: >-
+      Pod configured with hostPID, sharing the host PID namespace.
+      This allows the container to see and interact with host processes.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
+
+  - id: yaml-allow-privilege-escalation
+    patterns:
+      - pattern-regex: "allowPrivilegeEscalation:\\s*(true|yes)"
+    message: >-
+      Container allows privilege escalation. Set allowPrivilegeEscalation
+      to false to prevent child processes from gaining more privileges
+      than the parent.
+    languages: [generic]
+    severity: WARNING
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
+
+  - id: yaml-capabilities-all
+    patterns:
+      - pattern-regex: "capabilities:[\\s\\S]*?add:[\\s\\S]*?-\\s*ALL"
+    message: >-
+      Container adds ALL Linux capabilities. This is overly permissive
+      and increases the attack surface. Only add specific needed capabilities.
+    languages: [generic]
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
+
+  - id: yaml-http-not-https
+    patterns:
+      - pattern-regex: "url:\\s*['\"]?http://[^\\s'\"]*"
+    message: >-
+      HTTP URL detected in configuration. Consider using HTTPS for
+      encrypted communication.
+    languages: [generic]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - yaml
+
+  - id: yaml-empty-security-context
+    patterns:
+      - pattern-regex: "securityContext:\\s*\\{\\}"
+    message: >-
+      Empty security context found. Consider configuring security settings
+      such as runAsNonRoot, readOnlyRootFilesystem, and dropping
+      capabilities.
+    languages: [generic]
+    severity: INFO
+    metadata:
+      category: security
+      subcategory:
+        - audit
+      technology:
+        - kubernetes
