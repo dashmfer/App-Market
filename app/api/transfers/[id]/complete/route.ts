@@ -209,7 +209,7 @@ export async function POST(
         transaction.buyerId,
         transaction.sellerId
       );
-      console.log("[Transfer Complete] Referral earnings processed:", referralResult);
+      console.info("[Transfer Complete] Referral earnings processed:", referralResult);
     } catch (referralError) {
       // Don't fail the transaction if referral processing fails
       console.error("[Transfer Complete] Failed to process referral earnings:", referralError);

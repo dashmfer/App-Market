@@ -85,17 +85,6 @@ function SettingsContent() {
     }
   }, [searchParams]);
 
-  // Debug session status
-  useEffect(() => {
-    console.log("[Settings] Session status:", status);
-    console.log("[Settings] Session data:", session);
-    console.log("[Settings] Has session:", !!session);
-    console.log("[Settings] Has user:", !!session?.user);
-    console.log("[Settings] User ID:", session?.user?.id);
-    console.log("[Settings] Wallet connected:", connected);
-    console.log("[Settings] Wallet pubkey:", publicKey?.toBase58());
-  }, [session, status, connected, publicKey]);
-
   // Load initial profile data from API
   useEffect(() => {
     async function loadProfile() {
@@ -177,12 +166,6 @@ function SettingsContent() {
       return;
     }
 
-    console.log("[Settings] Starting upload with session:", {
-      status,
-      userId: session.user.id,
-      hasSession: !!session
-    });
-
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       alert("File too large. Maximum size is 5MB.");
@@ -200,14 +183,11 @@ function SettingsContent() {
       const formData = new FormData();
       formData.append("file", file);
 
-      console.log("[Settings] Sending upload request...");
       const res = await fetch("/api/profile/upload-picture", {
         method: "POST",
         body: formData,
         credentials: "include",
       });
-
-      console.log("[Settings] Upload response status:", res.status);
 
       if (!res.ok) {
         const error = await res.json();

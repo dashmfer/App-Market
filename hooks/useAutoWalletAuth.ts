@@ -59,25 +59,15 @@ export function useAutoWalletAuth() {
       isAuthenticating.current = true;
 
       try {
-        console.log('[Auto Wallet Auth] Starting automatic authentication for wallet:', publicKey.toBase58());
-
         // Get referral code if present
         const referralCode = getReferralCode();
-        if (referralCode) {
-          console.log('[Auto Wallet Auth] Found referral code:', referralCode);
-        }
-
         // Create message to sign
         const message = `Sign this message to authenticate with App Market.\n\nWallet: ${publicKey.toBase58()}\nTimestamp: ${new Date().toISOString()}`;
         const encodedMessage = new TextEncoder().encode(message);
 
-        console.log('[Auto Wallet Auth] Requesting signature from wallet...');
-
         // Request signature from wallet
         const signature = await signMessage(encodedMessage);
         const signatureBase58 = bs58.encode(signature);
-
-        console.log('[Auto Wallet Auth] Signature received, authenticating with NextAuth...');
 
         // Authenticate with NextAuth (include referral code if present)
         const result = await signIn('wallet', {
@@ -91,15 +81,12 @@ export function useAutoWalletAuth() {
         if (result?.error) {
           console.error('[Auto Wallet Auth] Authentication failed:', result.error);
         } else {
-          console.log('[Auto Wallet Auth] Authentication successful!');
           lastAuthenticatedWallet.current = publicKey.toBase58();
         }
       } catch (error: any) {
         // Don't show error if user rejected signature
         if (!error.message?.includes('User rejected') && !error.message?.includes('rejected')) {
           console.error('[Auto Wallet Auth] Error:', error);
-        } else {
-          console.log('[Auto Wallet Auth] User rejected signature request');
         }
       } finally {
         isAuthenticating.current = false;

@@ -83,8 +83,6 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
         isSyncing.current = true;
 
         try {
-          console.log("[Privy Auth] Syncing Privy user to NextAuth:", user.id);
-
           const walletAddress = getWalletAddress();
           const method = determineAuthMethod(user);
           setAuthMethod(method);
@@ -106,7 +104,6 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
           if (result?.error) {
             console.error("[Privy Auth] Sync failed:", result.error);
           } else {
-            console.log("[Privy Auth] Sync successful!");
             lastSyncedPrivyId.current = user.id;
           }
         } catch (error) {
@@ -118,7 +115,6 @@ function PrivyAuthSync({ children }: { children: React.ReactNode }) {
 
       // If Privy logged out but NextAuth is still authenticated
       if (!authenticated && sessionStatus === "authenticated") {
-        console.log("[Privy Auth] Privy logged out, signing out of NextAuth");
         lastSyncedPrivyId.current = null;
         await signOut({ redirect: false });
       }

@@ -136,7 +136,7 @@ export class AppMarketClient {
     }
 
     if (this.config.debug) {
-      console.log(`[AppMarket SDK] ${method} ${url.toString()}`);
+      console.info(`[AppMarket SDK] ${method} ${url.toString()}`);
     }
 
     try {
@@ -150,7 +150,7 @@ export class AppMarketClient {
       const data = await response.json();
 
       if (this.config.debug) {
-        console.log(`[AppMarket SDK] Response:`, response.status, data);
+        console.info(`[AppMarket SDK] Response:`, response.status, data);
       }
 
       if (!response.ok) {

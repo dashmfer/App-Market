@@ -382,7 +382,7 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          console.log("[Privy Auth] Created new user");
+          console.info("[Privy Auth] Created new user");
         } else {
           // Update user with latest info from Privy
           const updateData: any = {};
