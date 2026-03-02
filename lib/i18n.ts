@@ -1,3 +1,8 @@
+import en from "@/messages/en.json";
+import es from "@/messages/es.json";
+import fr from "@/messages/fr.json";
+import zh from "@/messages/zh.json";
+
 export const locales = ['en', 'es', 'fr', 'zh'] as const;
 export type Locale = (typeof locales)[number];
 
@@ -17,10 +22,9 @@ export const localeFlags: Record<Locale, string> = {
   zh: '🇨🇳',
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const messages: Record<Locale, Record<string, any>> = { en, es, fr, zh };
+
 export function getMessages(locale: Locale) {
-  try {
-    return require(`@/messages/${locale}.json`);
-  } catch {
-    return require(`@/messages/${defaultLocale}.json`);
-  }
+  return messages[locale] ?? messages[defaultLocale];
 }

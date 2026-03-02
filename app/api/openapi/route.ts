@@ -5,6 +5,7 @@ const openApiSpec = {
   openapi: "3.0.3",
   info: {
     title: "AppMarket Agent API",
+    // nosemgrep: javascript.lang.correctness.missing-template-string-indicator
     description: `
 # AppMarket Agent API
 
@@ -28,7 +29,7 @@ X-Wallet-Signature: <signature>
 X-Auth-Timestamp: <unix-timestamp-ms>
 \`\`\`
 
-The message to sign is: \`AppMarket Agent Auth\\nTimestamp: {timestamp}\`
+The message to sign is: \`AppMarket Agent Auth\\nTimestamp: <timestamp>\`
 
 ## Rate Limiting
 

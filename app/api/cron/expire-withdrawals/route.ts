@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
             console.info(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;
           } catch (onChainError) {
-            console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
+            console.error("[Cron] On-chain expiry failed for withdrawal:", { withdrawalId: withdrawal.id, error: onChainError });
             results.onChainFailed++;
             // Still mark as claimed in DB so we don't retry forever
           }

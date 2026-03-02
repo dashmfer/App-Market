@@ -59,7 +59,7 @@ async function handleGraduation(poolAddressStr: string) {
       dammPoolAddress = stateAny.dammPool.toBase58();
     }
   } catch (error) {
-    console.error(`[Webhook] Failed to get pool state for ${poolAddressStr}:`, error);
+    console.error("[Webhook] Failed to get pool state:", { poolAddress: poolAddressStr, error });
   }
 
   // Update DB

@@ -161,7 +161,7 @@ export async function processReferralEarnings(
   const totalReferralPayout = buyerReferralEarning + sellerReferralEarning;
   const platformFeeAfterReferrals = platformFee - totalReferralPayout;
 
-  console.info(`[Referral] Transaction ${transactionId} referral summary:`, {
+  console.info("[Referral] Transaction referral summary:", { transactionId,
     salePrice,
     platformFee,
     buyerReferralEarning,

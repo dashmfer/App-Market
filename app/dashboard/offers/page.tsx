@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   ArrowLeft,
@@ -92,11 +93,11 @@ export default function OffersPage() {
         );
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to accept offer");
+        toast.error(data.error || "Failed to accept offer");
       }
     } catch (err) {
       console.error("Error accepting offer:", err);
-      alert("Failed to accept offer");
+      toast.error("Failed to accept offer");
     } finally {
       setAcceptingOffer(null);
     }
@@ -117,11 +118,11 @@ export default function OffersPage() {
         );
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to decline offer");
+        toast.error(data.error || "Failed to decline offer");
       }
     } catch (err) {
       console.error("Error declining offer:", err);
-      alert("Failed to decline offer");
+      toast.error("Failed to decline offer");
     } finally {
       setDecliningOffer(null);
     }
@@ -142,11 +143,11 @@ export default function OffersPage() {
         );
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to cancel offer");
+        toast.error(data.error || "Failed to cancel offer");
       }
     } catch (err) {
       console.error("Error cancelling offer:", err);
-      alert("Failed to cancel offer");
+      toast.error("Failed to cancel offer");
     } finally {
       setCancellingOffer(null);
     }

@@ -10,6 +10,8 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { AddFundsModal } from "@/components/wallet/AddFundsModal";
 import { ExportKeyModal } from "@/components/wallet/ExportKeyModal";
+import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 // Wrapper component to handle Suspense for useSearchParams
 export default function SettingsPage() {
@@ -29,6 +31,7 @@ function SettingsContent() {
   const { publicKey, connected, disconnect } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const searchParams = useSearchParams();
+  const [confirmDialog, showConfirm] = useConfirmDialog();
   const [activeTab, setActiveTab] = useState("profile");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -79,7 +82,7 @@ function SettingsContent() {
         not_configured: "X connection is not configured.",
         missing_params: "Invalid callback. Please try again.",
       };
-      alert(errorMessages[twitterError] || "Failed to connect X. Please try again.");
+      toast.error(errorMessages[twitterError] || "Failed to connect X. Please try again.");
       setActiveTab("accounts");
       window.history.replaceState({}, "", "/dashboard/settings");
     }
@@ -118,7 +121,7 @@ function SettingsContent() {
 
   // Handle X disconnect
   const handleDisconnectTwitter = async () => {
-    if (!confirm("Disconnect your X account? You'll no longer be able to leave reviews until you reconnect.")) {
+    if (!(await showConfirm({ title: "Disconnect X Account", description: "Disconnect your X account? You'll no longer be able to leave reviews until you reconnect.", variant: "destructive", confirmLabel: "Disconnect" }))) {
       return;
     }
 
@@ -137,7 +140,7 @@ function SettingsContent() {
       }
     } catch (error) {
       console.error("Failed to disconnect X:", error);
-      alert("Failed to disconnect X. Please try again.");
+      toast.error("Failed to disconnect X. Please try again.");
     } finally {
       setDisconnectingTwitter(false);
     }
@@ -162,19 +165,19 @@ function SettingsContent() {
     // Check session first
     if (status !== "authenticated" || !session?.user?.id) {
       console.error("[Settings] Upload blocked - No active session");
-      alert("Your session has expired. Please sign in again.");
+      toast.error("Your session has expired. Please sign in again.");
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      alert("File too large. Maximum size is 5MB.");
+      toast.error("File too large. Maximum size is 5MB.");
       return;
     }
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file.");
+      toast.error("Please upload an image file.");
       return;
     }
 
@@ -200,10 +203,10 @@ function SettingsContent() {
       // Refresh the session to update the image everywhere
       await updateSession();
 
-      alert("Profile picture updated successfully!");
+      toast.success("Profile picture updated successfully!");
     } catch (error: any) {
       console.error("Upload error:", error);
-      alert(error.message || "Failed to upload image");
+      toast.error(error.message || "Failed to upload image");
     } finally {
       setUploading(false);
       // Reset file input
@@ -214,7 +217,7 @@ function SettingsContent() {
   };
 
   const handleRemoveImage = async () => {
-    if (!confirm("Remove profile picture?")) return;
+    if (!(await showConfirm({ title: "Remove Profile Picture", description: "Remove your profile picture?", variant: "destructive", confirmLabel: "Remove" }))) return;
 
     setUploading(true);
     try {
@@ -230,10 +233,10 @@ function SettingsContent() {
       // Refresh the session to update the image everywhere
       await updateSession();
 
-      alert("Profile picture removed");
+      toast.success("Profile picture removed");
     } catch (error) {
       console.error("Remove error:", error);
-      alert("Failed to remove image");
+      toast.error("Failed to remove image");
     } finally {
       setUploading(false);
     }
@@ -257,15 +260,16 @@ function SettingsContent() {
       // Refresh session to update display name across the app
       await updateSession();
 
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully!");
     } catch (error) {
       console.error("Save error:", error);
-      alert("Failed to save profile");
+      toast.error("Failed to save profile");
     }
   };
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      {confirmDialog}
       <div className="container-wide py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">Settings</h1>
@@ -707,12 +711,12 @@ function SettingsContent() {
                           // For external wallets, we can't export the private key
                           // This would only work for Privy-managed wallets
                           if (connected && publicKey) {
-                            alert("Private key export is only available for wallets created through email or X sign-in.");
+                            toast.error("Private key export is only available for wallets created through email or X sign-in.");
                             return null;
                           }
                           // For embedded wallets, we would need to use Privy's exportWallet function
                           // This requires integration with Privy's SDK
-                          alert("To export your private key, please contact support or use the Privy dashboard.");
+                          toast.error("To export your private key, please contact support or use the Privy dashboard.");
                           return null;
                         }}
                       />

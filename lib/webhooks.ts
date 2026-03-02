@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { WebhookEventType, WebhookDeliveryStatus } from "@/lib/prisma-enums";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
+import { randomBytes } from "crypto";
 
 /**
  * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
@@ -219,7 +220,6 @@ async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<v
  */
 function generateEventId(): string {
   // SECURITY: Use crypto.randomBytes instead of Math.random for event IDs
-  const { randomBytes } = require("crypto");
   return `evt_${Date.now()}_${randomBytes(8).toString("hex")}`;
 }
 

@@ -619,7 +619,7 @@ export function CollaboratorInput({
               {/* Add button */}
               <Button
                 type="button"
-                variant={newCollaborator.role === "PARTNER" ? "default" : "default"}
+                variant="default"
                 onClick={handleAddCollaborator}
                 disabled={
                   !searchResult?.walletAddress ||

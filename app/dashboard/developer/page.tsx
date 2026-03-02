@@ -19,6 +19,8 @@ import {
   Activity,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 // Types
 interface ApiKey {
@@ -128,6 +130,7 @@ function DeveloperContent() {
   // UI state
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDialog, showConfirm] = useConfirmDialog();
 
   // Load API keys
   useEffect(() => {
@@ -192,18 +195,18 @@ function DeveloperContent() {
         setApiKeys((prev) => [data.apiKey, ...prev]);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to create API key");
+        toast.error(error.error || "Failed to create API key");
       }
     } catch (error) {
       console.error("Failed to create API key:", error);
-      alert("Failed to create API key");
+      toast.error("Failed to create API key");
     } finally {
       setCreatingKey(false);
     }
   };
 
   const handleDeleteKey = async (id: string) => {
-    if (!confirm("Delete this API key? This cannot be undone.")) return;
+    if (!(await showConfirm({ title: "Delete API Key", description: "Delete this API key? This cannot be undone.", variant: "destructive", confirmLabel: "Delete" }))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/agent/keys?id=${id}`, {
@@ -212,11 +215,11 @@ function DeveloperContent() {
       if (res.ok) {
         setApiKeys((prev) => prev.filter((k) => k.id !== id));
       } else {
-        alert("Failed to delete API key");
+        toast.error("Failed to delete API key");
       }
     } catch (error) {
       console.error("Failed to delete API key:", error);
-      alert("Failed to delete API key");
+      toast.error("Failed to delete API key");
     } finally {
       setDeletingId(null);
     }
@@ -242,7 +245,7 @@ function DeveloperContent() {
   const handleCreateWebhook = async () => {
     if (!newWebhookName.trim() || !newWebhookUrl.trim()) return;
     if (newWebhookEvents.length === 0) {
-      alert("Please select at least one event");
+      toast.error("Please select at least one event");
       return;
     }
     setCreatingWebhook(true);
@@ -262,18 +265,18 @@ function DeveloperContent() {
         setWebhooks((prev) => [data.webhook, ...prev]);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to create webhook");
+        toast.error(error.error || "Failed to create webhook");
       }
     } catch (error) {
       console.error("Failed to create webhook:", error);
-      alert("Failed to create webhook");
+      toast.error("Failed to create webhook");
     } finally {
       setCreatingWebhook(false);
     }
   };
 
   const handleDeleteWebhook = async (id: string) => {
-    if (!confirm("Delete this webhook? This cannot be undone.")) return;
+    if (!(await showConfirm({ title: "Delete Webhook", description: "Delete this webhook? This cannot be undone.", variant: "destructive", confirmLabel: "Delete" }))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/agent/webhooks?id=${id}`, {
@@ -282,11 +285,11 @@ function DeveloperContent() {
       if (res.ok) {
         setWebhooks((prev) => prev.filter((w) => w.id !== id));
       } else {
-        alert("Failed to delete webhook");
+        toast.error("Failed to delete webhook");
       }
     } catch (error) {
       console.error("Failed to delete webhook:", error);
-      alert("Failed to delete webhook");
+      toast.error("Failed to delete webhook");
     } finally {
       setDeletingId(null);
     }
@@ -351,6 +354,7 @@ function DeveloperContent() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      {confirmDialog}
       <div className="container-wide py-8">
         {/* Header */}
         <div className="mb-8">

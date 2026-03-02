@@ -94,7 +94,7 @@ async function rotateTokens() {
           updates[field] = encrypt(value);
           needsUpdate = true;
         } catch (error) {
-          console.error(`  Failed to encrypt ${field} for account ${account.id}:`, error);
+          console.error("  Failed to encrypt field for account:", { field, accountId: account.id, error });
           errorCount++;
         }
       } else if (value && looksEncrypted(value)) {

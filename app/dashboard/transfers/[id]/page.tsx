@@ -34,6 +34,8 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { LucideIcon } from "lucide-react";
 
+import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { SecurityNotice } from "@/components/transfers/SecurityNotice";
 import { PATOLaunchModal } from "@/components/pato/PATOLaunchModal";
 import { PATOStatusCard } from "@/components/pato/PATOStatusCard";
@@ -213,6 +215,7 @@ function detectRegistrar(url: string): DomainRegistrarInfo | null {
 export default function TransferPage() {
   const params = useParams();
   const router = useRouter();
+  const [confirmDialog, showConfirm] = useConfirmDialog();
   const [transfer, setTransfer] = useState<Transfer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -408,7 +411,7 @@ export default function TransferPage() {
       setEvidence("");
     } catch (err: unknown) {
       console.error("Error confirming transfer:", err);
-      alert(err instanceof Error ? err.message : "Failed to confirm transfer");
+      toast.error(err instanceof Error ? err.message : "Failed to confirm transfer");
     } finally {
       setIsSubmitting(false);
     }
@@ -433,14 +436,20 @@ export default function TransferPage() {
       await fetchTransfer();
     } catch (err: unknown) {
       console.error("Error confirming receipt:", err);
-      alert(err instanceof Error ? err.message : "Failed to confirm receipt");
+      toast.error(err instanceof Error ? err.message : "Failed to confirm receipt");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCompleteTransfer = async () => {
-    if (!confirm("Are you sure you want to release escrow funds to the seller? This action cannot be undone.")) {
+    const confirmed = await showConfirm({
+      title: "Release Escrow",
+      description: "Are you sure you want to release escrow funds to the seller? This action cannot be undone.",
+      variant: "destructive",
+      confirmLabel: "Release Funds",
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -458,10 +467,10 @@ export default function TransferPage() {
 
       // Refresh transfer data
       await fetchTransfer();
-      alert("Transfer completed successfully! Funds have been released to the seller.");
+      toast.success("Transfer completed successfully! Funds have been released to the seller.");
     } catch (err: unknown) {
       console.error("Error completing transfer:", err);
-      alert(err instanceof Error ? err.message : "Failed to complete transfer");
+      toast.error(err instanceof Error ? err.message : "Failed to complete transfer");
     } finally {
       setCompletingTransfer(false);
     }
@@ -473,7 +482,12 @@ export default function TransferPage() {
 
   // Agreement signing handlers
   const handleSignAPA = async () => {
-    if (!confirm("By signing this Asset Purchase Agreement, you agree to transfer all rights and ownership of the listed assets to the buyer. Continue?")) {
+    const confirmed = await showConfirm({
+      title: "Sign Asset Purchase Agreement",
+      description: "By signing this Asset Purchase Agreement, you agree to transfer all rights and ownership of the listed assets to the buyer. Continue?",
+      confirmLabel: "Sign Agreement",
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -490,10 +504,10 @@ export default function TransferPage() {
       }
 
       await fetchTransfer();
-      alert("Asset Purchase Agreement signed successfully!");
+      toast.success("Asset Purchase Agreement signed successfully!");
     } catch (err) {
       console.error("Error signing APA:", err);
-      alert(err instanceof Error ? err.message : "Failed to sign APA");
+      toast.error(err instanceof Error ? err.message : "Failed to sign APA");
     } finally {
       setSigningAPA(false);
     }
@@ -501,7 +515,12 @@ export default function TransferPage() {
 
   const handleSignNonCompete = async () => {
     const duration = transfer?.listing.nonCompeteDurationYears || 2;
-    if (!confirm(`By signing this Non-Compete Agreement, you agree not to create a competing product for ${duration} year(s). Continue?`)) {
+    const confirmed = await showConfirm({
+      title: "Sign Non-Compete Agreement",
+      description: `By signing this Non-Compete Agreement, you agree not to create a competing product for ${duration} year(s). Continue?`,
+      confirmLabel: "Sign Agreement",
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -518,17 +537,22 @@ export default function TransferPage() {
       }
 
       await fetchTransfer();
-      alert("Non-Compete Agreement signed successfully!");
+      toast.success("Non-Compete Agreement signed successfully!");
     } catch (err) {
       console.error("Error signing Non-Compete:", err);
-      alert(err instanceof Error ? err.message : "Failed to sign Non-Compete");
+      toast.error(err instanceof Error ? err.message : "Failed to sign Non-Compete");
     } finally {
       setSigningNonCompete(false);
     }
   };
 
   const handleRequestAPA = async () => {
-    if (!confirm("Request the seller to sign an Asset Purchase Agreement? This protects your purchase by legally transferring ownership.")) {
+    const confirmed = await showConfirm({
+      title: "Request Asset Purchase Agreement",
+      description: "Request the seller to sign an Asset Purchase Agreement? This protects your purchase by legally transferring ownership.",
+      confirmLabel: "Send Request",
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -545,17 +569,22 @@ export default function TransferPage() {
       }
 
       await fetchTransfer();
-      alert("APA request sent to seller!");
+      toast.success("APA request sent to seller!");
     } catch (err) {
       console.error("Error requesting APA:", err);
-      alert(err instanceof Error ? err.message : "Failed to request APA");
+      toast.error(err instanceof Error ? err.message : "Failed to request APA");
     } finally {
       setRequestingAPA(false);
     }
   };
 
   const handleRequestNonCompete = async () => {
-    if (!confirm("Request the seller to sign a Non-Compete Agreement? This protects you from the seller creating a competing product.")) {
+    const confirmed = await showConfirm({
+      title: "Request Non-Compete Agreement",
+      description: "Request the seller to sign a Non-Compete Agreement? This protects you from the seller creating a competing product.",
+      confirmLabel: "Send Request",
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -572,10 +601,10 @@ export default function TransferPage() {
       }
 
       await fetchTransfer();
-      alert("Non-Compete request sent to seller!");
+      toast.success("Non-Compete request sent to seller!");
     } catch (err) {
       console.error("Error requesting Non-Compete:", err);
-      alert(err instanceof Error ? err.message : "Failed to request Non-Compete");
+      toast.error(err instanceof Error ? err.message : "Failed to request Non-Compete");
     } finally {
       setRequestingNonCompete(false);
     }
@@ -629,6 +658,7 @@ export default function TransferPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      {confirmDialog}
       {/* Header */}
       <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
         <div className="container-wide py-6">
