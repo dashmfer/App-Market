@@ -45,7 +45,7 @@ async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
+      console.warn("[Cron] Operation attempt failed:", { operationName, attempt, maxRetries, error });
 
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.log("[Cron] Starting super badge qualification check...");
+  console.info("[Cron] Starting super badge qualification check...");
 
   const results = {
     newSuperSellers: 0,
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperSellers++;
-          console.log(`[Cron] Granted Super Seller badge`);
+          console.info(`[Cron] Granted Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super seller for ${user.id}: ${error}`);
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperSellers++;
-          console.log(`[Cron] Revoked Super Seller badge`);
+          console.info(`[Cron] Revoked Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super seller status for ${user.id}: ${error}`);
@@ -279,7 +279,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperBuyers++;
-          console.log(`[Cron] Granted Super Buyer badge`);
+          console.info(`[Cron] Granted Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super buyer for ${user.id}: ${error}`);
@@ -338,14 +338,14 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperBuyers++;
-          console.log(`[Cron] Revoked Super Buyer badge`);
+          console.info(`[Cron] Revoked Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super buyer status for ${user.id}: ${error}`);
       }
     }
 
-    console.log("[Cron] Super badge qualification completed:", results);
+    console.info("[Cron] Super badge qualification completed:", results);
 
     return NextResponse.json({
       success: true,

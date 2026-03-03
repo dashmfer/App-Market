@@ -72,6 +72,7 @@ export default function DocsPage() {
         }}
       />
 
+      {/* nosemgrep: javascript.lang.correctness.missing-template-string-indicator */}
       <style jsx global>{`
         body {
           margin: 0;

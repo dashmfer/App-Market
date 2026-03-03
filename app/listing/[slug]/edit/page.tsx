@@ -15,6 +15,7 @@ import {
   Unlock,
   UserCheck,
 } from "lucide-react";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Listing {
   id: string;
@@ -44,6 +45,7 @@ export default function EditListingPage() {
   const slug = params.slug as string;
   const { data: session, status: sessionStatus } = useSession();
 
+  const [confirmDialog, showConfirm] = useConfirmDialog();
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,9 +135,7 @@ export default function EditListingPage() {
   const handleCancel = async () => {
     if (!listing || !canCancel) return;
 
-    if (!confirm("Are you sure you want to cancel this listing? This action cannot be undone.")) {
-      return;
-    }
+    if (!(await showConfirm({ title: "Cancel Listing", description: "Are you sure you want to cancel this listing? This action cannot be undone.", variant: "destructive", confirmLabel: "Cancel Listing" }))) return;
 
     setCanceling(true);
     setError(null);
@@ -198,9 +198,7 @@ export default function EditListingPage() {
   const handleUnreserve = async () => {
     if (!listing) return;
 
-    if (!confirm("Are you sure you want to remove this reservation? The listing will become public again.")) {
-      return;
-    }
+    if (!(await showConfirm({ title: "Remove Reservation", description: "Are you sure you want to remove this reservation? The listing will become public again.", variant: "destructive", confirmLabel: "Remove Reservation" }))) return;
 
     setReserving(true);
     setError(null);
@@ -270,6 +268,7 @@ export default function EditListingPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8">
+      {confirmDialog}
       <div className="container-tight">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">

@@ -23,16 +23,16 @@ function validateAdminSecret(request: NextRequest): boolean {
     ? authHeader.slice(7)
     : authHeader;
 
-  // SECURITY: Use constant-time comparison to prevent timing attacks
-  if (secret.length !== ADMIN_SECRET.length) {
-    return false;
-  }
+  // SECURITY: Pad both buffers to prevent length-leaking timing attacks
+  const maxLen = Math.max(secret.length, ADMIN_SECRET.length);
+  const paddedSecret = Buffer.alloc(maxLen);
+  const paddedExpected = Buffer.alloc(maxLen);
+  Buffer.from(secret).copy(paddedSecret);
+  Buffer.from(ADMIN_SECRET).copy(paddedExpected);
 
   try {
-    return timingSafeEqual(
-      Buffer.from(secret),
-      Buffer.from(ADMIN_SECRET)
-    );
+    const match = timingSafeEqual(paddedSecret, paddedExpected);
+    return match && secret.length === ADMIN_SECRET.length;
   } catch {
     return false;
   }
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Invalid admin secret" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("id");
     const deleteAll = searchParams.get("all") === "true";
 

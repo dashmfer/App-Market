@@ -65,8 +65,10 @@ export async function POST(request: NextRequest) {
       where: { username: { startsWith: baseUsername } },
     });
 
+    // SECURITY: Use crypto.randomBytes instead of Math.random for username suffix
+    const { randomBytes } = await import("crypto");
     const username = existingUsername
-      ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+      ? `${baseUsername}_${randomBytes(3).toString("hex")}`
       : baseUsername;
 
     // Create user

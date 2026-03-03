@@ -38,7 +38,13 @@ async function checkAndSetNonce(nonceKey: string): Promise<boolean> {
     // wasSet is "OK" if set succeeded (nonce was fresh), null if already existed
     return wasSet === null;
   }
-  // In-memory fallback (dev only — not safe for multi-instance production)
+  // SECURITY: In production, fail closed if Redis is unavailable.
+  // In-memory nonce store is not safe for multi-instance serverless deployments.
+  if (process.env.NODE_ENV === "production") {
+    console.error("[Nonce] Redis unavailable in production — rejecting nonce check for safety");
+    return true; // Treat as already used (fail closed)
+  }
+  // In-memory fallback (dev only)
   if (usedSignatureNonces.has(nonceKey)) {
     return true; // Already used
   }
@@ -120,8 +126,8 @@ export function isValidUUID(id: string): boolean {
  * Sanitize and limit pagination parameters
  */
 export function sanitizePagination(page: string | null, limit: string | null): { page: number; limit: number } {
-  const parsedPage = Math.max(1, parseInt(page || '1') || 1);
-  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20') || 20));
+  const parsedPage = Math.max(1, parseInt(page || '1', 10) || 1);
+  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20', 10) || 20));
   return { page: parsedPage, limit: parsedLimit };
 }
 

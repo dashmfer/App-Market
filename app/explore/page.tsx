@@ -108,7 +108,7 @@ function ExploreContent() {
           setWatchlistedIds(ids);
         }
       } catch (err) {
-        // Silently fail - user might not be logged in
+        console.error("[ExplorePage] Failed to fetch watchlist:", err);
       }
     };
     fetchWatchlist();

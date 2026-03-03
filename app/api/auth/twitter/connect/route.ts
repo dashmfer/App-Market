@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 // Twitter OAuth 2.0 with PKCE
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
-const TWITTER_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/twitter/callback`;
+// SECURITY: HTTP fallback only in development; production requires NEXT_PUBLIC_SITE_URL (validated as HTTPS)
+const TWITTER_REDIRECT_URI = `${process.env.NEXT_PUBLIC_SITE_URL || (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000")}/api/auth/twitter/callback`;
 
 // Generate code verifier and challenge for PKCE
 function generateCodeVerifier(): string {

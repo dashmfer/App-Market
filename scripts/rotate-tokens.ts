@@ -49,6 +49,11 @@ function encrypt(plaintext: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
 
+  // SECURITY: Validate hex string before Buffer.from to prevent unexpected input
+  if (!/^[0-9a-fA-F]*$/.test(encrypted)) {
+    throw new Error("Invalid hex string");
+  }
+
   const combined = Buffer.concat([
     salt,
     iv,
@@ -89,7 +94,7 @@ async function rotateTokens() {
           updates[field] = encrypt(value);
           needsUpdate = true;
         } catch (error) {
-          console.error(`  Failed to encrypt ${field} for account ${account.id}:`, error);
+          console.error("  Failed to encrypt field for account:", { field, accountId: account.id, error });
           errorCount++;
         }
       } else if (value && looksEncrypted(value)) {

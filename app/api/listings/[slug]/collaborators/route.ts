@@ -299,7 +299,7 @@ export async function DELETE(
 
     const userId = token.id as string;
     const { slug } = await params;
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const collaboratorId = searchParams.get("collaboratorId");
 
     if (!collaboratorId) {

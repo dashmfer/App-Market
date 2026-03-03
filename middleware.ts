@@ -3,6 +3,11 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { timingSafeEqual } from "crypto";
 
+function withSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  return response;
+}
+
 /**
  * Middleware for route protection and security
  *
@@ -90,7 +95,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/static") ||
     pathname.includes(".") // files with extensions
   ) {
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Cron route protection - require CRON_SECRET
@@ -100,35 +105,38 @@ export async function middleware(request: NextRequest) {
 
     if (!cronSecret) {
       console.error("[Middleware] CRON_SECRET not configured");
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Server misconfiguration" },
         { status: 500 }
-      );
+      ));
     }
 
-    // SECURITY: Use constant-time comparison to prevent timing attacks
+    // SECURITY: Use constant-time comparison with buffer padding to prevent
+    // timing attacks. Padding avoids leaking secret length via early return.
     const expectedHeader = `Bearer ${cronSecret}`;
     let isValid = false;
 
-    if (authHeader && authHeader.length === expectedHeader.length) {
+    if (authHeader) {
       try {
-        isValid = timingSafeEqual(
-          Buffer.from(authHeader),
-          Buffer.from(expectedHeader)
-        );
+        const maxLen = Math.max(authHeader.length, expectedHeader.length);
+        const paddedAuth = Buffer.alloc(maxLen);
+        const paddedExpected = Buffer.alloc(maxLen);
+        Buffer.from(authHeader).copy(paddedAuth);
+        Buffer.from(expectedHeader).copy(paddedExpected);
+        isValid = timingSafeEqual(paddedAuth, paddedExpected) && authHeader.length === expectedHeader.length;
       } catch {
         isValid = false;
       }
     }
 
     if (!isValid) {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
+      ));
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Get user token
@@ -146,25 +154,25 @@ export async function middleware(request: NextRequest) {
   if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
     if (!token) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
+        return withSecurityHeaders(NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
-        );
+        ));
       }
-      return NextResponse.redirect(new URL("/auth/signin", request.url));
+      return withSecurityHeaders(NextResponse.redirect(new URL("/auth/signin", request.url)));
     }
 
     if (!token.isAdmin) {
       if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
+        return withSecurityHeaders(NextResponse.json(
           { error: "Forbidden - Admin access required" },
           { status: 403 }
-        );
+        ));
       }
-      return NextResponse.redirect(new URL("/", request.url));
+      return withSecurityHeaders(NextResponse.redirect(new URL("/", request.url)));
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Protected page routes
@@ -173,9 +181,9 @@ export async function middleware(request: NextRequest) {
       // Store the original URL to redirect back after login
       const signInUrl = new URL("/auth/signin", request.url);
       signInUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(signInUrl);
+      return withSecurityHeaders(NextResponse.redirect(signInUrl));
     }
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Protected API routes
@@ -190,16 +198,16 @@ export async function middleware(request: NextRequest) {
       (method === "GET" && pathname.startsWith("/api/profile/") && !pathname.includes("/upload"));
 
     if (!isPublicRead && !token) {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
+      ));
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
-  return NextResponse.next();
+  return withSecurityHeaders(NextResponse.next());
 }
 
 // Configure which routes the middleware runs on

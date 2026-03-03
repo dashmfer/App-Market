@@ -30,7 +30,7 @@ async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
+      console.warn("[Cron] Operation attempt failed:", { operationName, attempt, maxRetries, error });
 
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
 
         results.processed++;
         results.fallbackActivated++;
-        console.log(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
+        console.info(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;

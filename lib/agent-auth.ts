@@ -177,6 +177,11 @@ async function verifyWalletSignature(
   timestamp: string,
   nonce?: string
 ): Promise<AgentAuthResult> {
+  // SECURITY: Nonce is mandatory for replay protection
+  if (!nonce) {
+    return { success: false, error: "Nonce is required for wallet signature auth", statusCode: 400 };
+  }
+
   // Validate timestamp
   const timestampNum = parseInt(timestamp, 10);
   if (isNaN(timestampNum)) {
@@ -190,6 +195,30 @@ async function verifyWalletSignature(
       error: "Timestamp expired. Generate a new signature.",
       statusCode: 401
     };
+  }
+
+  // SECURITY: Check nonce replay via Redis (atomic check-and-set).
+  // Importing checkAndSetNonce-equivalent logic for agent auth.
+  let _nonceRedis: any = null;
+  try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      const { Redis } = await import("@upstash/redis");
+      _nonceRedis = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+    }
+  } catch (error) { console.error("[AgentAuth] Failed to initialize Redis for nonce checking:", error); }
+
+  const nonceKey = `agent-nonce:${walletAddress}:${nonce}`;
+  if (_nonceRedis) {
+    const wasSet = await _nonceRedis.set(nonceKey, "1", { ex: 600, nx: true });
+    if (wasSet === null) {
+      return { success: false, error: "Nonce already used (replay detected)", statusCode: 401 };
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    // Fail closed in production if Redis is unavailable
+    return { success: false, error: "Authentication service unavailable", statusCode: 503 };
   }
 
   // Reconstruct the message

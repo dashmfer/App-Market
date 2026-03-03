@@ -115,7 +115,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
+    console.info(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
 
     let connection: Connection | null = null;
     if (authority) {
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
           try {
             const listingPubkey = new PublicKey(withdrawal.listing.onChainId);
             const recipientPubkey = new PublicKey(withdrawal.user.walletAddress);
-            const withdrawalId = parseInt(withdrawal.onChainId);
+            const withdrawalId = parseInt(withdrawal.onChainId, 10);
 
             const instruction = buildExpireWithdrawalInstruction(
               listingPubkey,
@@ -161,10 +161,10 @@ export async function GET(request: NextRequest) {
               throw new Error(`On-chain tx failed: ${JSON.stringify(confirmation.value.err)}`);
             }
 
-            console.log(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
+            console.info(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;
           } catch (onChainError) {
-            console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
+            console.error("[Cron] On-chain expiry failed for withdrawal:", { withdrawalId: withdrawal.id, error: onChainError });
             results.onChainFailed++;
             // Still mark as claimed in DB so we don't retry forever
           }
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log("[Cron] Expire withdrawals results:", results);
+    console.info("[Cron] Expire withdrawals results:", results);
 
     await audit({
       action: "CRON_EXECUTION",

@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
         ]);
 
         results.released++;
-        console.log(
+        console.info(
           `[Cron:escrow-auto-release] Released transaction ${transaction.id}${onChainTxSig ? ` (on-chain: ${onChainTxSig})` : ""}`
         );
       } catch (error) {

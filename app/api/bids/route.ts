@@ -10,7 +10,7 @@ import { audit, auditContext } from "@/lib/audit";
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {
@@ -96,10 +96,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate amount is positive
-    if (typeof amount !== 'number' || amount <= 0) {
+    // SECURITY: Validate amount is positive, finite, and within safe bounds.
+    // Without an upper bound, Number.MAX_SAFE_INTEGER flows into fee calculations
+    // producing Infinity, which corrupts financial state.
+    const MAX_BID_AMOUNT = 1_000_000; // 1M SOL cap (matches offers route)
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > MAX_BID_AMOUNT) {
       return NextResponse.json(
-        { error: "Amount must be a positive number" },
+        { error: `Amount must be a positive finite number not exceeding ${MAX_BID_AMOUNT}` },
         { status: 400 }
       );
     }

@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
             } else if (stateAny?.dammPool) {
               dammPoolAddress = stateAny.dammPool.toBase58();
             }
-          } catch {
-            // Pool state may not expose DAMM address directly
+          } catch (error) {
+            console.error("[Cron] Failed to get pool state:", { poolAddress: launch.dbcPoolAddress, error });
           }
 
           // Update DB
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
           graduatedCount++;
         }
       } catch (err: any) {
-        console.error(`[Cron] Error checking pool ${launch.dbcPoolAddress}:`, err);
+        console.error("[Cron] Error checking pool:", { poolAddress: launch.dbcPoolAddress, error: err });
       }
     }
 

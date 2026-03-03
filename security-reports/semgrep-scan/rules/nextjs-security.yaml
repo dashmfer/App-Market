@@ -1,0 +1,347 @@
+rules:
+  # === SQL Injection / Prisma Injection ===
+  - id: prisma-raw-query-injection
+    patterns:
+      - pattern-either:
+          - pattern: $PRISMA.$queryRaw(...)
+          - pattern: $PRISMA.$executeRaw(...)
+          - pattern: $PRISMA.$queryRawUnsafe(...)
+          - pattern: $PRISMA.$executeRawUnsafe(...)
+    message: >-
+      Raw SQL query detected via Prisma. If user input is interpolated into
+      the query string, this can lead to SQL injection. Use parameterized
+      queries with Prisma.sql tagged template literals instead.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89"]
+      owasp: ["A03:2021"]
+      category: security
+
+  - id: prisma-raw-unsafe-with-input
+    patterns:
+      - pattern-either:
+          - pattern: $PRISMA.$queryRawUnsafe($STR, ...)
+          - pattern: $PRISMA.$executeRawUnsafe($STR, ...)
+    message: >-
+      Unsafe raw query function used. $queryRawUnsafe and $executeRawUnsafe
+      do not provide parameterized query safety by default. Ensure no user
+      input is concatenated into the query string.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89"]
+      category: security
+
+  # === XSS / dangerouslySetInnerHTML ===
+  - id: react-dangerously-set-inner-html
+    pattern: "dangerouslySetInnerHTML={...}"
+    message: >-
+      Usage of dangerouslySetInnerHTML detected. This can lead to XSS
+      if the HTML content is not properly sanitized. Ensure input is
+      sanitized with a library like DOMPurify before rendering.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-79"]
+      owasp: ["A03:2021"]
+      category: security
+
+  # === Hardcoded Secrets ===
+  - id: hardcoded-private-key
+    pattern-either:
+      - patterns:
+          - pattern: '"-----BEGIN RSA PRIVATE KEY-----"'
+      - patterns:
+          - pattern: '"-----BEGIN PRIVATE KEY-----"'
+      - patterns:
+          - pattern: '"-----BEGIN EC PRIVATE KEY-----"'
+    message: >-
+      Hardcoded private key detected. Private keys should never be
+      embedded in source code. Use environment variables or a secrets manager.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-321"]
+      category: security
+
+  # === Environment Variable Usage ===
+  - id: env-variable-direct-access
+    pattern: process.env.$VAR
+    message: >-
+      Direct access to process.env.$VAR without validation. Environment
+      variables can be undefined at runtime. Use validated configuration
+      or check for undefined values.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-20"]
+      category: security
+
+  # === Insecure Cryptography ===
+  - id: weak-crypto-md5
+    pattern: 'createHash("md5")'
+    message: >-
+      Weak cryptographic hash algorithm MD5 detected. MD5 is considered
+      insecure for cryptographic purposes. Use SHA-256 or stronger.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-328"]
+      category: security
+
+  - id: weak-crypto-sha1
+    pattern: 'createHash("sha1")'
+    message: >-
+      Weak cryptographic hash algorithm SHA1 detected. SHA1 is considered
+      insecure for cryptographic purposes. Use SHA-256 or stronger.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-328"]
+      category: security
+
+  - id: insecure-random
+    pattern: Math.random()
+    message: >-
+      Math.random() is not cryptographically secure. For security-sensitive
+      operations (tokens, keys, nonces), use crypto.randomBytes() or
+      crypto.getRandomValues() instead.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-338"]
+      category: security
+
+  # === JWT / Token Issues ===
+  - id: jwt-no-verify
+    pattern: jwt.decode($TOKEN)
+    message: >-
+      JWT decoded without verification. Use jwt.verify() instead of
+      jwt.decode() to ensure the token signature is validated.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-345"]
+      category: security
+
+  # === CORS Misconfiguration ===
+  - id: cors-wildcard-origin
+    pattern: '"Access-Control-Allow-Origin": "*"'
+    message: >-
+      CORS header set to wildcard (*). This allows any origin to make
+      requests. Consider restricting to specific trusted origins.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-942"]
+      category: security
+
+  # === Eval / Code Injection ===
+  - id: eval-usage
+    pattern: eval(...)
+    message: >-
+      Usage of eval() detected. This can lead to code injection if user
+      input reaches it. Avoid using eval entirely.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-94"]
+      category: security
+
+  - id: new-function-usage
+    pattern: new Function(...)
+    message: >-
+      Usage of new Function() detected. This is equivalent to eval() and
+      can lead to code injection. Avoid using new Function().
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-94"]
+      category: security
+
+  # === Open Redirect ===
+  - id: open-redirect-nextresponse
+    patterns:
+      - pattern: NextResponse.redirect($URL)
+      - pattern-not: NextResponse.redirect(new URL("...", ...))
+    message: >-
+      Redirect with potentially user-controlled URL. Validate the
+      redirect destination to prevent open redirect attacks.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-601"]
+      category: security
+
+  # === Information Disclosure ===
+  - id: error-info-leak-message
+    pattern: 'NextResponse.json({ ..., error: $ERR.message, ...}, ...)'
+    message: >-
+      Error message returned in API response. This can leak sensitive
+      implementation details. Return generic error messages to clients.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-209"]
+      category: security
+
+  - id: error-info-leak-stack
+    pattern: 'NextResponse.json({ ..., error: $ERR.stack, ...}, ...)'
+    message: >-
+      Error stack trace returned in API response. This can leak sensitive
+      implementation details. Return generic error messages to clients.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-209"]
+      category: security
+
+  # === Command Injection ===
+  - id: command-injection-exec
+    pattern: exec($CMD, ...)
+    message: >-
+      Command execution via exec() detected. If user input reaches the
+      command string, this leads to command injection.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78"]
+      category: security
+
+  - id: command-injection-execsync
+    pattern: execSync($CMD, ...)
+    message: >-
+      Synchronous command execution detected. If user input reaches the
+      command string, this leads to command injection.
+    languages: [typescript, javascript]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78"]
+      category: security
+
+  # === Timing Attack ===
+  - id: timing-attack-token-comparison
+    patterns:
+      - pattern: $TOKEN === $INPUT
+      - metavariable-regex:
+          metavariable: $TOKEN
+          regex: ".*(token|secret|key|hash|signature).*"
+    message: >-
+      String comparison of secret value may be vulnerable to timing
+      attacks. Use crypto.timingSafeEqual() for constant-time comparison.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-208"]
+      category: security
+
+  # === Logging Sensitive Data ===
+  - id: logging-private-key
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $VAR, ...)
+          - pattern: console.error(..., $VAR, ...)
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: ".*(privateKey|private_key|secretKey|secret_key).*"
+    message: >-
+      Potentially sensitive data (private/secret key) logged to console.
+      Avoid logging private keys and secrets.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-532"]
+      category: security
+
+  # === Mass Assignment ===
+  - id: mass-assignment-prisma-create
+    patterns:
+      - pattern: "$PRISMA.$MODEL.create({data: $BODY})"
+      - metavariable-regex:
+          metavariable: $BODY
+          regex: "^(?!\\{).*"
+    message: >-
+      Prisma create with potentially unvalidated input object passed
+      directly as data. Directly passing request body to Prisma can
+      lead to mass assignment. Explicitly pick allowed fields.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-915"]
+      category: security
+
+  # === Regex DoS ===
+  - id: regex-dos-dynamic
+    patterns:
+      - pattern: new RegExp($PATTERN)
+      - pattern-not: new RegExp("...")
+    message: >-
+      Dynamic regular expression construction. If user input is used
+      in the pattern, this may be vulnerable to ReDoS.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-1333"]
+      category: security
+
+  # === Unsafe JSON Parse ===
+  - id: unsafe-json-parse
+    patterns:
+      - pattern: JSON.parse($INPUT)
+      - pattern-not: JSON.parse("...")
+    message: >-
+      JSON.parse() with external input. Ensure the input is validated
+      and that the parsed result is type-checked before use.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-502"]
+      category: security
+
+  # === SSRF ===
+  - id: ssrf-dynamic-fetch
+    patterns:
+      - pattern: fetch($URL, ...)
+      - pattern-not: 'fetch("...", ...)'
+      - pattern-not: "fetch(`${process.env.$VAR}...`, ...)"
+    message: >-
+      Server-side fetch with potentially user-controlled URL. This may
+      lead to SSRF attacks. Validate and allowlist the URL.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-918"]
+      owasp: ["A10:2021"]
+      category: security
+
+  # === Solana Specific: Unchecked Transaction Signing ===
+  - id: solana-unchecked-transaction
+    pattern: $WALLET.signTransaction($TX)
+    message: >-
+      Solana transaction signing detected. Ensure the transaction
+      contents are validated before signing to prevent unauthorized
+      fund transfers.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-345"]
+      category: security
+
+  # === File Upload Validation ===
+  - id: file-upload-no-type-check
+    patterns:
+      - pattern: |
+          const $FORM = await $REQ.formData()
+      - pattern-not-inside: |
+          ...
+          $FORM.get("...").type
+          ...
+    message: >-
+      File upload via formData without apparent content type validation.
+      Validate file type, size, and content before processing.
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-434"]
+      category: security

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -9,12 +10,12 @@ export const dynamic = "force-dynamic";
 // GET /api/reviews - Get reviews for a user
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "received" or "given"
     // SECURITY: Bound page to prevent excessive DB offset
-    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1") || 1));
-    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10") || 10));
+    const page = Math.min(1000, Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10", 10) || 10));
 
     if (!userId) {
       return NextResponse.json(
@@ -128,6 +129,12 @@ export async function GET(request: NextRequest) {
 // POST /api/reviews - Submit a review
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'reviews'))(request);
     if (!rateLimitResult.success) {

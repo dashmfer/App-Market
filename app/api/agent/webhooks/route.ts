@@ -224,7 +224,7 @@ export async function DELETE(request: NextRequest) {
       return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const webhookId = searchParams.get("id");
 
     if (!webhookId) {

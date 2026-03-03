@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
-const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+// SECURITY: Require explicit RPC URL in production — never fall back to public endpoints
+const RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || (process.env.NODE_ENV === "production" ? (() => { throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be set in production"); })() : "https://api.devnet.solana.com");
 const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_WEBHOOK_ID = process.env.HELIUS_WEBHOOK_ID;
 
@@ -58,7 +59,7 @@ async function addToHeliusWebhook(address: string): Promise<boolean> {
       return false;
     }
 
-    console.log(`[PoolWatcher] Added ${address} to Helius webhook for real-time monitoring`);
+    console.info(`[PoolWatcher] Added ${address} to Helius webhook for real-time monitoring`);
     return true;
   } catch (err: any) {
     console.error("[PoolWatcher] Error adding to Helius webhook:", err);
@@ -89,7 +90,7 @@ async function removeFromHeliusWebhook(address: string): Promise<boolean> {
       return false;
     }
 
-    console.log(`[PoolWatcher] Removed ${address} from Helius webhook`);
+    console.info(`[PoolWatcher] Removed ${address} from Helius webhook`);
     return true;
   } catch (err: any) {
     console.error("[PoolWatcher] Error removing from Helius webhook:", err);

@@ -35,7 +35,7 @@ export default function FeaturedPage() {
           setWatchlistedIds(ids);
         }
       } catch (error) {
-        // Silently fail - user might not be logged in
+        console.error("[FeaturedPage] Failed to fetch watchlist:", error);
       }
     }
 

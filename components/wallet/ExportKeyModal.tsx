@@ -49,8 +49,8 @@ export function ExportKeyModal({
         if (current === privateKeyRef.current) {
           await navigator.clipboard.writeText("");
         }
-      } catch {
-        // Clipboard read may fail if tab lost focus — that's ok
+      } catch (error) {
+        console.error("[ExportKeyModal] Failed to auto-clear clipboard:", error);
       }
     }, 30000);
   };

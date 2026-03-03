@@ -39,7 +39,7 @@ export const PLATFORM_CONFIG = {
     enabled: process.env.ENABLE_AUTO_BUYBACK === "true",
     
     // Percentage of revenue used for buyback (0-100), clamped to valid range
-    buybackPercentage: Math.max(0, Math.min(100, parseInt(process.env.BUYBACK_PERCENTAGE || "20") || 20)),
+    buybackPercentage: Math.max(0, Math.min(100, parseInt(process.env.BUYBACK_PERCENTAGE || "20", 10) || 20)),
     
     // Minimum SOL accumulated before executing buyback
     minimumBuybackAmount: 1, // SOL
@@ -285,13 +285,38 @@ export function getFeeRateBps(currency?: string): number {
     : PLATFORM_CONFIG.fees.platformFeeBps;
 }
 
+/**
+ * SECURITY: All fee calculations use integer arithmetic (lamports) to avoid
+ * IEEE 754 floating-point precision loss that can cause financial discrepancies.
+ * Inputs are SOL amounts (number), internally converted to lamports (bigint).
+ */
+const LAMPORTS_PER_SOL_BI = BigInt(1_000_000_000);
+
+function solToLamportsBigInt(sol: number): bigint {
+  // Convert via string to avoid floating-point multiplication errors
+  const [whole, decimal = ""] = sol.toString().split(".");
+  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  return BigInt(whole + paddedDecimal);
+}
+
+function lamportsToSolNumber(lamports: bigint): number {
+  // Convert back: integer division + remainder for precision
+  const whole = lamports / LAMPORTS_PER_SOL_BI;
+  const remainder = lamports % LAMPORTS_PER_SOL_BI;
+  return Number(whole) + Number(remainder) / Number(LAMPORTS_PER_SOL_BI);
+}
+
 export function calculatePlatformFee(amount: number, currency?: string): number {
   const feeBps = getFeeRateBps(currency);
-  return (amount * feeBps) / 10000;
+  const amountLamports = solToLamportsBigInt(amount);
+  const feeLamports = (amountLamports * BigInt(feeBps)) / BigInt(10000);
+  return lamportsToSolNumber(feeLamports);
 }
 
 export function calculateDisputeFee(amount: number): number {
-  return (amount * PLATFORM_CONFIG.fees.disputeFeeBps) / 10000;
+  const amountLamports = solToLamportsBigInt(amount);
+  const feeLamports = (amountLamports * BigInt(PLATFORM_CONFIG.fees.disputeFeeBps)) / BigInt(10000);
+  return lamportsToSolNumber(feeLamports);
 }
 
 // Calculate seller proceeds with fee breakdown
@@ -302,10 +327,12 @@ export function calculateSellerProceeds(salePrice: number, currency?: string): {
   feePercent: string;
 } {
   const feeBps = getFeeRateBps(currency);
-  const fee = calculatePlatformFee(salePrice, currency);
+  const priceLamports = solToLamportsBigInt(salePrice);
+  const feeLamports = (priceLamports * BigInt(feeBps)) / BigInt(10000);
+  const proceedsLamports = priceLamports - feeLamports;
   return {
-    fee,
-    proceeds: salePrice - fee,
+    fee: lamportsToSolNumber(feeLamports),
+    proceeds: lamportsToSolNumber(proceedsLamports),
     feeBps,
     feePercent: `${feeBps / 100}%`,
   };

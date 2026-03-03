@@ -58,8 +58,8 @@ async function handleGraduation(poolAddressStr: string) {
     } else if (stateAny?.dammPool) {
       dammPoolAddress = stateAny.dammPool.toBase58();
     }
-  } catch {
-    // Pool state may not expose DAMM address directly
+  } catch (error) {
+    console.error("[Webhook] Failed to get pool state:", { poolAddress: poolAddressStr, error });
   }
 
   // Update DB
@@ -102,10 +102,15 @@ export async function POST(request: NextRequest) {
   if (!authHeader || !expectedSecret) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // SECURITY: Pad both buffers to prevent length-leaking timing attacks
   const expectedHeader = `Bearer ${expectedSecret}`;
   try {
-    if (authHeader.length !== expectedHeader.length ||
-        !timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedHeader))) {
+    const maxLen = Math.max(authHeader.length, expectedHeader.length);
+    const paddedAuth = Buffer.alloc(maxLen);
+    const paddedExpected = Buffer.alloc(maxLen);
+    Buffer.from(authHeader).copy(paddedAuth);
+    Buffer.from(expectedHeader).copy(paddedExpected);
+    if (!timingSafeEqual(paddedAuth, paddedExpected) || authHeader.length !== expectedHeader.length) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   } catch {

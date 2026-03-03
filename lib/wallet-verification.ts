@@ -29,8 +29,13 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
-    // Validate message format — must contain expected domain/prefix to prevent arbitrary message signing
-    if (!message.includes("App Market") && !message.includes("app-market")) {
+    // SECURITY: Validate message format with strict prefix/line match instead of substring.
+    // Substring matching (includes) could be bypassed by embedding "App Market" in an attacker-crafted message.
+    const validPrefixes = [
+      'Accept collaboration for "',
+      "Sign this message to prove you own this wallet",
+    ];
+    if (!validPrefixes.some(prefix => message.startsWith(prefix) || message.includes(`\n${prefix}`))) {
       return { valid: false, error: "Invalid message format — must be an App Market verification message" };
     }
 
@@ -94,8 +99,6 @@ export async function verifyWalletSignature(
   referralCode?: string
 ): Promise<WalletVerificationResult> {
   try {
-    console.log("[Wallet Verification] Verification attempt");
-
     if (!publicKey || !signature || !message) {
       console.error("[Wallet Verification] Missing required fields");
       return { success: false, error: "Missing required fields" };
@@ -113,14 +116,10 @@ export async function verifyWalletSignature(
       publicKeyUint8
     );
 
-    console.log("[Wallet Verification] Signature verified:", verified);
-
     if (!verified) {
       console.error("[Wallet Verification] Invalid signature");
       return { success: false, error: "Invalid signature" };
     }
-
-    console.log("[Wallet Verification] Looking up user");
 
     // Check if user exists with this wallet
     let user = await prisma.user.findUnique({
@@ -129,7 +128,7 @@ export async function verifyWalletSignature(
 
     // If user doesn't exist, create one
     if (!user) {
-      console.log("[Wallet Verification] Creating new user");
+      console.info("[Wallet Verification] Creating new user");
 
       // Generate a unique username from wallet address
       const baseUsername = `user_${publicKey.slice(0, 8).toLowerCase()}`;
@@ -139,8 +138,9 @@ export async function verifyWalletSignature(
         where: { username: { startsWith: baseUsername } },
       });
 
+      // SECURITY: Use crypto.randomBytes instead of Math.random for username suffix
       const username = existingUser
-        ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+        ? `${baseUsername}_${crypto.randomBytes(3).toString("hex")}`
         : baseUsername;
 
       // Generate a unique referral code for the new user
@@ -166,9 +166,6 @@ export async function verifyWalletSignature(
         });
         if (referrer) {
           referrerId = referrer.id;
-          console.log("[Wallet Verification] Referrer found");
-        } else {
-          console.log("[Wallet Verification] Referral code not found");
         }
       }
 
@@ -184,7 +181,7 @@ export async function verifyWalletSignature(
         },
       });
 
-      console.log("[Wallet Verification] New user created");
+      console.info("[Wallet Verification] New user created");
 
       // If user was referred, create the Referral record
       if (referrerId) {
@@ -196,15 +193,13 @@ export async function verifyWalletSignature(
               status: "REGISTERED",
             },
           });
-          console.log("[Wallet Verification] Referral record created");
+          console.info("[Wallet Verification] Referral record created");
         } catch (error) {
           console.error("[Wallet Verification] Failed to create referral record:", error);
           // Don't fail the signup if referral creation fails
         }
       }
     } else {
-      console.log("[Wallet Verification] Existing user found");
-
       // If existing user doesn't have a referral code, generate one
       if (!user.referralCode) {
         let newReferralCode = generateReferralCode();
@@ -222,11 +217,9 @@ export async function verifyWalletSignature(
           where: { id: user.id },
           data: { referralCode: newReferralCode },
         });
-        console.log("[Wallet Verification] Generated referral code for existing user");
+        console.info("[Wallet Verification] Generated referral code for existing user");
       }
     }
-
-    console.log("[Wallet Verification] Verification successful");
 
     return {
       success: true,

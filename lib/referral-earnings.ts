@@ -93,7 +93,7 @@ export async function processReferralEarnings(
       },
     });
 
-    console.log(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} SOL`);
+    console.info(`[Referral] Buyer referrer ${buyerReferral.referrerId} earned ${buyerReferralEarning} SOL`);
   }
 
   // Check if seller was referred AND this is their first sale
@@ -155,13 +155,13 @@ export async function processReferralEarnings(
       },
     });
 
-    console.log(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} SOL`);
+    console.info(`[Referral] Seller referrer ${sellerReferral.referrerId} earned ${sellerReferralEarning} SOL`);
   }
 
   const totalReferralPayout = buyerReferralEarning + sellerReferralEarning;
   const platformFeeAfterReferrals = platformFee - totalReferralPayout;
 
-  console.log(`[Referral] Transaction ${transactionId} referral summary:`, {
+  console.info("[Referral] Transaction referral summary:", { transactionId,
     salePrice,
     platformFee,
     buyerReferralEarning,

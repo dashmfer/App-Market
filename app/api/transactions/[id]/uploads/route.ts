@@ -8,6 +8,7 @@ import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { verifyUploads } from '@/lib/solana-contract';
 import { getConnection } from '@/lib/solana';
 import { z } from "zod";
+import { createHash } from "crypto";
 
 const uploadSchema = z.object({
   type: z.string().min(1),
@@ -492,6 +493,5 @@ function generateVerificationHash(
     timestamp: Date.now(),
   };
 
-  const { createHash } = require('crypto');
   return createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }

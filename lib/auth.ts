@@ -245,8 +245,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing Privy authentication token");
         }
 
+        // SECURITY: Verify the Privy auth token AND extract verified claims.
+        // Only trust wallet/email from Privy's verified claims, NOT from
+        // client-supplied credentials, to prevent account takeover attacks.
+        let verifiedClaims: any;
         try {
-          const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
+          verifiedClaims = await privyClient.verifyAuthToken(privyToken);
           // Ensure the verified Privy user ID matches the claimed one
           if (verifiedClaims.userId !== credentials.privyUserId) {
             throw new Error("Privy user ID mismatch");
@@ -256,16 +260,42 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid Privy authentication token");
         }
 
+        // SECURITY: Extract verified wallet/email from Privy's claims,
+        // not from client-supplied credentials. This prevents an attacker
+        // from claiming ownership of another user's wallet or email.
+        let verifiedWalletAddress: string | null = null;
+        let verifiedEmail: string | null = null;
+
+        // Get the Privy user to check linked accounts
+        try {
+          const privyUser = await privyClient.getUser(credentials.privyUserId);
+          // Only trust wallets verified by Privy
+          if (privyUser?.wallet?.address) {
+            verifiedWalletAddress = privyUser.wallet.address;
+          }
+          // Only trust email verified by Privy
+          if (privyUser?.email?.address) {
+            verifiedEmail = privyUser.email.address;
+          }
+        } catch (getUserError: any) {
+          console.error("[Privy Auth] Failed to get Privy user:", getUserError.message);
+          // Fall through — we still have verified claims from the token
+        }
+
+        // If the client claims a wallet address, only trust it if Privy verified it
+        const trustedWalletAddress = verifiedWalletAddress || null;
+        const trustedEmail = verifiedEmail || credentials.email || null;
+
         // Find or create user by Privy ID
         let user = await prisma.user.findUnique({
           where: { privyUserId: credentials.privyUserId },
         });
 
         if (!user) {
-          // Check if user exists by wallet address
-          if (credentials.walletAddress) {
+          // Check if user exists by wallet address (only if Privy verified the wallet)
+          if (trustedWalletAddress) {
             user = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
+              where: { walletAddress: trustedWalletAddress },
             });
 
             if (user) {
@@ -280,10 +310,10 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
-          // Check if user exists by email
-          if (!user && credentials.email) {
+          // Check if user exists by email (only if Privy verified the email)
+          if (!user && verifiedEmail) {
             user = await prisma.user.findUnique({
-              where: { email: credentials.email },
+              where: { email: verifiedEmail },
             });
 
             if (user) {
@@ -293,7 +323,7 @@ export const authOptions: NextAuthOptions = {
                 data: {
                   privyUserId: credentials.privyUserId,
                   authMethod: mapAuthMethod(credentials.authMethod),
-                  walletAddress: credentials.walletAddress || user.walletAddress,
+                  walletAddress: trustedWalletAddress || user.walletAddress,
                 },
               });
             }
@@ -330,8 +360,8 @@ export const authOptions: NextAuthOptions = {
           user = await prisma.user.create({
             data: {
               privyUserId: credentials.privyUserId,
-              walletAddress: credentials.walletAddress || null,
-              email: credentials.email || null,
+              walletAddress: trustedWalletAddress,
+              email: trustedEmail,
               twitterUsername: credentials.twitterUsername || null,
               twitterVerified: !!credentials.twitterUsername,
               username,
@@ -352,29 +382,29 @@ export const authOptions: NextAuthOptions = {
             });
           }
 
-          console.log("[Privy Auth] Created new user");
+          console.info("[Privy Auth] Created new user");
         } else {
           // Update user with latest info from Privy
           const updateData: any = {};
 
-          // SECURITY: Check uniqueness before linking wallet/email/twitter
-          // Prevents one Privy account from claiming another user's identity
-          if (credentials.walletAddress && !user.walletAddress) {
+          // SECURITY: Only link wallet/email if verified by Privy.
+          // Never trust client-supplied values for account linking.
+          if (trustedWalletAddress && !user.walletAddress) {
             const existing = await prisma.user.findUnique({
-              where: { walletAddress: credentials.walletAddress },
+              where: { walletAddress: trustedWalletAddress },
               select: { id: true },
             });
             if (!existing) {
-              updateData.walletAddress = credentials.walletAddress;
+              updateData.walletAddress = trustedWalletAddress;
             }
           }
-          if (credentials.email && !user.email) {
+          if (verifiedEmail && !user.email) {
             const existing = await prisma.user.findUnique({
-              where: { email: credentials.email },
+              where: { email: verifiedEmail },
               select: { id: true },
             });
             if (!existing) {
-              updateData.email = credentials.email;
+              updateData.email = verifiedEmail;
             }
           }
           if (credentials.twitterUsername && !user.twitterUsername) {

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { audit } from '@/lib/audit';
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 /**
  * POST /api/withdrawals/[withdrawalId]/claim
@@ -13,6 +14,12 @@ export async function POST(
   { params }: { params: { withdrawalId: string } }
 ) {
   try {
+    // SECURITY: CSRF protection for financial state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {

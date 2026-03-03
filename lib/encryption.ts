@@ -61,6 +61,11 @@ export function encrypt(plaintext: string, aad?: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
 
+  // SECURITY: Validate hex string before Buffer.from to prevent unexpected input
+  if (!/^[0-9a-fA-F]*$/.test(encrypted)) {
+    throw new Error("Invalid hex string");
+  }
+
   // Combine salt, iv, authTag, and encrypted data
   const combined = Buffer.concat([
     salt,
@@ -69,7 +74,9 @@ export function encrypt(plaintext: string, aad?: string): string {
     Buffer.from(encrypted, "hex"),
   ]);
 
-  return combined.toString("base64");
+  // SECURITY: Use deterministic prefix to reliably identify encrypted data
+  // instead of relying on length heuristic which can cause silent corruption
+  return "enc:v1:" + combined.toString("base64");
 }
 
 /**
@@ -78,7 +85,9 @@ export function encrypt(plaintext: string, aad?: string): string {
  */
 export function decrypt(encryptedData: string, aad?: string): string {
   const secret = getEncryptionSecret();
-  const combined = Buffer.from(encryptedData, "base64");
+  // Strip the deterministic prefix if present (supports both new and legacy format)
+  const rawData = encryptedData.startsWith("enc:v1:") ? encryptedData.slice(7) : encryptedData;
+  const combined = Buffer.from(rawData, "base64");
 
   // Extract components
   const salt = combined.subarray(0, SALT_LENGTH);
@@ -103,16 +112,19 @@ export function decrypt(encryptedData: string, aad?: string): string {
 }
 
 /**
- * Heuristic check if a string might be encrypted data.
- * NOTE: This only checks if the data has the expected minimum length for
- * our encryption format (salt + iv + authTag + data). It does NOT validate
- * that the data was actually encrypted by this system. Use decrypt() which
- * will throw if the data is invalid or tampered with.
+ * Deterministic check if a string is encrypted data.
+ * Uses the "enc:v1:" prefix for reliable identification instead of
+ * a length-based heuristic which can cause silent data corruption.
+ * Also supports legacy format (base64 without prefix) for backwards compatibility.
  */
 export function looksEncrypted(data: string): boolean {
+  // New format: deterministic prefix
+  if (data.startsWith("enc:v1:")) {
+    return true;
+  }
+  // Legacy format: heuristic check (will be removed after migration)
   try {
     const decoded = Buffer.from(data, "base64");
-    // Minimum length: salt (32) + iv (16) + authTag (16) + some data
     return decoded.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
   } catch {
     return false;

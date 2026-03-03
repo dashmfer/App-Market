@@ -211,7 +211,7 @@ export async function GET(request: NextRequest) {
         await prisma.$transaction(dbOps);
 
         results.cancelled++;
-        console.log(
+        console.info(
           `[Cron:partner-deposit-deadline] Cancelled transaction ${transaction.id}`
         );
       } catch (error) {

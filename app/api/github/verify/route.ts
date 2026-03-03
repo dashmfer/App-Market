@@ -32,10 +32,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate owner and repo against strict allowlist to prevent SSRF/injection.
+    // GitHub usernames and repo names only allow alphanumeric, hyphens, dots, and underscores.
+    const githubNameRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!githubNameRegex.test(owner) || !githubNameRegex.test(repo)) {
+      return NextResponse.json(
+        { error: "Invalid owner or repo name. Only alphanumeric characters, hyphens, dots, and underscores are allowed." },
+        { status: 400 }
+      );
+    }
+
     // Use public GitHub API to check if repo exists and is accessible
     // This doesn't require OAuth - works for public repos
     const repoResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}`,
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
       {
         headers: {
           Accept: "application/vnd.github.v3+json",

@@ -136,7 +136,7 @@ export default function HomePage() {
           setWatchlistedIds(ids);
         }
       } catch (error) {
-        // Silently fail - user might not be logged in
+        console.error("[HomePage] Failed to fetch watchlist:", error);
       }
     }
 
