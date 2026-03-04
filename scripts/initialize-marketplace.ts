@@ -74,7 +74,7 @@ async function main() {
   }
 
   // Derive config PDA
-  const [configPda, configBump] = PublicKey.findProgramAddressSync(
+  const [configPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
     PROGRAM_ID
   );

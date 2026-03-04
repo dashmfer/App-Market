@@ -7,7 +7,6 @@ import { deserializeKeypair } from "@/lib/vanity-keygen";
 import {
   buildCreatePoolTransaction,
   buildCreatePoolWithFirstBuyTransaction,
-  getPatoConfigKey,
 } from "@/lib/meteora-dbc";
 import { uploadTokenMetadata } from "@/lib/token-metadata";
 import { watchPoolForGraduation } from "@/lib/pool-watcher";

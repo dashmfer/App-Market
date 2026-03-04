@@ -35,7 +35,6 @@ const categoriesBase = [
 
 export default function HomePage() {
   const t = useTranslations("home");
-  const tCommon = useTranslations("common");
 
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

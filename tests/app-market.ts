@@ -1,9 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program, BN } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import {
   Keypair,
   PublicKey,
-  SystemProgram,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { expect } from "chai";
@@ -13,7 +12,6 @@ const PROGRAM_ID = new PublicKey("9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog")
 
 // Test constants
 const PLATFORM_FEE_BPS = 500; // 5%
-const DISPUTE_FEE_BPS = 200; // 2%
 
 describe("App Market Tests", () => {
   // Configure the client
@@ -31,9 +29,6 @@ describe("App Market Tests", () => {
   // PDAs
   let configPda: PublicKey;
   let configBump: number;
-
-  // Program - we'll load it dynamically
-  let program: any;
 
   before(async () => {
     // Generate test keypairs

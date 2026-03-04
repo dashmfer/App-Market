@@ -75,13 +75,20 @@ export async function POST(req: NextRequest) {
       where: { id: session.user.id },
       select: { image: true },
     });
-    if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
+    if (currentUser?.image) {
+      let isVercelBlob = false;
       try {
-        const { del } = await import("@vercel/blob");
-        await del(currentUser.image);
-      } catch (e) {
-        console.error("[Profile Image] Failed to delete old image:", e);
-        // Continue with upload even if delete fails
+        const oldUrl = new URL(currentUser.image);
+        isVercelBlob = oldUrl.hostname.endsWith('blob.vercel-storage.com');
+      } catch { /* not a valid URL */ }
+      if (isVercelBlob) {
+        try {
+          const { del } = await import("@vercel/blob");
+          await del(currentUser.image);
+        } catch (e) {
+          console.error("[Profile Image] Failed to delete old image:", e);
+          // Continue with upload even if delete fails
+        }
       }
     }
 

@@ -271,7 +271,6 @@ async function main() {
 
   await test("Bid in last 15 min extends auction", () => {
     const ANTI_SNIPE_WINDOW = 15 * 60;
-    const ANTI_SNIPE_EXTENSION = 15 * 60;
     const auctionEnd = Math.floor(Date.now() / 1000) + 600; // 10 min from now
     const bidTime = Math.floor(Date.now() / 1000);
     const isInSnipeWindow = bidTime > auctionEnd - ANTI_SNIPE_WINDOW;

@@ -489,7 +489,7 @@ export function PATOLaunchModal({
                 {/* Token Preview */}
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
                   <div className="flex items-center gap-3 mb-3">
-                    {tokenImage ? (
+                    {tokenImage && /^https?:\/\//i.test(tokenImage) ? (
                       <img
                         src={tokenImage}
                         alt={tokenName}

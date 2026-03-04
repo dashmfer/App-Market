@@ -6,15 +6,9 @@ import { encrypt } from "@/lib/encryption";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
 import {
-  buildCreatePoolTransaction,
-  buildCreatePoolWithFirstBuyTransaction,
-  getPatoConfigKey,
-  getPatoFeeClaimer,
-  PATO_CONFIG,
   calculateFeeBreakdown,
 } from "@/lib/meteora-dbc";
 import { PLATFORM_CONFIG } from "@/lib/config";
-import { PublicKey } from "@solana/web3.js";
 
 /**
  * POST /api/token-launch — Create a PATO (Post-Acquisition Token Offering)
@@ -47,7 +41,7 @@ export async function POST(request: NextRequest) {
       twitter,
       telegram,
       discord,
-      initialBuyAmountSOL,
+      initialBuyAmountSOL: _initialBuyAmountSOL,
     } = body;
 
     // Validate required fields

@@ -9,11 +9,7 @@ import {
   Connection,
   PublicKey,
   Keypair,
-  SystemProgram,
-  Transaction,
-  TransactionInstruction,
   LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import * as crypto from "crypto";
 import * as fs from "fs";
@@ -36,13 +32,6 @@ function getDiscriminator(name: string): Buffer {
 function encodeU64(value: number | bigint): Buffer {
   const buf = Buffer.alloc(8);
   buf.writeBigUInt64LE(BigInt(value));
-  return buf;
-}
-
-// Encode i64 as little-endian
-function encodeI64(value: number | bigint): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigInt64LE(BigInt(value));
   return buf;
 }
 

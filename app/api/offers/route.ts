@@ -3,7 +3,7 @@ import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 const MAX_OFFER_AMOUNT = 1_000_000; // 1M SOL cap to prevent overflow in fee calculations
 

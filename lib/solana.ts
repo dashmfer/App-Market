@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 import { PLATFORM_CONFIG } from "@/lib/config";
 

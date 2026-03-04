@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // Force dynamic rendering for this route

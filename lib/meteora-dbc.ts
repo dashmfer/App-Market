@@ -6,7 +6,6 @@
  */
 
 import {
-  Connection,
   PublicKey,
   Keypair,
   Transaction,

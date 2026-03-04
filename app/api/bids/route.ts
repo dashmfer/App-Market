@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing

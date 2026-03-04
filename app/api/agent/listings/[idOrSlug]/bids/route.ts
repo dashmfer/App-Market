@@ -29,7 +29,6 @@ export async function GET(
     const { idOrSlug } = params;
 
     // Resolve listing ID from slug or ID
-    let listingId = idOrSlug;
     const listing = await prisma.listing.findFirst({
       where: {
         OR: [{ slug: idOrSlug }, { id: idOrSlug }],
@@ -40,7 +39,7 @@ export async function GET(
     if (!listing) {
       return agentErrorResponse("Listing not found", 404);
     }
-    listingId = listing.id;
+    const listingId = listing.id;
 
     const bids = await prisma.bid.findMany({
       where: { listingId },

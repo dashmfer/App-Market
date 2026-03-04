@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowUpRight,
-  ArrowDownRight,
   Plus,
   ExternalLink,
   Gift,

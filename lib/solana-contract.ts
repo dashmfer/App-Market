@@ -5,8 +5,8 @@
  * All escrow, auction, and marketplace logic runs on-chain for security and transparency.
  */
 
-import { Connection, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
-import { AnchorProvider, BN, Program, web3 } from "@coral-xyz/anchor";
+import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import {
   PROGRAM_ID,
   IDL,

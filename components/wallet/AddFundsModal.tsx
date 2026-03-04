@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Copy, Check, Wallet, ExternalLink, ArrowDownToLine } from "lucide-react";
+import { X, Copy, Check, ExternalLink, ArrowDownToLine } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface AddFundsModalProps {

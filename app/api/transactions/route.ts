@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
+import { calculatePlatformFee } from "@/lib/solana";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/transactions - Get user's transactions

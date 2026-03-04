@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { canEditListing, isValidUrl, MAX_CATEGORIES } from "@/lib/validation";
+import { canEditListing, isValidUrl } from "@/lib/validation";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/listings/[slug] - Get a single listing by slug

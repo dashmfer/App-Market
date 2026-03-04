@@ -13,7 +13,6 @@ import {
   Users,
   Clock,
   Wallet,
-  CheckCircle2,
   XCircle,
   Loader2,
   AlertCircle,
@@ -21,7 +20,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatDistanceToNow } from "date-fns";
 
 interface PurchasePartnerInvite {
   id: string;
@@ -63,7 +61,7 @@ interface PurchasePartnerInvite {
 
 export default function PurchasePartnersPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const { connected, publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
 

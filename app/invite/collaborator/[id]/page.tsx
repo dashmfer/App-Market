@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import {
-  Users,
   Crown,
   Briefcase,
   Percent,

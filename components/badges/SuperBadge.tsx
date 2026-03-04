@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Award, ShoppingBag, TrendingUp } from "lucide-react";
+import { Star, Award, TrendingUp } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 
 interface SuperBadgeProps {

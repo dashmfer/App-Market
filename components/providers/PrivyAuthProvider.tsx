@@ -35,7 +35,7 @@ export const usePrivyAuth = () => useContext(PrivyAuthContext);
 function PrivyAuthSync({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, user, login, logout: privyLogout } = usePrivy();
   const { wallets } = useWallets();
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useSession();
   const isSyncing = useRef(false);
   const lastSyncedPrivyId = useRef<string | null>(null);
   const [authMethod, setAuthMethod] = useState<"wallet" | "email" | "twitter" | null>(null);

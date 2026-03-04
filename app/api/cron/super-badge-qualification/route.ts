@@ -30,7 +30,7 @@ const SUPER_SELLER_MIN_RATING = 4.5;
 const SUPER_SELLER_MIN_REVIEWS = 3;
 const SUPER_SELLER_MIN_VOLUME = 5000; // in base currency units
 const SUPER_BUYER_MIN_PURCHASES = 5;
-const SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS = 30;
+const _SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS = 30;
 
 // Retry wrapper for database operations
 async function withRetry<T>(

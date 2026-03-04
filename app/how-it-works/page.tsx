@@ -15,7 +15,6 @@ import {
   RefreshCw,
   AlertTriangle,
   Coins,
-  Wallet,
   FileCheck,
   Scale,
 } from "lucide-react";

@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getPoolState, calculateFeeBreakdown } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
-import { PLATFORM_CONFIG } from "@/lib/config";
 
 /**
  * GET /api/token-launch/[id] — Get detailed info for a specific PATO
@@ -214,7 +213,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { status, onChainTx, dbcPoolAddress } = body;
+    const { status, onChainTx: _onChainTx, dbcPoolAddress } = body;
 
     // Validate status transition
     const validTransitions: Record<string, string[]> = {

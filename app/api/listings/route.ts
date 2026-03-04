@@ -5,7 +5,7 @@ import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
@@ -289,19 +289,19 @@ export async function POST(request: NextRequest) {
       // Hosting
       hasHosting,
       hostingProvider,
-      hostingProjectUrl,
+      hostingProjectUrl: _hostingProjectUrl,
       // Vercel
       hasVercel,
       vercelProjectUrl,
       vercelTeamSlug,
       // Domain
       hasDomain,
-      domainRegistrar,
+      domainRegistrar: _domainRegistrar,
       domain,
       // Database
       hasDatabase,
       databaseProvider,
-      databaseName,
+      databaseName: _databaseName,
       // Other assets
       hasSocialAccounts,
       socialAccounts,

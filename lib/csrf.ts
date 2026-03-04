@@ -5,7 +5,6 @@
 
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 const CSRF_COOKIE_NAME = "__Host-csrf-token";
 const CSRF_HEADER_NAME = "x-csrf-token";

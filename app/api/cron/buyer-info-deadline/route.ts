@@ -18,7 +18,7 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 // Retry wrapper for database operations
-async function withRetry<T>(
+async function _withRetry<T>(
   operation: () => Promise<T>,
   operationName: string,
   maxRetries = MAX_RETRIES

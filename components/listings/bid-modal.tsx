@@ -25,7 +25,6 @@ import {
   Coins,
   AlertCircle,
   CheckCircle2,
-  Loader2,
   ArrowRight,
   Lock,
 } from "lucide-react";
@@ -62,7 +61,7 @@ export function BidModal({
   const [step, setStep] = useState<"amount" | "payment" | "confirm">("amount");
   const [error, setError] = useState<string | null>(null);
 
-  const { connected, publicKey, signMessage, sendTransaction } = useWallet();
+  const { connected, publicKey, sendTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const { connection } = useConnection();
 
@@ -78,7 +77,6 @@ export function BidModal({
 
   const bidAmountUsd = solPriceUsd ? bidAmount * solPriceUsd : null;
 
-  const platformFee = bidAmount * 0.05;
   const totalWithFee = bidAmount; // Fee is deducted from seller, not buyer
 
   const handleNext = () => {
