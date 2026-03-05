@@ -20,11 +20,11 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "godaddy",
     name: "GoDaddy",
-    patterns: [/godaddy\.com/i],
+    patterns: [/(^|\.)godaddy\.com$/i],
     transferUrlPatterns: [
-      /godaddy\.com\/.*transfer/i,
-      /godaddy\.com\/.*domain.*change/i,
-      /dcc\.godaddy\.com/i,
+      /^(.*\.)?godaddy\.com\/.*transfer/i,
+      /^(.*\.)?godaddy\.com\/.*domain.*change/i,
+      /^dcc\.godaddy\.com/i,
     ],
     instructions: [
       "1. Log into your GoDaddy account",
@@ -39,11 +39,11 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "namecheap",
     name: "Namecheap",
-    patterns: [/namecheap\.com/i],
+    patterns: [/(^|\.)namecheap\.com$/i],
     transferUrlPatterns: [
-      /namecheap\.com\/.*transfer/i,
-      /ap\.www\.namecheap\.com\/.*transfer/i,
-      /namecheap\.com\/domains\/transfer/i,
+      /^(.*\.)?namecheap\.com\/.*transfer/i,
+      /^ap\.www\.namecheap\.com\/.*transfer/i,
+      /^(.*\.)?namecheap\.com\/domains\/transfer/i,
     ],
     instructions: [
       "1. Log into your Namecheap account",
@@ -58,11 +58,11 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "cloudflare",
     name: "Cloudflare",
-    patterns: [/cloudflare\.com/i, /dash\.cloudflare\.com/i],
+    patterns: [/(^|\.)cloudflare\.com$/i],
     transferUrlPatterns: [
-      /dash\.cloudflare\.com\/.*registrar/i,
-      /cloudflare\.com\/.*transfer/i,
-      /dash\.cloudflare\.com\/.*domains/i,
+      /^dash\.cloudflare\.com\/.*registrar/i,
+      /^(.*\.)?cloudflare\.com\/.*transfer/i,
+      /^dash\.cloudflare\.com\/.*domains/i,
     ],
     instructions: [
       "1. Log into your Cloudflare dashboard",
@@ -77,11 +77,11 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "google",
     name: "Google Domains / Squarespace",
-    patterns: [/domains\.google/i, /squarespace\.com.*domains/i],
+    patterns: [/(^|\.)domains\.google$/i, /(^|\.)squarespace\.com$/i],
     transferUrlPatterns: [
-      /domains\.google\.com\/registrar/i,
-      /domains\.google\.com\/.*transfer/i,
-      /squarespace\.com\/.*domains.*transfer/i,
+      /^domains\.google\.com\/registrar/i,
+      /^domains\.google\.com\/.*transfer/i,
+      /^(.*\.)?squarespace\.com\/.*domains.*transfer/i,
     ],
     instructions: [
       "1. Go to domains.google.com or Squarespace Domains",
@@ -96,10 +96,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "porkbun",
     name: "Porkbun",
-    patterns: [/porkbun\.com/i],
+    patterns: [/(^|\.)porkbun\.com$/i],
     transferUrlPatterns: [
-      /porkbun\.com\/.*transfer/i,
-      /porkbun\.com\/account\/domain/i,
+      /^(.*\.)?porkbun\.com\/.*transfer/i,
+      /^(.*\.)?porkbun\.com\/account\/domain/i,
     ],
     instructions: [
       "1. Log into your Porkbun account",
@@ -114,10 +114,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "dynadot",
     name: "Dynadot",
-    patterns: [/dynadot\.com/i],
+    patterns: [/(^|\.)dynadot\.com$/i],
     transferUrlPatterns: [
-      /dynadot\.com\/.*transfer/i,
-      /dynadot\.com\/account\/domain/i,
+      /^(.*\.)?dynadot\.com\/.*transfer/i,
+      /^(.*\.)?dynadot\.com\/account\/domain/i,
     ],
     instructions: [
       "1. Log into your Dynadot account",
@@ -130,10 +130,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "hover",
     name: "Hover",
-    patterns: [/hover\.com/i],
+    patterns: [/(^|\.)hover\.com$/i],
     transferUrlPatterns: [
-      /hover\.com\/.*transfer/i,
-      /hover\.com\/control_panel/i,
+      /^(.*\.)?hover\.com\/.*transfer/i,
+      /^(.*\.)?hover\.com\/control_panel/i,
     ],
     instructions: [
       "1. Log into your Hover account",
@@ -146,10 +146,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "gandi",
     name: "Gandi",
-    patterns: [/gandi\.net/i],
+    patterns: [/(^|\.)gandi\.net$/i],
     transferUrlPatterns: [
-      /gandi\.net\/.*transfer/i,
-      /admin\.gandi\.net\/.*domain/i,
+      /^(.*\.)?gandi\.net\/.*transfer/i,
+      /^admin\.gandi\.net\/.*domain/i,
     ],
     instructions: [
       "1. Log into your Gandi account",
@@ -162,10 +162,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "name",
     name: "Name.com",
-    patterns: [/name\.com/i],
+    patterns: [/(^|\.)name\.com$/i],
     transferUrlPatterns: [
-      /name\.com\/.*transfer/i,
-      /name\.com\/account\/domain/i,
+      /^(.*\.)?name\.com\/.*transfer/i,
+      /^(.*\.)?name\.com\/account\/domain/i,
     ],
     instructions: [
       "1. Log into your Name.com account",
@@ -178,10 +178,10 @@ export const DOMAIN_REGISTRARS: DomainRegistrar[] = [
   {
     id: "epik",
     name: "Epik",
-    patterns: [/epik\.com/i],
+    patterns: [/(^|\.)epik\.com$/i],
     transferUrlPatterns: [
-      /epik\.com\/.*transfer/i,
-      /registrar\.epik\.com/i,
+      /^(.*\.)?epik\.com\/.*transfer/i,
+      /^registrar\.epik\.com/i,
     ],
     instructions: [
       "1. Log into your Epik account",
@@ -246,9 +246,13 @@ export function validateDomainTransferLink(url: string): ValidationResult {
     };
   }
 
+  // SECURITY: Match patterns against parsed hostname (not full URL) to prevent spoofing
+  const hostname = parsedUrl.hostname;
+  const hostAndPath = hostname + parsedUrl.pathname;
+
   // Find matching registrar
   const registrar = DOMAIN_REGISTRARS.find((r) =>
-    r.patterns.some((pattern) => pattern.test(url))
+    r.patterns.some((pattern) => pattern.test(hostname))
   );
 
   if (!registrar) {
@@ -266,7 +270,7 @@ export function validateDomainTransferLink(url: string): ValidationResult {
 
   // Check if it's specifically a transfer-related URL
   const isTransferUrl = registrar.transferUrlPatterns.some((pattern) =>
-    pattern.test(url)
+    pattern.test(hostAndPath)
   );
 
   if (!isTransferUrl) {
@@ -353,10 +357,16 @@ export function getGenericInstructions(): string[] {
  * Detects registrar from a domain name
  */
 export function detectRegistrarFromUrl(url: string): DomainRegistrar | null {
-  const registrar = DOMAIN_REGISTRARS.find((r) =>
-    r.patterns.some((pattern) => pattern.test(url))
-  );
-  return registrar || null;
+  try {
+    const normalized = url.startsWith("http") ? url : `https://${url}`;
+    const parsed = new URL(normalized);
+    const registrar = DOMAIN_REGISTRARS.find((r) =>
+      r.patterns.some((pattern) => pattern.test(parsed.hostname))
+    );
+    return registrar || null;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -6,7 +6,6 @@
  */
 
 import {
-  Connection,
   PublicKey,
   Keypair,
   Transaction,
@@ -243,7 +242,8 @@ export async function buildCreatePoolWithFirstBuyTransaction(params: {
   const client = getDbcClient();
   const configKey = getPatoConfigKey();
 
-  const result = await client.pool.createPoolWithFirstBuy({
+  // SDK returns { createPoolTx, swapBuyTx } but types are incorrectly declared as Transaction
+  const result = (await client.pool.createPoolWithFirstBuy({
     createPoolParam: {
       name: params.tokenName,
       symbol: params.tokenSymbol,
@@ -261,7 +261,7 @@ export async function buildCreatePoolWithFirstBuyTransaction(params: {
       minimumAmountOut: new BN(0), // No minimum for initial buy
       referralTokenAccount: null,
     },
-  });
+  })) as unknown as { createPoolTx: Transaction; swapBuyTx: Transaction | undefined };
 
   const [poolAddress] = PublicKey.findProgramAddressSync(
     [
@@ -373,7 +373,8 @@ export async function getConfigState(configAddress: PublicKey) {
  */
 export async function getCurveProgress(poolAddress: PublicKey): Promise<number> {
   const client = getDbcClient();
-  return client.state.getPoolCurveProgress(poolAddress);
+  // Method exists at runtime but is missing from SDK type declarations
+  return (client.state as any).getPoolCurveProgress(poolAddress);
 }
 
 /**

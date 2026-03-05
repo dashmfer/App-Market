@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Octokit } from '@octokit/rest';
-import { PublicKey, Keypair, Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { PublicKey, Keypair, Transaction, VersionedTransaction } from '@solana/web3.js';
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { verifyUploads } from '@/lib/solana-contract';
 import { getConnection } from '@/lib/solana';

@@ -116,7 +116,7 @@ const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
   {
     id: "godaddy",
     name: "GoDaddy",
-    patterns: [/godaddy\.com/i],
+    patterns: [/(^|\.)godaddy\.com$/i],
     instructions: [
       "Log into your GoDaddy account",
       "Go to Domain Portfolio and select your domain",
@@ -128,7 +128,7 @@ const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
   {
     id: "namecheap",
     name: "Namecheap",
-    patterns: [/namecheap\.com/i],
+    patterns: [/(^|\.)namecheap\.com$/i],
     instructions: [
       "Log into your Namecheap account",
       "Go to Domain List and select your domain",
@@ -140,7 +140,7 @@ const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
   {
     id: "cloudflare",
     name: "Cloudflare",
-    patterns: [/cloudflare\.com/i, /dash\.cloudflare\.com/i],
+    patterns: [/(^|\.)cloudflare\.com$/i],
     instructions: [
       "Log into your Cloudflare dashboard",
       "Go to Domain Registration and select your domain",
@@ -152,7 +152,7 @@ const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
   {
     id: "google",
     name: "Google Domains / Squarespace",
-    patterns: [/domains\.google/i, /squarespace\.com/i],
+    patterns: [/(^|\.)domains\.google$/i, /(^|\.)squarespace\.com$/i],
     instructions: [
       "Go to domains.google.com or Squarespace Domains",
       "Select your domain and click 'Manage'",
@@ -164,7 +164,7 @@ const DOMAIN_REGISTRARS: DomainRegistrarInfo[] = [
   {
     id: "porkbun",
     name: "Porkbun",
-    patterns: [/porkbun\.com/i],
+    patterns: [/(^|\.)porkbun\.com$/i],
     instructions: [
       "Log into your Porkbun account",
       "Go to Domain Management and select your domain",
@@ -207,9 +207,15 @@ function parseDomainEvidence(evidence: string | null): DomainTransferEvidence | 
 }
 
 function detectRegistrar(url: string): DomainRegistrarInfo | null {
-  return DOMAIN_REGISTRARS.find((r) =>
-    r.patterns.some((p) => p.test(url))
-  ) || null;
+  try {
+    const normalized = url.startsWith("http") ? url : `https://${url}`;
+    const parsed = new URL(normalized);
+    return DOMAIN_REGISTRARS.find((r) =>
+      r.patterns.some((p) => p.test(parsed.hostname))
+    ) || null;
+  } catch {
+    return null;
+  }
 }
 
 export default function TransferPage() {

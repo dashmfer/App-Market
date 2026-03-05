@@ -14,7 +14,6 @@ import {
   AlertCircle,
   ExternalLink,
   RefreshCw,
-  Settings2,
   Code2,
   Activity,
 } from "lucide-react";
@@ -100,7 +99,7 @@ export default function DeveloperPage() {
 }
 
 function DeveloperContent() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [activeTab, setActiveTab] = useState<"keys" | "webhooks">("keys");
 
   // API Keys state

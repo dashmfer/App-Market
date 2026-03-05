@@ -274,7 +274,7 @@ export async function POST(
     });
 
     // Notify seller with their share
-    const sellerName = transaction.seller.displayName || transaction.seller.username || "Seller";
+    const _sellerName = transaction.seller.displayName || transaction.seller.username || "Seller";
     await prisma.notification.create({
       data: {
         userId: transaction.sellerId,

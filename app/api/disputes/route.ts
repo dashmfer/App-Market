@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { calculateDisputeFee, DISPUTE_FEE_BPS } from "@/lib/solana";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { calculateDisputeFee } from "@/lib/solana";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/disputes - Get user's disputes

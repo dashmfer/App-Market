@@ -3,7 +3,7 @@ import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/purchases - Create a purchase (Buy Now)

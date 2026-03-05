@@ -51,9 +51,7 @@ function NotificationItem({
   );
 
   const listingSlug = notification.data?.listingSlug || (notification.data as any)?.slug;
-  const listingId = notification.data?.listingId;
   const conversationId = notification.data?.conversationId;
-  const collaboratorId = notification.data?.collaboratorId;
   const partnerId = notification.data?.partnerId;
   const transactionId = notification.data?.transactionId;
 

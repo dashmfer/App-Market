@@ -67,20 +67,6 @@ const CRON_ROUTES = [
   "/api/cron",
 ];
 
-// Public API routes (no auth needed)
-const PUBLIC_API_ROUTES = [
-  "/api/auth",
-  "/api/listings",    // GET only
-  "/api/search",
-  "/api/categories",
-  "/api/health",
-  "/api/stats",       // Public statistics
-  "/api/leaderboard", // Public leaderboard
-  "/api/users",       // Public user profiles
-  "/api/openapi",     // API docs
-  "/api/reviews",     // GET only (public reviews)
-];
-
 // NOTE: CSRF protection is provided by:
 // 1. SameSite=Lax cookies (prevents cross-site cookie submission)
 // 2. JSON Content-Type requirement (simple forms can't send JSON)

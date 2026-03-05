@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Loader2, Plus, Key, CreditCard, Copy, Mail } from "lucide-react";
+import { Settings, User, Wallet, Bell, Shield, Upload, X, Link2, Check, Loader2, Plus, Key, Copy } from "lucide-react";
 import { XIcon } from "@/components/icons/XIcon";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -38,7 +38,7 @@ function SettingsContent() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [email, setEmail] = useState<string | null>(null);
+  const [_email, setEmail] = useState<string | null>(null);
   const [userWalletAddress, setUserWalletAddress] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

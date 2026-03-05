@@ -8,7 +8,6 @@ import {
   Check,
   AlertTriangle,
   Eye,
-  EyeOff,
   Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,10 +83,6 @@ export function ExportKeyModal({
     setHasKey(false);
     onClose();
   }, [onClose]);
-
-  const maskedKey = hasKey && privateKeyRef.current
-    ? privateKeyRef.current.slice(0, 8) + "\u2022".repeat(40) + privateKeyRef.current.slice(-8)
-    : "";
 
   return (
     <AnimatePresence>

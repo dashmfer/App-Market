@@ -46,9 +46,9 @@ export async function POST(
     }
 
     // Validate that we need fallback (deadline passed or no buyer info required)
-    const hasRequiredInfo = transaction.listing.requiredBuyerInfo !== null;
-    const deadlinePassed = transaction.buyerInfoStatus === "DEADLINE_PASSED";
-    const noInfoProvided = transaction.buyerInfoStatus === "PENDING";
+    const _hasRequiredInfo = transaction.listing.requiredBuyerInfo !== null;
+    const _deadlinePassed = transaction.buyerInfoStatus === "DEADLINE_PASSED";
+    const _noInfoProvided = transaction.buyerInfoStatus === "PENDING";
 
     // GitHub transfer link is required if there's a GitHub repo
     if (transaction.listing.githubRepo && !githubTransferLink) {

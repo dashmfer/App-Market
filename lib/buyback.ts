@@ -16,7 +16,7 @@
  * BUYBACK_PERCENTAGE=20
  */
 
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { PLATFORM_CONFIG, calculateBuybackAmount } from "./config";
 
 // Types

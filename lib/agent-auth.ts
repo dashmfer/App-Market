@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import nacl from "tweetnacl";
 import bs58 from "bs58";

@@ -25,10 +25,8 @@ import {
   FileText,
   Palette,
   Users,
-  Star,
   TrendingUp,
   Shield,
-  AlertCircle,
   ChevronRight,
   Play,
   Loader2,
@@ -43,7 +41,7 @@ import {
   Server,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { useCountdown } from "@/hooks/useCountdown";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
 import { PurchasePartnersDisplay } from "@/components/listings/purchase-partners-display";
@@ -220,7 +218,7 @@ export default function ListingPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const { data: session } = useSession();
-  const { publicKey, signMessage, sendTransaction, connected } = useWallet();
+  const { publicKey, sendTransaction, connected } = useWallet();
   const { connection } = useConnection();
 
   const [listing, setListing] = useState<Listing | null>(null);

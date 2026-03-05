@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // Handle OAuth errors
     if (error) {
-      console.error("Twitter OAuth error:", error);
+      console.error("Twitter OAuth error:", String(error).replace(/[\r\n]/g, ""));
       return NextResponse.redirect(
         getSafeRedirectUrl(`/dashboard/settings?twitter_error=${encodeURIComponent(error)}`, request.url)
       );

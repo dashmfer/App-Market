@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { CollaboratorRole, CollaboratorRoleDescription, CollaboratorStatus } from "@/lib/prisma-enums";
+import { CollaboratorRole, CollaboratorRoleDescription } from "@/lib/prisma-enums";
 import { createNotification } from "@/lib/notifications";
 
 // GET /api/listings/[slug]/collaborators - Get all collaborators for a listing

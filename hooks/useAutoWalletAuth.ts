@@ -32,7 +32,7 @@ function getReferralCode(): string | null {
  */
 export function useAutoWalletAuth() {
   const { publicKey, signMessage, connected } = useWallet();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const isAuthenticating = useRef(false);
   const lastAuthenticatedWallet = useRef<string | null>(null);
 

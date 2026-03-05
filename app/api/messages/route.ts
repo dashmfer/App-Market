@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent } from "@/lib/validation";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/messages - Get all conversations for the user

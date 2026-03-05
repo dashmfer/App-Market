@@ -8,7 +8,6 @@ import {
 } from "@/lib/agent-auth";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
-import { PLATFORM_CONFIG } from "@/lib/config";
 
 // GET /api/agent/bids - Get all bids placed by the authenticated user
 export async function GET(request: NextRequest) {

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,16 +55,28 @@ export async function PUT(req: NextRequest) {
     const updateData: any = {};
 
     if (data.displayName !== undefined) {
-      // Strip HTML tags to prevent stored XSS
-      updateData.displayName = data.displayName.replace(/<[^>]*>/g, "").trim().slice(0, 50);
+      // SECURITY: Truncate before regex to prevent ReDoS, loop to prevent incomplete sanitization
+      let displayName = String(data.displayName).slice(0, 100);
+      let prev = "";
+      while (prev !== displayName) {
+        prev = displayName;
+        displayName = displayName.replace(/<[^>]*>/g, "");
+      }
+      updateData.displayName = displayName.trim().slice(0, 50);
     }
 
     if (data.bio !== undefined) {
-      updateData.bio = data.bio.replace(/<[^>]*>/g, "").trim().slice(0, 500);
+      let bio = String(data.bio).slice(0, 1000);
+      let prev = "";
+      while (prev !== bio) {
+        prev = bio;
+        bio = bio.replace(/<[^>]*>/g, "");
+      }
+      updateData.bio = bio.trim().slice(0, 500);
     }
 
     if (data.websiteUrl !== undefined) {
-      const url = data.websiteUrl.trim().slice(0, 200);
+      const url = String(data.websiteUrl).trim().slice(0, 200);
       if (url && !/^https?:\/\//i.test(url)) {
         return NextResponse.json({ error: "Website URL must start with http:// or https://" }, { status: 400 });
       }
@@ -73,7 +84,13 @@ export async function PUT(req: NextRequest) {
     }
 
     if (data.discordHandle !== undefined) {
-      updateData.discordHandle = data.discordHandle.replace(/<[^>]*>/g, "").trim().slice(0, 50);
+      let discordHandle = String(data.discordHandle).slice(0, 100);
+      let prev = "";
+      while (prev !== discordHandle) {
+        prev = discordHandle;
+        discordHandle = discordHandle.replace(/<[^>]*>/g, "");
+      }
+      updateData.discordHandle = discordHandle.trim().slice(0, 50);
     }
 
     const updatedUser = await prisma.user.update({

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { hashEvidence, isValidUUID } from "@/lib/validation";
+import { hashEvidence } from "@/lib/validation";
 import { audit, auditContext } from "@/lib/audit";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
@@ -81,8 +81,6 @@ export async function POST(
 
     // Apply resolution
     let newTransactionStatus = transaction.status;
-    let buyerRefund = 0;
-    let sellerPayout = 0;
     let feeCharged = false;
 
     // SECURITY: Dispute fee must be accounted for in refund calculations
@@ -90,33 +88,22 @@ export async function POST(
 
     switch (resolution) {
       case "FULL_REFUND":
-        // Buyer gets full refund; dispute fee charged to seller from escrow
-        buyerRefund = Number(transaction.salePrice);
-        sellerPayout = 0;
         newTransactionStatus = "REFUNDED";
         feeCharged = true;
         break;
 
       case "PARTIAL_REFUND":
-        // Split 50/50, dispute fee split proportionally
-        buyerRefund = Number(transaction.salePrice) * 0.5 - (disputeFeeAmount * 0.5);
-        sellerPayout = Number(transaction.salePrice) * 0.5 - Number(transaction.platformFee) * 0.5 - (disputeFeeAmount * 0.5);
         newTransactionStatus = "COMPLETED";
         feeCharged = disputeFeeAmount > 0;
         break;
 
       case "RELEASE_TO_SELLER":
-        // Seller gets proceeds; dispute fee charged to buyer (loser)
-        buyerRefund = 0;
-        sellerPayout = Number(transaction.sellerProceeds);
         newTransactionStatus = "COMPLETED";
         feeCharged = true;
         break;
 
       case "EXTEND_DEADLINE":
-        // Give more time for transfer
         newTransactionStatus = "TRANSFER_PENDING";
-        // No funds moved, no fee charged
         break;
     }
 

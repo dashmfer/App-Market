@@ -97,7 +97,6 @@ export default function EditListingPage() {
   // Check if user is the owner
   const isOwner = session?.user?.id === listing?.sellerId;
   const hasBids = (listing?._count?.bids || 0) > 0;
-  const auctionStarted = listing ? new Date() > new Date(listing.endTime) : false;
   const canCancel = isOwner && !hasBids && listing?.status === "ACTIVE";
 
   const handleSave = async () => {

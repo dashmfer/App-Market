@@ -7,7 +7,6 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
   Shield,
   Loader2,
   Flag,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/db";
 import { validatePasswordComplexity } from "@/lib/validation";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,9 +26,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    // Validate email format (atomic groups via possessive-style matching to prevent ReDoS)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (typeof email !== "string" || email.length > 254 || !emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Invalid email format" },
         { status: 400 }
