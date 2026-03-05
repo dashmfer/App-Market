@@ -14,32 +14,6 @@ import { verifyCronSecret } from "@/lib/cron-auth";
  * Runs every 15 minutes.
  */
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-// Retry wrapper for database operations
-async function _withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  maxRetries = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn("[Cron] Operation attempt failed:", { operationName, attempt, maxRetries, error });
-
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 export async function GET(request: NextRequest) {
   // Verify authorization

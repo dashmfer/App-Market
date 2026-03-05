@@ -61,10 +61,15 @@ function encrypt(plaintext: string): string {
     Buffer.from(encrypted, "hex"),
   ]);
 
-  return combined.toString("base64");
+  return "enc:v1:" + combined.toString("base64");
 }
 
 function looksEncrypted(data: string): boolean {
+  // Check for deterministic prefix (new format)
+  if (data.startsWith("enc:v1:")) {
+    return true;
+  }
+  // Legacy format: heuristic check
   try {
     const decoded = Buffer.from(data, "base64");
     return decoded.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;

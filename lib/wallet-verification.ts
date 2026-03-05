@@ -29,13 +29,13 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
-    // SECURITY: Validate message format with strict prefix/line match instead of substring.
-    // Substring matching (includes) could be bypassed by embedding "App Market" in an attacker-crafted message.
+    // SECURITY: Message MUST start with a known prefix — no substring/includes matching.
+    // This prevents attackers from embedding valid prefixes after arbitrary content.
     const validPrefixes = [
       'Accept collaboration for "',
       "Sign this message to prove you own this wallet",
     ];
-    if (!validPrefixes.some(prefix => message.startsWith(prefix) || message.includes(`\n${prefix}`))) {
+    if (!validPrefixes.some(prefix => message.startsWith(prefix))) {
       return { valid: false, error: "Invalid message format — must be an App Market verification message" };
     }
 
