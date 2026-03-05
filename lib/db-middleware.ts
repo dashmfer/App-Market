@@ -33,7 +33,7 @@ export function accountEncryptionMiddleware(): Prisma.Middleware {
       if (Array.isArray(result)) {
         return result.map(decryptAccountTokens);
       }
-      if (typeof result === "object") {
+      if (typeof result === "object" && result !== null) {
         return decryptAccountTokens(result);
       }
     }

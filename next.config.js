@@ -73,9 +73,8 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Allow scripts from self and unsafe-eval (needed for Next.js dev), and strict-dynamic for production
               // NOTE: unsafe-inline is still needed until Next.js nonce support is adopted
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV !== 'production' ? " 'unsafe-eval'" : ""}`,
               // Allow styles from self and inline
               "style-src 'self' 'unsafe-inline'",
               // Allow images from approved sources

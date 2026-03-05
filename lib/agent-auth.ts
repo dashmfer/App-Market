@@ -385,8 +385,13 @@ export function verifyWebhookSignature(
   secret: string
 ): boolean {
   const expected = signWebhookPayload(payload, secret);
+  const maxLen = Math.max(signature.length, expected.length);
+  const paddedSig = Buffer.alloc(maxLen);
+  const paddedExpected = Buffer.alloc(maxLen);
+  Buffer.from(signature).copy(paddedSig);
+  Buffer.from(expected).copy(paddedExpected);
   try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    return timingSafeEqual(paddedSig, paddedExpected) && signature.length === expected.length;
   } catch {
     return false;
   }
