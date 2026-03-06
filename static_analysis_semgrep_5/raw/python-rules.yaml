@@ -1,0 +1,154 @@
+rules:
+  - id: python-exec-eval
+    patterns:
+      - pattern-either:
+          - pattern: exec(...)
+          - pattern: eval(...)
+    message: Use of exec() or eval() can execute arbitrary code. Avoid if possible.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-95"]
+      category: security
+
+  - id: python-subprocess-shell
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+          - pattern: subprocess.check_call(..., shell=True, ...)
+    message: subprocess with shell=True is vulnerable to shell injection.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78"]
+      category: security
+
+  - id: python-os-system
+    patterns:
+      - pattern-either:
+          - pattern: os.system(...)
+          - pattern: os.popen(...)
+    message: os.system/os.popen can lead to command injection. Use subprocess with shell=False.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-78"]
+      category: security
+
+  - id: python-sql-injection
+    patterns:
+      - pattern-either:
+          - pattern: cursor.execute("..." % ...)
+          - pattern: cursor.execute("..." + ...)
+          - pattern: cursor.execute(f"...")
+    message: Possible SQL injection via string formatting. Use parameterized queries.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-89"]
+      category: security
+
+  - id: python-pickle-load
+    patterns:
+      - pattern-either:
+          - pattern: pickle.load(...)
+          - pattern: pickle.loads(...)
+          - pattern: cPickle.load(...)
+          - pattern: cPickle.loads(...)
+    message: Deserializing with pickle can execute arbitrary code. Use safer alternatives.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-502"]
+      category: security
+
+  - id: python-yaml-load
+    pattern: yaml.load(...) 
+    fix: yaml.safe_load(...)
+    message: yaml.load() without Loader can execute arbitrary code. Use yaml.safe_load().
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-502"]
+      category: security
+
+  - id: python-hardcoded-password
+    patterns:
+      - pattern-either:
+          - pattern: password = "..."
+          - pattern: passwd = "..."
+          - pattern: secret = "..."
+          - pattern: api_key = "..."
+    message: Possible hardcoded credential detected.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-798"]
+      category: security
+
+  - id: python-tempfile-insecure
+    patterns:
+      - pattern-either:
+          - pattern: tempfile.mktemp(...)
+    message: tempfile.mktemp is insecure. Use tempfile.mkstemp() instead.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-377"]
+      category: security
+
+  - id: python-assert-security
+    pattern: assert ...
+    message: Assert statements are removed in optimized mode (-O). Do not use for security checks.
+    languages: [python]
+    severity: INFO
+    metadata:
+      cwe: ["CWE-617"]
+      category: security
+
+  - id: python-insecure-hash
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+    message: MD5/SHA1 are weak hashing algorithms. Use SHA-256 or stronger for security purposes.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-328"]
+      category: security
+
+  - id: python-requests-no-verify
+    pattern: requests.$METHOD(..., verify=False, ...)
+    message: SSL verification disabled. This allows MITM attacks.
+    languages: [python]
+    severity: ERROR
+    metadata:
+      cwe: ["CWE-295"]
+      category: security
+
+  - id: python-debug-true
+    patterns:
+      - pattern-either:
+          - pattern: DEBUG = True
+          - pattern: app.debug = True
+    message: Debug mode enabled. Ensure this is disabled in production.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-489"]
+      category: security
+
+  - id: python-open-redirect
+    patterns:
+      - pattern-either:
+          - pattern: redirect($INPUT)
+    message: Potential open redirect if input is user-controlled.
+    languages: [python]
+    severity: WARNING
+    metadata:
+      cwe: ["CWE-601"]
+      category: security
