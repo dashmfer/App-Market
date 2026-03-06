@@ -1,0 +1,23 @@
+Approved rulesets for scan:
+
+Scan 1 — TypeScript/JavaScript (comprehensive):
+  Baseline: p/security-audit, p/secrets
+  Language: p/typescript, p/javascript
+  Framework: p/nextjs, p/react, p/nodejs, p/express
+  Standards: p/owasp-top-ten, p/cwe-top-25
+  Custom: security-reports/semgrep-scan/rules/security-audit.yaml
+  Custom: security-reports/semgrep-scan/rules/nextjs-security.yaml
+  Third-party: https://github.com/trailofbits/semgrep-rules
+  Third-party: https://github.com/elttam/semgrep-rules
+  Third-party: https://github.com/apiiro/malicious-code-ruleset
+
+Scan 2 — Rust:
+  Language: p/rust
+  Third-party: https://github.com/Decurity/semgrep-smart-contracts
+
+Scan 3 — Python:
+  Language: p/python
+
+Mode: Run all
+Engine: Semgrep OSS 1.153.0
+Target: /home/user/App-Market
