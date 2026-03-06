@@ -134,8 +134,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Encrypt the keypair for secure storage
-    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair));
+    // Encrypt the keypair for secure storage (AAD binds to token mint to prevent swaps)
+    const tokenMint = vanityKeypair.publicKey.toBase58();
+    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair), `tokenLaunch:${tokenMint}`);
 
     // Create the token launch record
     const tokenLaunch = await prisma.tokenLaunch.create({
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
         tokenSymbol: tokenSymbol.toUpperCase(),
         tokenDescription: tokenDescription || null,
         tokenImage: tokenImage || null,
-        tokenMint: vanityKeypair.publicKey.toBase58(),
+        tokenMint,
         totalSupply: BigInt(PLATFORM_CONFIG.pato.defaultTotalSupply) *
           BigInt(10 ** PLATFORM_CONFIG.pato.tokenDecimals),
         launchType: "PATO",

@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
 
     // Generate webhook secret
     const plaintextSecret = generateWebhookSecret();
-    // SECURITY: Encrypt secret before storing in database
-    const encryptedSecret = encrypt(plaintextSecret);
+    // SECURITY: Encrypt secret with AAD binding to prevent cross-record swaps
+    const encryptedSecret = encrypt(plaintextSecret, `webhook:${userId}`);
 
     // Create webhook
     const webhook = await prisma.webhook.create({

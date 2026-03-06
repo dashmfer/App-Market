@@ -6,10 +6,17 @@ import { randomBytes } from "crypto";
 
 /**
  * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
+ * @param userId - Owner's user ID, used as AAD for authenticated decryption
  */
-function decryptSecret(secret: string): string {
+function decryptSecret(secret: string, userId?: string): string {
   if (looksEncrypted(secret)) {
-    return decrypt(secret);
+    const aad = userId ? `webhook:${userId}` : undefined;
+    try {
+      return decrypt(secret, aad);
+    } catch {
+      // Fall back to decryption without AAD for legacy data encrypted before AAD was added
+      return decrypt(secret);
+    }
   }
   // SECURITY: Log warning for plaintext secrets — these should be migrated to encrypted
   console.warn(
@@ -66,6 +73,7 @@ export async function dispatchWebhookEvent(
         id: true,
         url: true,
         secret: true,
+        userId: true,
       },
     });
 
@@ -81,9 +89,9 @@ export async function dispatchWebhookEvent(
       data,
     };
 
-    // Dispatch to all webhooks in parallel (decrypt secrets before use)
-    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
-      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret), payload)
+    // Dispatch to all webhooks in parallel (decrypt secrets with AAD before use)
+    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string; userId: string }) =>
+      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret, webhook.userId), payload)
     );
 
     // Fire and forget - don't await

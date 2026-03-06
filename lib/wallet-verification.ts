@@ -3,6 +3,7 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
 import crypto from "crypto";
+import { validateWalletSignatureMessage } from "@/lib/validation";
 
 export interface WalletVerificationResult {
   success: boolean;
@@ -102,6 +103,19 @@ export async function verifyWalletSignature(
     if (!publicKey || !signature || !message) {
       console.error("[Wallet Verification] Missing required fields");
       return { success: false, error: "Missing required fields" };
+    }
+
+    // SECURITY: Validate message format and timestamp internally.
+    // This makes the function secure-by-default — callers don't need to
+    // remember to validate the message format separately.
+    const messageValidation = await validateWalletSignatureMessage(
+      message,
+      publicKey,
+      300 // 5 minute validity
+    );
+    if (!messageValidation.valid) {
+      console.error("[Wallet Verification] Message validation failed:", messageValidation.error);
+      return { success: false, error: messageValidation.error || "Invalid message format" };
     }
 
     // Verify the signature

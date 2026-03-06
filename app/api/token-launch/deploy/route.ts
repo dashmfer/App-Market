@@ -77,10 +77,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt the vanity keypair
-    const decryptedKeypair = deserializeKeypair(
-      decrypt(tokenLaunch.vanityKeypair)
-    );
+    // Decrypt the vanity keypair (AAD must match what was used during encryption)
+    let decryptedKeypairData: string;
+    try {
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair, `tokenLaunch:${tokenLaunch.tokenMint}`);
+    } catch {
+      // Fall back to decryption without AAD for legacy data
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair);
+    }
+    const decryptedKeypair = deserializeKeypair(decryptedKeypairData);
 
     const creatorWallet = new PublicKey(tokenLaunch.creatorWallet!);
 

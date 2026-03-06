@@ -115,16 +115,26 @@ export function decrypt(encryptedData: string, aad?: string): string {
  * Deterministic check if a string is encrypted data.
  * Uses the "enc:v1:" prefix for reliable identification instead of
  * a length-based heuristic which can cause silent data corruption.
- * Also supports legacy format (base64 without prefix) for backwards compatibility.
+ * Also supports legacy format (base64 without prefix) for backwards compatibility,
+ * with stricter validation to reduce false positives on JWTs/long base64 strings.
  */
 export function looksEncrypted(data: string): boolean {
-  // New format: deterministic prefix
+  // New format: deterministic prefix — authoritative
   if (data.startsWith("enc:v1:")) {
     return true;
   }
-  // Legacy format: heuristic check (will be removed after migration)
+  // Legacy format: stricter heuristic to avoid false positives
+  // JWTs contain dots, URLs contain slashes/colons — reject common non-encrypted patterns
+  if (data.includes(".") || data.startsWith("http") || data.startsWith("ey")) {
+    return false;
+  }
   try {
     const decoded = Buffer.from(data, "base64");
+    // Verify the string is actually valid base64 (not just any string that base64-decodes)
+    if (decoded.toString("base64") !== data) {
+      return false;
+    }
+    // Must be exactly salt + iv + authTag + at least 1 byte of ciphertext
     return decoded.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
   } catch {
     return false;
