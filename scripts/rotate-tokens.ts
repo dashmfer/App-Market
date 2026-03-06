@@ -10,9 +10,8 @@
  * Safe to run multiple times — looksEncrypted() prevents double-encryption.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const { PrismaClient } = require("@prisma/client");
-const crypto = require("crypto");
+import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
