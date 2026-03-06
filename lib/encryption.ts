@@ -51,7 +51,7 @@ export function encrypt(plaintext: string, aad?: string): string {
   const key = deriveKey(secret, salt);
   const iv = randomBytes(IV_LENGTH);
 
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   // SECURITY: AAD binds the ciphertext to a context (e.g., userId, field name).
   // This prevents encrypted values from being swapped between records undetected.
   if (aad) {
@@ -99,7 +99,7 @@ export function decrypt(encryptedData: string, aad?: string): string {
   const encrypted = combined.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
 
   const key = deriveKey(secret, salt);
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   decipher.setAuthTag(authTag);
   if (aad) {
     decipher.setAAD(Buffer.from(aad, "utf8"));
