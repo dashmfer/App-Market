@@ -1,0 +1,21 @@
+{
+  "name": "app-market-security-video",
+  "version": "1.0.0",
+  "description": "Cinematic security showcase video for App Market",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts SecurityShowcase out/security-showcase.mp4",
+    "render:gif": "remotion render src/index.ts SecurityShowcase out/security-showcase.gif --image-format=png",
+    "preview": "remotion preview src/index.ts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.434",
+    "@remotion/player": "4.0.434",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.434",
+    "typescript": "5.9.3"
+  }
+}
