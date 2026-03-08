@@ -2,8 +2,14 @@
 
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
+import { notFound } from 'next/navigation';
 
 export default function SessionDebugPage() {
+  // SECURITY: Debug page must not be accessible in production.
+  // Exposes session data, cookie names, and auth architecture details.
+  if (process.env.NODE_ENV === 'production') {
+    notFound();
+  }
   const { data: session, status } = useSession();
   const [cookies, setCookies] = useState<string>('');
   const [apiSession, setApiSession] = useState<any>(null);

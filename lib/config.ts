@@ -161,13 +161,13 @@ export const PLATFORM_CONFIG = {
   // ============================================
   tokens: {
     APP: {
-      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
       decimals: 9,
       symbol: "APP",
       name: "App Market Token",
     },
     USDC: {
-      mint: process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      mint: process.env.NEXT_PUBLIC_USDC_MINT || "",
       decimals: 6,
       symbol: "USDC",
       name: "USD Coin",
@@ -178,11 +178,11 @@ export const PLATFORM_CONFIG = {
   // WALLET ADDRESSES
   // ============================================
   wallets: {
-    // Platform treasury (receives fees)
-    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
+    // Platform treasury (receives fees) — MUST be set via environment variable
+    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "",
 
-    // Platform token mint ($APP)
-    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+    // Platform token mint ($APP) — MUST be set via environment variable
+    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
 
     // Buyback wallet (holds SOL for buybacks)
     buybackWallet: process.env.BUYBACK_WALLET || null,

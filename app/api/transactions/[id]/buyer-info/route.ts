@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { validateCsrfRequest } from "@/lib/csrf";
 
 // GET /api/transactions/[id]/buyer-info - Get buyer info status
 export async function GET(
@@ -70,6 +71,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token for state-changing operation
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return NextResponse.json({ error: csrf.error }, { status: 403 });
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

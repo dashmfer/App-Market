@@ -28,18 +28,20 @@ export const WARNING_EXTENSIONS = [
   '.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', // Archives (could contain anything)
   '.pdf', // Can contain malicious scripts
   '.doc', '.xls', '.ppt', // Old Office formats
+  '.svg', // SECURITY: SVG can contain embedded JavaScript, <script> tags, and event handlers
+  '.html', '.htm', // Can contain scripts
 ];
 
 // Safe file extensions for code and assets
 export const SAFE_EXTENSIONS = [
-  // Images
-  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico', '.bmp',
+  // Images (SVG excluded — moved to WARNING due to XSS risk from embedded scripts)
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.ico', '.bmp',
   // Documents
   '.txt', '.md', '.csv', '.rtf',
   // Modern Office (without macros)
   '.docx', '.xlsx', '.pptx',
   // Code files
-  '.ts', '.tsx', '.js', '.jsx', '.json', '.html', '.css', '.scss', '.less',
+  '.ts', '.tsx', '.js', '.jsx', '.json', '.css', '.scss', '.less',
   '.py', '.rb', '.go', '.rs', '.java', '.kt', '.swift', '.c', '.cpp', '.h',
   '.php', '.sql', '.yaml', '.yml', '.toml', '.xml', '.env.example',
   // Config files
@@ -81,11 +83,22 @@ export function validateFile(filename: string): FileValidationResult {
     };
   }
 
-  // File is safe
+  // SECURITY: Deny-by-default for unknown extensions.
+  // Only explicitly listed SAFE_EXTENSIONS are allowed without warning.
+  if (SAFE_EXTENSIONS.includes(extension)) {
+    return {
+      allowed: true,
+      warning: false,
+      message: 'File type is allowed',
+      extension,
+    };
+  }
+
+  // Unknown extension — treat as potentially dangerous
   return {
-    allowed: true,
+    allowed: false,
     warning: false,
-    message: 'File type is allowed',
+    message: `File type "${extension}" is not in the allowed list. Only known safe file types are permitted.`,
     extension,
   };
 }
@@ -104,7 +117,8 @@ function getExtension(filename: string): string {
  */
 export function isImageFile(filename: string): boolean {
   const extension = getExtension(filename).toLowerCase();
-  return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico', '.bmp'].includes(extension);
+  // SECURITY: SVG excluded — can contain embedded JavaScript/XSS
+  return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.ico', '.bmp'].includes(extension);
 }
 
 /**

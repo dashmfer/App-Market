@@ -2,27 +2,28 @@ import { Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
 import { PLATFORM_CONFIG } from "@/lib/config";
 
+// SECURITY: Solana addresses must come from environment variables.
+// Hardcoded fallbacks risk routing funds to wrong addresses if env vars are missing at build time.
+// env-validation.ts requires these in production; in development, throw if missing.
+function requirePublicKey(envVar: string, name: string): PublicKey {
+  const value = process.env[envVar];
+  if (!value) {
+    throw new Error(`${envVar} must be set. ${name} cannot use a hardcoded fallback.`);
+  }
+  return new PublicKey(value);
+}
+
 // Program ID from deployed/generated smart contract
-// In production, NEXT_PUBLIC_PROGRAM_ID MUST be set via env-validation.ts startup check.
-// Fallback to devnet only in development.
-export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
-);
+export const PROGRAM_ID = requirePublicKey("NEXT_PUBLIC_PROGRAM_ID", "Program ID");
 
 // Platform treasury wallet - receives fees
-export const TREASURY_WALLET = new PublicKey(
-  process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6"
-);
+export const TREASURY_WALLET = requirePublicKey("NEXT_PUBLIC_TREASURY_WALLET", "Treasury wallet");
 
 // Platform token mint ($APP) - mainnet address
-export const PLATFORM_TOKEN_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS"
-);
+export const PLATFORM_TOKEN_MINT = requirePublicKey("NEXT_PUBLIC_APP_TOKEN_MINT", "APP token mint");
 
 // USDC mint (mainnet)
-export const USDC_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-);
+export const USDC_MINT = requirePublicKey("NEXT_PUBLIC_USDC_MINT", "USDC mint");
 
 // Token decimals
 export const TOKEN_DECIMALS = {

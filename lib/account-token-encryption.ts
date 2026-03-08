@@ -23,11 +23,14 @@ export function encryptAccountTokens<T extends Record<string, any>>(data: T, aad
           encrypted[field] = encrypt(encrypted[field], aad);
         }
       } catch (error) {
-        // SECURITY: Log structured warning for monitoring — token will be stored in plaintext
-        console.error("[Token Encryption] SECURITY WARNING: Failed to encrypt field:", { field, error });
+        // SECURITY: In production, refuse to store tokens unencrypted.
+        // Silently falling through to plaintext storage is a data breach risk.
         if (process.env.NODE_ENV === "production") {
-          console.error(`[Token Encryption] ALERT: ${field} stored UNENCRYPTED — investigate immediately`);
+          console.error("[Token Encryption] CRITICAL: Encryption failed, refusing to store plaintext:", { field, error });
+          throw new Error(`Encryption failed for ${field} — refusing to store unencrypted token in production`);
         }
+        // In development, log warning and continue (allows dev without ENCRYPTION_SECRET)
+        console.error("[Token Encryption] WARNING: Failed to encrypt field (dev only):", { field, error });
       }
     }
   }
@@ -47,12 +50,14 @@ export function decryptAccountTokens<T extends Record<string, any>>(data: T, aad
           decrypted[field] = decrypt(decrypted[field], aad);
         }
       } catch (error) {
-        // SECURITY: Log structured warning — may indicate key rotation issue or corruption
-        console.error("[Token Encryption] SECURITY WARNING: Failed to decrypt field:", { field, error });
+        // SECURITY: In production, fail loudly on decryption failure.
+        // Returning raw ciphertext could expose garbled data to downstream consumers.
         if (process.env.NODE_ENV === "production") {
-          console.error(`[Token Encryption] ALERT: ${field} decryption failed — possible key mismatch or corruption`);
+          console.error("[Token Encryption] CRITICAL: Decryption failed:", { field, error });
+          throw new Error(`Decryption failed for ${field} — possible key mismatch or data corruption`);
         }
-        // Return the raw value if decryption fails (may be unencrypted legacy data)
+        // In development, log and return raw value for backward compatibility
+        console.error("[Token Encryption] WARNING: Decryption failed (dev only):", { field, error });
       }
     }
   }

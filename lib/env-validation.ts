@@ -55,13 +55,30 @@ const ENV_VARS: EnvVar[] = [
     name: "ADMIN_SECRET",
     required: process.env.NODE_ENV === "production",
     minLength: 32,
-    description: "Admin API authentication secret",
+    validate: (v: string) => {
+      // SECURITY: Reject common placeholder substrings that pass length checks
+      const placeholders = ["change-in-production", "your-", "changeme", "xxx", "replace-me"];
+      return !placeholders.some(p => v.toLowerCase().includes(p));
+    },
+    description: "Admin API authentication secret (must not contain placeholder text)",
   },
   {
     name: "NEXT_PUBLIC_SITE_URL",
     required: process.env.NODE_ENV === "production",
     validate: (v: string) => v.startsWith("https://"),
     description: "Public site URL (must use HTTPS in production)",
+  },
+  {
+    name: "CSRF_SECRET",
+    required: process.env.NODE_ENV === "production",
+    minLength: 32,
+    description: "CSRF token HMAC secret (must be independent from NEXTAUTH_SECRET)",
+  },
+  {
+    name: "WEBHOOK_SECRET",
+    required: false,
+    minLength: 32,
+    description: "Secret for authenticating incoming webhook requests (pool graduation, etc.)",
   },
 ];
 
@@ -102,6 +119,22 @@ export function validateEnvironment(): ValidationResult {
   const adminSecret = process.env.ADMIN_SECRET;
   if (adminSecret && adminSecret.length < 32) {
     errors.push("WEAK: ADMIN_SECRET must be at least 32 characters");
+  }
+
+  // SECURITY: Validate Privy credentials are either both set or both unset
+  const privyAppId = process.env.PRIVY_APP_ID;
+  const privyAppSecret = process.env.PRIVY_APP_SECRET;
+  if ((privyAppId && !privyAppSecret) || (!privyAppId && privyAppSecret)) {
+    errors.push("PARTIAL: PRIVY_APP_ID and PRIVY_APP_SECRET must both be set, or both unset");
+  }
+
+  // SECURITY: Check that NEXTAUTH_SECRET doesn't contain placeholder text
+  const nextauthSecret = process.env.NEXTAUTH_SECRET;
+  if (nextauthSecret) {
+    const placeholders = ["change-in-production", "your-", "changeme", "xxx", "replace-me"];
+    if (placeholders.some(p => nextauthSecret.toLowerCase().includes(p))) {
+      errors.push("WEAK: NEXTAUTH_SECRET contains placeholder text — generate a real secret with: openssl rand -hex 32");
+    }
   }
 
   // Check Redis in production

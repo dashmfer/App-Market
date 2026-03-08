@@ -312,7 +312,10 @@ export async function authenticateAgent(request: NextRequest): Promise<AgentAuth
   const nonce = request.headers.get("x-auth-nonce");
 
   if (walletAddress && signature && timestamp) {
-    return verifyWalletSignature(walletAddress, signature, timestamp, nonce || undefined);
+    // SECURITY: Pass nonce directly without coercion. The inner function handles
+    // null/undefined/empty consistently. The `|| undefined` pattern could mask
+    // empty-string nonce headers if the inner function's behavior changes.
+    return verifyWalletSignature(walletAddress, signature, timestamp, nonce ?? undefined);
   }
 
   return {

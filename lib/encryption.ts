@@ -29,7 +29,9 @@ function getEncryptionSecret(): string {
       "Generate one with: openssl rand -hex 32"
     );
   }
-  // SECURITY: Validate minimum key length (256-bit = 64 hex chars or 32 raw bytes)
+  // SECURITY: Validate minimum key length.
+  // 32 ASCII characters provide ~192 bits of entropy (sufficient for scrypt-derived keys).
+  // For full 256-bit entropy, use 64 hex characters from: openssl rand -hex 32
   if (secret.length < 32) {
     throw new Error(
       "ENCRYPTION_SECRET is too short — must be at least 32 characters. " +
