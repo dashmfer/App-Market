@@ -178,7 +178,7 @@ export function BidModal({
           throw new Error("Please connect your wallet first");
         }
 
-        // APP token transfer will be implemented with @solana/spl-token
+        // TODO: Implement client-side SPL token transfer for APP bids
         // For now, record the bid and handle token transfer on backend
         const response = await fetch("/api/bids", {
           method: "POST",
