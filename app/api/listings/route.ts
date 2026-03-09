@@ -452,6 +452,21 @@ export async function POST(request: NextRequest) {
       listingStatus = ListingStatus.RESERVED;
     }
 
+    // SECURITY: Validate collaborator percentages BEFORE creating the listing
+    // to avoid orphaned listing records if validation fails
+    if (hasCollaborators && collaborators?.length > 0) {
+      const totalCollaboratorPercentage = collaborators.reduce(
+        (sum: number, c: any) => sum + (Number(c.percentage) || 0),
+        0
+      );
+      if (totalCollaboratorPercentage > 100) {
+        return NextResponse.json(
+          { error: `Total collaborator percentage (${totalCollaboratorPercentage}%) exceeds 100%` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create listing
     const listing = await prisma.listing.create({
       data: {
@@ -534,18 +549,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create collaborators if provided (validate total percentage)
+    // Create collaborators if provided (percentage already validated above)
     if (hasCollaborators) {
-      const totalCollaboratorPercentage = collaborators.reduce(
-        (sum: number, c: any) => sum + (Number(c.percentage) || 0),
-        0
-      );
-      if (totalCollaboratorPercentage > 100) {
-        return NextResponse.json(
-          { error: `Total collaborator percentage (${totalCollaboratorPercentage}%) exceeds 100%` },
-          { status: 400 }
-        );
-      }
       const collaboratorPromises = collaborators.map(async (collab: any) => {
         // Create the collaborator record
         const collaboratorRecord = await prisma.listingCollaborator.create({

@@ -359,6 +359,13 @@ export async function checkAgentRateLimit(
     };
   }
 
+  // SECURITY: In-memory rate limiting is per-instance and ineffective in serverless/multi-instance production.
+  // Fail closed in production if distributed rate limiting is unavailable.
+  if (process.env.NODE_ENV === "production") {
+    console.error("[AgentAuth] Distributed rate limiting unavailable in production");
+    return { allowed: false, remaining: 0, resetAt: new Date(Date.now() + 60000) };
+  }
+
   // Fallback to in-memory (dev only)
   const now = new Date();
   const windowMs = 60 * 1000;

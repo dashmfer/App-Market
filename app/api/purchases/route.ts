@@ -5,10 +5,15 @@ import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'purchases'))(request);
     if (!rateLimitResult.success) {
@@ -53,10 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate amount is positive
-    if (typeof amount !== 'number' || amount <= 0) {
+    // SECURITY: Validate amount is a finite positive number with upper bound
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
       return NextResponse.json(
-        { error: "Amount must be a positive number" },
+        { error: "Amount must be a positive number (max 1,000,000)" },
         { status: 400 }
       );
     }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { hashEvidence } from "@/lib/validation";
 import { audit, auditContext } from "@/lib/audit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
 export async function POST(
@@ -11,9 +11,13 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // SECURITY: CSRF protection for state-changing admin endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -49,7 +53,7 @@ export async function POST(
 
     // SECURITY: Only admin can resolve disputes
     const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: token.id as string },
       select: { isAdmin: true },
     });
 
@@ -173,7 +177,7 @@ export async function POST(
     await audit({
       action: "ADMIN_DISPUTE_RESOLUTION",
       severity: "WARN",
-      userId: session.user.id,
+      userId: token.id as string,
       targetId: disputeId,
       targetType: "dispute",
       detail: `Dispute resolved: ${resolution}`,
@@ -202,9 +206,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -251,7 +259,7 @@ export async function PUT(
     }
 
     // Only respondent can respond
-    if (dispute.respondentId !== session.user.id) {
+    if (dispute.respondentId !== (token.id as string)) {
       return NextResponse.json(
         { error: "Only the respondent can respond to this dispute" },
         { status: 403 }

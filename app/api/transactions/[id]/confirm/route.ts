@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { hashEvidence } from "@/lib/validation";
 import { validateCsrfRequest } from "@/lib/csrf";
 
@@ -17,9 +16,9 @@ export async function POST(
       return NextResponse.json({ error: csrf.error }, { status: 403 });
     }
 
-    const session = await getServerSession(authOptions);
+    const token = await getAuthToken(request);
 
-    if (!session?.user) {
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -60,9 +59,9 @@ export async function POST(
     }
 
     // Check authorization - include partners for group purchases
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
-    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
+    const isBuyer = transaction.buyerId === (token!.id as string);
+    const isSeller = transaction.sellerId === (token!.id as string);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === (token!.id as string));
     const isPartner = !!userPartner;
 
     if (!isBuyer && !isSeller && !isPartner) {

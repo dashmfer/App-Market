@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import {
   buildClaimCreatorTradingFeeTransaction,
   buildClaimPartnerTradingFeeTransaction,
   getPatoFeeClaimer,
 } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/token-launch/claim-fees — Build transaction to claim trading fees
@@ -20,8 +20,11 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     if (claimType === "creator") {
       // Only the creator (buyer) can claim creator fees
-      if (tokenLaunch.transaction.buyerId !== session.user.id) {
+      if (tokenLaunch.transaction.buyerId !== (token!.id as string)) {
         return NextResponse.json(
           { error: "Only the token creator can claim creator fees" },
           { status: 403 }
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
     if (claimType === "partner") {
       // Only admin/platform can claim partner fees
       const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: (token!.id as string) },
         select: { isAdmin: true },
       });
 

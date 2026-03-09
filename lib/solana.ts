@@ -1,6 +1,11 @@
 import { Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
-import { PLATFORM_CONFIG } from "@/lib/config";
+import {
+  PLATFORM_CONFIG,
+  calculatePlatformFee as _configCalcPlatformFee,
+  calculateDisputeFee as _configCalcDisputeFee,
+  calculateSellerProceeds as _configCalcSellerProceeds,
+} from "@/lib/config";
 
 // SECURITY: Solana addresses must come from environment variables.
 // Hardcoded fallbacks risk routing funds to wrong addresses if env vars are missing at build time.
@@ -134,49 +139,14 @@ export const getFeeRateBps = (currency?: string): number => {
 };
 
 /**
- * SECURITY: All fee calculations use integer arithmetic (lamports) to avoid
- * IEEE 754 floating-point precision loss in financial calculations.
+ * Fee calculations delegate to lib/config.ts (single source of truth)
+ * to prevent divergent behavior from duplicate implementations.
  */
-const LAMPORTS_BIGINT = BigInt(LAMPORTS_PER_SOL);
-
-function _solToLamportsBigInt(sol: number): bigint {
-  const [whole, decimal = ""] = sol.toString().split(".");
-  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
-  return BigInt(whole + paddedDecimal);
-}
-
-function _lamportsToSolNumber(lamports: bigint): number {
-  const whole = lamports / LAMPORTS_BIGINT;
-  const remainder = lamports % LAMPORTS_BIGINT;
-  return Number(whole) + Number(remainder) / Number(LAMPORTS_BIGINT);
-}
-
-// Calculate platform fee (with optional currency for APP discount)
-export const calculatePlatformFee = (amount: number, currency?: string): number => {
-  const feeBps = getFeeRateBps(currency);
-  const amountLamports = _solToLamportsBigInt(amount);
-  const feeLamports = (amountLamports * BigInt(feeBps)) / BigInt(10000);
-  return _lamportsToSolNumber(feeLamports);
-};
-
-// Calculate dispute fee
-export const calculateDisputeFee = (amount: number): number => {
-  const amountLamports = _solToLamportsBigInt(amount);
-  const feeLamports = (amountLamports * BigInt(DISPUTE_FEE_BPS)) / BigInt(10000);
-  return _lamportsToSolNumber(feeLamports);
-};
-
-// Calculate seller proceeds after fees (with optional currency for APP discount)
+export const calculatePlatformFee = _configCalcPlatformFee;
+export const calculateDisputeFee = _configCalcDisputeFee;
 export const calculateSellerProceeds = (salePrice: number, currency?: string): { fee: number; proceeds: number; feeBps: number } => {
-  const feeBps = getFeeRateBps(currency);
-  const priceLamports = _solToLamportsBigInt(salePrice);
-  const feeLamports = (priceLamports * BigInt(feeBps)) / BigInt(10000);
-  const proceedsLamports = priceLamports - feeLamports;
-  return {
-    fee: _lamportsToSolNumber(feeLamports),
-    proceeds: _lamportsToSolNumber(proceedsLamports),
-    feeBps,
-  };
+  const result = _configCalcSellerProceeds(salePrice, currency);
+  return { fee: result.fee, proceeds: result.proceeds, feeBps: result.feeBps };
 };
 
 // Listing status enum (matches on-chain - 9 statuses)
