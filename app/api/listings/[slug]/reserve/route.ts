@@ -136,6 +136,9 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
 
