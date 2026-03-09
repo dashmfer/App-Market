@@ -10,25 +10,39 @@ import {
 // SECURITY: Solana addresses must come from environment variables.
 // Hardcoded fallbacks risk routing funds to wrong addresses if env vars are missing at build time.
 // env-validation.ts requires these in production; in development, throw if missing.
-function requirePublicKey(envVar: string, name: string): PublicKey {
-  const value = process.env[envVar];
-  if (!value) {
-    throw new Error(`${envVar} must be set. ${name} cannot use a hardcoded fallback.`);
+// Uses lazy proxy to defer resolution until first access, avoiding throws during Next.js build.
+function lazyPublicKey(envVar: string, name: string): PublicKey {
+  let cached: PublicKey | undefined;
+  function resolve(): PublicKey {
+    if (!cached) {
+      const value = process.env[envVar];
+      if (!value) {
+        throw new Error(`${envVar} must be set. ${name} cannot use a hardcoded fallback.`);
+      }
+      cached = new PublicKey(value);
+    }
+    return cached;
   }
-  return new PublicKey(value);
+  return new Proxy({} as PublicKey, {
+    get(_, prop) {
+      const key = resolve();
+      const val = (key as any)[prop];
+      return typeof val === "function" ? val.bind(key) : val;
+    },
+  });
 }
 
 // Program ID from deployed/generated smart contract
-export const PROGRAM_ID = requirePublicKey("NEXT_PUBLIC_PROGRAM_ID", "Program ID");
+export const PROGRAM_ID = lazyPublicKey("NEXT_PUBLIC_PROGRAM_ID", "Program ID");
 
 // Platform treasury wallet - receives fees
-export const TREASURY_WALLET = requirePublicKey("NEXT_PUBLIC_TREASURY_WALLET", "Treasury wallet");
+export const TREASURY_WALLET = lazyPublicKey("NEXT_PUBLIC_TREASURY_WALLET", "Treasury wallet");
 
 // Platform token mint ($APP) - mainnet address
-export const PLATFORM_TOKEN_MINT = requirePublicKey("NEXT_PUBLIC_APP_TOKEN_MINT", "APP token mint");
+export const PLATFORM_TOKEN_MINT = lazyPublicKey("NEXT_PUBLIC_APP_TOKEN_MINT", "APP token mint");
 
 // USDC mint (mainnet)
-export const USDC_MINT = requirePublicKey("NEXT_PUBLIC_USDC_MINT", "USDC mint");
+export const USDC_MINT = lazyPublicKey("NEXT_PUBLIC_USDC_MINT", "USDC mint");
 
 // Token decimals
 export const TOKEN_DECIMALS = {
