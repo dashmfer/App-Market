@@ -16,7 +16,12 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   const endpoint = useMemo(() => {
-    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || clusterApiUrl("devnet");
+    // SECURITY: Never fall back to devnet. Missing RPC URL should be a visible error,
+    // not a silent downgrade that routes real transactions to a test network.
+    if (!process.env.NEXT_PUBLIC_SOLANA_RPC_URL) {
+      console.error("[Providers] NEXT_PUBLIC_SOLANA_RPC_URL is not set — wallet interactions will fail");
+    }
+    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "";
   }, []);
 
   const wallets = useMemo(() => [

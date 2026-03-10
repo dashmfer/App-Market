@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
+import { getAuthToken } from "@/lib/auth";
 
 // Force dynamic rendering for this route
 export const dynamic = "force-dynamic";
@@ -66,10 +67,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get current user session for AAD-bound decryption
+    const authToken = await getAuthToken(request);
+
     let oauthData: { codeVerifier: string; state: string; userId: string };
     try {
-      // SECURITY: Decrypt OAuth data with AES-256-GCM
-      const decryptedData = decrypt(oauthCookie.value);
+      // SECURITY: Decrypt OAuth data with AAD binding to the authenticated user.
+      // Falls back to no-AAD for legacy cookies encrypted before AAD was added.
+      const aad = authToken?.id ? `twitter-oauth:${authToken.id}` : undefined;
+      let decryptedData: string;
+      try {
+        decryptedData = decrypt(oauthCookie.value, aad);
+      } catch {
+        decryptedData = decrypt(oauthCookie.value);
+      }
       oauthData = JSON.parse(decryptedData);
     } catch {
       return NextResponse.redirect(

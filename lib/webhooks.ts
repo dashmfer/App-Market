@@ -6,10 +6,17 @@ import { randomBytes } from "crypto";
 
 /**
  * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
+ * @param userId - Owner's user ID, used as AAD for authenticated decryption
  */
-function decryptSecret(secret: string): string {
+function decryptSecret(secret: string, userId?: string): string {
   if (looksEncrypted(secret)) {
-    return decrypt(secret);
+    const aad = userId ? `webhook:${userId}` : undefined;
+    try {
+      return decrypt(secret, aad);
+    } catch {
+      // Fall back to decryption without AAD for legacy data encrypted before AAD was added
+      return decrypt(secret);
+    }
   }
   // SECURITY: Log warning for plaintext secrets — these should be migrated to encrypted
   console.warn(
@@ -66,6 +73,7 @@ export async function dispatchWebhookEvent(
         id: true,
         url: true,
         secret: true,
+        userId: true,
       },
     });
 
@@ -81,9 +89,9 @@ export async function dispatchWebhookEvent(
       data,
     };
 
-    // Dispatch to all webhooks in parallel (decrypt secrets before use)
-    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
-      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret), payload)
+    // Dispatch to all webhooks in parallel (decrypt secrets with AAD before use)
+    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string; userId: string }) =>
+      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret, webhook.userId), payload)
     );
 
     // Fire and forget - don't await
@@ -156,11 +164,68 @@ async function deliverWebhook(
 /**
  * Attempt to deliver a webhook payload
  */
+/**
+ * SECURITY: Validate webhook URL is not targeting private/internal networks (SSRF protection).
+ * Blocks private IPs, loopback, link-local, and metadata endpoints.
+ */
+function isPrivateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block common private/internal hostnames
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "0.0.0.0" ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal") ||
+      hostname === "metadata.google.internal" ||
+      hostname === "169.254.169.254" // Cloud metadata endpoint
+    ) {
+      return true;
+    }
+
+    // Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
+    const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      if (
+        a === 10 ||
+        a === 127 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+      ) {
+        return true;
+      }
+    }
+
+    // Only allow http/https
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return true; // Invalid URLs are treated as private
+  }
+}
+
 async function attemptDelivery(
   url: string,
   payload: string,
   signature: string
 ): Promise<WebhookDeliveryResult> {
+  // SECURITY: Block SSRF — prevent webhooks from probing internal networks
+  if (isPrivateUrl(url)) {
+    return {
+      success: false,
+      error: "Webhook URL targets a private or internal network address",
+    };
+  }
+
   try {
     const response = await fetch(url, {
       method: "POST",

@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         return { error: 'Listing is not active', status: 400 } as const;
       }
 
-      if (listing.sellerId === token.id as string) {
+      if (listing.sellerId === (token.id as string)) {
         return { error: 'Cannot make offer on your own listing', status: 400 } as const;
       }
 

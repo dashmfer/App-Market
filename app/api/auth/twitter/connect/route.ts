@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
     // Create response with redirect
     const response = NextResponse.redirect(authUrl);
 
-    // SECURITY: Encrypt OAuth data with AES-256-GCM before storing in cookie
-    const encryptedData = encrypt(oauthData);
+    // SECURITY: Encrypt OAuth data with AES-256-GCM + AAD binding to user
+    const encryptedData = encrypt(oauthData, `twitter-oauth:${token.id}`);
 
     // Set cookie with encrypted OAuth data (expires in 10 minutes)
     response.cookies.set("twitter_oauth_data", encryptedData, {

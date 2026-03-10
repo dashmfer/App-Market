@@ -30,7 +30,7 @@ const SUPER_SELLER_MIN_RATING = 4.5;
 const SUPER_SELLER_MIN_REVIEWS = 3;
 const SUPER_SELLER_MIN_VOLUME = 5000; // in base currency units
 const SUPER_BUYER_MIN_PURCHASES = 5;
-const _SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS = 30;
+const SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS = 30;
 
 // Retry wrapper for database operations
 async function withRetry<T>(
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS * 24 * 60 * 60 * 1000);
 
     // ============================================
     // SUPER SELLER QUALIFICATION

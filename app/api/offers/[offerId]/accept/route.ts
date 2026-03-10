@@ -72,7 +72,7 @@ export async function POST(
     }
 
     // Only seller can accept
-    if (offer.listing.sellerId !== token.id as string) {
+    if (offer.listing.sellerId !== (token.id as string)) {
       return NextResponse.json(
         { error: 'Only the seller can accept this offer' },
         { status: 403 }

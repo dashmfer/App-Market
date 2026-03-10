@@ -11,6 +11,14 @@ import {
   LAMPORTS_PER_SOL
 } from "@solana/web3.js";
 import {
+  getAssociatedTokenAddressSync,
+  createTransferInstruction,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  TokenAccountNotFoundError,
+  TokenInvalidAccountOwnerError,
+} from "@solana/spl-token";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -29,7 +37,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatSol, formatCurrency } from "@/lib/utils";
-import { TREASURY_WALLET } from "@/lib/solana";
+import { TREASURY_WALLET, TOKEN_MINTS, TOKEN_DECIMALS } from "@/lib/solana";
 
 interface BidModalProps {
   open: boolean;
@@ -101,124 +109,140 @@ export function BidModal({
     if (step === "confirm") setStep("payment");
   };
 
+  /**
+   * Build an SPL token transfer transaction. Creates the destination ATA
+   * if it doesn't exist yet (paid by the sender).
+   */
+  async function buildSplTransferTransaction(
+    sender: PublicKey,
+    destination: PublicKey,
+    mint: PublicKey,
+    amount: number,
+    decimals: number,
+  ): Promise<Transaction> {
+    const senderAta = getAssociatedTokenAddressSync(mint, sender);
+    const destinationAta = getAssociatedTokenAddressSync(mint, destination, true);
+
+    const transaction = new Transaction();
+
+    // Create destination ATA if it doesn't exist
+    try {
+      await getAccount(connection, destinationAta);
+    } catch (err) {
+      if (
+        err instanceof TokenAccountNotFoundError ||
+        err instanceof TokenInvalidAccountOwnerError
+      ) {
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            sender,       // payer
+            destinationAta,
+            destination,  // owner
+            mint,
+          )
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    const tokenAmount = BigInt(Math.floor(amount * 10 ** decimals));
+
+    transaction.add(
+      createTransferInstruction(
+        senderAta,
+        destinationAta,
+        sender,
+        tokenAmount,
+      )
+    );
+
+    return transaction;
+  }
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      let txSignature: string | undefined;
+      // Verify wallet is connected
+      if (!connected || !publicKey || !sendTransaction) {
+        setWalletModalVisible(true);
+        throw new Error("Please connect your wallet first");
+      }
+
+      // Resolve escrow destination
+      let escrowPubkey = TREASURY_WALLET;
+      if (listing.escrowAddress) {
+        try {
+          escrowPubkey = new PublicKey(listing.escrowAddress);
+        } catch {
+          throw new Error("Invalid escrow address on listing");
+        }
+      }
+
+      let transaction: Transaction;
 
       if (paymentMethod === "SOL") {
-        // Verify wallet is connected
-        if (!connected || !publicKey || !sendTransaction) {
-          setWalletModalVisible(true);
-          throw new Error("Please connect your wallet first");
-        }
-
-        // Get or create escrow address
-        // For now, we'll use a platform escrow wallet
-        // In production, this should be a PDA from the smart contract
-        let escrowPubkey = TREASURY_WALLET;
-        if (listing.escrowAddress) {
-          try {
-            escrowPubkey = new PublicKey(listing.escrowAddress);
-          } catch {
-            throw new Error("Invalid escrow address on listing");
-          }
-        }
-
-        // Create transfer transaction
         const lamports = Math.floor(bidAmount * LAMPORTS_PER_SOL);
-        const transaction = new Transaction().add(
+        transaction = new Transaction().add(
           SystemProgram.transfer({
             fromPubkey: publicKey,
             toPubkey: escrowPubkey,
             lamports,
           })
         );
-
-        // Get latest blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = publicKey;
-
-        // Send and confirm transaction
-        txSignature = await sendTransaction(transaction, connection);
-
-        // Wait for confirmation
-        await connection.confirmTransaction({
-          blockhash,
-          lastValidBlockHeight,
-          signature: txSignature,
-        });
-
-        // Record bid in database with transaction signature
-        const response = await fetch("/api/bids", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: listing.id,
-            amount: bidAmount,
-            currency: paymentMethod,
-            paymentMethod: paymentMethod,
-            onChainTx: txSignature,
-            walletAddress: publicKey.toBase58(),
-          }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to record bid");
-        }
-
       } else if (paymentMethod === "APP") {
-        // Handle APP token payment (SPL token transfer)
-        if (!connected || !publicKey || !sendTransaction) {
-          setWalletModalVisible(true);
-          throw new Error("Please connect your wallet first");
-        }
+        transaction = await buildSplTransferTransaction(
+          publicKey,
+          escrowPubkey,
+          TOKEN_MINTS.APP,
+          bidAmount,
+          TOKEN_DECIMALS.APP,
+        );
+      } else {
+        // USDC
+        transaction = await buildSplTransferTransaction(
+          publicKey,
+          escrowPubkey,
+          TOKEN_MINTS.USDC,
+          bidAmount,
+          TOKEN_DECIMALS.USDC,
+        );
+      }
 
-        // APP token transfer will be implemented with @solana/spl-token
-        // For now, record the bid and handle token transfer on backend
-        const response = await fetch("/api/bids", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: listing.id,
-            amount: bidAmount,
-            currency: "APP",
-            paymentMethod: "APP",
-            walletAddress: publicKey.toBase58(),
-          }),
-        });
+      // Get latest blockhash
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
 
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to record bid");
-        }
-      } else if (paymentMethod === "USDC") {
-        // Handle USDC payment (SPL token transfer)
-        if (!connected || !publicKey || !sendTransaction) {
-          setWalletModalVisible(true);
-          throw new Error("Please connect your wallet first");
-        }
+      // Send and confirm transaction
+      const txSignature = await sendTransaction(transaction, connection);
 
-        const response = await fetch("/api/bids", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: listing.id,
-            amount: bidAmount,
-            currency: "USDC",
-            paymentMethod: "USDC",
-            walletAddress: publicKey.toBase58(),
-          }),
-        });
+      // Wait for confirmation
+      await connection.confirmTransaction({
+        blockhash,
+        lastValidBlockHeight,
+        signature: txSignature,
+      });
 
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to record bid");
-        }
+      // Record bid in database with transaction signature
+      const response = await fetch("/api/bids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: listing.id,
+          amount: bidAmount,
+          currency: paymentMethod,
+          paymentMethod: paymentMethod,
+          onChainTx: txSignature,
+          walletAddress: publicKey.toBase58(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to record bid");
       }
 
       onBidSuccess?.(bidAmount, paymentMethod, txSignature);
@@ -228,8 +252,10 @@ export function BidModal({
       console.error("Bid error:", err);
       if (err.message?.includes("User rejected") || err.message?.includes("rejected")) {
         setError("Transaction was rejected. Please try again.");
-      } else if (err.message?.includes("insufficient")) {
-        setError("Insufficient funds in your wallet.");
+      } else if (err.message?.includes("insufficient") || err.message?.includes("0x1")) {
+        setError("Insufficient token balance in your wallet.");
+      } else if (err.message?.includes("AccountNotFound") || err.message?.includes("could not find account")) {
+        setError(`You don't have a ${paymentMethod} token account. Make sure you hold ${paymentMethod} tokens.`);
       } else if (err.message?.includes("403") || err.message?.includes("blockhash")) {
         setError("RPC connection error. Please try again or contact support if the issue persists.");
       } else {
@@ -395,9 +421,7 @@ export function BidModal({
                     Secure Escrow Transaction
                   </p>
                   <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                    {paymentMethod === "SOL"
-                      ? "You will be prompted to sign a transaction to transfer funds to escrow. Funds are held securely until the auction ends. If you don't win, they'll be refunded automatically."
-                      : "Your funds will be held in escrow until the auction ends."}
+                    You will be prompted to sign a transaction to transfer {paymentMethod} to escrow. Funds are held securely until the auction ends. If you don't win, they'll be refunded automatically.
                   </p>
                 </div>
               </div>
@@ -422,7 +446,7 @@ export function BidModal({
               Back
             </Button>
           )}
-          
+
           {step !== "confirm" ? (
             <Button onClick={handleNext} className="flex-1">
               Continue

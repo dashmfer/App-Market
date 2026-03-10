@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { hashEvidence } from "@/lib/validation";
+import { validateCsrfRequest } from "@/lib/csrf";
 
 // POST /api/transactions/[id]/confirm - Confirm transfer item
 export async function POST(
@@ -10,9 +10,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    // SECURITY: Validate CSRF token for state-changing operation
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return NextResponse.json({ error: csrf.error }, { status: 403 });
+    }
 
-    if (!session?.user) {
+    const token = await getAuthToken(request);
+
+    if (!token?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -53,9 +59,9 @@ export async function POST(
     }
 
     // Check authorization - include partners for group purchases
-    const isBuyer = transaction.buyerId === session.user.id;
-    const isSeller = transaction.sellerId === session.user.id;
-    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === session.user.id);
+    const isBuyer = transaction.buyerId === (token!.id as string);
+    const isSeller = transaction.sellerId === (token!.id as string);
+    const userPartner = transaction.partners.find((p: { userId: string | null }) => p.userId === (token!.id as string));
     const isPartner = !!userPartner;
 
     if (!isBuyer && !isSeller && !isPartner) {

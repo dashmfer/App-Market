@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // Standard NDA template when seller doesn't provide custom terms
 const STANDARD_NDA_TEMPLATE = `NON-DISCLOSURE AGREEMENT
@@ -110,6 +111,9 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
 
     if (!token?.id) {

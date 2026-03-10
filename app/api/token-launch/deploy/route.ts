@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { decrypt } from "@/lib/encryption";
 import { deserializeKeypair } from "@/lib/vanity-keygen";
 import {
@@ -11,6 +10,7 @@ import {
 import { uploadTokenMetadata } from "@/lib/token-metadata";
 import { watchPoolForGraduation } from "@/lib/pool-watcher";
 import { PublicKey } from "@solana/web3.js";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/token-launch/deploy — Build the on-chain transaction for pool deployment
@@ -24,8 +24,11 @@ import { PublicKey } from "@solana/web3.js";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (tokenLaunch.transaction.buyerId !== session.user.id) {
+    if (tokenLaunch.transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: "Only the acquisition buyer can deploy this token" },
         { status: 403 }
@@ -77,10 +80,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt the vanity keypair
-    const decryptedKeypair = deserializeKeypair(
-      decrypt(tokenLaunch.vanityKeypair)
-    );
+    // Decrypt the vanity keypair (AAD must match what was used during encryption)
+    let decryptedKeypairData: string;
+    try {
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair, `tokenLaunch:${tokenLaunch.tokenMint}`);
+    } catch {
+      // Fall back to decryption without AAD for legacy data
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair);
+    }
+    const decryptedKeypair = deserializeKeypair(decryptedKeypairData);
 
     const creatorWallet = new PublicKey(tokenLaunch.creatorWallet!);
 

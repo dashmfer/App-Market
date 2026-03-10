@@ -188,15 +188,20 @@ export function calculatePartnerPayments(
   partners: { walletAddress: string; percentage: number }[]
 ): { walletAddress: string; amountSol: number; amountLamports: bigint }[] {
   const LAMPORTS_PER_SOL = BigInt(1000000000);
-  const totalLamports = BigInt(Math.round(totalAmountSol * Number(LAMPORTS_PER_SOL)));
+  // SECURITY: Use string parsing to avoid floating-point multiplication errors
+  const [whole, decimal = ""] = totalAmountSol.toString().split(".");
+  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  const totalLamports = BigInt(whole + paddedDecimal);
 
   let distributedLamports = BigInt(0);
   const payments = partners.map((partner, index) => {
     // For the last partner, give them the remainder to avoid rounding issues
     const isLast = index === partners.length - 1;
+    // SECURITY: Use integer BPS (percentage * 100) to avoid floating-point in BigInt conversion
+    const percentageBps = BigInt(Math.round(Number(partner.percentage) * 100));
     const amountLamports = isLast
       ? totalLamports - distributedLamports
-      : (totalLamports * BigInt(Math.round(Number(partner.percentage) * 100))) / BigInt(10000);
+      : (totalLamports * percentageBps) / BigInt(10000);
 
     distributedLamports += amountLamports;
 

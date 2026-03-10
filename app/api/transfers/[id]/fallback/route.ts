@@ -45,11 +45,6 @@ export async function POST(
       return NextResponse.json({ error: "Only seller can activate fallback" }, { status: 403 });
     }
 
-    // Validate that we need fallback (deadline passed or no buyer info required)
-    const _hasRequiredInfo = transaction.listing.requiredBuyerInfo !== null;
-    const _deadlinePassed = transaction.buyerInfoStatus === "DEADLINE_PASSED";
-    const _noInfoProvided = transaction.buyerInfoStatus === "PENDING";
-
     // GitHub transfer link is required if there's a GitHub repo
     if (transaction.listing.githubRepo && !githubTransferLink) {
       return NextResponse.json(

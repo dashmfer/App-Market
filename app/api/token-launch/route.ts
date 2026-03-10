@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
@@ -25,8 +24,8 @@ export async function POST(request: NextRequest) {
       return csrfError(csrf.error || "CSRF validation failed");
     }
 
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -76,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (transaction.buyerId !== session.user.id) {
+    if (transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: "Only the buyer of this acquisition can launch a token" },
         { status: 403 }
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Get the buyer's wallet address
     const buyer = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: (token!.id as string) },
       select: { walletAddress: true },
     });
 
@@ -134,8 +133,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Encrypt the keypair for secure storage
-    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair));
+    // Encrypt the keypair for secure storage (AAD binds to token mint to prevent swaps)
+    const tokenMint = vanityKeypair.publicKey.toBase58();
+    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair), `tokenLaunch:${tokenMint}`);
 
     // Create the token launch record
     const tokenLaunch = await prisma.tokenLaunch.create({
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         tokenSymbol: tokenSymbol.toUpperCase(),
         tokenDescription: tokenDescription || null,
         tokenImage: tokenImage || null,
-        tokenMint: vanityKeypair.publicKey.toBase58(),
+        tokenMint,
         totalSupply: BigInt(PLATFORM_CONFIG.pato.defaultTotalSupply) *
           BigInt(10 ** PLATFORM_CONFIG.pato.tokenDecimals),
         launchType: "PATO",
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     // Notify the buyer
     await prisma.notification.create({
       data: {
-        userId: session.user.id,
+        userId: (token!.id as string),
         type: "PATO_LAUNCHED",
         title: "PATO Ready to Launch",
         message: `Your token "${tokenName}" ($${tokenSymbol.toUpperCase()}) is ready. Sign the transaction to deploy.`,
@@ -233,8 +233,8 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -261,10 +261,10 @@ export async function GET(request: NextRequest) {
     // Only return launches the user is involved in (as buyer/creator)
     where.OR = [
       { creatorWallet: (await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: (token!.id as string) },
         select: { walletAddress: true },
       }))?.walletAddress },
-      { transaction: { buyerId: session.user.id } },
+      { transaction: { buyerId: (token!.id as string) } },
     ];
 
     const tokenLaunches = await prisma.tokenLaunch.findMany({

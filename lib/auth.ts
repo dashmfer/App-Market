@@ -5,7 +5,6 @@ import { verifyWalletSignature } from "@/lib/wallet-verification";
 import { NextRequest } from "next/server";
 import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
-import { validateWalletSignatureMessage } from "@/lib/validation";
 import { AuthMethod } from "@/lib/prisma-enums";
 import { PrivyClient } from "@privy-io/server-auth";
 
@@ -179,17 +178,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
-        // SECURITY: Validate message format and timestamp (replay protection)
-        const messageValidation = await validateWalletSignatureMessage(
-          credentials.message,
-          credentials.publicKey,
-          300 // 5 minute validity
-        );
-        if (!messageValidation.valid) {
-          throw new Error(messageValidation.error || "Invalid signature message");
-        }
-
-        // Verify wallet signature directly (pass referral code for new users)
+        // Verify wallet signature directly (includes message format + replay validation)
         const result = await verifyWalletSignature(
           credentials.publicKey,
           credentials.signature,
@@ -264,6 +253,7 @@ export const authOptions: NextAuthOptions = {
         // from claiming ownership of another user's wallet or email.
         let verifiedWalletAddress: string | null = null;
         let verifiedEmail: string | null = null;
+        let verifiedTwitterUsername: string | null = null;
 
         // Get the Privy user to check linked accounts
         try {
@@ -276,14 +266,20 @@ export const authOptions: NextAuthOptions = {
           if (privyUser?.email?.address) {
             verifiedEmail = privyUser.email.address;
           }
+          // Only trust Twitter username verified by Privy
+          if ((privyUser as any)?.twitter?.username) {
+            verifiedTwitterUsername = (privyUser as any).twitter.username;
+          }
         } catch (getUserError: any) {
           console.error("[Privy Auth] Failed to get Privy user:", getUserError.message);
           // Fall through — we still have verified claims from the token
         }
 
-        // If the client claims a wallet address, only trust it if Privy verified it
+        // SECURITY: Only trust wallet/email if Privy verified it.
+        // Never fall back to client-supplied credentials.email — an attacker
+        // could claim any email address to hijack accounts.
         const trustedWalletAddress = verifiedWalletAddress || null;
-        const trustedEmail = verifiedEmail || credentials.email || null;
+        const trustedEmail = verifiedEmail || null;
 
         // Find or create user by Privy ID
         let user = await prisma.user.findUnique({
@@ -345,9 +341,9 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
-          // Generate username
-          let username = credentials.twitterUsername
-            || credentials.email?.split("@")[0]
+          // Generate username (prefer Privy-verified Twitter, then verified email)
+          let username = verifiedTwitterUsername
+            || verifiedEmail?.split("@")[0]
             || `user_${Date.now().toString(36)}`;
 
           // Ensure username is unique
@@ -361,8 +357,8 @@ export const authOptions: NextAuthOptions = {
               privyUserId: credentials.privyUserId,
               walletAddress: trustedWalletAddress,
               email: trustedEmail,
-              twitterUsername: credentials.twitterUsername || null,
-              twitterVerified: !!credentials.twitterUsername,
+              twitterUsername: verifiedTwitterUsername,
+              twitterVerified: !!verifiedTwitterUsername,
               username,
               referralCode,
               authMethod: mapAuthMethod(credentials.authMethod),
@@ -406,13 +402,15 @@ export const authOptions: NextAuthOptions = {
               updateData.email = verifiedEmail;
             }
           }
-          if (credentials.twitterUsername && !user.twitterUsername) {
+          // SECURITY: Only link Twitter username if verified by Privy.
+          // Never trust client-supplied twitterUsername for account linking.
+          if (verifiedTwitterUsername && !user.twitterUsername) {
             const existing = await prisma.user.findFirst({
-              where: { twitterUsername: credentials.twitterUsername },
+              where: { twitterUsername: verifiedTwitterUsername },
               select: { id: true },
             });
             if (!existing) {
-              updateData.twitterUsername = credentials.twitterUsername;
+              updateData.twitterUsername = verifiedTwitterUsername;
               updateData.twitterVerified = true;
             }
           }

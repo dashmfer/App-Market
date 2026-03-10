@@ -47,6 +47,27 @@ import { checkRateLimitAsync, isRateLimitingDistributed } from "@/lib/rate-limit
 
 const rateLimitStore = new Map<string, { count: number; resetAt: Date }>();
 
+// Singleton Redis client for nonce checking (avoid per-request instantiation)
+let _nonceRedisClient: any = null;
+let _nonceRedisInitialized = false;
+
+async function getNonceRedis() {
+  if (_nonceRedisInitialized) return _nonceRedisClient;
+  _nonceRedisInitialized = true;
+  try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      const { Redis } = await import("@upstash/redis");
+      _nonceRedisClient = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+    }
+  } catch (error) {
+    console.error("[AgentAuth] Failed to initialize Redis for nonce checking:", error);
+  }
+  return _nonceRedisClient;
+}
+
 // ============================================
 // API KEY AUTHENTICATION (Option 1)
 // ============================================
@@ -198,21 +219,11 @@ async function verifyWalletSignature(
   }
 
   // SECURITY: Check nonce replay via Redis (atomic check-and-set).
-  // Importing checkAndSetNonce-equivalent logic for agent auth.
-  let _nonceRedis: any = null;
-  try {
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-      const { Redis } = await import("@upstash/redis");
-      _nonceRedis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
-    }
-  } catch (error) { console.error("[AgentAuth] Failed to initialize Redis for nonce checking:", error); }
+  const nonceRedis = await getNonceRedis();
 
   const nonceKey = `agent-nonce:${walletAddress}:${nonce}`;
-  if (_nonceRedis) {
-    const wasSet = await _nonceRedis.set(nonceKey, "1", { ex: 600, nx: true });
+  if (nonceRedis) {
+    const wasSet = await nonceRedis.set(nonceKey, "1", { ex: 600, nx: true });
     if (wasSet === null) {
       return { success: false, error: "Nonce already used (replay detected)", statusCode: 401 };
     }
@@ -301,7 +312,10 @@ export async function authenticateAgent(request: NextRequest): Promise<AgentAuth
   const nonce = request.headers.get("x-auth-nonce");
 
   if (walletAddress && signature && timestamp) {
-    return verifyWalletSignature(walletAddress, signature, timestamp, nonce || undefined);
+    // SECURITY: Pass nonce directly without coercion. The inner function handles
+    // null/undefined/empty consistently. The `|| undefined` pattern could mask
+    // empty-string nonce headers if the inner function's behavior changes.
+    return verifyWalletSignature(walletAddress, signature, timestamp, nonce ?? undefined);
   }
 
   return {
@@ -345,6 +359,13 @@ export async function checkAgentRateLimit(
     };
   }
 
+  // SECURITY: In-memory rate limiting is per-instance and ineffective in serverless/multi-instance production.
+  // Fail closed in production if distributed rate limiting is unavailable.
+  if (process.env.NODE_ENV === "production") {
+    console.error("[AgentAuth] Distributed rate limiting unavailable in production");
+    return { allowed: false, remaining: 0, resetAt: new Date(Date.now() + 60000) };
+  }
+
   // Fallback to in-memory (dev only)
   const now = new Date();
   const windowMs = 60 * 1000;
@@ -385,8 +406,13 @@ export function verifyWebhookSignature(
   secret: string
 ): boolean {
   const expected = signWebhookPayload(payload, secret);
+  const maxLen = Math.max(signature.length, expected.length);
+  const paddedSig = Buffer.alloc(maxLen);
+  const paddedExpected = Buffer.alloc(maxLen);
+  Buffer.from(signature).copy(paddedSig);
+  Buffer.from(expected).copy(paddedExpected);
   try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    return timingSafeEqual(paddedSig, paddedExpected) && signature.length === expected.length;
   } catch {
     return false;
   }

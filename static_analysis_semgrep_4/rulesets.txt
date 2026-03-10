@@ -1,0 +1,7 @@
+Approved rulesets for scan:
+- security-reports/semgrep-scan/rules/security-audit.yaml (41 custom security rules)
+- security-reports/semgrep-scan/rules/nextjs-security.yaml (Next.js-specific patterns)
+
+Mode: Run all
+Engine: Semgrep OSS 1.153.0
+Target: /home/user/App-Market

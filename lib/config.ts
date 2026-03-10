@@ -161,13 +161,13 @@ export const PLATFORM_CONFIG = {
   // ============================================
   tokens: {
     APP: {
-      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
       decimals: 9,
       symbol: "APP",
       name: "App Market Token",
     },
     USDC: {
-      mint: process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      mint: process.env.NEXT_PUBLIC_USDC_MINT || "",
       decimals: 6,
       symbol: "USDC",
       name: "USD Coin",
@@ -178,11 +178,11 @@ export const PLATFORM_CONFIG = {
   // WALLET ADDRESSES
   // ============================================
   wallets: {
-    // Platform treasury (receives fees)
-    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
+    // Platform treasury (receives fees) — MUST be set via environment variable
+    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "",
 
-    // Platform token mint ($APP)
-    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+    // Platform token mint ($APP) — MUST be set via environment variable
+    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
 
     // Buyback wallet (holds SOL for buybacks)
     buybackWallet: process.env.BUYBACK_WALLET || null,
@@ -286,37 +286,61 @@ export function getFeeRateBps(currency?: string): number {
 }
 
 /**
- * SECURITY: All fee calculations use integer arithmetic (lamports) to avoid
+ * SECURITY: All fee calculations use integer arithmetic (smallest units) to avoid
  * IEEE 754 floating-point precision loss that can cause financial discrepancies.
- * Inputs are SOL amounts (number), internally converted to lamports (bigint).
+ * Supports both SOL (9 decimals) and USDC (6 decimals) via currency-aware conversion.
  */
-const LAMPORTS_PER_SOL_BI = BigInt(1_000_000_000);
+const DECIMALS_BY_CURRENCY: Record<string, number> = {
+  SOL: 9,
+  APP: 9,
+  USDC: 6,
+};
 
-function solToLamportsBigInt(sol: number): bigint {
+function getDecimals(currency?: string): number {
+  return DECIMALS_BY_CURRENCY[currency || "SOL"] || 9;
+}
+
+function amountToSmallestUnits(amount: number, currency?: string): bigint {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new RangeError(`Invalid amount: ${amount}`);
+  }
+  const decimals = getDecimals(currency);
   // Convert via string to avoid floating-point multiplication errors
-  const [whole, decimal = ""] = sol.toString().split(".");
-  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  const [whole, decimal = ""] = amount.toString().split(".");
+  const paddedDecimal = decimal.padEnd(decimals, "0").slice(0, decimals);
   return BigInt(whole + paddedDecimal);
 }
 
+function smallestUnitsToAmount(units: bigint, currency?: string): number {
+  const decimals = getDecimals(currency);
+  const divisor = BigInt(10 ** decimals);
+  const whole = units / divisor;
+  const remainder = units % divisor;
+  return Number(whole) + Number(remainder) / Number(divisor);
+}
+
+// Legacy aliases for backwards compatibility within this file
+const LAMPORTS_PER_SOL_BI = BigInt(1_000_000_000);
+
+function solToLamportsBigInt(sol: number): bigint {
+  return amountToSmallestUnits(sol, "SOL");
+}
+
 function lamportsToSolNumber(lamports: bigint): number {
-  // Convert back: integer division + remainder for precision
-  const whole = lamports / LAMPORTS_PER_SOL_BI;
-  const remainder = lamports % LAMPORTS_PER_SOL_BI;
-  return Number(whole) + Number(remainder) / Number(LAMPORTS_PER_SOL_BI);
+  return smallestUnitsToAmount(lamports, "SOL");
 }
 
 export function calculatePlatformFee(amount: number, currency?: string): number {
   const feeBps = getFeeRateBps(currency);
-  const amountLamports = solToLamportsBigInt(amount);
-  const feeLamports = (amountLamports * BigInt(feeBps)) / BigInt(10000);
-  return lamportsToSolNumber(feeLamports);
+  const amountUnits = amountToSmallestUnits(amount, currency);
+  const feeUnits = (amountUnits * BigInt(feeBps)) / BigInt(10000);
+  return smallestUnitsToAmount(feeUnits, currency);
 }
 
-export function calculateDisputeFee(amount: number): number {
-  const amountLamports = solToLamportsBigInt(amount);
-  const feeLamports = (amountLamports * BigInt(PLATFORM_CONFIG.fees.disputeFeeBps)) / BigInt(10000);
-  return lamportsToSolNumber(feeLamports);
+export function calculateDisputeFee(amount: number, currency?: string): number {
+  const amountUnits = amountToSmallestUnits(amount, currency);
+  const feeUnits = (amountUnits * BigInt(PLATFORM_CONFIG.fees.disputeFeeBps)) / BigInt(10000);
+  return smallestUnitsToAmount(feeUnits, currency);
 }
 
 // Calculate seller proceeds with fee breakdown
@@ -327,12 +351,12 @@ export function calculateSellerProceeds(salePrice: number, currency?: string): {
   feePercent: string;
 } {
   const feeBps = getFeeRateBps(currency);
-  const priceLamports = solToLamportsBigInt(salePrice);
-  const feeLamports = (priceLamports * BigInt(feeBps)) / BigInt(10000);
-  const proceedsLamports = priceLamports - feeLamports;
+  const priceUnits = amountToSmallestUnits(salePrice, currency);
+  const feeUnits = (priceUnits * BigInt(feeBps)) / BigInt(10000);
+  const proceedsUnits = priceUnits - feeUnits;
   return {
-    fee: lamportsToSolNumber(feeLamports),
-    proceeds: lamportsToSolNumber(proceedsLamports),
+    fee: smallestUnitsToAmount(feeUnits, currency),
+    proceeds: smallestUnitsToAmount(proceedsUnits, currency),
     feeBps,
     feePercent: `${feeBps / 100}%`,
   };
@@ -369,5 +393,8 @@ export function getRevenueDistribution(totalRevenue: number): {
     buyback: 0,
   };
 }
+
+// Export currency-aware conversion utilities for use by other modules
+export { amountToSmallestUnits, smallestUnitsToAmount };
 
 export default PLATFORM_CONFIG;

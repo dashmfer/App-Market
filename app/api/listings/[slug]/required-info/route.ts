@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/listings/[slug]/required-info - Get required buyer info
 export async function GET(
@@ -42,8 +42,11 @@ export async function PATCH(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
+    const token = await getAuthToken(request);
+    if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -65,7 +68,7 @@ export async function PATCH(
     }
 
     // Only seller can update
-    if (listing.sellerId !== session.user.id) {
+    if (listing.sellerId !== (token!.id as string)) {
       return NextResponse.json({ error: "Only seller can update" }, { status: 403 });
     }
 

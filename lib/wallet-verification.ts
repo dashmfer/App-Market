@@ -3,6 +3,7 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import prisma from "@/lib/db";
 import crypto from "crypto";
+import { validateWalletSignatureMessage } from "@/lib/validation";
 
 export interface WalletVerificationResult {
   success: boolean;
@@ -29,13 +30,13 @@ export function verifyWalletOwnership(
       return { valid: false, error: "Missing required fields" };
     }
 
-    // SECURITY: Validate message format with strict prefix/line match instead of substring.
-    // Substring matching (includes) could be bypassed by embedding "App Market" in an attacker-crafted message.
+    // SECURITY: Message MUST start with a known prefix — no substring/includes matching.
+    // This prevents attackers from embedding valid prefixes after arbitrary content.
     const validPrefixes = [
       'Accept collaboration for "',
       "Sign this message to prove you own this wallet",
     ];
-    if (!validPrefixes.some(prefix => message.startsWith(prefix) || message.includes(`\n${prefix}`))) {
+    if (!validPrefixes.some(prefix => message.startsWith(prefix))) {
       return { valid: false, error: "Invalid message format — must be an App Market verification message" };
     }
 
@@ -102,6 +103,19 @@ export async function verifyWalletSignature(
     if (!publicKey || !signature || !message) {
       console.error("[Wallet Verification] Missing required fields");
       return { success: false, error: "Missing required fields" };
+    }
+
+    // SECURITY: Validate message format and timestamp internally.
+    // This makes the function secure-by-default — callers don't need to
+    // remember to validate the message format separately.
+    const messageValidation = await validateWalletSignatureMessage(
+      message,
+      publicKey,
+      300 // 5 minute validity
+    );
+    if (!messageValidation.valid) {
+      console.error("[Wallet Verification] Message validation failed:", messageValidation.error);
+      return { success: false, error: messageValidation.error || "Invalid message format" };
     }
 
     // Verify the signature

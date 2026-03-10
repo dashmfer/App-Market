@@ -29,7 +29,9 @@ function getEncryptionSecret(): string {
       "Generate one with: openssl rand -hex 32"
     );
   }
-  // SECURITY: Validate minimum key length (256-bit = 64 hex chars or 32 raw bytes)
+  // SECURITY: Validate minimum key length.
+  // 32 ASCII characters provide ~192 bits of entropy (sufficient for scrypt-derived keys).
+  // For full 256-bit entropy, use 64 hex characters from: openssl rand -hex 32
   if (secret.length < 32) {
     throw new Error(
       "ENCRYPTION_SECRET is too short — must be at least 32 characters. " +
@@ -51,7 +53,7 @@ export function encrypt(plaintext: string, aad?: string): string {
   const key = deriveKey(secret, salt);
   const iv = randomBytes(IV_LENGTH);
 
-  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const cipher = createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   // SECURITY: AAD binds the ciphertext to a context (e.g., userId, field name).
   // This prevents encrypted values from being swapped between records undetected.
   if (aad) {
@@ -99,7 +101,7 @@ export function decrypt(encryptedData: string, aad?: string): string {
   const encrypted = combined.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
 
   const key = deriveKey(secret, salt);
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   decipher.setAuthTag(authTag);
   if (aad) {
     decipher.setAAD(Buffer.from(aad, "utf8"));
@@ -115,16 +117,26 @@ export function decrypt(encryptedData: string, aad?: string): string {
  * Deterministic check if a string is encrypted data.
  * Uses the "enc:v1:" prefix for reliable identification instead of
  * a length-based heuristic which can cause silent data corruption.
- * Also supports legacy format (base64 without prefix) for backwards compatibility.
+ * Also supports legacy format (base64 without prefix) for backwards compatibility,
+ * with stricter validation to reduce false positives on JWTs/long base64 strings.
  */
 export function looksEncrypted(data: string): boolean {
-  // New format: deterministic prefix
+  // New format: deterministic prefix — authoritative
   if (data.startsWith("enc:v1:")) {
     return true;
   }
-  // Legacy format: heuristic check (will be removed after migration)
+  // Legacy format: stricter heuristic to avoid false positives
+  // JWTs contain dots, URLs contain slashes/colons — reject common non-encrypted patterns
+  if (data.includes(".") || data.startsWith("http") || data.startsWith("ey")) {
+    return false;
+  }
   try {
     const decoded = Buffer.from(data, "base64");
+    // Verify the string is actually valid base64 (not just any string that base64-decodes)
+    if (decoded.toString("base64") !== data) {
+      return false;
+    }
+    // Must be exactly salt + iv + authTag + at least 1 byte of ciphertext
     return decoded.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
   } catch {
     return false;
