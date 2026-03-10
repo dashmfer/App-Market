@@ -12,6 +12,7 @@ jobs:
   snyk-dependencies:
     name: Snyk Dependency Scan
     runs-on: ubuntu-latest
+    if: ${{ secrets.SNYK_TOKEN != '' }}
     permissions:
       actions: read
       contents: read
@@ -38,8 +39,8 @@ jobs:
           args: --severity-threshold=medium --sarif-file-output=snyk-deps.sarif
 
       - name: Upload Snyk dependency results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: success() && hashFiles('snyk-deps.sarif') != ''
         with:
           sarif_file: snyk-deps.sarif
           category: snyk-dependencies
@@ -47,6 +48,7 @@ jobs:
   snyk-code:
     name: Snyk Code (SAST)
     runs-on: ubuntu-latest
+    if: ${{ secrets.SNYK_TOKEN != '' }}
     permissions:
       actions: read
       contents: read
@@ -66,8 +68,8 @@ jobs:
           args: --sarif-file-output=snyk-code.sarif
 
       - name: Upload Snyk Code results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: success() && hashFiles('snyk-code.sarif') != ''
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
