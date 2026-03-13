@@ -546,16 +546,19 @@ export function useSolanaContract() {
       },
     ]);
 
-    return listings.map(({ publicKey, account }) => ({
-      publicKey: publicKey.toBase58(),
-      ...account,
-      startingPrice: lamportsToSol(account.startingPrice),
-      currentBid: lamportsToSol(account.currentBid),
-      reservePrice: account.reservePrice ? lamportsToSol(account.reservePrice) : null,
-      buyNowPrice: account.buyNowPrice ? lamportsToSol(account.buyNowPrice) : null,
-      startTime: account.startTime.toNumber(),
-      endTime: account.endTime.toNumber(),
-    }));
+    return listings.map(({ publicKey, account: raw }) => {
+      const account = raw as unknown as ListingAccount;
+      return {
+        publicKey: publicKey.toBase58(),
+        ...raw,
+        startingPrice: lamportsToSol(account.startingPrice),
+        currentBid: lamportsToSol(account.currentBid),
+        reservePrice: account.reservePrice ? lamportsToSol(account.reservePrice) : null,
+        buyNowPrice: account.buyNowPrice ? lamportsToSol(account.buyNowPrice) : null,
+        startTime: account.startTime.toNumber(),
+        endTime: account.endTime.toNumber(),
+      };
+    });
   }, [getProvider]);
 
   // Fetch all active listings
@@ -570,16 +573,19 @@ export function useSolanaContract() {
       },
     ]);
 
-    return listings.map(({ publicKey, account }) => ({
-      publicKey: publicKey.toBase58(),
-      ...account,
-      startingPrice: lamportsToSol(account.startingPrice),
-      currentBid: lamportsToSol(account.currentBid),
-      reservePrice: account.reservePrice ? lamportsToSol(account.reservePrice) : null,
-      buyNowPrice: account.buyNowPrice ? lamportsToSol(account.buyNowPrice) : null,
-      startTime: account.startTime.toNumber(),
-      endTime: account.endTime.toNumber(),
-    }));
+    return listings.map(({ publicKey, account: raw }) => {
+      const account = raw as unknown as ListingAccount;
+      return {
+        publicKey: publicKey.toBase58(),
+        ...raw,
+        startingPrice: lamportsToSol(account.startingPrice),
+        currentBid: lamportsToSol(account.currentBid),
+        reservePrice: account.reservePrice ? lamportsToSol(account.reservePrice) : null,
+        buyNowPrice: account.buyNowPrice ? lamportsToSol(account.buyNowPrice) : null,
+        startTime: account.startTime.toNumber(),
+        endTime: account.endTime.toNumber(),
+      };
+    });
   }, [getProvider]);
 
   return {
