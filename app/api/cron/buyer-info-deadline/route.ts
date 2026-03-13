@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Buyer Info Deadline Enforcement
@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("buyer-info-deadline");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
+  }
+
   try {
     const now = new Date();
 
@@ -42,6 +48,7 @@ export async function GET(request: NextRequest) {
           in: ["FUNDED", "IN_ESCROW", "TRANSFER_PENDING"],
         },
       },
+      take: 500, // SECURITY [M13]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {
@@ -154,6 +161,7 @@ export async function GET(request: NextRequest) {
           in: ["FUNDED", "IN_ESCROW", "TRANSFER_PENDING"],
         },
       },
+      take: 500, // SECURITY [M13]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {
@@ -212,5 +220,7 @@ export async function GET(request: NextRequest) {
       { error: "Failed to process buyer info deadlines" },
       { status: 500 }
     );
+  } finally {
+    await unlock();
   }
 }

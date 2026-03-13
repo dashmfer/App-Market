@@ -15,7 +15,8 @@ const KEY_LENGTH = 32;
  * Derive an encryption key from the master secret
  */
 function deriveKey(secret: string, salt: Buffer): Buffer {
-  return scryptSync(secret, salt, KEY_LENGTH);
+  // SECURITY [M12]: Explicit cost parameters for scrypt key derivation
+  return scryptSync(secret, salt, KEY_LENGTH, { N: 16384, r: 8, p: 1 });
 }
 
 /**

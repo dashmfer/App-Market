@@ -5,10 +5,17 @@ import {
   findSimilarListings,
   ListingForComparison,
 } from "@/lib/similarity-detection";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // POST /api/listings/check-similarity - Check if a listing is similar to existing ones
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(

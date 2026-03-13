@@ -35,3 +35,51 @@ export function verifyCronSecret(request: NextRequest): boolean {
     return false;
   }
 }
+
+/**
+ * SECURITY [M10]: Distributed lock for cron jobs via Redis.
+ * Prevents duplicate execution when multiple serverless instances
+ * receive the same cron trigger simultaneously.
+ *
+ * Uses Redis SET NX EX (atomic set-if-not-exists with TTL).
+ * Returns an unlock function if the lock was acquired, or null if already held.
+ */
+// SECURITY [M14]: Each cron job uses its own lock key. If two different cron jobs
+// (e.g., escrow-auto-release and seller-transfer-deadline) can modify the same
+// transaction, they should share a lock key or use row-level locking in their queries.
+export async function acquireCronLock(
+  jobName: string,
+  // SECURITY [L19]: 5-minute TTL. If jobs routinely exceed this, increase per-job
+  // or pass a custom TTL parameter.
+  ttlSeconds: number = 300 // 5 minute default
+): Promise<(() => Promise<void>) | null> {
+  const { redis } = await import("@/lib/rate-limit");
+  if (!redis) {
+    // No Redis — allow execution (single instance assumed in dev)
+    return async () => {};
+  }
+
+  const lockKey = `cron:lock:${jobName}`;
+  const lockValue = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Atomic SET NX EX — only succeeds if key doesn't exist
+  const result = await redis.set(lockKey, lockValue, { nx: true, ex: ttlSeconds });
+
+  if (result !== "OK") {
+    return null; // Lock already held by another instance
+  }
+
+  // Return unlock function (only deletes if we still own the lock)
+  return async () => {
+    try {
+      // SECURITY [L1]: Atomic check-and-delete: only deletes if we still own the lock
+      await redis.eval(
+        `if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end`,
+        [lockKey],
+        [lockValue]
+      );
+    } catch {
+      // Best-effort unlock — lock will expire via TTL anyway
+    }
+  };
+}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee } from "@/lib/solana";
@@ -36,13 +37,19 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // SECURITY: Whitelist allowed transaction statuses
+    const ALLOWED_TX_STATUSES = ["PENDING", "AWAITING_PARTNER_DEPOSITS", "FUNDED", "PAID", "IN_ESCROW", "TRANSFER_PENDING", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION", "DISPUTED", "PENDING_RELEASE", "COMPLETED", "REFUNDED", "CANCELLED"];
     if (status) {
-      where.status = status.toUpperCase();
+      const upper = status.toUpperCase();
+      if (ALLOWED_TX_STATUSES.includes(upper)) {
+        where.status = upper;
+      }
     }
 
     const transactions = await prisma.transaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {
@@ -105,6 +112,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { listingId, paymentMethod, onChainTx } = body;
+
+    // SECURITY: Require on-chain transaction proof before creating a transaction record.
+    if (!onChainTx || typeof onChainTx !== 'string' || onChainTx.trim().length === 0) {
+      return NextResponse.json(
+        { error: "On-chain transaction signature is required" },
+        { status: 400 }
+      );
+    }
 
     // Get listing
     const listing = await prisma.listing.findUnique({
@@ -170,6 +185,77 @@ export async function POST(request: NextRequest) {
       }
       
       salePrice = Number(winningBid.amount);
+    }
+
+    // SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
+    // via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
+    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+    if (!rpcUrl) {
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    try {
+      const connection = new Connection(rpcUrl, "confirmed");
+      const txInfo = await connection.getTransaction(onChainTx, {
+        maxSupportedTransactionVersion: 0,
+        commitment: "confirmed",
+      });
+
+      if (!txInfo) {
+        return NextResponse.json(
+          { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
+          { status: 400 }
+        );
+      }
+
+      if (txInfo.meta?.err) {
+        return NextResponse.json(
+          { error: "On-chain transaction failed" },
+          { status: 400 }
+        );
+      }
+
+      // SECURITY [C1]: Verify on-chain transfer amount, recipient, and sender
+      const accountKeys = txInfo.transaction.message.getAccountKeys().staticAccountKeys.map((k: any) => k.toBase58());
+      const preBalances = txInfo.meta!.preBalances;
+      const postBalances = txInfo.meta!.postBalances;
+
+      // Find treasury/escrow wallet in the transaction
+      const treasuryWallet = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+      if (!treasuryWallet) {
+        return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+      }
+
+      const treasuryIndex = accountKeys.indexOf(treasuryWallet);
+      if (treasuryIndex === -1) {
+        return NextResponse.json({ error: "Transaction does not involve the platform treasury" }, { status: 400 });
+      }
+
+      // Verify the amount received by treasury (in lamports)
+      const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
+      const expectedLamports = Math.floor(salePrice * 1e9); // Convert SOL to lamports
+      const tolerance = 10000; // Allow small tolerance for tx fees
+      if (treasuryReceived < expectedLamports - tolerance) {
+        return NextResponse.json({ error: "On-chain transfer amount does not match expected amount" }, { status: 400 });
+      }
+
+      // Verify sender is the buyer's wallet
+      const buyerWallet = token.walletAddress;
+      if (!buyerWallet) {
+        return NextResponse.json({ error: "Wallet address required for on-chain purchases" }, { status: 400 });
+      }
+      if (!accountKeys.includes(buyerWallet)) {
+        return NextResponse.json({ error: "Transaction sender does not match buyer wallet" }, { status: 400 });
+      }
+    } catch (verifyErr) {
+      console.error("Error verifying on-chain tx:", verifyErr);
+      return NextResponse.json(
+        { error: "Unable to verify on-chain transaction. Please try again." },
+        { status: 503 }
+      );
     }
 
     // Calculate fees (3% for APP token, 5% for others)
@@ -270,41 +356,96 @@ export async function POST(request: NextRequest) {
       ? new Date(Date.now() + 48 * 60 * 60 * 1000)
       : null;
 
-    // Create transaction
-    const transaction = await prisma.transaction.create({
-      data: {
-        salePrice,
-        platformFee,
-        sellerProceeds,
-        currency: listing.currency,
-        paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
-        onChainTx,
-        status: onChainTx ? "IN_ESCROW" : "PENDING",
-        transferChecklist,
-        buyerInfoDeadline,
-        buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",
-        listingId,
-        buyerId: userId,
-        sellerId: listing.sellerId,
-        paidAt: new Date(),
-      },
-    });
-
-    // Lock the required buyer info on the listing
-    if (hasRequiredBuyerInfo) {
-      await prisma.listing.update({
-        where: { id: listingId },
-        data: { buyerInfoLocked: true },
+    // SECURITY [H5]: Globally unique on-chain tx — prevents replay across listings
+    if (onChainTx) {
+      const existingTx = await prisma.transaction.findUnique({
+        where: { onChainTx },
+        select: { id: true },
       });
+      if (existingTx) {
+        return NextResponse.json({ error: "This on-chain transaction has already been used" }, { status: 400 });
+      }
     }
 
-    // Update listing status
-    await prisma.listing.update({
-      where: { id: listingId },
-      data: { status: "SOLD" },
+    // SECURITY [H1]: Use serializable transaction to prevent race conditions
+    // Re-check listing status, dedup onChainTx, create transaction, and update listing atomically
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Re-check listing status inside transaction to prevent race conditions
+      const currentListing = await tx.listing.findUnique({
+        where: { id: listingId },
+      });
+
+      if (!currentListing || currentListing.status !== "ACTIVE") {
+        return { error: "Listing is no longer available for purchase", status: 400 } as const;
+      }
+
+      // SECURITY: Deduplicate on-chain transaction signatures to prevent
+      // the same on-chain payment from being used for multiple transactions
+      const existingTx = await tx.transaction.findFirst({
+        where: { onChainTx },
+      });
+      if (existingTx) {
+        return { error: "This on-chain transaction has already been used", status: 400 } as const;
+      }
+
+      // SECURITY: Check if transaction already exists for this listing (prevents double-purchase)
+      const existingTransaction = await tx.transaction.findUnique({
+        where: { listingId },
+      });
+      if (existingTransaction) {
+        return { error: "This listing has already been purchased", status: 400 } as const;
+      }
+
+      // Create transaction
+      const transaction = await tx.transaction.create({
+        data: {
+          salePrice,
+          platformFee,
+          sellerProceeds,
+          currency: listing.currency,
+          paymentMethod: listing.currency === "USDC" ? "USDC" : listing.currency === "APP" ? "APP" : "SOL",
+          onChainTx,
+          status: "IN_ESCROW", // Always IN_ESCROW since onChainTx is now required and verified
+          transferChecklist,
+          buyerInfoDeadline,
+          buyerInfoStatus: hasRequiredBuyerInfo ? "PENDING" : "PROVIDED",
+          listingId,
+          buyerId: userId,
+          sellerId: listing.sellerId,
+          paidAt: new Date(),
+        },
+      });
+
+      // Lock the required buyer info on the listing
+      if (hasRequiredBuyerInfo) {
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { buyerInfoLocked: true },
+        });
+      }
+
+      // Update listing status
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { status: "SOLD" },
+      });
+
+      return { transaction } as const;
+    }, {
+      isolationLevel: 'Serializable',
     });
 
-    // Notify seller
+    // Handle transaction errors
+    if ('error' in txResult) {
+      return NextResponse.json(
+        { error: txResult.error },
+        { status: txResult.status }
+      );
+    }
+
+    const { transaction } = txResult;
+
+    // Notify seller (outside transaction - non-critical)
     await prisma.notification.create({
       data: {
         type: "AUCTION_WON",
@@ -336,7 +477,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {
-    console.error("Error creating transaction:", error);
+    console.error("Error creating transaction:", error instanceof Error ? error.message : "Unknown error");
     return NextResponse.json(
       { error: "Failed to create transaction" },
       { status: 500 }

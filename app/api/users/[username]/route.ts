@@ -21,9 +21,9 @@ export async function GET(
       currentUserWallet = currentUser?.walletAddress || undefined;
     }
 
-    // Try to find by username first, then by ID
-    let user = await (prisma.user.findUnique as any)({
-      where: { username },
+    // Try to find by username first, then by ID (exclude soft-deleted)
+    let user = await (prisma.user.findFirst as any)({
+      where: { username, deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -79,8 +79,8 @@ export async function GET(
 
     // If not found by username, try finding by ID
     if (!user) {
-      user = await (prisma.user.findUnique as any)({
-        where: { id: username },
+      user = await (prisma.user.findFirst as any)({
+        where: { id: username, deletedAt: null },
         select: {
           id: true,
           name: true,

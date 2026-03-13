@@ -251,6 +251,9 @@ export function validateDomainTransferLink(url: string): ValidationResult {
   const hostAndPath = hostname + parsedUrl.pathname;
 
   // Find matching registrar
+  // SECURITY [M19]: Regex validation cannot prevent all phishing URLs.
+  // Consider adding an allowlist of known registrar domains (e.g., namecheap.com,
+  // godaddy.com, cloudflare.com) for higher confidence.
   const registrar = DOMAIN_REGISTRARS.find((r) =>
     r.patterns.some((pattern) => pattern.test(hostname))
   );

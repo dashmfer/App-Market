@@ -87,41 +87,47 @@ export async function PATCH(request: NextRequest) {
     if (websiteUrl !== undefined) updateData.websiteUrl = websiteUrl;
     if (discordHandle !== undefined) updateData.discordHandle = discordHandle;
 
-    // Validate username uniqueness if being updated
+    // Validate username format
     if (username !== undefined) {
       if (username && (typeof username !== "string" || !/^[a-z0-9_]+$/.test(username))) {
         return agentErrorResponse("Username must be lowercase letters, numbers, and underscores only", 400);
       }
-      if (username) {
-        const existingUser = await prisma.user.findFirst({
-          where: { username, id: { not: userId } },
-        });
-        if (existingUser) {
-          return agentErrorResponse("Username is already taken", 400);
-        }
-      }
       updateData.username = username;
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        username: true,
-        image: true,
-        bio: true,
-        displayName: true,
-        websiteUrl: true,
-        discordHandle: true,
-        walletAddress: true,
-      },
-    });
+    // SECURITY: Wrap in Serializable transaction to prevent username race condition
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      if (updateData.username) {
+        const existingUser = await tx.user.findFirst({
+          where: { username: updateData.username as string, id: { not: userId } },
+        });
+        if (existingUser) {
+          throw new Error("USERNAME_TAKEN");
+        }
+      }
+      return tx.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          username: true,
+          image: true,
+          bio: true,
+          displayName: true,
+          websiteUrl: true,
+          discordHandle: true,
+          walletAddress: true,
+        },
+      });
+    }, { isolationLevel: 'Serializable' });
 
     return agentSuccessResponse(updatedUser);
   } catch (error) {
+    if (error instanceof Error && error.message === "USERNAME_TAKEN") {
+      return agentErrorResponse("Username is already taken", 400);
+    }
     console.error("[Agent] Error updating profile:", error);
     return agentErrorResponse("Failed to update profile", 500);
   }

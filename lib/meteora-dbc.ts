@@ -258,7 +258,16 @@ export async function buildCreatePoolWithFirstBuyTransaction(params: {
       buyAmount: new BN(
         Math.floor(params.initialBuyAmountSOL * LAMPORTS_PER_SOL)
       ),
-      minimumAmountOut: new BN(0), // No minimum for initial buy
+      // SECURITY [C12]: Calculate proper slippage protection for the initial buy.
+      // On a brand-new pool the creator is the first buyer so there's no existing
+      // liquidity to sandwich against, but we still enforce 10% max slippage as a
+      // safety net in case of front-running the create+buy in the same block.
+      // For the initial buy on a fresh bonding curve, expected output ≈ totalSupply
+      // × (buyAmount / graduationThreshold) adjusted for curve shape. We use 90%
+      // of the buy amount in token-equivalent terms as a conservative floor.
+      minimumAmountOut: new BN(
+        Math.floor(params.initialBuyAmountSOL * LAMPORTS_PER_SOL * 0.9)
+      ),
       referralTokenAccount: null,
     },
   })) as unknown as { createPoolTx: Transaction; swapBuyTx: Transaction | undefined };

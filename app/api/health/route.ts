@@ -82,16 +82,8 @@ export async function GET() {
     };
   }
 
-  // Env var checks (non-sensitive — just whether they're set)
-  checks.config = {
-    status: [
-      "NEXTAUTH_SECRET",
-      "ENCRYPTION_SECRET",
-      "CRON_SECRET",
-      "DATABASE_URL",
-    ].every(v => !!process.env[v]) ? "ok" : "missing_vars",
-  };
-
+  // SECURITY: Don't expose infrastructure config details to unauthenticated users.
+  // Only return simple healthy/degraded status.
   const allHealthy = Object.values(checks).every(c => c.status === "ok" || c.status === "not_configured");
   const statusCode = allHealthy ? 200 : 503;
 
@@ -99,7 +91,6 @@ export async function GET() {
     {
       status: allHealthy ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
-      checks,
     },
     { status: statusCode },
   );

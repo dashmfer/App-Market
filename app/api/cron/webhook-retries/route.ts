@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
-import { verifyCronSecret } from "@/lib/cron-auth";
+import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { isPrivateUrl } from "@/lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // SECURITY [M10]: Distributed lock prevents duplicate execution
+  const unlock = await acquireCronLock("webhook-retries");
+  if (!unlock) {
+    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   try {
@@ -50,6 +57,18 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
+      // Decrypt URL if encrypted
+      const webhookUrl = looksEncrypted(delivery.webhook.url) ? decrypt(delivery.webhook.url) : delivery.webhook.url;
+
+      // SECURITY [M5]: Block SSRF — reject private/internal IPs
+      if (isPrivateUrl(webhookUrl)) {
+        await prisma.webhookDelivery.update({
+          where: { id: delivery.id },
+          data: { status: "FAILED", errorMessage: "Webhook URL targets a private or internal address" },
+        });
+        continue;
+      }
+
       try {
         // Decrypt secret — isolate errors so one bad secret doesn't block all retries
         let secret: string;
@@ -69,7 +88,7 @@ export async function GET(req: NextRequest) {
         const payloadString = JSON.stringify(delivery.payload);
         const signature = signWebhookPayload(payloadString, secret);
 
-        const response = await fetch(delivery.webhook.url, {
+        const response = await fetch(webhookUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -129,5 +148,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[Webhook Retry Cron] Error:", error);
     return NextResponse.json({ error: "Failed to process retries" }, { status: 500 });
+  } finally {
+    await unlock();
   }
 }
