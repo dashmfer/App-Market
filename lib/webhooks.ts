@@ -168,7 +168,7 @@ async function deliverWebhook(
  * SECURITY: Validate webhook URL is not targeting private/internal networks (SSRF protection).
  * Blocks private IPs, loopback, link-local, and metadata endpoints.
  */
-function isPrivateUrl(url: string): boolean {
+export function isPrivateUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
