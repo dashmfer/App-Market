@@ -1,0 +1,50 @@
+{
+  "server": {
+    "port": 4000,
+    "host": "localhost"
+  },
+  "paths": {
+    "contractPath": "../programs/app-market/src/lib.rs",
+    "apiBasePath": "../app/api",
+    "reportsDir": "./reports",
+    "pythonPath": "python3"
+  },
+  "scanners": {
+    "staticAnalyzer": {
+      "enabled": true,
+      "severity": ["critical", "high", "medium", "low", "info"]
+    },
+    "patternScanner": {
+      "enabled": true,
+      "customPatterns": true
+    },
+    "fuzzer": {
+      "enabled": true,
+      "maxTime": 300,
+      "maxIterations": 100000
+    },
+    "anchorTests": {
+      "enabled": true,
+      "useBankrun": true
+    },
+    "apiTests": {
+      "enabled": true,
+      "baseUrl": "http://localhost:3000"
+    }
+  },
+  "reporting": {
+    "format": ["pdf", "json", "html"],
+    "includeCodeSnippets": true,
+    "includeFixes": true
+  },
+  "vulnerabilityCategories": [
+    "account-validation",
+    "arithmetic",
+    "access-control",
+    "economic-attacks",
+    "reentrancy",
+    "state-manipulation",
+    "input-validation",
+    "dos-attacks"
+  ]
+}
