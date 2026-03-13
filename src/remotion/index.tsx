@@ -1,6 +1,10 @@
 import { Composition, registerRoot } from "remotion";
+import React from "react";
 import { AppMarketVideo } from "./AppMarketVideo";
 import { BeatTestVideo } from "./BeatTest";
+import { PromoVideoCall } from "./PromoVideoCall";
+import { MainnetDelayParody } from "./MainnetDelayParody";
+import { RealPeoplePromo } from "./RealPeoplePromo";
 import {
   TitleMain, TitleLine, TitleSubtitle,
   ProblemLine1, ProblemLine2, ProblemLine3,
@@ -15,7 +19,10 @@ const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition id="AppMarketPromo" component={AppMarketVideo} durationInFrames={900} fps={30} width={1920} height={1080} />
+      <Composition id="PromoVideoCall" component={PromoVideoCall} durationInFrames={1620} fps={30} width={1920} height={1080} />
       <Composition id="BeatTest" component={BeatTestVideo} durationInFrames={900} fps={30} width={1920} height={1080} />
+      <Composition id="MainnetDelayParody" component={MainnetDelayParody} durationInFrames={1150} fps={30} width={1920} height={1080} />
+      <Composition id="RealPeoplePromo" component={RealPeoplePromo} durationInFrames={1620} fps={30} width={1920} height={1080} />
 
       {/* Individual elements - 30 frames each (1 second) */}
       <Composition id="E01-TitleMain" component={TitleMain} durationInFrames={30} fps={30} width={1920} height={1080} />
