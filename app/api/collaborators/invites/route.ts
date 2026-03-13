@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { invitedAt: "desc" },
+      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     return NextResponse.json({

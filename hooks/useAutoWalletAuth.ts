@@ -14,6 +14,8 @@ function getReferralCode(): string | null {
   const refFromUrl = urlParams.get('ref');
   if (refFromUrl) return refFromUrl;
 
+  // SECURITY [L7]: The referral cookie is httpOnly, so this client-side read
+  // will return undefined. The referral code is passed via URL params instead.
   // Try cookie (set by /r/[code] route)
   const cookies = document.cookie.split(';');
   for (const cookie of cookies) {

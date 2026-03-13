@@ -10,6 +10,7 @@ import {
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
+import { isPrivateUrl } from "@/lib/webhooks";
 
 // POST /api/agent/webhooks/[id]/test - Test a webhook by sending a test event
 export async function POST(
@@ -45,6 +46,14 @@ export async function POST(
       return agentErrorResponse("Webhook is not active", 400);
     }
 
+    // Decrypt URL if encrypted
+    const webhookUrl = looksEncrypted(webhook.url) ? decrypt(webhook.url) : webhook.url;
+
+    // SECURITY [M5]: Block SSRF — reject private/internal IPs
+    if (isPrivateUrl(webhookUrl)) {
+      return agentErrorResponse("Webhook URL targets a private or internal address", 400);
+    }
+
     // Send test payload
     const testPayload = {
       id: `evt_test_${Date.now()}`,
@@ -62,7 +71,7 @@ export async function POST(
     const signature = signWebhookPayload(payloadString, secret);
 
     try {
-      const response = await fetch(webhook.url, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

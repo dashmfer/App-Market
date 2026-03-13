@@ -1,5 +1,8 @@
 'use client';
 
+// SECURITY [M16]: Client-side validation is defense-in-depth only.
+// Server-side validation (magic bytes, size limits) is in app/api/profile/upload-picture/route.ts
+
 import { useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';

@@ -6,21 +6,36 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
-const CSRF_COOKIE_NAME = "__Host-csrf-token";
+const CSRF_COOKIE_NAME = process.env.NODE_ENV === 'production' ? '__Host-csrf-token' : 'csrf-token';
 const CSRF_HEADER_NAME = "x-csrf-token";
 const TOKEN_LENGTH = 32;
 // SECURITY: Single source of truth for token max age (used in both verify and cookie)
 const CSRF_TOKEN_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 /**
- * Get the CSRF secret from environment
+ * Get the CSRF secret, cryptographically derived from NEXTAUTH_SECRET.
+ * SECURITY [M9]: Uses HMAC-SHA256 to derive a separate key so CSRF tokens
+ * can't be used to forge JWTs and vice-versa. No extra env var needed.
  */
+let _derivedCsrfSecret: string | null = null;
+
 function getCsrfSecret(): string {
-  const secret = process.env.CSRF_SECRET || process.env.NEXTAUTH_SECRET;
-  if (!secret) {
-    throw new Error("CSRF_SECRET or NEXTAUTH_SECRET must be set");
+  if (_derivedCsrfSecret) return _derivedCsrfSecret;
+
+  const base = process.env.NEXTAUTH_SECRET;
+  if (!base) {
+    throw new Error("NEXTAUTH_SECRET must be set");
   }
-  return secret;
+
+  // Derive a dedicated CSRF key from the auth secret via HMAC-SHA256
+  // SECURITY [M9]: Use HKDF-like derivation with a proper context string
+  // The HMAC key is the base secret; the info/context is the derivation label
+  _derivedCsrfSecret = crypto
+    .createHmac("sha256", base)
+    .update("app-market:csrf-token:v1")
+    .digest("hex");
+
+  return _derivedCsrfSecret;
 }
 
 /**
@@ -95,8 +110,9 @@ export function validateCsrfRequest(request: NextRequest): {
     return { valid: false, error: "Missing CSRF header" };
   }
 
-  // Double-submit validation: cookie and header must match
-  if (cookieToken !== headerToken) {
+  // Double-submit validation: cookie and header must match (timing-safe)
+  if (cookieToken.length !== headerToken.length ||
+      !crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))) {
     return { valid: false, error: "CSRF token mismatch" };
   }
 

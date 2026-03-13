@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent, sanitizePagination, isValidUUID } from "@/lib/validation";
 import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 const DEFAULT_MESSAGE_LIMIT = 50;
 
@@ -157,6 +158,12 @@ export async function POST(
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'messages'))(request);
     if (!rateLimitResult.success) {
@@ -180,7 +187,21 @@ export async function POST(
     const body = await request.json();
     const { content } = body;
 
-    // SECURITY: Validate message content
+    // SECURITY [M12]: Validate content is a string and within length limits
+    if (typeof content !== "string") {
+      return NextResponse.json(
+        { error: "Message content must be a string" },
+        { status: 400 }
+      );
+    }
+    if (content.length > 10000) {
+      return NextResponse.json(
+        { error: "Message content must be 10000 characters or less" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate message content (empty check + existing library limit)
     const contentValidation = validateMessageContent(content);
     if (!contentValidation.valid) {
       return NextResponse.json(
@@ -214,7 +235,7 @@ export async function POST(
     // Create the message
     const message = await prisma.message.create({
       data: {
-        content,
+        content: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
         senderId,
         conversationId,
       },
@@ -235,7 +256,7 @@ export async function POST(
       where: { id: conversationId },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: content.substring(0, 100),
+        lastMessagePreview: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').substring(0, 100),
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 interface PartnerConfirmation {
   partnerId: string;
@@ -27,6 +28,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // SECURITY: Validate CSRF token
+    const csrfValidation = validateCsrfRequest(request);
+    if (!csrfValidation.valid) {
+      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    }
+
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -97,6 +104,8 @@ export async function POST(
       );
     }
 
+    // SECURITY [H6]: Wrap confirmation in serializable transaction to prevent race conditions
+    // SECURITY [H7]: Lead buyer confirmation counts as 1 vote alongside partners
     // For partner purchases, handle individual confirmations and majority vote
     if (hasPartners) {
       const partnerConfirmations = checklist[itemIndex].partnerConfirmations || [];
@@ -116,8 +125,9 @@ export async function POST(
         confirmedAt: new Date().toISOString(),
       });
 
-      // Calculate majority (>50% of partners must confirm)
-      const totalPartners = transaction.partners.length;
+      // Calculate majority (>50% of all partners including lead buyer must confirm)
+      // Lead buyer is not in transaction.partners (they are the buyer), so add 1 for them
+      const totalPartners = transaction.partners.length + 1;
       const confirmationsNeeded = Math.floor(totalPartners / 2) + 1;
       const hasMajority = partnerConfirmations.length >= confirmationsNeeded;
 

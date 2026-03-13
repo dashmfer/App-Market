@@ -12,8 +12,8 @@ const isUpstashConfigured = !!(
   process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-// Create Redis client if configured
-const redis = isUpstashConfigured
+// Create Redis client if configured (exported for use by session revocation, cron locks, etc.)
+export const redis = isUpstashConfigured
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -128,6 +128,12 @@ export async function checkRateLimitAsync(
     throw new Error(
       "CRITICAL: Rate limiting requires Upstash Redis in production. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN."
     );
+    // SECURITY: Fail closed in production — deny all requests if Redis is unavailable
+    return {
+      isLimited: true,
+      remaining: 0,
+      resetTime: Date.now() + 60000,
+    };
   } else {
     console.warn(
       "Rate limiting: Using in-memory fallback. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN for production."

@@ -7,11 +7,18 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type") || "sellers"; // sellers, buyers, or rated
     const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
 
+    // SECURITY [M21]: Leaderboard is based on totalSales/totalPurchases which are
+    // incremented atomically in serializable transactions. However, wash trading
+    // (buying/selling to yourself) could inflate stats. Consider adding:
+    // - Minimum transaction age filter
+    // - Exclude self-referencing buyer===seller (already prevented by other checks)
+
     if (type === "sellers") {
       // Top sellers by total sales
       const topSellers = await prisma.user.findMany({
         where: {
           totalSales: { gt: 0 },
+          deletedAt: null,
         },
         select: {
           id: true,
@@ -55,6 +62,7 @@ export async function GET(request: NextRequest) {
       const topBuyers = await prisma.user.findMany({
         where: {
           totalPurchases: { gt: 0 },
+          deletedAt: null,
         },
         select: {
           id: true,
@@ -94,6 +102,7 @@ export async function GET(request: NextRequest) {
       const topRated = await prisma.user.findMany({
         where: {
           ratingCount: { gte: 3 },
+          deletedAt: null,
         },
         select: {
           id: true,
