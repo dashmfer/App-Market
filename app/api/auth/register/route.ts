@@ -1,10 +1,105 @@
 import { NextRequest, NextResponse } from "next/server";
+import { hash } from "bcryptjs";
+import prisma from "@/lib/db";
+import { validatePasswordComplexity } from "@/lib/validation";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
-  // SECURITY: Email/password registration is disabled.
-  // Authentication is wallet-based (Solana wallet signature).
-  return NextResponse.json(
-    { error: "Registration is not available. Please sign in with your wallet." },
-    { status: 403 }
-  );
+  try {
+    // SECURITY: Rate limit registration attempts (uses Redis in production)
+    const rateLimitResult = await (withRateLimitAsync('auth', 'register'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
+    const body = await request.json();
+    const { name, email, password } = body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate email format (atomic groups via possessive-style matching to prevent ReDoS)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (typeof email !== "string" || email.length > 254 || !emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Validate password complexity
+    const passwordValidation = validatePasswordComplexity(password);
+    if (!passwordValidation.valid) {
+      return NextResponse.json(
+        { error: passwordValidation.errors.join('. ') },
+        { status: 400 }
+      );
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: "Unable to create account with the provided information" },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
+    const passwordHash = await hash(password, 12);
+
+    // Generate username from email
+    const baseUsername = email.split("@")[0].toLowerCase().slice(0, 20);
+    const existingUsername = await prisma.user.findFirst({
+      where: { username: { startsWith: baseUsername } },
+    });
+
+    // SECURITY: Use crypto.randomBytes instead of Math.random for username suffix
+    const { randomBytes } = await import("crypto");
+    const username = existingUsername
+      ? `${baseUsername}_${randomBytes(3).toString("hex")}`
+      : baseUsername;
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        username,
+        passwordHash,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json(
+      { 
+        message: "Account created successfully",
+        user,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Registration error:", error);
+    return NextResponse.json(
+      { error: "Failed to create account" },
+      { status: 500 }
+    );
+  }
 }

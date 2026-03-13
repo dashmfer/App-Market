@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Shield, Lock, FileText, Eye } from "lucide-react";
+import { Shield, Lock, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NDASigningModal } from "./NDASigningModal";
 import { useSession } from "next-auth/react";

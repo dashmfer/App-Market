@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = token.id as string;
+    const userId = (token!.id as string);
 
     // Fetch all stats in parallel
     const [

@@ -38,7 +38,7 @@ export function Tooltip({
     const scrollY = window.scrollY;
 
     let x = rect.left + scrollX + rect.width / 2;
-    let y = rect.top + scrollY;
+    let y: number;
 
     switch (position) {
       case "bottom":

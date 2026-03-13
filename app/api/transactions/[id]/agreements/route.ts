@@ -214,31 +214,45 @@ export async function POST(
       );
     }
 
-    // Verify signature if provided
-    if (signature && signedMessage && walletAddress) {
-      try {
-        const messageBytes = new TextEncoder().encode(signedMessage);
-        const signatureBytes = bs58.decode(signature);
-        const publicKeyBytes = bs58.decode(walletAddress);
+    // SECURITY: Require wallet signature to sign agreements (was previously optional)
+    if (!signature || !signedMessage || !walletAddress) {
+      return NextResponse.json(
+        { error: "Wallet signature is required to sign an agreement" },
+        { status: 400 }
+      );
+    }
 
-        const isValid = nacl.sign.detached.verify(
-          messageBytes,
-          signatureBytes,
-          publicKeyBytes
-        );
+    try {
+      const messageBytes = new TextEncoder().encode(signedMessage);
+      const signatureBytes = bs58.decode(signature);
+      const publicKeyBytes = bs58.decode(walletAddress);
 
-        if (!isValid) {
-          return NextResponse.json(
-            { error: "Invalid signature" },
-            { status: 400 }
-          );
-        }
-      } catch (error) {
+      const isValid = nacl.sign.detached.verify(
+        messageBytes,
+        signatureBytes,
+        publicKeyBytes
+      );
+
+      if (!isValid) {
         return NextResponse.json(
-          { error: "Failed to verify signature" },
+          { error: "Invalid signature" },
           { status: 400 }
         );
       }
+    } catch (error) {
+      return NextResponse.json(
+        { error: "Failed to verify signature" },
+        { status: 400 }
+      );
+    }
+
+    // SECURITY: Verify the signing wallet belongs to this user
+    const signerUser = isBuyer ? transaction.buyer : transaction.seller;
+    if (signerUser.walletAddress !== walletAddress) {
+      return NextResponse.json(
+        { error: "Wallet address does not match your account" },
+        { status: 400 }
+      );
     }
 
     // Check for existing agreement

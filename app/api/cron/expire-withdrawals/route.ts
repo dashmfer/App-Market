@@ -15,7 +15,7 @@ import {
   getWithdrawalPDA,
 } from "@/lib/solana";
 import { audit } from "@/lib/audit";
-import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Expire Unclaimed Withdrawals
@@ -30,16 +30,7 @@ import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
  * 3. Close the PendingWithdrawal PDA (rent goes to caller)
  *
  * Runs every hour. Requires BACKEND_AUTHORITY_SECRET_KEY env var.
- *
- * Retry policy: withdrawals that fail on-chain are left unclaimed and retried
- * on subsequent cron runs. After MAX_ON_CHAIN_RETRIES hours of failed attempts
- * (based on withdrawal age), the withdrawal is marked as failed.
  */
-
-const MAX_ON_CHAIN_RETRIES = 5; // Max retry attempts (approx 1 per hour)
-// Withdrawals older than this are considered to have exceeded retry limit
-// (1 hour initial wait + MAX_ON_CHAIN_RETRIES hours of retries)
-const MAX_RETRY_AGE_MS = (1 + MAX_ON_CHAIN_RETRIES) * 60 * 60 * 1000;
 
 // Load backend authority keypair from env (JSON array format: [1,2,3,...,64])
 function getBackendAuthority(): Keypair | null {
@@ -92,16 +83,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // SECURITY [M10]: Distributed lock prevents duplicate execution
-  const unlock = await acquireCronLock("expire-withdrawals");
-  if (!unlock) {
-    return NextResponse.json({ message: "Already running" }, { status: 200 });
-  }
-
   try {
     const authority = getBackendAuthority();
     if (!authority) {
-      console.warn("[Cron] BACKEND_AUTHORITY_SECRET_KEY not set — skipping on-chain expiry. DB update only.");
+      console.error("[Cron:expire-withdrawals] CRITICAL: BACKEND_AUTHORITY_SECRET_KEY not set — cannot expire on-chain withdrawals.");
+      return NextResponse.json({
+        error: "Backend authority not configured — skipping to prevent DB/on-chain inconsistency",
+        processed: 0,
+      }, { status: 503 });
     }
 
     // Find unclaimed withdrawals older than 1 hour
@@ -126,7 +115,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
+    console.info(`[Cron] Found ${expiredWithdrawals.length} expired withdrawals to process`);
 
     let connection: Connection | null = null;
     if (authority) {
@@ -137,19 +126,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const results = {
-      processed: 0,
-      onChainSuccess: 0,
-      onChainFailed: 0,
-      onChainMaxRetriesExceeded: 0,
-      dbOnly: 0,
-    };
+    const results = { processed: 0, onChainSuccess: 0, onChainFailed: 0, dbOnly: 0 };
 
     for (const withdrawal of expiredWithdrawals) {
       try {
-        const withdrawalAgeMs = Date.now() - new Date(withdrawal.createdAt).getTime();
-        const hasExceededRetryLimit = withdrawalAgeMs > MAX_RETRY_AGE_MS;
-
         // Attempt on-chain expiry if we have authority + connection + on-chain data
         if (
           authority &&
@@ -158,12 +138,10 @@ export async function GET(request: NextRequest) {
           withdrawal.listing.onChainId &&
           withdrawal.user.walletAddress
         ) {
-          let onChainSucceeded = false;
-
           try {
             const listingPubkey = new PublicKey(withdrawal.listing.onChainId);
             const recipientPubkey = new PublicKey(withdrawal.user.walletAddress);
-            const withdrawalId = parseInt(withdrawal.onChainId);
+            const withdrawalId = parseInt(withdrawal.onChainId, 10);
 
             const instruction = buildExpireWithdrawalInstruction(
               listingPubkey,
@@ -178,114 +156,48 @@ export async function GET(request: NextRequest) {
             tx.sign(authority);
 
             const txSig = await connection.sendRawTransaction(tx.serialize());
-            await connection.confirmTransaction(txSig, "confirmed");
+            const confirmation = await connection.confirmTransaction(txSig, "confirmed");
+            if (confirmation.value.err) {
+              throw new Error(`On-chain tx failed: ${JSON.stringify(confirmation.value.err)}`);
+            }
 
-            console.log(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
-            onChainSucceeded = true;
+            console.info(`[Cron] On-chain expire_withdrawal tx: ${txSig}`);
             results.onChainSuccess++;
           } catch (onChainError) {
-            console.error(`[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}:`, onChainError);
+            console.error("[Cron] On-chain expiry failed for withdrawal:", { withdrawalId: withdrawal.id, error: onChainError });
             results.onChainFailed++;
-          }
-
-          if (onChainSucceeded) {
-            // On-chain succeeded: mark as claimed in DB
-            await prisma.pendingWithdrawal.update({
-              where: { id: withdrawal.id },
-              data: {
-                claimed: true,
-                claimedAt: new Date(),
-              },
-            });
-
-            // Notify user of successful refund
-            if (withdrawal.user.walletAddress) {
-              await prisma.notification.create({
-                data: {
-                  type: "SYSTEM",
-                  title: "Expired Bid Refund",
-                  message: `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`,
-                  data: {
-                    withdrawalId: withdrawal.id,
-                    amount: Number(withdrawal.amount),
-                    listingId: withdrawal.listingId,
-                  },
-                  userId: withdrawal.userId,
-                },
-              });
-            }
-          } else if (hasExceededRetryLimit) {
-            // On-chain failed and max retries exceeded: mark as claimed to stop retrying,
-            // but log an alert so ops team can investigate
-            results.onChainMaxRetriesExceeded++;
-            console.error(
-              `[Cron] ALERT: Withdrawal ${withdrawal.id} has exceeded max retry limit ` +
-              `(${MAX_ON_CHAIN_RETRIES} attempts). Marking as claimed to stop retries. ` +
-              `Manual intervention required to refund ${Number(withdrawal.amount)} ${withdrawal.currency} ` +
-              `to user ${withdrawal.userId}.`
-            );
-
-            await prisma.pendingWithdrawal.update({
-              where: { id: withdrawal.id },
-              data: {
-                claimed: true,
-                claimedAt: new Date(),
-              },
-            });
-
-            // Notify user to contact support
-            if (withdrawal.user.walletAddress) {
-              await prisma.notification.create({
-                data: {
-                  type: "SYSTEM",
-                  title: "Withdrawal Refund Requires Assistance",
-                  message: `We were unable to automatically process your withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency}. Please contact support for assistance with your refund.`,
-                  data: {
-                    withdrawalId: withdrawal.id,
-                    amount: Number(withdrawal.amount),
-                    listingId: withdrawal.listingId,
-                    requiresManualIntervention: true,
-                  },
-                  userId: withdrawal.userId,
-                },
-              });
-            }
-          } else {
-            // On-chain failed but retries remaining: leave unclaimed for next cron run
-            const approxAttempt = Math.floor((withdrawalAgeMs - 60 * 60 * 1000) / (60 * 60 * 1000)) + 1;
-            console.warn(
-              `[Cron] On-chain expiry failed for withdrawal ${withdrawal.id}. ` +
-              `Attempt ~${approxAttempt}/${MAX_ON_CHAIN_RETRIES}. Will retry on next cron run.`
-            );
-            // Do NOT mark as claimed -- will be picked up again on next run
+            // Still mark as claimed in DB so we don't retry forever
           }
         } else {
-          // No on-chain data available -- mark as claimed (DB-only withdrawal)
           results.dbOnly++;
+        }
 
-          await prisma.pendingWithdrawal.update({
-            where: { id: withdrawal.id },
+        // Mark as claimed in DB regardless
+        await prisma.pendingWithdrawal.update({
+          where: { id: withdrawal.id },
+          data: {
+            claimed: true,
+            claimedAt: new Date(),
+          },
+        });
+
+        // Notify the user
+        if (withdrawal.user.walletAddress) {
+          await prisma.notification.create({
             data: {
-              claimed: true,
-              claimedAt: new Date(),
+              type: "SYSTEM",
+              title: "Expired Bid Refund",
+              message: results.onChainSuccess > 0
+                ? `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has been automatically returned to your wallet.`
+                : `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has expired. Please contact support if you need assistance.`,
+              data: {
+                withdrawalId: withdrawal.id,
+                amount: Number(withdrawal.amount),
+                listingId: withdrawal.listingId,
+              },
+              userId: withdrawal.userId,
             },
           });
-
-          if (withdrawal.user.walletAddress) {
-            await prisma.notification.create({
-              data: {
-                type: "SYSTEM",
-                title: "Expired Bid Refund",
-                message: `Your unclaimed withdrawal of ${Number(withdrawal.amount)} ${withdrawal.currency} has expired. Please contact support if you need assistance.`,
-                data: {
-                  withdrawalId: withdrawal.id,
-                  amount: Number(withdrawal.amount),
-                  listingId: withdrawal.listingId,
-                },
-                userId: withdrawal.userId,
-              },
-            });
-          }
         }
 
         results.processed++;
@@ -294,7 +206,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log("[Cron] Expire withdrawals results:", results);
+    console.info("[Cron] Expire withdrawals results:", results);
 
     await audit({
       action: "CRON_EXECUTION",
@@ -312,7 +224,5 @@ export async function GET(request: NextRequest) {
       { error: "Failed to process expired withdrawals" },
       { status: 500 }
     );
-  } finally {
-    await unlock();
   }
 }

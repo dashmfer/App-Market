@@ -1,0 +1,87 @@
+name: Semgrep Security Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6am UTC
+
+jobs:
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep (high-confidence security rules)
+        run: |
+          semgrep scan \
+            --config "p/default" \
+            --config "p/javascript" \
+            --config "p/typescript" \
+            --config "p/nextjs" \
+            --config "p/react" \
+            --config "p/nodejs" \
+            --config "p/owasp-top-ten" \
+            --sarif \
+            --output semgrep-results.sarif \
+            --severity ERROR \
+            --severity WARNING \
+            --exclude "node_modules" \
+            --exclude "*.sarif" \
+            --exclude "security-reports" \
+            --exclude "static_analysis_semgrep_*" \
+            --exclude ".next" \
+            --exclude "target" \
+            .
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('semgrep-results.sarif') != ''
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+
+  semgrep-solana:
+    name: Semgrep Solana Smart Contract
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep on Solana program
+        run: |
+          semgrep scan \
+            --config "p/rust" \
+            --config "p/solana-smart-contracts" \
+            --sarif \
+            --output semgrep-solana-results.sarif \
+            --severity ERROR \
+            --severity WARNING \
+            programs/
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Solana scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('semgrep-solana-results.sarif') != ''
+        with:
+          sarif_file: semgrep-solana-results.sarif
+          category: semgrep-solana

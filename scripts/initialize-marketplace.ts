@@ -51,9 +51,14 @@ async function main() {
     throw new Error(`Wallet not found at ${walletPath}. Please run 'solana-keygen new' first.`);
   }
 
-  const walletKeypair = Keypair.fromSecretKey(
-    Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
-  );
+  let walletKeypair: Keypair;
+  try {
+    walletKeypair = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(walletPath, "utf8")))
+    );
+  } catch (error) {
+    throw new Error(`Failed to parse wallet keypair from ${walletPath}: ${error instanceof Error ? error.message : error}`);
+  }
 
   console.log(`Loaded wallet: ${walletKeypair.publicKey.toBase58()}`);
 
@@ -69,7 +74,7 @@ async function main() {
   }
 
   // Derive config PDA
-  const [configPda, configBump] = PublicKey.findProgramAddressSync(
+  const [configPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("config")],
     PROGRAM_ID
   );

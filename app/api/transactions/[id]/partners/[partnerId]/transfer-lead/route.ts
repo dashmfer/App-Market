@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST - Transfer lead buyer status to another partner
 export async function POST(
@@ -10,12 +10,9 @@ export async function POST(
   { params }: { params: { id: string; partnerId: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,7 +41,7 @@ export async function POST(
     }
 
     // Only current lead can transfer
-    if (currentLead.userId !== token.id as string) {
+    if (currentLead.userId !== (token!.id as string)) {
       return NextResponse.json({ error: "Only the current lead can transfer lead status" }, { status: 403 });
     }
 

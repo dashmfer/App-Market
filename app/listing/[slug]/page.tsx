@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
@@ -24,10 +25,8 @@ import {
   FileText,
   Palette,
   Users,
-  Star,
   TrendingUp,
   Shield,
-  AlertCircle,
   ChevronRight,
   Play,
   Loader2,
@@ -42,7 +41,7 @@ import {
   Server,
 } from "lucide-react";
 import { startConversation } from "@/hooks/useMessages";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useCsrf } from "@/hooks/useCsrf";
 import { CollaboratorDisplay } from "@/components/listings/collaborator-display";
@@ -220,7 +219,7 @@ export default function ListingPage() {
   const router = useRouter();
   const slug = params.slug as string;
   const { data: session } = useSession();
-  const { publicKey, signMessage, sendTransaction, connected } = useWallet();
+  const { publicKey, sendTransaction, connected } = useWallet();
   const { connection } = useConnection();
 
   const [listing, setListing] = useState<Listing | null>(null);
@@ -337,11 +336,11 @@ export default function ListingPage() {
         window.location.reload();
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to accept offer");
+        toast.error(data.error || "Failed to accept offer");
       }
     } catch (err) {
       console.error("Error accepting offer:", err);
-      alert("Failed to accept offer");
+      toast.error("Failed to accept offer");
     } finally {
       setAcceptingOffer(null);
     }
@@ -363,11 +362,11 @@ export default function ListingPage() {
         setOffers(offers.filter(o => o.id !== offerId));
       } else {
         const data = await response.json();
-        alert(data.error || "Failed to decline offer");
+        toast.error(data.error || "Failed to decline offer");
       }
     } catch (err) {
       console.error("Error declining offer:", err);
-      alert("Failed to decline offer");
+      toast.error("Failed to decline offer");
     } finally {
       setDecliningOffer(null);
     }

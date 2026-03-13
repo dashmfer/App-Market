@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
 import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
-import { validateWalletSignatureMessage } from "@/lib/validation";
 
 /**
  * Wallet signature verification endpoint
@@ -21,24 +20,7 @@ export async function POST(req: NextRequest) {
 
     const { publicKey, signature, message } = await req.json();
 
-    // SECURITY: Validate required fields unconditionally
-    if (!publicKey || !signature || !message) {
-      return NextResponse.json(
-        { error: "Missing required fields: publicKey and message are required" },
-        { status: 400 }
-      );
-    }
-
-    // SECURITY: Validate message format and timestamp (replay protection)
-    const messageValidation = await validateWalletSignatureMessage(message, publicKey, 300);
-    if (!messageValidation.valid) {
-      return NextResponse.json(
-        { error: messageValidation.error || "Invalid signature message" },
-        { status: 400 }
-      );
-    }
-
-    // Use shared verification logic
+    // Use shared verification logic (includes message format + replay validation)
     const result = await verifyWalletSignature(publicKey, signature, message);
 
     if (!result.success) {

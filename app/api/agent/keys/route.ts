@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import {
   generateApiKey,
-  hashApiKey,
   authenticateAgent,
   hasPermission,
   agentErrorResponse,
@@ -182,7 +181,7 @@ export async function DELETE(request: NextRequest) {
       return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const keyId = searchParams.get("id");
 
     if (!keyId) {

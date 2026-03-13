@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Trash2, Lock, XCircle, CalendarClock } from "lucide-react";
+import { Package, Plus, Clock, CheckCircle2, AlertCircle, Eye, Edit, Lock, XCircle, CalendarClock } from "lucide-react";
 
 interface Listing {
   id: string;

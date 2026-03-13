@@ -12,7 +12,6 @@ import {
   Check,
   AlertTriangle,
   Eye,
-  EyeOff,
   Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,6 +45,17 @@ export function ExportKeyModal({
     await navigator.clipboard.writeText(privateKeyRef.current);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+    // Auto-clear clipboard after 30 seconds to prevent extension snooping
+    setTimeout(async () => {
+      try {
+        const current = await navigator.clipboard.readText();
+        if (current === privateKeyRef.current) {
+          await navigator.clipboard.writeText("");
+        }
+      } catch (error) {
+        console.error("[ExportKeyModal] Failed to auto-clear clipboard:", error);
+      }
+    }, 30000);
   };
 
   const handleReveal = async () => {
@@ -77,10 +87,6 @@ export function ExportKeyModal({
     setHasKey(false);
     onClose();
   }, [onClose]);
-
-  const maskedKey = hasKey && privateKeyRef.current
-    ? privateKeyRef.current.slice(0, 8) + "\u2022".repeat(40) + privateKeyRef.current.slice(-8)
-    : "";
 
   return (
     <AnimatePresence>

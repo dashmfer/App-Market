@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { validateMessageContent } from "@/lib/validation";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from "@/lib/rate-limit";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/messages - Get all conversations for the user
 export async function GET(request: NextRequest) {
@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { lastMessageAt: "desc" },
-      take: 50,
     });
 
     // Transform to include the "other" participant and unread count
@@ -85,10 +84,10 @@ export async function GET(request: NextRequest) {
 // POST /api/messages - Send a new message (creates conversation if needed)
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     // SECURITY: Rate limit
@@ -174,8 +173,7 @@ export async function POST(request: NextRequest) {
     // Create the message
     const message = await prisma.message.create({
       data: {
-        // SECURITY [H13]: Escape HTML entities to prevent stored XSS
-        content: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;'),
+        content,
         senderId,
         conversationId: conversation.id,
       },
@@ -196,7 +194,7 @@ export async function POST(request: NextRequest) {
       where: { id: conversation.id },
       data: {
         lastMessageAt: message.createdAt,
-        lastMessagePreview: content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').substring(0, 100),
+        lastMessagePreview: content.substring(0, 100),
       },
     });
 

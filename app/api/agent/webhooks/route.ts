@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import {
@@ -179,8 +179,8 @@ export async function POST(request: NextRequest) {
 
     // Generate webhook secret
     const plaintextSecret = generateWebhookSecret();
-    // SECURITY: Encrypt secret before storing in database
-    const encryptedSecret = encrypt(plaintextSecret);
+    // SECURITY: Encrypt secret with AAD binding to prevent cross-record swaps
+    const encryptedSecret = encrypt(plaintextSecret, `webhook:${userId}`);
 
     // Create webhook
     const webhook = await prisma.webhook.create({
@@ -240,7 +240,7 @@ export async function DELETE(request: NextRequest) {
       return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const webhookId = searchParams.get("id");
 
     if (!webhookId) {

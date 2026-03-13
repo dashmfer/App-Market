@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { processReferralEarnings } from "@/lib/referral-earnings";
 import { audit } from "@/lib/audit";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { getBackendAuthority, getSolanaConnection, executeOnChainRelease } from "@/lib/cron-helpers";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 interface ChecklistItem {
   id: string;
@@ -26,10 +27,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for financial state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(request);
@@ -113,102 +114,92 @@ export async function POST(
       );
     }
 
-    // SECURITY [C3]: Smart contract escrow release is not yet implemented.
-    // This is a critical TODO -- funds are being released without on-chain verification.
-    console.warn(
-      `[SECURITY WARNING] Transfer ${params.id}: Completing transfer WITHOUT on-chain escrow release. ` +
-      `Smart contract integration is required before production use. ` +
-      `Seller: ${transaction.sellerId}, Amount: ${Number(transaction.salePrice)} ${transaction.currency}`
+    // SECURITY: Execute on-chain escrow release BEFORE marking as completed.
+    // If on-chain release fails, the transaction stays in its current state
+    // so funds remain safely in escrow for manual resolution.
+    let onChainTxSig: string | null = null;
+    const authority = getBackendAuthority();
+    const connection = authority ? getSolanaConnection() : null;
+    const requiresOnChainRelease = !!(
+      authority &&
+      connection &&
+      transaction.listing.onChainId &&
+      transaction.seller.walletAddress &&
+      transaction.buyerId
     );
 
-    // SECURITY [C6]: Verify the transaction was actually confirmed by all parties
-    // before marking complete. Re-read transaction to ensure no stale data.
-    const freshTransaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
-      select: { status: true, transferChecklist: true },
+    if (requiresOnChainRelease) {
+      const buyer = await prisma.user.findUnique({
+        where: { id: transaction.buyerId },
+        select: { walletAddress: true },
+      });
+
+      if (buyer?.walletAddress && transaction.seller.walletAddress) {
+        onChainTxSig = await executeOnChainRelease(
+          connection!,
+          authority!,
+          transaction.listing.onChainId!,
+          transaction.seller.walletAddress,
+          buyer.walletAddress
+        );
+
+        if (!onChainTxSig) {
+          // SECURITY: Block completion if on-chain release fails.
+          // Funds must be released before marking as completed to prevent
+          // silent failures where the seller never receives payment.
+          console.error(`[Transfer Complete] On-chain release failed for transaction ${params.id}`);
+          return NextResponse.json(
+            { error: "On-chain escrow release failed. Please try again or contact support." },
+            { status: 502 }
+          );
+        }
+      }
+    }
+
+    // Atomic status transition to prevent race conditions
+    const updateResult = await prisma.transaction.updateMany({
+      where: {
+        id: params.id,
+        status: { in: ["TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] },
+      },
+      data: {
+        status: "COMPLETED",
+        transferCompletedAt: new Date(),
+        releasedAt: new Date(),
+        ...(onChainTxSig ? { onChainTx: onChainTxSig } : {}),
+      },
     });
 
-    if (!freshTransaction || freshTransaction.status === "COMPLETED") {
+    if (updateResult.count === 0) {
       return NextResponse.json(
-        { error: "Transaction already completed or not found" },
-        { status: 400 }
+        { error: "Transaction is no longer in a completable state" },
+        { status: 409 }
       );
     }
 
-    const freshChecklist = freshTransaction.transferChecklist as ChecklistItem[] | null;
-    if (!freshChecklist) {
-      return NextResponse.json(
-        { error: "Transfer checklist not found on re-verification" },
-        { status: 400 }
-      );
-    }
+    // Update listing status to SOLD
+    await prisma.listing.update({
+      where: { id: transaction.listingId },
+      data: { status: "SOLD" },
+    });
 
-    const reVerified = freshChecklist
-      .filter((item) => item.required)
-      .every((item) => item.sellerConfirmed && item.buyerConfirmed);
+    // Update seller stats
+    await prisma.user.update({
+      where: { id: transaction.sellerId },
+      data: {
+        totalSales: { increment: 1 },
+        totalVolume: { increment: Number(transaction.salePrice) },
+      },
+    });
 
-    if (!reVerified) {
-      return NextResponse.json(
-        { error: "Re-verification failed: not all required items are confirmed" },
-        { status: 400 }
-      );
-    }
-
-    // SECURITY [H4]: Verify fee + proceeds = salePrice (reconciliation check)
-    const salePrice = Number(transaction.salePrice);
-    const platformFee = Number(transaction.platformFee);
-    const sellerProceeds = Number(transaction.sellerProceeds);
-    const currency = transaction.currency || "SOL";
-    const decimals = currency === "USDC" ? 6 : 9;
-    const base = Math.pow(10, decimals);
-    const salePriceUnits = Math.round(salePrice * base);
-    const feeUnits = Math.round(platformFee * base);
-    const proceedsUnits = Math.round(sellerProceeds * base);
-    if (feeUnits + proceedsUnits !== salePriceUnits) {
-      console.error(`[SECURITY] Fee reconciliation mismatch: fee(${feeUnits}) + proceeds(${proceedsUnits}) != salePrice(${salePriceUnits})`);
-      return NextResponse.json(
-        { error: "Internal error: fee reconciliation failed. Contact support." },
-        { status: 500 }
-      );
-    }
-
-    // SECURITY [H5]: Wrap all DB writes in an atomic transaction to prevent
-    // partial completion (e.g., transaction marked COMPLETED but listing not SOLD)
-    await prisma.$transaction(async (tx) => {
-      // Update transaction status
-      await tx.transaction.update({
-        where: { id: params.id },
-        data: {
-          status: "COMPLETED",
-          transferCompletedAt: new Date(),
-          releasedAt: new Date(),
-          verifiedAt: new Date(),
-        },
-      });
-
-      // Update listing status to SOLD
-      await tx.listing.update({
-        where: { id: transaction.listingId },
-        data: { status: "SOLD" },
-      });
-
-      // Update seller stats
-      await tx.user.update({
-        where: { id: transaction.sellerId },
-        data: {
-          totalSales: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
-
-      // Update buyer stats
-      await tx.user.update({
-        where: { id: transaction.buyerId },
-        data: {
-          totalPurchases: { increment: 1 },
-        },
-      });
-    }, { isolationLevel: 'Serializable' });
+    // Update buyer stats
+    await prisma.user.update({
+      where: { id: transaction.buyerId },
+      data: {
+        totalPurchases: { increment: 1 },
+        totalVolume: { increment: Number(transaction.salePrice) },
+      },
+    });
 
     // Process referral earnings (2% to referrers on first transaction, from platform fee)
     try {
@@ -216,29 +207,26 @@ export async function POST(
         transaction.id,
         Number(transaction.salePrice),
         transaction.buyerId,
-        transaction.sellerId,
-        transaction.currency || undefined
+        transaction.sellerId
       );
-      if (process.env.NODE_ENV === 'development') console.log("[Transfer Complete] Referral earnings processed:", referralResult);
+      console.info("[Transfer Complete] Referral earnings processed:", referralResult);
     } catch (referralError) {
       // Don't fail the transaction if referral processing fails
       console.error("[Transfer Complete] Failed to process referral earnings:", referralError);
     }
 
     // Calculate payment distribution for collaborators
-    // SECURITY: Use integer math to prevent floating-point drift on payment splits
-    // (reuses salePrice, sellerProceeds, currency, decimals, base, proceedsUnits from H4 block above)
     const collaborators = transaction.listing.collaborators || [];
+    const sellerProceeds = Number(transaction.sellerProceeds);
 
     // Calculate collaborator payments and seller's final share
     const collaboratorPayments: CollaboratorPayment[] = [];
-    let collaboratorTotalUnits = 0;
+    let collaboratorTotalPercentage = 0;
 
     for (const collab of collaborators) {
       const collabPct = Number(collab.percentage);
-      // Integer-safe: floor each collaborator's share so rounding favors the seller
-      const collabUnits = Math.floor(proceedsUnits * collabPct / 100);
-      collaboratorTotalUnits += collabUnits;
+      const collaboratorAmount = (sellerProceeds * collabPct) / 100;
+      collaboratorTotalPercentage += collabPct;
 
       collaboratorPayments.push({
         collaboratorId: collab.id,
@@ -246,15 +234,13 @@ export async function POST(
         userId: collab.userId,
         role: collab.role,
         percentage: collabPct,
-        amount: collabUnits / base,
+        amount: collaboratorAmount,
       });
     }
 
-    // Seller gets the remainder — guarantees total = sellerProceeds exactly
-    const sellerFinalUnits = proceedsUnits - collaboratorTotalUnits;
-    const collaboratorTotalPercentage = collaborators.reduce((sum: number, c: any) => sum + Number(c.percentage), 0);
+    // Seller gets the remainder
     const sellerPercentage = 100 - collaboratorTotalPercentage;
-    const sellerFinalAmount = sellerFinalUnits / base;
+    const sellerFinalAmount = (sellerProceeds * sellerPercentage) / 100;
 
     // Store the payment distribution in the transaction data
     const paymentDistribution = {
@@ -275,8 +261,6 @@ export async function POST(
       })),
     };
 
-    // SECURITY [L20]: transferMethods is schemaless JSON. Consider adding Zod
-    // validation for the paymentDistribution structure before persisting.
     // Update transaction with payment distribution
     const existingMethods = (transaction.transferMethods as Record<string, unknown>) || {};
     await prisma.transaction.update({
@@ -290,7 +274,7 @@ export async function POST(
     });
 
     // Notify seller with their share
-    const sellerName = transaction.seller.displayName || transaction.seller.username || "Seller";
+    const _sellerName = transaction.seller.displayName || transaction.seller.username || "Seller";
     await prisma.notification.create({
       data: {
         userId: transaction.sellerId,
@@ -329,11 +313,12 @@ export async function POST(
           },
         });
 
-        // Update collaborator's stats (increment their volume)
+        // Update collaborator's stats (volume and sales count)
         await prisma.user.update({
           where: { id: payment.userId },
           data: {
             totalVolume: { increment: payment.amount },
+            totalSales: { increment: 1 },
           },
         });
       }

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { verifyCronSecret } from "@/lib/cron-auth";
+import {
+  withRetry,
+  getBackendAuthority,
+  getSolanaConnection,
+  executeOnChainRefund,
+} from "@/lib/cron-helpers";
 
 /**
  * Cron Job: Seller Transfer Deadline Enforcement
@@ -8,52 +14,19 @@ import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
  * Automatically refunds buyer if seller doesn't start the transfer
  * within the deadline (3 days after purchase).
  *
- * This protects buyers from sellers who take payment but never deliver.
+ * Security:
+ * - Executes on-chain refund before updating DB
+ * - Uses idempotent atomic status transition
+ * - Wraps all DB mutations in $transaction
  *
- * Runs every hour to check for expired seller deadlines.
+ * Runs every hour.
  */
 
-const SELLER_TRANSFER_DEADLINE_DAYS = 3; // Seller must start transfer within 3 days
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-// Retry wrapper for database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  maxRetries = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
+const SELLER_TRANSFER_DEADLINE_DAYS = 3;
 
 export async function GET(request: NextRequest) {
-  // Verify authorization
   if (!verifyCronSecret(request)) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  // SECURITY [M10]: Distributed lock prevents duplicate execution
-  const unlock = await acquireCronLock("seller-transfer-deadline");
-  if (!unlock) {
-    return NextResponse.json({ message: "Already running" }, { status: 200 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -62,48 +35,35 @@ export async function GET(request: NextRequest) {
       now.getTime() - SELLER_TRANSFER_DEADLINE_DAYS * 24 * 60 * 60 * 1000
     );
 
-    // Find transactions where:
-    // 1. Status indicates payment received but transfer not started
-    // 2. Seller hasn't started transfer (transferStartedAt is null)
-    // 3. Transaction was created more than X days ago
-    // 4. No dispute has been opened
+    const authority = getBackendAuthority();
+    const connection = authority ? getSolanaConnection() : null;
+
     const expiredTransactions = await withRetry(
-      async () => prisma.transaction.findMany({
-        where: {
-          status: {
-            in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED"],
+      async () =>
+        prisma.transaction.findMany({
+          where: {
+            // Include REFUNDING to retry stuck transactions from failed previous runs
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
+            transferStartedAt: null,
+            paidAt: { not: null, lt: deadlineThreshold },
+            dispute: null,
           },
-          transferStartedAt: null,
-          paidAt: {
-            not: null,
-            lt: deadlineThreshold,
-          },
-          dispute: null,
-        },
-        include: {
-          listing: {
-            select: {
-              id: true,
-              title: true,
-              slug: true,
+          include: {
+            listing: {
+              select: { id: true, title: true, slug: true, onChainId: true },
+            },
+            buyer: {
+              select: { id: true, username: true, walletAddress: true },
+            },
+            seller: {
+              select: { id: true, username: true },
             },
           },
-          buyer: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-          seller: {
-            select: {
-              id: true,
-              username: true,
-            },
-          },
-        },
-      }),
+          take: 100,
+          orderBy: { paidAt: "asc" },
+        }),
       "Find expired transactions"
-    );
+    ) as any[];
 
     if (expiredTransactions.length === 0) {
       return NextResponse.json({
@@ -116,46 +76,69 @@ export async function GET(request: NextRequest) {
     const results = {
       refunded: 0,
       failed: 0,
+      onChainSuccess: 0,
+      onChainSkipped: 0,
       errors: [] as string[],
     };
 
     for (const transaction of expiredTransactions) {
       try {
-        // Attempt on-chain refund before updating DB.
-        // NOTE: The on-chain program's emergencyRefund requires 30 days of inactivity,
-        // which does not match the 3-day seller transfer deadline enforced here.
-        // A dedicated on-chain instruction (e.g., refund_seller_deadline) is needed.
-        // TODO: Implement a dedicated on-chain refund instruction for seller transfer deadline
-        //   1. Add refund_seller_deadline instruction to the Solana program
-        //   2. Add BACKEND_AUTHORITY_SECRET_KEY env var (JSON array from keypair file)
-        //   3. Build raw transaction instruction (similar to expire-withdrawals cron)
-        //   4. Call the instruction here before DB update
-        //   5. Wrap in try/catch so DB update proceeds even if on-chain fails
-        // WARNING: Until this is implemented, funds remain locked in escrow after seller
-        // misses the transfer deadline. The buyer is notified of a refund but on-chain
-        // escrow is NOT released.
-        console.warn(
-          `[Cron] On-chain refund NOT yet implemented for seller transfer deadline. ` +
-          `Transaction ${transaction.id} will be marked REFUNDED in DB but escrow funds ` +
-          `may still be locked on-chain. Listing: ${transaction.listing.id}`
-        );
+        // IDEMPOTENCY: Atomically claim (includes REFUNDING for retry of stuck transactions)
+        const claimed = await prisma.transaction.updateMany({
+          where: {
+            id: transaction.id,
+            status: { in: ["PAID", "IN_ESCROW", "TRANSFER_PENDING", "FUNDED", "REFUNDING"] as any },
+          },
+          data: { status: "REFUNDING" as any },
+        });
 
-        // Update transaction to REFUNDED status
-        await withRetry(
-          () => prisma.transaction.update({
+        if (claimed.count === 0) continue;
+
+        // Execute on-chain refund if possible
+        let onChainTxSig: string | null = null;
+        if (
+          authority &&
+          connection &&
+          transaction.listing.onChainId &&
+          transaction.buyer.walletAddress
+        ) {
+          onChainTxSig = await executeOnChainRefund(
+            connection,
+            authority,
+            transaction.listing.onChainId,
+            transaction.buyer.walletAddress
+          );
+
+          if (onChainTxSig) {
+            results.onChainSuccess++;
+          } else {
+            // Revert claim for retry
+            await prisma.transaction.updateMany({
+              where: { id: transaction.id, status: "REFUNDING" as any },
+              data: { status: "PAID" },
+            });
+            results.failed++;
+            results.errors.push(
+              `On-chain refund failed for ${transaction.id} — will retry`
+            );
+            continue;
+          }
+        } else {
+          results.onChainSkipped++;
+        }
+
+        // Wrap all mutations in a DB transaction
+        await prisma.$transaction([
+          prisma.transaction.update({
             where: { id: transaction.id },
             data: {
               status: "REFUNDED",
               refundedAt: now,
               refundReason: "Seller did not start transfer within deadline",
+              onChainTx: onChainTxSig || undefined,
             },
           }),
-          `Update transaction ${transaction.id}`
-        );
-
-        // Restore listing to active status
-        await withRetry(
-          () => prisma.listing.update({
+          prisma.listing.update({
             where: { id: transaction.listingId },
             data: {
               status: "ACTIVE",
@@ -164,31 +147,22 @@ export async function GET(request: NextRequest) {
               reservedAt: null,
             },
           }),
-          `Restore listing ${transaction.listingId}`
-        );
-
-        // Notify buyer of refund
-        await withRetry(
-          () => prisma.notification.create({
+          prisma.notification.create({
             data: {
               type: "REFUND_PROCESSED",
               title: "Refund Issued - Seller Did Not Transfer",
-              message: `The seller did not start the transfer for "${transaction.listing.title}" within ${SELLER_TRANSFER_DEADLINE_DAYS} days. Your payment has been refunded.`,
+              message: `The seller did not start the transfer for "${transaction.listing.title}" within ${SELLER_TRANSFER_DEADLINE_DAYS} days. A refund has been processed.${onChainTxSig ? " Funds returned to your wallet." : ""}`,
               data: {
                 transactionId: transaction.id,
                 listingSlug: transaction.listing.slug,
                 refundAmount: Number(transaction.salePrice),
                 reason: "seller_transfer_deadline_expired",
+                onChainTx: onChainTxSig,
               },
               userId: transaction.buyerId,
             },
           }),
-          `Notify buyer ${transaction.buyerId}`
-        );
-
-        // Notify seller of cancellation
-        await withRetry(
-          () => prisma.notification.create({
+          prisma.notification.create({
             data: {
               type: "SALE_CANCELLED",
               title: "Sale Cancelled - Transfer Deadline Expired",
@@ -200,16 +174,17 @@ export async function GET(request: NextRequest) {
               userId: transaction.sellerId,
             },
           }),
-          `Notify seller ${transaction.sellerId}`
-        );
+        ]);
 
         results.refunded++;
-        console.log(`[Cron] Refunded transaction ${transaction.id} - seller transfer deadline expired`);
+        console.info(
+          `[Cron:seller-transfer-deadline] Refunded transaction ${transaction.id}${onChainTxSig ? ` (on-chain: ${onChainTxSig})` : ""}`
+        );
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;
         results.errors.push(errorMsg);
-        console.error(`[Cron] ${errorMsg}`);
+        console.error(`[Cron:seller-transfer-deadline] ${errorMsg}`);
       }
     }
 
@@ -220,12 +195,10 @@ export async function GET(request: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error("[Cron] Seller transfer deadline error:", error);
+    console.error("[Cron:seller-transfer-deadline] Error:", error);
     return NextResponse.json(
       { error: "Failed to process seller transfer deadlines" },
       { status: 500 }
     );
-  } finally {
-    await unlock();
   }
 }

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
 import {
-  calculateListingSimilarity,
   findSimilarListings,
   ListingForComparison,
 } from "@/lib/similarity-detection";

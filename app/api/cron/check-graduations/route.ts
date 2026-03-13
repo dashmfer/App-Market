@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { hasPoolGraduated, getPoolState } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
-import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 // GET /api/cron/check-graduations
 //
@@ -10,15 +10,9 @@ import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
 // Primary detection is via /api/webhooks/pool-graduation (instant, Helius).
 // This cron is a fallback — runs hourly to ensure nothing slips through.
 export async function GET(request: NextRequest) {
-  // Verify cron secret using timing-safe comparison
+  // SECURITY: Use timing-safe comparison to prevent timing attacks on cron secret
   if (!verifyCronSecret(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // SECURITY [M10]: Distributed lock prevents duplicate execution
-  const unlock = await acquireCronLock("check-graduations");
-  if (!unlock) {
-    return NextResponse.json({ message: "Already running" }, { status: 200 });
   }
 
   try {
@@ -39,6 +33,7 @@ export async function GET(request: NextRequest) {
           select: { buyerId: true },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
     });
 
     if (activeLaunches.length === 0) {
@@ -63,8 +58,8 @@ export async function GET(request: NextRequest) {
             } else if (stateAny?.dammPool) {
               dammPoolAddress = stateAny.dammPool.toBase58();
             }
-          } catch {
-            // Pool state may not expose DAMM address directly
+          } catch (error) {
+            console.error("[Cron] Failed to get pool state:", { poolAddress: launch.dbcPoolAddress, error });
           }
 
           // Update DB
@@ -97,7 +92,7 @@ export async function GET(request: NextRequest) {
           graduatedCount++;
         }
       } catch (err: any) {
-        console.error(`[Cron] Error checking pool ${launch.dbcPoolAddress}:`, err);
+        console.error("[Cron] Error checking pool:", { poolAddress: launch.dbcPoolAddress, error: err });
       }
     }
 
@@ -111,7 +106,5 @@ export async function GET(request: NextRequest) {
       { error: "Failed to check graduations" },
       { status: 500 }
     );
-  } finally {
-    await unlock();
   }
 }

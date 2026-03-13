@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest } from "@/lib/csrf";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +11,7 @@ export async function GET(req: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: {
         id: true,
         username: true,
@@ -45,10 +44,10 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(req);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: Validate CSRF token for state-changing operation
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return NextResponse.json({ error: csrf.error }, { status: 403 });
     }
 
     const token = await getAuthToken(req);
@@ -62,15 +61,28 @@ export async function PUT(req: NextRequest) {
     const updateData: any = {};
 
     if (data.displayName !== undefined) {
-      updateData.displayName = data.displayName.trim().slice(0, 50);
+      // SECURITY: Truncate before regex to prevent ReDoS, loop to prevent incomplete sanitization
+      let displayName = String(data.displayName).slice(0, 100);
+      let prev = "";
+      while (prev !== displayName) {
+        prev = displayName;
+        displayName = displayName.replace(/<[^>]*>/g, "");
+      }
+      updateData.displayName = displayName.trim().slice(0, 50);
     }
 
     if (data.bio !== undefined) {
-      updateData.bio = data.bio.trim().slice(0, 500);
+      let bio = String(data.bio).slice(0, 1000);
+      let prev = "";
+      while (prev !== bio) {
+        prev = bio;
+        bio = bio.replace(/<[^>]*>/g, "");
+      }
+      updateData.bio = bio.trim().slice(0, 500);
     }
 
     if (data.websiteUrl !== undefined) {
-      const url = data.websiteUrl.trim().slice(0, 200);
+      const url = String(data.websiteUrl).trim().slice(0, 200);
       if (url && !/^https?:\/\//i.test(url)) {
         return NextResponse.json({ error: "Website URL must start with http:// or https://" }, { status: 400 });
       }
@@ -78,11 +90,17 @@ export async function PUT(req: NextRequest) {
     }
 
     if (data.discordHandle !== undefined) {
-      updateData.discordHandle = data.discordHandle.trim().slice(0, 50);
+      let discordHandle = String(data.discordHandle).slice(0, 100);
+      let prev = "";
+      while (prev !== discordHandle) {
+        prev = discordHandle;
+        discordHandle = discordHandle.replace(/<[^>]*>/g, "");
+      }
+      updateData.discordHandle = discordHandle.trim().slice(0, 50);
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       data: updateData,
       select: {
         id: true,

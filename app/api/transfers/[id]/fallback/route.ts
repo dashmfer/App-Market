@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/transfers/[id]/fallback - Activate fallback transfer process
 export async function POST(
@@ -9,11 +9,8 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     const token = await getAuthToken(request);
     if (!token?.id) {
@@ -22,9 +19,6 @@ export async function POST(
 
     const body = await request.json();
     const { githubTransferLink, zipDownloadUrl, domainTransferLink, instructions } = body;
-
-    // SECURITY [H8]: Fallback transfer URLs are self-reported and not verified.
-    // A dispute may be needed if the buyer claims the transfer didn't happen.
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: params.id },
@@ -50,11 +44,6 @@ export async function POST(
     if (transaction.sellerId !== token.id as string) {
       return NextResponse.json({ error: "Only seller can activate fallback" }, { status: 403 });
     }
-
-    // Validate that we need fallback (deadline passed or no buyer info required)
-    const hasRequiredInfo = transaction.listing.requiredBuyerInfo !== null;
-    const deadlinePassed = transaction.buyerInfoStatus === "DEADLINE_PASSED";
-    const noInfoProvided = transaction.buyerInfoStatus === "PENDING";
 
     // GitHub transfer link is required if there's a GitHub repo
     if (transaction.listing.githubRepo && !githubTransferLink) {

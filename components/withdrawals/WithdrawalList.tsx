@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { DollarSign, Check, Clock, ExternalLink } from 'lucide-react';
+import { toast } from "sonner";
 
 interface Withdrawal {
   id: string;
@@ -78,7 +79,7 @@ export default function WithdrawalList() {
       await fetchWithdrawals();
     } catch (error) {
       console.error('Error claiming withdrawal:', error);
-      alert(error instanceof Error ? error.message : 'Failed to claim withdrawal');
+      toast.error(error instanceof Error ? error.message : 'Failed to claim withdrawal');
     } finally {
       setClaiming(null);
     }

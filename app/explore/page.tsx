@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
@@ -95,7 +95,6 @@ function ExploreContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [watchlistedIds, setWatchlistedIds] = useState<Set<string>>(new Set());
-  const isInitialMount = useRef(true);
 
   // Fetch user's watchlist to show correct heart states
   useEffect(() => {
@@ -108,7 +107,7 @@ function ExploreContent() {
           setWatchlistedIds(ids);
         }
       } catch (err) {
-        // Silently fail - user might not be logged in
+        console.error("[ExplorePage] Failed to fetch watchlist:", err);
       }
     };
     fetchWatchlist();

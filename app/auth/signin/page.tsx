@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // SECURITY [H1]: Validate callbackUrl is a relative path to prevent open redirects
+  // Prevent open redirect: only allow relative paths (not protocol-relative //)
   const rawCallback = searchParams.get("callbackUrl") || "/dashboard";
   const callbackUrl = rawCallback.startsWith("/") && !rawCallback.startsWith("//") ? rawCallback : "/dashboard";
   const error = searchParams.get("error");

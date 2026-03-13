@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { withRateLimitAsync } from "@/lib/rate-limit";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/notifications - Get user's notifications
 export async function GET(request: NextRequest) {
@@ -17,19 +15,9 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = token.id as string;
-
-    // SECURITY [L15]: Rate limit notification polling
-    const rateLimitResult = await (withRateLimitAsync('read', 'notifications'))(request, userId);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: rateLimitResult.error },
-        { status: 429, headers: rateLimitResult.headers }
-      );
-    }
-
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const unreadOnly = searchParams.get("unread") === "true";
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
 
     const notifications = await prisma.notification.findMany({
       where: {
@@ -63,12 +51,6 @@ export async function GET(request: NextRequest) {
 // PATCH /api/notifications - Mark notifications as read
 export async function PATCH(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
     const token = await getAuthToken(request);
 
     if (!token?.id) {

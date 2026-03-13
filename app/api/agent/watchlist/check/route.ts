@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       return agentErrorResponse(rateLimitResult.error || "Rate limit exceeded", 429);
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {

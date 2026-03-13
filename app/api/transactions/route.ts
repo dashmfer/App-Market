@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
+import { calculatePlatformFee } from "@/lib/solana";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/transactions - Get user's transactions
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     const userId = token.id as string;
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const role = searchParams.get("role") || "all"; // buyer, seller, or all
     const status = searchParams.get("status");
 
@@ -141,10 +141,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prevent purchasing your own listing
+    if (listing.sellerId === userId) {
+      return NextResponse.json(
+        { error: "Cannot purchase your own listing" },
+        { status: 400 }
+      );
+    }
+
     // Determine sale price (winning bid or buy now price)
     let salePrice: number;
-    
+
     if (paymentMethod === "BUY_NOW") {
+      // Verify listing is still active for BUY_NOW purchases
+      if (listing.status !== "ACTIVE" && listing.status !== "RESERVED") {
+        return NextResponse.json(
+          { error: "Listing is no longer available for purchase" },
+          { status: 400 }
+        );
+      }
       if (!listing.buyNowEnabled || !listing.buyNowPrice) {
         return NextResponse.json(
           { error: "Buy Now not available" },

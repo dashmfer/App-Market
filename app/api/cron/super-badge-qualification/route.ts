@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
-import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
+import { verifyCronSecret } from "@/lib/cron-auth";
 
 /**
  * Cron Job: Super Badge Qualification
@@ -45,7 +45,7 @@ async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
+      console.warn("[Cron] Operation attempt failed:", { operationName, attempt, maxRetries, error });
 
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
@@ -65,13 +65,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // SECURITY [M10]: Distributed lock prevents duplicate execution
-  const unlock = await acquireCronLock("super-badge-qualification");
-  if (!unlock) {
-    return NextResponse.json({ message: "Already running" }, { status: 200 });
-  }
-
-  console.log("[Cron] Starting super badge qualification check...");
+  console.info("[Cron] Starting super badge qualification check...");
 
   const results = {
     newSuperSellers: 0,
@@ -84,7 +78,7 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - SUPER_BUYER_MIN_ACCOUNT_AGE_DAYS * 24 * 60 * 60 * 1000);
 
     // ============================================
     // SUPER SELLER QUALIFICATION
@@ -107,6 +101,7 @@ export async function GET(request: NextRequest) {
           rating: true,
           totalVolume: true,
         },
+        take: 200, // Batch size to prevent OOM on large datasets
       }),
       "Fetch potential super sellers"
     );
@@ -151,7 +146,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperSellers++;
-          console.log(`[Cron] Granted Super Seller badge`);
+          console.info(`[Cron] Granted Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super seller for ${user.id}: ${error}`);
@@ -190,8 +185,10 @@ export async function GET(request: NextRequest) {
         );
 
         // Revoke if rating dropped below threshold or lost disputes
+        // Guard against null rating: Number(null) === 0 which would incorrectly revoke
+        const userRating = user.rating !== null ? Number(user.rating) : null;
         const shouldRevoke = (recentDisputesLost as number) > 0 ||
-          (user.ratingCount >= SUPER_SELLER_MIN_REVIEWS && Number(user.rating) < SUPER_SELLER_MIN_RATING);
+          (user.ratingCount >= SUPER_SELLER_MIN_REVIEWS && userRating !== null && userRating < SUPER_SELLER_MIN_RATING);
 
         if (shouldRevoke) {
           await withRetry(
@@ -216,7 +213,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperSellers++;
-          console.log(`[Cron] Revoked Super Seller badge`);
+          console.info(`[Cron] Revoked Super Seller badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super seller status for ${user.id}: ${error}`);
@@ -282,7 +279,7 @@ export async function GET(request: NextRequest) {
           });
 
           results.newSuperBuyers++;
-          console.log(`[Cron] Granted Super Buyer badge`);
+          console.info(`[Cron] Granted Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to process super buyer for ${user.id}: ${error}`);
@@ -341,14 +338,14 @@ export async function GET(request: NextRequest) {
           });
 
           results.revokedSuperBuyers++;
-          console.log(`[Cron] Revoked Super Buyer badge`);
+          console.info(`[Cron] Revoked Super Buyer badge`);
         }
       } catch (error) {
         results.errors.push(`Failed to check super buyer status for ${user.id}: ${error}`);
       }
     }
 
-    console.log("[Cron] Super badge qualification completed:", results);
+    console.info("[Cron] Super badge qualification completed:", results);
 
     return NextResponse.json({
       success: true,
@@ -365,7 +362,5 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
-  } finally {
-    await unlock();
   }
 }

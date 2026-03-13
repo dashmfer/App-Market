@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const authorId = token.id as string;
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const subjectId = searchParams.get("userId");
 
     if (!subjectId) {

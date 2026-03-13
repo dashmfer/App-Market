@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { calculatePlatformFee } from "@/lib/solana";
 import { PLATFORM_CONFIG } from "@/lib/config";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
 
 // GET /api/bids?listingId=xxx - Get bids for a listing
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {
@@ -21,14 +20,8 @@ export async function GET(request: NextRequest) {
     }
 
     const bids = await prisma.bid.findMany({
-      where: {
-        listingId,
-        // SECURITY [H3]: Exclude bids from soft-deleted users
-        bidder: { deletedAt: null },
-        listing: { seller: { deletedAt: null } },
-      },
+      where: { listingId },
       orderBy: { amount: "desc" },
-      take: 100,
       include: {
         bidder: {
           select: {
@@ -102,20 +95,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate amount is positive and within reasonable bounds
-    if (typeof amount !== 'number' || amount <= 0) {
+    // SECURITY: Validate amount is positive, finite, and within safe bounds.
+    // Without an upper bound, Number.MAX_SAFE_INTEGER flows into fee calculations
+    // producing Infinity, which corrupts financial state.
+    const MAX_BID_AMOUNT = 1_000_000; // 1M SOL cap (matches offers route)
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > MAX_BID_AMOUNT) {
       return NextResponse.json(
-        { error: "Amount must be a positive number" },
-        { status: 400 }
-      );
-    }
-    // SECURITY [M5]: Guard against Infinity, NaN, and excessively large values
-    if (!Number.isFinite(amount) || amount <= 0 || amount > 1e15) {
-      return NextResponse.json({ error: "Invalid bid amount" }, { status: 400 });
-    }
-    if (amount > 1_000_000) {
-      return NextResponse.json(
-        { error: "Bid amount cannot exceed 1,000,000" },
+        { error: `Amount must be a positive finite number not exceeding ${MAX_BID_AMOUNT}` },
         { status: 400 }
       );
     }
@@ -172,21 +158,6 @@ export async function POST(request: NextRequest) {
         previousBidderId = listing.bids[0].bidderId;
       }
 
-      // ANTI-SNIPE: Extend auction if bid placed in final minutes (inside transaction for atomicity)
-      const txNow = new Date();
-      const timeUntilEndMs = listing.endTime.getTime() - txNow.getTime();
-      const antiSnipeWindowMs = PLATFORM_CONFIG.auction.antiSnipeMinutes * 60 * 1000;
-      const antiSnipeExtensionMs = PLATFORM_CONFIG.auction.antiSnipeExtension * 60 * 1000;
-
-      let newEndTime = null;
-      if (timeUntilEndMs > 0 && timeUntilEndMs <= antiSnipeWindowMs) {
-        newEndTime = new Date(txNow.getTime() + antiSnipeExtensionMs);
-        await tx.listing.update({
-          where: { id: listingId },
-          data: { endTime: newEndTime },
-        });
-      }
-
       // Create new bid
       const bid = await tx.bid.create({
         data: {
@@ -208,7 +179,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { bid, listing, previousBidderId, newEndTime } as const;
+      return { bid, listing, previousBidderId } as const;
     }, {
       isolationLevel: 'Serializable',
     });
@@ -221,7 +192,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { bid, listing, previousBidderId, newEndTime } = txResult;
+    const { bid, listing, previousBidderId } = txResult;
 
     // Notifications outside transaction (non-critical)
     if (previousBidderId) {
@@ -258,8 +229,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Notify all bidders about extension (outside transaction — non-critical)
-    if (newEndTime) {
+    // ANTI-SNIPE: Extend auction if bid placed in final minutes
+    const now = new Date();
+    const timeUntilEndMs = listing.endTime.getTime() - now.getTime();
+    const antiSnipeWindowMs = PLATFORM_CONFIG.auction.antiSnipeMinutes * 60 * 1000;
+    const antiSnipeExtensionMs = PLATFORM_CONFIG.auction.antiSnipeExtension * 60 * 1000;
+
+    let newEndTime = null;
+    if (timeUntilEndMs > 0 && timeUntilEndMs <= antiSnipeWindowMs) {
+      // Bid placed in anti-snipe window - extend the auction
+      newEndTime = new Date(now.getTime() + antiSnipeExtensionMs);
+
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: { endTime: newEndTime },
+      });
+
+      // Notify all bidders about extension
       const allBidders = await prisma.bid.findMany({
         where: { listingId },
         select: { bidderId: true },
@@ -276,7 +262,7 @@ export async function POST(request: NextRequest) {
               data: { listingId, listingSlug: listing.slug, newEndTime: newEndTime!.toISOString() },
               userId: b.bidderId,
             },
-          }).catch(console.error)
+          })
         )
       );
     }

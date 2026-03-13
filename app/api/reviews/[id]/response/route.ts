@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { isValidUUID } from "@/lib/validation";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/reviews/[id]/response - Get response for a review
 export async function GET(
@@ -11,14 +10,6 @@ export async function GET(
 ) {
   try {
     const { id: reviewId } = params;
-
-    // SECURITY [M13]: Validate UUID format
-    if (!isValidUUID(reviewId)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
 
     const response = await prisma.reviewResponse.findUnique({
       where: { reviewId },
@@ -55,10 +46,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF validation for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(request);
@@ -71,14 +62,6 @@ export async function POST(
 
     const responderId = token.id as string;
     const { id: reviewId } = params;
-
-    // SECURITY [M13]: Validate UUID format
-    if (!isValidUUID(reviewId)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
 
     const body = await request.json();
     const { content } = body;
@@ -183,12 +166,6 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json(
@@ -199,14 +176,6 @@ export async function PUT(
 
     const responderId = token.id as string;
     const { id: reviewId } = params;
-
-    // SECURITY [M13]: Validate UUID format
-    if (!isValidUUID(reviewId)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
 
     const body = await request.json();
     const { content } = body;

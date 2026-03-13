@@ -6,12 +6,11 @@ import { deserializeKeypair } from "@/lib/vanity-keygen";
 import {
   buildCreatePoolTransaction,
   buildCreatePoolWithFirstBuyTransaction,
-  getPatoConfigKey,
 } from "@/lib/meteora-dbc";
 import { uploadTokenMetadata } from "@/lib/token-metadata";
 import { watchPoolForGraduation } from "@/lib/pool-watcher";
 import { PublicKey } from "@solana/web3.js";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/token-launch/deploy — Build the on-chain transaction for pool deployment
@@ -25,12 +24,9 @@ import { validateCsrfRequest, csrfError } from '@/lib/csrf';
  */
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,7 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (tokenLaunch.transaction.buyerId !== token.id as string) {
+    if (tokenLaunch.transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: "Only the acquisition buyer can deploy this token" },
         { status: 403 }
@@ -84,10 +80,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Decrypt the vanity keypair
-    const decryptedKeypair = deserializeKeypair(
-      decrypt(tokenLaunch.vanityKeypair)
-    );
+    // Decrypt the vanity keypair (AAD must match what was used during encryption)
+    let decryptedKeypairData: string;
+    try {
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair, `tokenLaunch:${tokenLaunch.tokenMint}`);
+    } catch {
+      // Fall back to decryption without AAD for legacy data
+      decryptedKeypairData = decrypt(tokenLaunch.vanityKeypair);
+    }
+    const decryptedKeypair = deserializeKeypair(decryptedKeypairData);
 
     const creatorWallet = new PublicKey(tokenLaunch.creatorWallet!);
 
@@ -151,18 +152,14 @@ export async function POST(request: NextRequest) {
     );
 
     // SECURITY: Sign transactions server-side with the mint keypair.
-    // Never send private keys to the client.
-    if (result.createPoolTx) {
-      result.createPoolTx.partialSign(decryptedKeypair);
-    }
-    if (result.swapBuyTx) {
-      result.swapBuyTx.partialSign(decryptedKeypair);
-    }
-
-    // Serialize the partially-signed transactions for the client to co-sign
+    // The mint keypair MUST sign the pool creation tx, but we NEVER send
+    // the secret key to the client. Instead, we partially sign here and
+    // the client only needs to add their wallet signature.
     const transactions = [];
 
     if (result.createPoolTx) {
+      // Partially sign with the mint keypair server-side
+      result.createPoolTx.partialSign(decryptedKeypair);
       transactions.push({
         type: "createPool",
         serialized: Buffer.from(
@@ -186,8 +183,8 @@ export async function POST(request: NextRequest) {
       poolAddress: result.poolAddress.toBase58(),
       mintAddress: result.mintAddress.toBase58(),
       transactions,
-      // NOTE: mintKeypairBytes intentionally NOT included.
-      // The mint keypair signs server-side via partialSign above.
+      // NOTE: mintKeypairBytes intentionally omitted — private key must never
+      // leave the server. The createPool tx is already partially signed above.
     });
   } catch (error: any) {
     console.error("[PATO Deploy] Error building deploy transaction:", error);

@@ -10,9 +10,8 @@
  * Safe to run multiple times — looksEncrypted() prevents double-encryption.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const { PrismaClient } = require("@prisma/client");
-const crypto = require("crypto");
+import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -49,6 +48,11 @@ function encrypt(plaintext: string): string {
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag();
 
+  // SECURITY: Validate hex string before Buffer.from to prevent unexpected input
+  if (!/^[0-9a-fA-F]*$/.test(encrypted)) {
+    throw new Error("Invalid hex string");
+  }
+
   const combined = Buffer.concat([
     salt,
     iv,
@@ -56,10 +60,15 @@ function encrypt(plaintext: string): string {
     Buffer.from(encrypted, "hex"),
   ]);
 
-  return combined.toString("base64");
+  return "enc:v1:" + combined.toString("base64");
 }
 
 function looksEncrypted(data: string): boolean {
+  // Check for deterministic prefix (new format)
+  if (data.startsWith("enc:v1:")) {
+    return true;
+  }
+  // Legacy format: heuristic check
   try {
     const decoded = Buffer.from(data, "base64");
     return decoded.length > SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH;
@@ -89,7 +98,7 @@ async function rotateTokens() {
           updates[field] = encrypt(value);
           needsUpdate = true;
         } catch (error) {
-          console.error(`  Failed to encrypt ${field} for account ${account.id}:`, error);
+          console.error("  Failed to encrypt field for account:", { field, accountId: account.id, error });
           errorCount++;
         }
       } else if (value && looksEncrypted(value)) {

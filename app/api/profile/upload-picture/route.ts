@@ -10,10 +10,10 @@ import { validateCsrfRequest, csrfError } from '@/lib/csrf';
  */
 export async function POST(req: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(req);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(req);
@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate file type (MIME check)
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' },
+        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.' },
         { status: 400 }
       );
     }
@@ -58,10 +58,11 @@ export async function POST(req: NextRequest) {
     const magicBytes = buffer.subarray(0, 12);
     const isJpeg = magicBytes[0] === 0xFF && magicBytes[1] === 0xD8 && magicBytes[2] === 0xFF;
     const isPng = magicBytes[0] === 0x89 && magicBytes[1] === 0x50 && magicBytes[2] === 0x4E && magicBytes[3] === 0x47;
+    const isGif = magicBytes[0] === 0x47 && magicBytes[1] === 0x49 && magicBytes[2] === 0x46 && magicBytes[3] === 0x38;
     const isWebp = magicBytes[0] === 0x52 && magicBytes[1] === 0x49 && magicBytes[2] === 0x46 && magicBytes[3] === 0x46 &&
                    magicBytes[8] === 0x57 && magicBytes[9] === 0x45 && magicBytes[10] === 0x42 && magicBytes[11] === 0x50;
 
-    if (!isJpeg && !isPng && !isWebp) {
+    if (!isJpeg && !isPng && !isGif && !isWebp) {
       return NextResponse.json(
         { error: 'File content does not match an allowed image format.' },
         { status: 400 }
@@ -70,27 +71,34 @@ export async function POST(req: NextRequest) {
 
     // Delete old profile picture if it exists
     const currentUser = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: { image: true },
     });
-    if (currentUser?.image && currentUser.image.includes('blob.vercel-storage.com')) {
+    if (currentUser?.image) {
+      let isVercelBlob = false;
       try {
-        const { del } = await import("@vercel/blob");
-        await del(currentUser.image);
-      } catch (e) {
-        console.error("[Profile Image] Failed to delete old image:", e);
-        // Continue with upload even if delete fails
+        const oldUrl = new URL(currentUser.image);
+        isVercelBlob = oldUrl.hostname.endsWith('blob.vercel-storage.com');
+      } catch { /* not a valid URL */ }
+      if (isVercelBlob) {
+        try {
+          const { del } = await import("@vercel/blob");
+          await del(currentUser.image);
+        } catch (e) {
+          console.error("[Profile Image] Failed to delete old image:", e);
+          // Continue with upload even if delete fails
+        }
       }
     }
 
     // Upload to Vercel Blob Storage
-    const blob = await put(`profile-pictures/${token.id as string}-${Date.now()}.${file.type.split('/')[1]}`, file, {
+    const blob = await put(`profile-pictures/${(token!.id as string)}-${Date.now()}.${file.type.split('/')[1]}`, file, {
       access: 'public',
     });
 
     // Update user profile with new image URL
     const updatedUser = await prisma.user.update({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       data: { image: blob.url },
       select: {
         id: true,
@@ -117,10 +125,10 @@ export async function POST(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(req);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(req);
@@ -134,7 +142,7 @@ export async function DELETE(req: NextRequest) {
 
     // Remove profile picture
     await prisma.user.update({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       data: { image: null },
     });
 

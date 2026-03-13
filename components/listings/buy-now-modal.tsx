@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
@@ -14,7 +14,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  UserPlus,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -202,7 +201,6 @@ export function BuyNowModal({ isOpen, onClose, listing, onSuccess }: BuyNowModal
       });
 
       if (response.ok) {
-        const data = await response.json();
         onSuccess?.();
         // Redirect to a page showing partner deposit status
         router.push(`/dashboard/purchases`);

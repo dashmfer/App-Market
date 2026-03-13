@@ -3,7 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // Standard NDA template when seller doesn't provide custom terms
 const STANDARD_NDA_TEMPLATE = `NON-DISCLOSURE AGREEMENT
@@ -111,12 +111,9 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
 
     if (!token?.id) {
@@ -240,8 +237,6 @@ export async function POST(
     }
 
     // Create NDA record
-    // SECURITY [M1]: The signedMessage captures the exact terms at signing time,
-    // so even if the seller modifies ndaTerms later, the signed record is immutable.
     const nda = await prisma.listingNDA.create({
       data: {
         listingId: listing.id,

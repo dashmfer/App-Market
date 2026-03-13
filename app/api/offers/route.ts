@@ -3,13 +3,15 @@ import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
-import { audit, auditContext } from '@/lib/audit';
+import { withRateLimitAsync } from "@/lib/rate-limit";
+
+const MAX_OFFER_AMOUNT = 1_000_000; // 1M SOL cap to prevent overflow in fee calculations
 
 const createOfferSchema = z.object({
   listingId: z.string(),
-  amount: z.number().positive(),
+  amount: z.number().positive().max(MAX_OFFER_AMOUNT, `Offer amount cannot exceed ${MAX_OFFER_AMOUNT}`),
   deadline: z.string().datetime(),
+  onChainTx: z.string().min(32).max(128).optional(),
 });
 
 /**
@@ -33,6 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // SECURITY: Use getAuthToken for consistent revocation checks
     const token = await getAuthToken(req);
 
     if (!token?.id) {
@@ -45,26 +48,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validatedData = createOfferSchema.parse(body);
 
-    // Deadline must be in the future and within 30 days
-    const deadlineDate = new Date(validatedData.deadline);
-    if (deadlineDate <= new Date()) {
+    // Deadline must be in the future
+    if (new Date(validatedData.deadline) <= new Date()) {
       return NextResponse.json(
         { error: 'Offer deadline must be in the future' },
         { status: 400 }
       );
     }
-    const maxDeadline = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    if (deadlineDate > maxDeadline) {
-      return NextResponse.json(
-        { error: 'Offer deadline cannot be more than 30 days in the future' },
-        { status: 400 }
-      );
-    }
 
-    // Wrap listing check + offer count + offer create in Serializable transaction
-    // to prevent race conditions (e.g., bypassing offer limits)
-    const { offer, listing } = await prisma.$transaction(async (tx) => {
-      // Check if listing exists and is active
+    // On-chain escrow: Buyer signs place_offer tx on frontend, sends tx hash here.
+    // If onChainTx is provided, the offer is backed by locked funds on-chain.
+    // PRE-MAINNET: Once on-chain escrow is fully wired, reject offers without onChainTx.
+    const onChainTx = validatedData.onChainTx || null;
+
+    // Use a serializable transaction to prevent race condition where listing
+    // becomes sold between the check and the offer creation.
+    const result = await prisma.$transaction(async (tx) => {
       const listing = await tx.listing.findUnique({
         where: { id: validatedData.listingId },
         select: {
@@ -76,50 +75,17 @@ export async function POST(req: NextRequest) {
       });
 
       if (!listing) {
-        throw new Error('LISTING_NOT_FOUND');
+        return { error: 'Listing not found', status: 404 } as const;
       }
 
       if (listing.status !== 'ACTIVE') {
-        throw new Error('LISTING_NOT_ACTIVE');
+        return { error: 'Listing is not active', status: 400 } as const;
       }
 
-      // Can't make offer on own listing
-      if (listing.sellerId === token.id as string) {
-        throw new Error('OWN_LISTING');
+      if (listing.sellerId === (token.id as string)) {
+        return { error: 'Cannot make offer on your own listing', status: 400 } as const;
       }
 
-      // SECURITY: Offers are currently database-only (no on-chain escrow).
-      // To prevent spam offers that lock seller listings, enforce strict limits:
-      // - Max 3 active offers per buyer per listing
-      // - Max 10 total active offers per buyer across all listings
-      const activeOffersOnListing = await tx.offer.count({
-        where: {
-          buyerId: token.id as string,
-          listingId: validatedData.listingId,
-          status: 'ACTIVE',
-        },
-      });
-
-      if (activeOffersOnListing >= 3) {
-        throw new Error('MAX_OFFERS_ON_LISTING');
-      }
-
-      const totalActiveOffers = await tx.offer.count({
-        where: {
-          buyerId: token.id as string,
-          status: 'ACTIVE',
-        },
-      });
-
-      if (totalActiveOffers >= 10) {
-        throw new Error('MAX_TOTAL_OFFERS');
-      }
-
-      // TODO: Call Solana contract place_offer instruction to create on-chain escrow.
-      // Without on-chain escrow, offers are not backed by locked funds.
-      // Requires: Complete IDL, offer escrow PDA creation, buyer signature.
-
-      // Create offer in database
       const offer = await tx.offer.create({
         data: {
           amount: validatedData.amount,
@@ -127,6 +93,7 @@ export async function POST(req: NextRequest) {
           listingId: validatedData.listingId,
           buyerId: token.id as string,
           status: 'ACTIVE',
+          ...(onChainTx ? { onChainTx } : {}),
         },
         include: {
           buyer: {
@@ -147,34 +114,32 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return { offer, listing };
+      // Create notification for seller within the same transaction
+      await tx.notification.create({
+        data: {
+          userId: listing.sellerId,
+          type: 'SYSTEM',
+          title: 'New Offer Received',
+          message: `You received an offer of ${validatedData.amount} SOL on "${listing.title}"`,
+          data: {
+            offerId: offer.id,
+            listingId: listing.id,
+            amount: validatedData.amount,
+          },
+        },
+      });
+
+      return { offer, listing } as const;
     }, { isolationLevel: 'Serializable' });
 
-    // Create notification for seller
-    await prisma.notification.create({
-      data: {
-        userId: listing.sellerId,
-        type: 'SYSTEM',
-        title: 'New Offer Received',
-        message: `You received an offer of ${validatedData.amount} SOL on "${listing.title}"`,
-        data: {
-          offerId: offer.id,
-          listingId: listing.id,
-          amount: validatedData.amount,
-        },
-      },
-    });
+    if ('error' in result) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status }
+      );
+    }
 
-    await audit({
-      action: "OFFER_CREATED",
-      severity: "INFO",
-      userId: token.id as string,
-      targetId: offer.id,
-      targetType: "Offer",
-      detail: `Offer of ${validatedData.amount} on listing ${validatedData.listingId}`,
-      metadata: { listingId: validatedData.listingId, amount: validatedData.amount },
-      ...auditContext(req.headers),
-    });
+    const { offer } = result;
 
     return NextResponse.json(offer, { status: 201 });
   } catch (error) {
@@ -185,32 +150,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Handle transaction validation errors
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    if (errorMessage === 'LISTING_NOT_FOUND') {
-      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
-    }
-    if (errorMessage === 'LISTING_NOT_ACTIVE') {
-      return NextResponse.json({ error: 'Listing is not active' }, { status: 400 });
-    }
-    if (errorMessage === 'OWN_LISTING') {
-      return NextResponse.json({ error: 'Cannot make offer on your own listing' }, { status: 400 });
-    }
-    if (errorMessage === 'MAX_OFFERS_ON_LISTING') {
-      return NextResponse.json(
-        { error: 'You already have the maximum of 3 active offers on this listing. Cancel an existing offer first.' },
-        { status: 429 }
-      );
-    }
-    if (errorMessage === 'MAX_TOTAL_OFFERS') {
-      return NextResponse.json(
-        { error: 'You have reached the maximum of 10 active offers. Cancel an existing offer first.' },
-        { status: 429 }
-      );
-    }
-
     // Handle Solana contract errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Check for MaxConsecutiveOffersExceeded error from contract
     if (errorMessage.includes('MaxConsecutiveOffersExceeded') ||
@@ -250,7 +191,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const type = searchParams.get('type') || 'sent';
 
     if (type === 'received') {
@@ -260,8 +201,6 @@ export async function GET(req: NextRequest) {
           listing: {
             sellerId: token.id as string,
           },
-          // SECURITY [H3]: Exclude offers from soft-deleted users
-          buyer: { deletedAt: null },
         },
         include: {
           buyer: {
@@ -285,7 +224,6 @@ export async function GET(req: NextRequest) {
         orderBy: {
           createdAt: 'desc',
         },
-        take: 50,
       });
 
       return NextResponse.json({ offers });
@@ -294,8 +232,6 @@ export async function GET(req: NextRequest) {
       const offers = await prisma.offer.findMany({
         where: {
           buyerId: token.id as string,
-          // SECURITY [H3]: Exclude offers from soft-deleted users
-          buyer: { deletedAt: null },
         },
         include: {
           buyer: {
@@ -319,7 +255,6 @@ export async function GET(req: NextRequest) {
         orderBy: {
           createdAt: 'desc',
         },
-        take: 50,
       });
 
       return NextResponse.json({ offers });

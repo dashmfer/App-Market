@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Flag, Loader2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function NewDisputePage() {
   return (
@@ -15,7 +16,6 @@ export default function NewDisputePage() {
 
 function NewDisputeContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const transactionId = searchParams.get("transaction");
   const itemId = searchParams.get("item");
 
@@ -67,7 +67,7 @@ function NewDisputeContent() {
       setSubmitted(true);
     } catch (err: unknown) {
       console.error("Error submitting dispute:", err);
-      alert(err instanceof Error ? err.message : "Failed to submit dispute");
+      toast.error(err instanceof Error ? err.message : "Failed to submit dispute");
     } finally {
       setIsSubmitting(false);
     }

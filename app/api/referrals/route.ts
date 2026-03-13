@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { prisma } from "@/lib/db";
 import { PLATFORM_CONFIG } from "@/lib/config";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 
 // GET /api/referrals - Get user's referral info
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: {
         referralCode: true,
         referralCodeCustomized: true,
@@ -92,11 +92,9 @@ export async function GET(request: NextRequest) {
 // PATCH /api/referrals - Update referral code (one time only)
 export async function PATCH(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     const token = await getAuthToken(request);
     if (!token?.id) {
@@ -133,48 +131,48 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Check if user already customized
-    const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
-      select: { referralCodeCustomized: true },
-    });
+    // Atomically check uniqueness and update within a transaction.
+    // Relies on the unique constraint on referralCode — if two users try to
+    // claim the same code concurrently, one will get a Prisma unique constraint error.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: (token!.id as string) },
+          select: { referralCodeCustomized: true },
+        });
 
-    if (user?.referralCodeCustomized) {
-      return NextResponse.json(
-        { error: "You've already customized your referral code" },
-        { status: 400 }
-      );
-    }
+        if (user?.referralCodeCustomized) {
+          throw new Error("ALREADY_CUSTOMIZED");
+        }
 
-    // SECURITY [C7-referral]: Use serializable transaction to prevent TOCTOU race
-    await prisma.$transaction(async (tx) => {
-      // Check if code is taken
-      const existing = await tx.user.findUnique({
-        where: { referralCode: cleanCode },
-      });
-
-      if (existing) {
-        throw new Error("REFERRAL_CODE_TAKEN");
+        // The unique constraint on referralCode will reject duplicates atomically
+        await tx.user.update({
+          where: { id: (token!.id as string) },
+          data: {
+            referralCode: cleanCode,
+            referralCodeCustomized: true,
+          },
+        });
+      }, { isolationLevel: 'Serializable' });
+    } catch (txError: any) {
+      if (txError?.message === "ALREADY_CUSTOMIZED") {
+        return NextResponse.json(
+          { error: "You've already customized your referral code" },
+          { status: 400 }
+        );
       }
-
-      // Update code
-      await tx.user.update({
-        where: { id: token.id as string },
-        data: {
-          referralCode: cleanCode,
-          referralCodeCustomized: true,
-        },
-      });
-    }, { isolationLevel: 'Serializable' });
+      // Prisma unique constraint violation
+      if (txError?.code === "P2002") {
+        return NextResponse.json(
+          { error: "This code is already taken" },
+          { status: 400 }
+        );
+      }
+      throw txError;
+    }
 
     return NextResponse.json({ success: true, code: cleanCode });
-  } catch (error: any) {
-    if (error?.message === "REFERRAL_CODE_TAKEN") {
-      return NextResponse.json(
-        { error: "This code is already taken" },
-        { status: 400 }
-      );
-    }
+  } catch (error) {
     console.error("Error updating referral code:", error);
     return NextResponse.json(
       { error: "Internal server error" },

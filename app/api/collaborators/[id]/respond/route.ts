@@ -3,7 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { verifyWalletOwnership } from "@/lib/wallet-verification";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest } from "@/lib/csrf";
 
 // POST /api/collaborators/[id]/respond - Accept or decline a collaboration invite
 export async function POST(
@@ -11,10 +11,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: Validate CSRF token for state-changing operation
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return NextResponse.json({ error: csrf.error }, { status: 403 });
     }
 
     const token = await getAuthToken(request);
@@ -265,11 +265,6 @@ export async function GET(
         { error: "Collaboration invite not found" },
         { status: 404 }
       );
-    }
-
-    // SECURITY: Verify the authenticated user is the actual collaborator
-    if (collaborator.userId !== token.id) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
     return NextResponse.json({ collaborator });

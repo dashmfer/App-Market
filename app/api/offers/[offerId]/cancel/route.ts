@@ -12,10 +12,10 @@ export async function POST(
   { params }: { params: { offerId: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(req);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF validation for state-changing endpoint
+    const csrf = validateCsrfRequest(req);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || 'CSRF validation failed');
     }
 
     const token = await getAuthToken(req);
@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // Only buyer can cancel
-    if (offer.buyerId !== token.id as string) {
+    if (offer.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: 'Only the buyer can cancel this offer' },
         { status: 403 }

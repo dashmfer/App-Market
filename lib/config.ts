@@ -38,8 +38,8 @@ export const PLATFORM_CONFIG = {
     // Master switch for auto-buyback feature
     enabled: process.env.ENABLE_AUTO_BUYBACK === "true",
     
-    // Percentage of revenue used for buyback (0-100)
-    buybackPercentage: parseInt(process.env.BUYBACK_PERCENTAGE || "20"),
+    // Percentage of revenue used for buyback (0-100), clamped to valid range
+    buybackPercentage: Math.max(0, Math.min(100, parseInt(process.env.BUYBACK_PERCENTAGE || "20", 10) || 20)),
     
     // Minimum SOL accumulated before executing buyback
     minimumBuybackAmount: 1, // SOL
@@ -161,13 +161,13 @@ export const PLATFORM_CONFIG = {
   // ============================================
   tokens: {
     APP: {
-      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+      mint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
       decimals: 9,
       symbol: "APP",
       name: "App Market Token",
     },
     USDC: {
-      mint: process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      mint: process.env.NEXT_PUBLIC_USDC_MINT || "",
       decimals: 6,
       symbol: "USDC",
       name: "USD Coin",
@@ -177,16 +177,12 @@ export const PLATFORM_CONFIG = {
   // ============================================
   // WALLET ADDRESSES
   // ============================================
-  // SECURITY [L12]: Centralized tolerance constant (previously hardcoded in 3 files)
-  lamportTolerance: 10000,
-
   wallets: {
-    // SECURITY [L11]: Treasury wallet address should be read from here, not env vars in 3 places
-    // Platform treasury (receives fees)
-    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6",
+    // Platform treasury (receives fees) — MUST be set via environment variable
+    treasury: process.env.NEXT_PUBLIC_TREASURY_WALLET || "",
 
-    // Platform token mint ($APP)
-    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS",
+    // Platform token mint ($APP) — MUST be set via environment variable
+    tokenMint: process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "",
 
     // Buyback wallet (holds SOL for buybacks)
     buybackWallet: process.env.BUYBACK_WALLET || null,
@@ -282,9 +278,89 @@ export const PLATFORM_CONFIG = {
 
 // Helper functions for config
 
-// NOTE: getFeeRateBps, calculatePlatformFee, calculateDisputeFee, and
-// calculateSellerProceeds have been removed from this file to eliminate
-// duplication. Use the canonical versions from lib/solana.ts instead.
+// Get fee rate based on currency (APP gets discounted 3%, others 5%)
+export function getFeeRateBps(currency?: string): number {
+  return currency === "APP"
+    ? PLATFORM_CONFIG.fees.appFeeBps
+    : PLATFORM_CONFIG.fees.platformFeeBps;
+}
+
+/**
+ * SECURITY: All fee calculations use integer arithmetic (smallest units) to avoid
+ * IEEE 754 floating-point precision loss that can cause financial discrepancies.
+ * Supports both SOL (9 decimals) and USDC (6 decimals) via currency-aware conversion.
+ */
+const DECIMALS_BY_CURRENCY: Record<string, number> = {
+  SOL: 9,
+  APP: 9,
+  USDC: 6,
+};
+
+function getDecimals(currency?: string): number {
+  return DECIMALS_BY_CURRENCY[currency || "SOL"] || 9;
+}
+
+function amountToSmallestUnits(amount: number, currency?: string): bigint {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new RangeError(`Invalid amount: ${amount}`);
+  }
+  const decimals = getDecimals(currency);
+  // Convert via string to avoid floating-point multiplication errors
+  const [whole, decimal = ""] = amount.toString().split(".");
+  const paddedDecimal = decimal.padEnd(decimals, "0").slice(0, decimals);
+  return BigInt(whole + paddedDecimal);
+}
+
+function smallestUnitsToAmount(units: bigint, currency?: string): number {
+  const decimals = getDecimals(currency);
+  const divisor = BigInt(10 ** decimals);
+  const whole = units / divisor;
+  const remainder = units % divisor;
+  return Number(whole) + Number(remainder) / Number(divisor);
+}
+
+// Legacy aliases for backwards compatibility within this file
+const LAMPORTS_PER_SOL_BI = BigInt(1_000_000_000);
+
+function solToLamportsBigInt(sol: number): bigint {
+  return amountToSmallestUnits(sol, "SOL");
+}
+
+function lamportsToSolNumber(lamports: bigint): number {
+  return smallestUnitsToAmount(lamports, "SOL");
+}
+
+export function calculatePlatformFee(amount: number, currency?: string): number {
+  const feeBps = getFeeRateBps(currency);
+  const amountUnits = amountToSmallestUnits(amount, currency);
+  const feeUnits = (amountUnits * BigInt(feeBps)) / BigInt(10000);
+  return smallestUnitsToAmount(feeUnits, currency);
+}
+
+export function calculateDisputeFee(amount: number, currency?: string): number {
+  const amountUnits = amountToSmallestUnits(amount, currency);
+  const feeUnits = (amountUnits * BigInt(PLATFORM_CONFIG.fees.disputeFeeBps)) / BigInt(10000);
+  return smallestUnitsToAmount(feeUnits, currency);
+}
+
+// Calculate seller proceeds with fee breakdown
+export function calculateSellerProceeds(salePrice: number, currency?: string): {
+  fee: number;
+  proceeds: number;
+  feeBps: number;
+  feePercent: string;
+} {
+  const feeBps = getFeeRateBps(currency);
+  const priceUnits = amountToSmallestUnits(salePrice, currency);
+  const feeUnits = (priceUnits * BigInt(feeBps)) / BigInt(10000);
+  const proceedsUnits = priceUnits - feeUnits;
+  return {
+    fee: smallestUnitsToAmount(feeUnits, currency),
+    proceeds: smallestUnitsToAmount(proceedsUnits, currency),
+    feeBps,
+    feePercent: `${feeBps / 100}%`,
+  };
+}
 
 export function calculateTokenLaunchAllocation(totalSupply: bigint): bigint {
   return (totalSupply * BigInt(PLATFORM_CONFIG.fees.tokenLaunchSupplyBps)) / BigInt(10000);
@@ -317,5 +393,8 @@ export function getRevenueDistribution(totalRevenue: number): {
     buyback: 0,
   };
 }
+
+// Export currency-aware conversion utilities for use by other modules
+export { amountToSmallestUnits, smallestUnitsToAmount };
 
 export default PLATFORM_CONFIG;

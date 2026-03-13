@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/watchlist - Get user's watchlist
 export async function GET(request: NextRequest) {
@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
     });
 
     // Transform to return just listings with watchlist info
@@ -58,10 +57,10 @@ export async function GET(request: NextRequest) {
 // POST /api/watchlist - Add listing to watchlist
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(request);
@@ -134,10 +133,10 @@ export async function POST(request: NextRequest) {
 // DELETE /api/watchlist - Remove listing from watchlist
 export async function DELETE(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(request);
@@ -146,7 +145,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const userId = token.id as string;
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
 
     if (!listingId) {

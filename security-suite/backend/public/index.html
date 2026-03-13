@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Security Testing Suite</title>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-green: #22c55e;
+      --critical: #ef4444;
+      --high: #f97316;
+      --medium: #eab308;
+      --low: #3b82f6;
+      --info: #6b7280;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-blue);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+
+    .logo h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .logo span {
+      color: var(--accent-blue);
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-tertiary);
+      border-radius: 9999px;
+      font-size: 0.875rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--critical);
+    }
+
+    .status-dot.connected {
+      background: var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      min-height: calc(100vh - 80px);
+    }
+
+    .sidebar {
+      background: var(--bg-secondary);
+      padding: 1.5rem;
+      border-right: 1px solid var(--bg-tertiary);
+    }
+
+    .sidebar h2 {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .scanner-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .scanner-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+
+    .scanner-item:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .scanner-item.active {
+      border-color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .scanner-item.running {
+      border-color: var(--accent-green);
+      animation: borderPulse 1.5s infinite;
+    }
+
+    @keyframes borderPulse {
+      0%, 100% { border-color: var(--accent-green); }
+      50% { border-color: transparent; }
+    }
+
+    .scanner-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .scanner-info h3 {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .scanner-info p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .main-content {
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      border: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-primary:disabled {
+      background: var(--bg-tertiary);
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--bg-tertiary);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent-blue);
+    }
+
+    .btn-danger {
+      background: var(--critical);
+      color: white;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      border: 1px solid var(--bg-tertiary);
+    }
+
+    .stat-card.critical { border-top: 3px solid var(--critical); }
+    .stat-card.high { border-top: 3px solid var(--high); }
+    .stat-card.medium { border-top: 3px solid var(--medium); }
+    .stat-card.low { border-top: 3px solid var(--low); }
+    .stat-card.info { border-top: 3px solid var(--info); }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .stat-card.critical .stat-value { color: var(--critical); }
+    .stat-card.high .stat-value { color: var(--high); }
+    .stat-card.medium .stat-value { color: var(--medium); }
+    .stat-card.low .stat-value { color: var(--low); }
+    .stat-card.info .stat-value { color: var(--info); }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .risk-meter {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--bg-tertiary);
+    }
+
+    .risk-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .risk-header h3 {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .risk-score {
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    .risk-bar {
+      height: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .risk-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.5s ease, background 0.3s;
+    }
+
+    .findings-section {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--bg-tertiary);
+      overflow: hidden;
+    }
+
+    .findings-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .findings-header h3 {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    .findings-filter {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .filter-btn {
+      padding: 0.25rem 0.75rem;
+      background: var(--bg-tertiary);
+      border: none;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .findings-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .finding-item {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .finding-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .finding-item:last-child {
+      border-bottom: none;
+    }
+
+    .finding-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .severity-badge {
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.625rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .severity-badge.critical { background: var(--critical); }
+    .severity-badge.high { background: var(--high); }
+    .severity-badge.medium { background: var(--medium); }
+    .severity-badge.low { background: var(--low); }
+    .severity-badge.info { background: var(--info); }
+
+    .finding-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .finding-location {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: 'SF Mono', monospace;
+    }
+
+    .finding-desc {
+      font-size: 0.8125rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+      line-height: 1.5;
+    }
+
+    .activity-panel {
+      background: var(--bg-secondary);
+      padding: 1.5rem;
+      border-left: 1px solid var(--bg-tertiary);
+    }
+
+    .activity-panel h2 {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    .progress-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .progress-item {
+      margin-bottom: 1rem;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent-blue);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .log-section {
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 1rem;
+      height: 300px;
+      overflow-y: auto;
+      font-size: 0.75rem;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .log-msg {
+      color: var(--text-primary);
+    }
+
+    .log-msg.error { color: var(--critical); }
+    .log-msg.success { color: var(--accent-green); }
+    .log-msg.warning { color: var(--medium); }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary);
+    }
+
+    .empty-state .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      display: none;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      overflow: hidden;
+      border: 1px solid var(--bg-tertiary);
+    }
+
+    .modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      max-height: calc(90vh - 150px);
+    }
+
+    .detail-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .detail-section h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .code-block {
+      background: var(--bg-primary);
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.75rem;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <h1>Solana <span>Security Suite</span></h1>
+    </div>
+    <div class="connection-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="connectionStatus">Connecting...</span>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="sidebar">
+      <h2>Scanners</h2>
+      <div class="scanner-list" id="scannerList">
+        <div class="scanner-item" data-scanner="static-analyzer">
+          <div class="scanner-icon">🔍</div>
+          <div class="scanner-info">
+            <h3>Static Analyzer</h3>
+            <p>Pattern-based analysis</p>
+          </div>
+        </div>
+        <div class="scanner-item" data-scanner="pattern-scanner">
+          <div class="scanner-icon">🎯</div>
+          <div class="scanner-info">
+            <h3>Pattern Scanner</h3>
+            <p>Solana vulnerability patterns</p>
+          </div>
+        </div>
+        <div class="scanner-item" data-scanner="anchor-tests">
+          <div class="scanner-icon">⚔️</div>
+          <div class="scanner-info">
+            <h3>Attack Tests</h3>
+            <p>Anchor attack scenarios</p>
+          </div>
+        </div>
+        <div class="scanner-item" data-scanner="api-tests">
+          <div class="scanner-icon">🌐</div>
+          <div class="scanner-info">
+            <h3>API Security</h3>
+            <p>Endpoint vulnerability tests</p>
+          </div>
+        </div>
+        <div class="scanner-item" data-scanner="fuzzer">
+          <div class="scanner-icon">🔀</div>
+          <div class="scanner-info">
+            <h3>Fuzzer</h3>
+            <p>Cargo-fuzz integration</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="controls">
+        <button class="btn btn-primary" id="runAllBtn" onclick="runAllScans()">
+          <span>▶</span> Run All Scans
+        </button>
+        <button class="btn btn-secondary" id="runSelectedBtn" onclick="runSelectedScan()" disabled>
+          <span>▶</span> Run Selected
+        </button>
+        <button class="btn btn-secondary" onclick="downloadReport()">
+          <span>📄</span> Download PDF
+        </button>
+        <button class="btn btn-secondary" onclick="clearResults()">
+          <span>🗑️</span> Clear
+        </button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card critical">
+          <div class="stat-value" id="criticalCount">0</div>
+          <div class="stat-label">Critical</div>
+        </div>
+        <div class="stat-card high">
+          <div class="stat-value" id="highCount">0</div>
+          <div class="stat-label">High</div>
+        </div>
+        <div class="stat-card medium">
+          <div class="stat-value" id="mediumCount">0</div>
+          <div class="stat-label">Medium</div>
+        </div>
+        <div class="stat-card low">
+          <div class="stat-value" id="lowCount">0</div>
+          <div class="stat-label">Low</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-value" id="infoCount">0</div>
+          <div class="stat-label">Info</div>
+        </div>
+      </div>
+
+      <div class="risk-meter">
+        <div class="risk-header">
+          <h3>Risk Score</h3>
+          <div class="risk-score" id="riskScore">0</div>
+        </div>
+        <div class="risk-bar">
+          <div class="risk-fill" id="riskFill" style="width: 0%; background: var(--accent-green);"></div>
+        </div>
+      </div>
+
+      <div class="findings-section">
+        <div class="findings-header">
+          <h3>Findings (<span id="findingsCount">0</span>)</h3>
+          <div class="findings-filter">
+            <button class="filter-btn active" onclick="filterFindings('all')">All</button>
+            <button class="filter-btn" onclick="filterFindings('critical')">Critical</button>
+            <button class="filter-btn" onclick="filterFindings('high')">High</button>
+            <button class="filter-btn" onclick="filterFindings('medium')">Medium</button>
+          </div>
+        </div>
+        <div class="findings-list" id="findingsList">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>Run a scan to discover vulnerabilities</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="activity-panel">
+      <h2>Progress</h2>
+      <div class="progress-section" id="progressSection">
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Static Analyzer</span>
+            <span id="staticProgress">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="staticBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Pattern Scanner</span>
+            <span id="patternProgress">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="patternBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Attack Tests</span>
+            <span id="anchorProgress">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="anchorBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>API Tests</span>
+            <span id="apiProgress">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="apiBar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="progress-item">
+          <div class="progress-header">
+            <span>Fuzzer</span>
+            <span id="fuzzProgress">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="fuzzBar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Activity Log</h2>
+      <div class="log-section" id="logSection">
+        <!-- Logs will be added here -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Finding Detail Modal -->
+  <div class="modal-overlay" id="findingModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Finding Details</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Content populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let socket;
+    let results = {};
+    let selectedScanner = null;
+    let allFindings = [];
+    let currentFilter = 'all';
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      connectSocket();
+      setupScannerSelection();
+    });
+
+    function connectSocket() {
+      socket = io('http://localhost:4000');
+
+      socket.on('connect', () => {
+        document.getElementById('statusDot').classList.add('connected');
+        document.getElementById('connectionStatus').textContent = 'Connected';
+        addLog('Connected to security suite server', 'success');
+      });
+
+      socket.on('disconnect', () => {
+        document.getElementById('statusDot').classList.remove('connected');
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+        addLog('Disconnected from server', 'error');
+      });
+
+      socket.on('status', (data) => {
+        if (data.results) {
+          results = data.results;
+          updateUI();
+        }
+      });
+
+      socket.on('progress', (data) => {
+        updateProgress(data.scanner, data.progress, data.message);
+        addLog(`[${data.scanner}] ${data.message}`);
+      });
+
+      socket.on('result', (data) => {
+        results[data.scanner] = data.result;
+        updateUI();
+        addLog(`[${data.scanner}] Completed - Found ${data.result.vulnerabilities?.length || 0} issues`, 'success');
+      });
+
+      socket.on('scanComplete', (data) => {
+        addLog('All scans completed!', 'success');
+        document.getElementById('runAllBtn').disabled = false;
+        document.querySelectorAll('.scanner-item').forEach(el => el.classList.remove('running'));
+      });
+
+      socket.on('scanError', (data) => {
+        addLog(`Error in ${data.scanner}: ${data.error}`, 'error');
+        document.getElementById('runAllBtn').disabled = false;
+      });
+
+      socket.on('resultsCleared', () => {
+        results = {};
+        allFindings = [];
+        updateUI();
+        addLog('Results cleared', 'warning');
+      });
+    }
+
+    function setupScannerSelection() {
+      document.querySelectorAll('.scanner-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.scanner-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          selectedScanner = item.dataset.scanner;
+          document.getElementById('runSelectedBtn').disabled = false;
+        });
+      });
+    }
+
+    async function runAllScans() {
+      document.getElementById('runAllBtn').disabled = true;
+      document.querySelectorAll('.scanner-item').forEach(el => el.classList.add('running'));
+      addLog('Starting all scans...', 'warning');
+
+      try {
+        const response = await fetch('http://localhost:4000/api/scan/all', {
+          method: 'POST'
+        });
+        const data = await response.json();
+        addLog(`Scan initiated: ${data.message}`);
+      } catch (error) {
+        addLog(`Failed to start scan: ${error.message}`, 'error');
+        document.getElementById('runAllBtn').disabled = false;
+      }
+    }
+
+    async function runSelectedScan() {
+      if (!selectedScanner) return;
+
+      addLog(`Starting ${selectedScanner}...`, 'warning');
+      document.querySelector(`[data-scanner="${selectedScanner}"]`).classList.add('running');
+
+      try {
+        const response = await fetch(`http://localhost:4000/api/scan/${selectedScanner}`, {
+          method: 'POST'
+        });
+        const data = await response.json();
+        addLog(`Scan initiated: ${data.message}`);
+      } catch (error) {
+        addLog(`Failed to start scan: ${error.message}`, 'error');
+      }
+    }
+
+    function updateProgress(scanner, progress, message) {
+      const progressMap = {
+        'static-analyzer': { bar: 'staticBar', text: 'staticProgress' },
+        'pattern-scanner': { bar: 'patternBar', text: 'patternProgress' },
+        'anchor-tests': { bar: 'anchorBar', text: 'anchorProgress' },
+        'api-tests': { bar: 'apiBar', text: 'apiProgress' },
+        'fuzzer': { bar: 'fuzzBar', text: 'fuzzProgress' }
+      };
+
+      const mapping = progressMap[scanner];
+      if (mapping) {
+        document.getElementById(mapping.bar).style.width = `${progress}%`;
+        document.getElementById(mapping.text).textContent = `${progress}%`;
+      }
+    }
+
+    function updateUI() {
+      // Aggregate all findings
+      allFindings = [];
+      let totalCritical = 0, totalHigh = 0, totalMedium = 0, totalLow = 0, totalInfo = 0;
+
+      Object.values(results).forEach(result => {
+        if (result && result.vulnerabilities) {
+          allFindings.push(...result.vulnerabilities);
+          totalCritical += result.summary?.critical || 0;
+          totalHigh += result.summary?.high || 0;
+          totalMedium += result.summary?.medium || 0;
+          totalLow += result.summary?.low || 0;
+          totalInfo += result.summary?.info || 0;
+        }
+      });
+
+      // Update stats
+      document.getElementById('criticalCount').textContent = totalCritical;
+      document.getElementById('highCount').textContent = totalHigh;
+      document.getElementById('mediumCount').textContent = totalMedium;
+      document.getElementById('lowCount').textContent = totalLow;
+      document.getElementById('infoCount').textContent = totalInfo;
+      document.getElementById('findingsCount').textContent = allFindings.length;
+
+      // Calculate risk score
+      const riskScore = Math.min(100, totalCritical * 40 + totalHigh * 25 + totalMedium * 10 + totalLow * 3 + totalInfo);
+      document.getElementById('riskScore').textContent = riskScore;
+
+      const riskFill = document.getElementById('riskFill');
+      riskFill.style.width = `${riskScore}%`;
+      if (riskScore >= 80) riskFill.style.background = 'var(--critical)';
+      else if (riskScore >= 50) riskFill.style.background = 'var(--high)';
+      else if (riskScore >= 25) riskFill.style.background = 'var(--medium)';
+      else riskFill.style.background = 'var(--accent-green)';
+
+      // Render findings
+      renderFindings();
+    }
+
+    function renderFindings() {
+      const container = document.getElementById('findingsList');
+
+      let filteredFindings = allFindings;
+      if (currentFilter !== 'all') {
+        filteredFindings = allFindings.filter(f => f.severity === currentFilter);
+      }
+
+      // Sort by severity
+      const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+      filteredFindings.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+      if (filteredFindings.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>${allFindings.length === 0 ? 'Run a scan to discover vulnerabilities' : 'No findings match the current filter'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filteredFindings.map((finding, index) => `
+        <div class="finding-item" onclick="showFindingDetail(${index})">
+          <div class="finding-header">
+            <span class="severity-badge ${finding.severity}">${finding.severity}</span>
+            <span class="finding-title">${finding.title}</span>
+          </div>
+          <div class="finding-location">${finding.location?.file || 'Unknown'}${finding.location?.line ? ':' + finding.location.line : ''}</div>
+          <div class="finding-desc">${finding.description?.substring(0, 150)}${finding.description?.length > 150 ? '...' : ''}</div>
+        </div>
+      `).join('');
+    }
+
+    function filterFindings(severity) {
+      currentFilter = severity;
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === severity || (severity === 'all' && btn.textContent === 'All'));
+      });
+      renderFindings();
+    }
+
+    function showFindingDetail(index) {
+      const finding = allFindings.filter(f => currentFilter === 'all' || f.severity === currentFilter)[index];
+      if (!finding) return;
+
+      document.getElementById('modalTitle').textContent = finding.title;
+      document.getElementById('modalBody').innerHTML = `
+        <div class="detail-section">
+          <h4>Severity</h4>
+          <span class="severity-badge ${finding.severity}">${finding.severity.toUpperCase()}</span>
+        </div>
+        <div class="detail-section">
+          <h4>Category</h4>
+          <p>${finding.category}</p>
+        </div>
+        <div class="detail-section">
+          <h4>Location</h4>
+          <p style="font-family: monospace;">${finding.location?.file || 'Unknown'}${finding.location?.line ? ':' + finding.location.line : ''}</p>
+          ${finding.location?.function ? `<p>Function: <code>${finding.location.function}</code></p>` : ''}
+        </div>
+        <div class="detail-section">
+          <h4>Description</h4>
+          <p>${finding.description}</p>
+        </div>
+        ${finding.codeSnippet ? `
+        <div class="detail-section">
+          <h4>Code Snippet</h4>
+          <div class="code-block">${finding.codeSnippet}</div>
+        </div>
+        ` : ''}
+        ${finding.recommendation ? `
+        <div class="detail-section">
+          <h4>Recommendation</h4>
+          <p style="color: var(--accent-blue);">${finding.recommendation}</p>
+        </div>
+        ` : ''}
+        ${finding.cwe ? `
+        <div class="detail-section">
+          <h4>CWE Reference</h4>
+          <p>${finding.cwe}</p>
+        </div>
+        ` : ''}
+      `;
+
+      document.getElementById('findingModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('findingModal').classList.remove('active');
+    }
+
+    async function downloadReport() {
+      addLog('Generating PDF report...', 'warning');
+      try {
+        const response = await fetch('http://localhost:4000/api/report/pdf');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `security-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        addLog('PDF report downloaded', 'success');
+      } catch (error) {
+        addLog(`Failed to generate report: ${error.message}`, 'error');
+      }
+    }
+
+    async function clearResults() {
+      try {
+        await fetch('http://localhost:4000/api/clear', { method: 'POST' });
+        // Reset progress bars
+        ['static', 'pattern', 'anchor', 'api', 'fuzz'].forEach(name => {
+          document.getElementById(`${name}Bar`).style.width = '0%';
+          document.getElementById(`${name}Progress`).textContent = '0%';
+        });
+      } catch (error) {
+        addLog(`Failed to clear results: ${error.message}`, 'error');
+      }
+    }
+
+    function addLog(message, type = '') {
+      const logSection = document.getElementById('logSection');
+      const time = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `
+        <span class="log-time">${time}</span>
+        <span class="log-msg ${type}">${message}</span>
+      `;
+      logSection.insertBefore(entry, logSection.firstChild);
+
+      // Keep only last 100 logs
+      while (logSection.children.length > 100) {
+        logSection.removeChild(logSection.lastChild);
+      }
+    }
+
+    // Close modal on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // Close modal on overlay click
+    document.getElementById('findingModal').addEventListener('click', (e) => {
+      if (e.target.id === 'findingModal') closeModal();
+    });
+  </script>
+</body>
+</html>

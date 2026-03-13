@@ -40,7 +40,7 @@ export async function GET(
       return agentErrorResponse("Not authorized to view this webhook's deliveries", 403);
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = Math.min(parseInt(searchParams.get("pageSize") || "20", 10), 100);
 

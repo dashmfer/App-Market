@@ -5,13 +5,13 @@ import { getAuthToken } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
 import { sanitizePagination, sanitizeSearchQuery, isValidUrl, isValidSolanaAddress, MAX_CATEGORIES } from "@/lib/validation";
 import { validateCsrfRequest, csrfError } from "@/lib/csrf";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 // GET /api/listings - Get all listings with filters
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    
+    const searchParams = request.nextUrl.searchParams;
+
     const category = searchParams.get("category");
     const blockchain = searchParams.get("blockchain");
     const status = searchParams.get("status");
@@ -29,29 +29,11 @@ export async function GET(request: NextRequest) {
     );
 
     // Build where clause
-    const where: any = {
-      // SECURITY [H2]: Exclude listings from soft-deleted sellers
-      seller: { deletedAt: null },
-    };
+    const where: any = {};
 
-    // SECURITY: Verify the requester is the actual seller before showing internal statuses
-    let isOwner = false;
-    if (sellerId) {
-      const token = await getAuthToken(request);
-      isOwner = token?.id === sellerId;
-    }
-
-    // SECURITY: Whitelist allowed public statuses to prevent querying internal states
-    const PUBLIC_STATUSES = ["ACTIVE", "RESERVED", "COMPLETED", "EXPIRED", "ENDED", "SOLD"];
+    // Only filter by status if provided (allows getting all statuses for seller's own listings)
     if (status) {
-      const upper = status.toUpperCase();
-      if (sellerId && isOwner) {
-        // Sellers can see all their own listing statuses
-        where.status = upper;
-      } else if (PUBLIC_STATUSES.includes(upper)) {
-        where.status = upper;
-      }
-      // Invalid/internal statuses silently ignored for public queries
+      where.status = status.toUpperCase();
     } else if (!sellerId) {
       // Default to ACTIVE only for public listings
       where.status = "ACTIVE";
@@ -67,21 +49,12 @@ export async function GET(request: NextRequest) {
       where.sellerId = sellerId;
     }
 
-    // SECURITY: Whitelist allowed categories and blockchains
-    const ALLOWED_CATEGORIES = ["SAAS", "E_COMMERCE", "MOBILE_APP", "CHROME_EXTENSION", "AI_ML", "WEB_APP", "MARKETPLACE", "SOCIAL_MEDIA", "DEVELOPER_TOOL", "GAME", "DEFI", "NFT", "DAO", "NEWSLETTER", "BLOG", "DOMAIN", "OTHER"];
     if (category && category !== "all") {
-      const upper = category.toUpperCase().replace("-", "_");
-      if (ALLOWED_CATEGORIES.includes(upper)) {
-        where.categories = { has: upper };
-      }
+      where.categories = { has: category.toUpperCase().replace("-", "_") };
     }
 
-    const ALLOWED_BLOCKCHAINS = ["SOLANA", "ETHEREUM", "BASE", "POLYGON", "NONE"];
     if (blockchain && blockchain !== "all") {
-      const upper = blockchain.toUpperCase();
-      if (ALLOWED_BLOCKCHAINS.includes(upper)) {
-        where.blockchain = upper;
-      }
+      where.blockchain = blockchain.toUpperCase();
     }
 
     // SECURITY: Sanitize search query length
@@ -152,19 +125,12 @@ export async function GET(request: NextRequest) {
       where.OR = searchConditions;
     }
 
-    // SECURITY: Validate price filters are non-negative
     if (minPrice) {
-      const min = parseFloat(minPrice);
-      if (!isNaN(min) && min >= 0) {
-        where.startingPrice = { gte: min };
-      }
+      where.startingPrice = { gte: parseFloat(minPrice) };
     }
 
     if (maxPrice) {
-      const max = parseFloat(maxPrice);
-      if (!isNaN(max) && max >= 0) {
-        where.startingPrice = { ...where.startingPrice, lte: max };
-      }
+      where.startingPrice = { ...where.startingPrice, lte: parseFloat(maxPrice) };
     }
 
     if (featured === "true") {
@@ -323,19 +289,19 @@ export async function POST(request: NextRequest) {
       // Hosting
       hasHosting,
       hostingProvider,
-      hostingProjectUrl,
+      hostingProjectUrl: _hostingProjectUrl,
       // Vercel
       hasVercel,
       vercelProjectUrl,
       vercelTeamSlug,
       // Domain
       hasDomain,
-      domainRegistrar,
+      domainRegistrar: _domainRegistrar,
       domain,
       // Database
       hasDatabase,
       databaseProvider,
-      databaseName,
+      databaseName: _databaseName,
       // Other assets
       hasSocialAccounts,
       socialAccounts,
@@ -455,9 +421,10 @@ export async function POST(request: NextRequest) {
       ? `${baseSlug}-${Date.now().toString(36)}`
       : baseSlug;
 
-    // Calculate end time
-    // SECURITY: Cap listing duration to 1-90 days
-    const durationDays = Math.min(Math.max(parseInt(duration) || 7, 1), 90);
+    // Calculate end time — clamp to config min/max to prevent out-of-range durations
+    const { PLATFORM_CONFIG: _cfg } = await import("@/lib/config");
+    const rawDuration = parseInt(duration, 10) || _cfg.auction.defaultDuration;
+    const durationDays = Math.max(_cfg.auction.minDuration, Math.min(_cfg.auction.maxDuration, rawDuration));
     const endTime = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
     // Handle reservation if a buyer wallet is provided
@@ -483,6 +450,21 @@ export async function POST(request: NextRequest) {
       }
 
       listingStatus = ListingStatus.RESERVED;
+    }
+
+    // SECURITY: Validate collaborator percentages BEFORE creating the listing
+    // to avoid orphaned listing records if validation fails
+    if (hasCollaborators && collaborators?.length > 0) {
+      const totalCollaboratorPercentage = collaborators.reduce(
+        (sum: number, c: any) => sum + (Number(c.percentage) || 0),
+        0
+      );
+      if (totalCollaboratorPercentage > 100) {
+        return NextResponse.json(
+          { error: `Total collaborator percentage (${totalCollaboratorPercentage}%) exceeds 100%` },
+          { status: 400 }
+        );
+      }
     }
 
     // Create listing
@@ -534,9 +516,9 @@ export async function POST(request: NextRequest) {
         screenshotUrls,
         demoUrl,
         videoUrl,
-        monthlyUsers: monthlyUsers ? parseInt(monthlyUsers) : null,
+        monthlyUsers: monthlyUsers ? parseInt(monthlyUsers, 10) : null,
         monthlyRevenue: monthlyRevenue ? parseFloat(monthlyRevenue) : null,
-        githubStars: githubStars ? parseInt(githubStars) : null,
+        githubStars: githubStars ? parseInt(githubStars, 10) : null,
         startingPrice: startingPrice ? parseFloat(startingPrice) : 0,
         buyNowEnabled,
         buyNowPrice: buyNowPrice ? parseFloat(buyNowPrice) : null,
@@ -567,7 +549,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create collaborators if provided
+    // Create collaborators if provided (percentage already validated above)
     if (hasCollaborators) {
       const collaboratorPromises = collaborators.map(async (collab: any) => {
         // Create the collaborator record

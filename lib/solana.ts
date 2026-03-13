@@ -1,25 +1,48 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, Program, BN, Idl } from "@coral-xyz/anchor";
+import {
+  PLATFORM_CONFIG,
+  calculatePlatformFee as _configCalcPlatformFee,
+  calculateDisputeFee as _configCalcDisputeFee,
+  calculateSellerProceeds as _configCalcSellerProceeds,
+} from "@/lib/config";
+
+// SECURITY: Solana addresses must come from environment variables.
+// Hardcoded fallbacks risk routing funds to wrong addresses if env vars are missing at build time.
+// env-validation.ts requires these in production; in development, throw if missing.
+// Uses lazy proxy to defer resolution until first access, avoiding throws during Next.js build.
+function lazyPublicKey(envVar: string, name: string): PublicKey {
+  let cached: PublicKey | undefined;
+  function resolve(): PublicKey {
+    if (!cached) {
+      const value = process.env[envVar];
+      if (!value) {
+        throw new Error(`${envVar} must be set. ${name} cannot use a hardcoded fallback.`);
+      }
+      cached = new PublicKey(value);
+    }
+    return cached;
+  }
+  return new Proxy({} as PublicKey, {
+    get(_, prop) {
+      const key = resolve();
+      const val = (key as any)[prop];
+      return typeof val === "function" ? val.bind(key) : val;
+    },
+  });
+}
 
 // Program ID from deployed/generated smart contract
-export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || "9udUgupraga6dj92zfLec8bAdXUZsU3FGNN3Lf8XGzog"
-);
+export const PROGRAM_ID = lazyPublicKey("NEXT_PUBLIC_PROGRAM_ID", "Program ID");
 
 // Platform treasury wallet - receives fees
-export const TREASURY_WALLET = new PublicKey(
-  process.env.NEXT_PUBLIC_TREASURY_WALLET || "3BU9NRDpXqw7h8wed1aTxERk4cg5hajsbH4nFfVgYkJ6"
-);
+export const TREASURY_WALLET = lazyPublicKey("NEXT_PUBLIC_TREASURY_WALLET", "Treasury wallet");
 
 // Platform token mint ($APP) - mainnet address
-export const PLATFORM_TOKEN_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_APP_TOKEN_MINT || "Ansto3G3SzGt6bXo3pMddiM4YkW9Yt8y7Qvwy47dBAGS"
-);
+export const PLATFORM_TOKEN_MINT = lazyPublicKey("NEXT_PUBLIC_APP_TOKEN_MINT", "APP token mint");
 
 // USDC mint (mainnet)
-export const USDC_MINT = new PublicKey(
-  process.env.NEXT_PUBLIC_USDC_MINT || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-);
+export const USDC_MINT = lazyPublicKey("NEXT_PUBLIC_USDC_MINT", "USDC mint");
 
 // Token decimals
 export const TOKEN_DECIMALS = {
@@ -34,25 +57,21 @@ export const TOKEN_MINTS = {
   USDC: USDC_MINT,
 } as const;
 
-// Fee constants (basis points)
-export const PLATFORM_FEE_BPS = 500; // 5%
-export const APP_FEE_BPS = 300; // 3% - discounted rate for $APP token payments
-export const DISPUTE_FEE_BPS = 200; // 2%
-export const TOKEN_LAUNCH_FEE_BPS = 100; // 1% of token supply
+// Fee constants — single source of truth in config.ts to prevent inconsistency
+export const PLATFORM_FEE_BPS = PLATFORM_CONFIG.fees.platformFeeBps;
+export const APP_FEE_BPS = PLATFORM_CONFIG.fees.appFeeBps;
+export const DISPUTE_FEE_BPS = PLATFORM_CONFIG.fees.disputeFeeBps;
+export const TOKEN_LAUNCH_FEE_BPS = PLATFORM_CONFIG.fees.tokenLaunchSupplyBps;
 
 // Connection to Solana
-// SECURITY [H10]: For server-side usage, prefer SOLANA_RPC_URL (without NEXT_PUBLIC_ prefix)
-// to avoid leaking an API key to the browser. NEXT_PUBLIC_ env vars are embedded in the
-// client bundle by Next.js. If your RPC URL contains an API key, set a separate
-// SOLANA_RPC_URL for server-side code and NEXT_PUBLIC_SOLANA_RPC_URL (without key or
-// with a rate-limited public key) for the client.
 export const getConnection = () => {
-  // Server-side: prefer the non-public env var to keep API keys out of the client bundle
-  const rpcUrl =
-    (typeof window === "undefined" ? process.env.SOLANA_RPC_URL : undefined) ||
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   if (!rpcUrl) {
-    throw new Error("SOLANA_RPC_URL or NEXT_PUBLIC_SOLANA_RPC_URL must be configured");
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL must be set in production");
+    }
+    // Only fall back to devnet in development
+    return new Connection("https://api.devnet.solana.com", "confirmed");
   }
   return new Connection(rpcUrl, "confirmed");
 };
@@ -133,40 +152,15 @@ export const getFeeRateBps = (currency?: string): number => {
   return currency === "APP" ? APP_FEE_BPS : PLATFORM_FEE_BPS;
 };
 
-// SECURITY [M1]: Integer-safe fee math to avoid IEEE 754 floating-point drift.
-// Convert to smallest unit (lamports/microUSDC), do integer arithmetic, convert back.
-function getDecimals(currency?: string): number {
-  return currency === "USDC" ? 6 : 9;
-}
-
-// Calculate platform fee (with optional currency for APP discount)
-export const calculatePlatformFee = (amount: number, currency?: string): number => {
-  const feeBps = getFeeRateBps(currency);
-  const base = Math.pow(10, getDecimals(currency));
-  const amountUnits = Math.round(amount * base); // to smallest unit (integer)
-  const feeUnits = Math.floor(amountUnits * feeBps / 10000); // integer division
-  return feeUnits / base;
-};
-
-// Calculate dispute fee
-export const calculateDisputeFee = (amount: number, currency?: string): number => {
-  const base = Math.pow(10, getDecimals(currency));
-  const amountUnits = Math.round(amount * base);
-  const feeUnits = Math.floor(amountUnits * DISPUTE_FEE_BPS / 10000);
-  return feeUnits / base;
-};
-
-// Calculate seller proceeds after fees (with optional currency for APP discount)
+/**
+ * Fee calculations delegate to lib/config.ts (single source of truth)
+ * to prevent divergent behavior from duplicate implementations.
+ */
+export const calculatePlatformFee = _configCalcPlatformFee;
+export const calculateDisputeFee = _configCalcDisputeFee;
 export const calculateSellerProceeds = (salePrice: number, currency?: string): { fee: number; proceeds: number; feeBps: number } => {
-  const feeBps = getFeeRateBps(currency);
-  const base = Math.pow(10, getDecimals(currency));
-  const salePriceUnits = Math.round(salePrice * base);
-  const feeUnits = Math.floor(salePriceUnits * feeBps / 10000);
-  return {
-    fee: feeUnits / base,
-    proceeds: (salePriceUnits - feeUnits) / base,
-    feeBps,
-  };
+  const result = _configCalcSellerProceeds(salePrice, currency);
+  return { fee: result.fee, proceeds: result.proceeds, feeBps: result.feeBps };
 };
 
 // Listing status enum (matches on-chain - 9 statuses)
@@ -264,10 +258,12 @@ export const getProgram = (provider: AnchorProvider): Program => {
 };
 
 // Convert token amount to raw units based on decimals
-// SECURITY [M1]: Use Math.round to avoid floating-point truncation (e.g. 1.1 * 1e9 = 1099999999.9999999)
+// SECURITY: Uses string parsing to avoid floating-point multiplication errors
 export const toTokenUnits = (amount: number, currency: "SOL" | "APP" | "USDC"): BN => {
   const decimals = TOKEN_DECIMALS[currency];
-  return new BN(Math.round(amount * Math.pow(10, decimals)));
+  const [whole, decimal = ""] = amount.toString().split(".");
+  const paddedDecimal = decimal.padEnd(decimals, "0").slice(0, decimals);
+  return new BN(whole + paddedDecimal);
 };
 
 // Convert raw units to token amount

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift, Star, Twitter, Award, TrendingUp, Shield, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, Package, Calendar, ShoppingBag, Gift, Star, Twitter, Award, TrendingUp, Shield } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ListingCard } from "@/components/listings/listing-card";
 import { ReviewList } from "@/components/reviews/review-list";

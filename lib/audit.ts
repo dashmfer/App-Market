@@ -8,7 +8,6 @@ type AuditAction =
   | "WITHDRAWAL_CREATED" | "WITHDRAWAL_CLAIMED" | "WITHDRAWAL_EXPIRED"
   | "LISTING_CREATED" | "LISTING_UPDATED" | "LISTING_CANCELLED"
   | "USER_PROFILE_UPDATED" | "USER_WALLET_LINKED"
-  | "OFFER_CREATED" | "REVIEW_CREATED" | "DISPUTE_CREATED"
   | "RATE_LIMIT_EXCEEDED" | "CRON_EXECUTION" | "API_ERROR";
 
 type AuditSeverity = "INFO" | "WARN" | "ERROR" | "CRITICAL";
@@ -53,10 +52,22 @@ export async function audit(entry: AuditLogEntry): Promise<void> {
  * Convenience: extract IP + user agent from request headers for audit logging.
  */
 export function auditContext(headers: Headers) {
-  const forwardedFor = headers.get("x-forwarded-for");
+  // SECURITY: Use x-real-ip first (set by trusted proxy), fall back to
+  // rightmost x-forwarded-for IP (closest to trusted proxy, not spoofable).
+  const realIp = headers.get("x-real-ip");
+  let ipAddress: string | undefined;
+  if (realIp) {
+    ipAddress = realIp.trim();
+  } else {
+    const forwarded = headers.get("x-forwarded-for");
+    if (forwarded) {
+      const ips = forwarded.split(",").map(ip => ip.trim()).filter(Boolean);
+      ipAddress = ips.length > 0 ? ips[ips.length - 1] : undefined;
+    }
+  }
+
   return {
-    ipAddress: forwardedFor ? forwardedFor.split(",").pop()?.trim() :
-      headers.get("x-real-ip") || undefined,
+    ipAddress,
     userAgent: headers.get("user-agent") || undefined,
   };
 }

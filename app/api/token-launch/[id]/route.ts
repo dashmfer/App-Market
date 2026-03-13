@@ -3,8 +3,7 @@ import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { getPoolState, calculateFeeBreakdown } from "@/lib/meteora-dbc";
 import { PublicKey } from "@solana/web3.js";
-import { PLATFORM_CONFIG } from "@/lib/config";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * GET /api/token-launch/[id] — Get detailed info for a specific PATO
@@ -55,11 +54,11 @@ export async function GET(
 
     // Check user is involved (buyer or admin)
     const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: { isAdmin: true, walletAddress: true },
     });
 
-    const isBuyer = tokenLaunch.transaction.buyerId === token.id as string;
+    const isBuyer = tokenLaunch.transaction.buyerId === (token!.id as string);
     const isCreator = tokenLaunch.creatorWallet === user?.walletAddress;
     const isAdmin = user?.isAdmin;
 
@@ -185,12 +184,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -212,7 +208,7 @@ export async function PATCH(
       );
     }
 
-    if (tokenLaunch.transaction.buyerId !== token.id as string) {
+    if (tokenLaunch.transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: "Only the token creator can update this launch" },
         { status: 403 }
@@ -220,13 +216,13 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { status, onChainTx, dbcPoolAddress } = body;
+    const { status, onChainTx: _onChainTx, dbcPoolAddress } = body;
 
     // Validate status transition
     const validTransitions: Record<string, string[]> = {
       PENDING: ["LAUNCHING", "CANCELLED"],
       LAUNCHING: ["LIVE", "FAILED"],
-      LIVE: [],  // SECURITY: Graduation only via webhook/cron after on-chain verification
+      LIVE: ["GRADUATED"],
       GRADUATED: ["COMPLETED"],
     };
 

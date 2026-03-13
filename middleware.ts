@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { timingSafeEqual, randomBytes } from "crypto";
-import { isSessionNotRevokedEdge } from "@/lib/session-revocation-edge";
+import { timingSafeEqual } from "crypto";
+
+function withSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  return response;
+}
 
 /**
- * Middleware for route protection, session revocation, and CSP nonce injection.
+ * Middleware for route protection and security
+ *
+ * Protects:
+ * - Dashboard routes (require auth)
+ * - API routes that need authentication
+ * - Admin routes (require admin role)
+ * - Cron routes (require CRON_SECRET)
  */
 
 // Routes that require authentication
@@ -57,55 +67,6 @@ const CRON_ROUTES = [
   "/api/cron",
 ];
 
-// Public API routes (no auth needed)
-const PUBLIC_API_ROUTES = [
-  "/api/auth",
-  "/api/listings",    // GET only
-  "/api/search",
-  "/api/categories",
-  "/api/health",
-  "/api/stats",       // Public statistics
-  "/api/leaderboard", // Public leaderboard
-  "/api/users",       // Public user profiles
-  "/api/openapi",     // API docs
-  "/api/reviews",     // GET only (public reviews)
-];
-
-/**
- * SECURITY [M11]: Generate a nonce-based CSP response for page routes.
- * Replaces static 'unsafe-inline' with per-request nonces for script-src.
- * 'strict-dynamic' allows scripts loaded by nonced scripts to also execute.
- */
-function createPageResponse(request: NextRequest): NextResponse {
-  const nonce = randomBytes(16).toString("base64");
-
-  const csp = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    // NOTE: 'unsafe-inline' is required for style-src because Next.js injects
-    // inline styles for fonts (next/font) and next-themes. Cannot be nonced.
-    // This is safe — CSS injection has no script execution vector in modern browsers.
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://avatars.githubusercontent.com https://github.com https://raw.githubusercontent.com https://opengraph.githubassets.com https://*.public.blob.vercel-storage.com",
-    "font-src 'self' data:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mainnet-beta.solana.com wss://api.mainnet-beta.solana.com https://*.helius-rpc.com https://*.vercel-storage.com https://auth.privy.io https://*.privy.io wss://*.privy.io https://*.walletconnect.com wss://*.walletconnect.com https://explorer-api.walletconnect.com",
-    "frame-src 'self' https://phantom.app https://solflare.com https://auth.privy.io https://*.privy.io",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "frame-ancestors 'self'",
-    "form-action 'self'",
-    "upgrade-insecure-requests",
-  ].join("; ");
-
-  // Pass nonce to page components via request header
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set("Content-Security-Policy", csp);
-  return response;
-}
-
 // NOTE: CSRF protection is provided by:
 // 1. SameSite=Lax cookies (prevents cross-site cookie submission)
 // 2. JSON Content-Type requirement (simple forms can't send JSON)
@@ -113,15 +74,14 @@ function createPageResponse(request: NextRequest): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
-  const isApiRoute = pathname.startsWith("/api/");
 
   // Skip static files and public assets
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
-    /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|map)$/i.test(pathname)
+    pathname.includes(".") // files with extensions
   ) {
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Cron route protection - require CRON_SECRET
@@ -131,35 +91,38 @@ export async function middleware(request: NextRequest) {
 
     if (!cronSecret) {
       console.error("[Middleware] CRON_SECRET not configured");
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Server misconfiguration" },
         { status: 500 }
-      );
+      ));
     }
 
-    // SECURITY: Use constant-time comparison to prevent timing attacks
+    // SECURITY: Use constant-time comparison with buffer padding to prevent
+    // timing attacks. Padding avoids leaking secret length via early return.
     const expectedHeader = `Bearer ${cronSecret}`;
     let isValid = false;
 
-    if (authHeader && authHeader.length === expectedHeader.length) {
+    if (authHeader) {
       try {
-        isValid = timingSafeEqual(
-          Buffer.from(authHeader),
-          Buffer.from(expectedHeader)
-        );
+        const maxLen = Math.max(authHeader.length, expectedHeader.length);
+        const paddedAuth = Buffer.alloc(maxLen);
+        const paddedExpected = Buffer.alloc(maxLen);
+        Buffer.from(authHeader).copy(paddedAuth);
+        Buffer.from(expectedHeader).copy(paddedExpected);
+        isValid = timingSafeEqual(paddedAuth, paddedExpected) && authHeader.length === expectedHeader.length;
       } catch {
         isValid = false;
       }
     }
 
     if (!isValid) {
-      return NextResponse.json(
+      return withSecurityHeaders(NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
-      );
+      ));
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Get user token
@@ -168,78 +131,69 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // SECURITY [M5]: Check session revocation via Redis (Edge-compatible).
-  // This is defense-in-depth — routes also check via getAuthToken() with Prisma.
-  if (token?.sessionId) {
-    try {
-      const valid = await isSessionNotRevokedEdge(
-        token.sessionId as string,
-        token.id as string,
-        token.iat as number | undefined
-      );
-      if (!valid) {
-        if (isApiRoute) {
-          return NextResponse.json({ error: "Session revoked" }, { status: 401 });
-        }
-        const signInUrl = new URL("/auth/signin", request.url);
-        signInUrl.searchParams.set("callbackUrl", pathname);
-        return NextResponse.redirect(signInUrl);
-      }
-    } catch {
-      // If Redis is down, fall through — API-level Prisma check is authoritative
-    }
-  }
+  // NOTE: Session revocation is checked in API route handlers via getAuthToken().
+  // Middleware uses getToken() which does not check revocation because Prisma
+  // is not available in Edge Runtime. This is defense-in-depth - routes should
+  // always use getAuthToken() for the authoritative session check.
 
   // Admin route protection
   if (ADMIN_ROUTES.some(route => pathname.startsWith(route))) {
     if (!token) {
-      if (isApiRoute) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (pathname.startsWith("/api/")) {
+        return withSecurityHeaders(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ));
       }
-      return NextResponse.redirect(new URL("/auth/signin", request.url));
+      return withSecurityHeaders(NextResponse.redirect(new URL("/auth/signin", request.url)));
     }
 
     if (!token.isAdmin) {
-      if (isApiRoute) {
-        return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+      if (pathname.startsWith("/api/")) {
+        return withSecurityHeaders(NextResponse.json(
+          { error: "Forbidden - Admin access required" },
+          { status: 403 }
+        ));
       }
-      return NextResponse.redirect(new URL("/", request.url));
+      return withSecurityHeaders(NextResponse.redirect(new URL("/", request.url)));
     }
 
-    return isApiRoute ? NextResponse.next() : createPageResponse(request);
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Protected page routes
   if (PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
     if (!token) {
+      // Store the original URL to redirect back after login
       const signInUrl = new URL("/auth/signin", request.url);
       signInUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(signInUrl);
+      return withSecurityHeaders(NextResponse.redirect(signInUrl));
     }
-    return createPageResponse(request);
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // Protected API routes
   if (PROTECTED_API_ROUTES.some(route => pathname.startsWith(route))) {
-    // SECURITY [M11]: Restrict public read to exact list/detail paths only.
-    // Prevents unauthenticated access to deeper sub-paths like /api/listings/[id]/edit.
+    // Allow GET requests to public-read routes without auth
     const isPublicRead =
-      (method === "GET" && (pathname === "/api/listings" || /^\/api\/listings\/[^/]+$/.test(pathname)) && !pathname.includes("/my-listings")) ||
-      (method === "GET" && (pathname === "/api/reviews" || /^\/api\/reviews\/[^/]+$/.test(pathname))) ||
+      (method === "GET" && pathname.startsWith("/api/listings") && !pathname.includes("/my-listings")) ||
+      (method === "GET" && pathname.startsWith("/api/reviews")) ||
       (method === "GET" && pathname.startsWith("/api/stats")) ||
       (method === "GET" && pathname.startsWith("/api/leaderboard")) ||
       (method === "GET" && pathname.startsWith("/api/users")) ||
       (method === "GET" && pathname.startsWith("/api/profile/") && !pathname.includes("/upload"));
 
     if (!isPublicRead && !token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return withSecurityHeaders(NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      ));
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
-  // All other routes (public pages) — apply CSP nonce
-  return isApiRoute ? NextResponse.next() : createPageResponse(request);
+  return withSecurityHeaders(NextResponse.next());
 }
 
 // Configure which routes the middleware runs on

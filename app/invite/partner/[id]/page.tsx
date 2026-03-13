@@ -6,11 +6,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
 import {
-  Users,
   Crown,
   Percent,
   CheckCircle2,
-  XCircle,
   Loader2,
   ArrowRight,
   Wallet,
@@ -170,13 +168,6 @@ export default function PartnerInvitePage() {
     } finally {
       setDepositing(false);
     }
-  };
-
-  const getSellerName = () => {
-    if (data?.seller.displayName) return data.seller.displayName;
-    if (data?.seller.username) return `@${data.seller.username}`;
-    if (data?.seller.name) return data.seller.name;
-    return "Unknown";
   };
 
   const getLeadBuyer = () => {

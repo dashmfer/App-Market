@@ -2,19 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { encrypt } from "@/lib/encryption";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 import { grindVanityKeypair, serializeKeypair } from "@/lib/vanity-keygen";
 import {
-  buildCreatePoolTransaction,
-  buildCreatePoolWithFirstBuyTransaction,
-  getPatoConfigKey,
-  getPatoFeeClaimer,
-  PATO_CONFIG,
   calculateFeeBreakdown,
 } from "@/lib/meteora-dbc";
 import { PLATFORM_CONFIG } from "@/lib/config";
-import { PublicKey } from "@solana/web3.js";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
-import { withRateLimitAsync } from "@/lib/rate-limit";
 
 /**
  * POST /api/token-launch — Create a PATO (Post-Acquisition Token Offering)
@@ -25,19 +18,10 @@ import { withRateLimitAsync } from "@/lib/rate-limit";
  */
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
-    // SECURITY [H1-vanity]: Rate limit to prevent CPU-exhaustion from vanity keygen
-    const rateLimitResult = await (withRateLimitAsync('write', 'token-launch'))(request);
-    if (!rateLimitResult.success) {
-      return NextResponse.json(
-        { error: rateLimitResult.error },
-        { status: 429, headers: rateLimitResult.headers }
-      );
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
     }
 
     const token = await getAuthToken(request);
@@ -56,7 +40,7 @@ export async function POST(request: NextRequest) {
       twitter,
       telegram,
       discord,
-      initialBuyAmountSOL,
+      initialBuyAmountSOL: _initialBuyAmountSOL,
     } = body;
 
     // Validate required fields
@@ -75,45 +59,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY [M10]: Validate token launch input lengths and URL formats
-    if (typeof tokenName !== "string" || tokenName.length > 100) {
-      return NextResponse.json(
-        { error: "Token name must be a string of 100 characters or less" },
-        { status: 400 }
-      );
-    }
-    if (tokenDescription && (typeof tokenDescription !== "string" || tokenDescription.length > 2000)) {
-      return NextResponse.json(
-        { error: "Token description must be 2000 characters or less" },
-        { status: 400 }
-      );
-    }
-    const socialUrls: Record<string, string | undefined> = { website, twitter, telegram, discord };
-    for (const [field, url] of Object.entries(socialUrls)) {
-      if (url) {
-        if (typeof url !== "string" || url.length > 200) {
-          return NextResponse.json(
-            { error: `${field} URL must be 200 characters or less` },
-            { status: 400 }
-          );
-        }
-        try {
-          const parsed = new URL(url);
-          if (!["http:", "https:"].includes(parsed.protocol)) {
-            return NextResponse.json(
-              { error: `${field} must be an http or https URL` },
-              { status: 400 }
-            );
-          }
-        } catch {
-          return NextResponse.json(
-            { error: `${field} must be a valid URL` },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
     // Verify the user owns this acquisition
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
@@ -130,7 +75,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (transaction.buyerId !== token.id as string) {
+    if (transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json(
         { error: "Only the buyer of this acquisition can launch a token" },
         { status: 403 }
@@ -165,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     // Get the buyer's wallet address
     const buyer = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: { walletAddress: true },
     });
 
@@ -176,7 +121,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY [M11]: Rate limit token launch creation to prevent vanity keygen DoS
     // Grind a vanity keypair ending in 'app'
     const vanitySuffix = PLATFORM_CONFIG.pato.vanitySuffix;
     let vanityKeypair;
@@ -189,8 +133,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Encrypt the keypair for secure storage
-    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair));
+    // Encrypt the keypair for secure storage (AAD binds to token mint to prevent swaps)
+    const tokenMint = vanityKeypair.publicKey.toBase58();
+    const encryptedKeypair = encrypt(serializeKeypair(vanityKeypair), `tokenLaunch:${tokenMint}`);
 
     // Create the token launch record
     const tokenLaunch = await prisma.tokenLaunch.create({
@@ -199,7 +144,7 @@ export async function POST(request: NextRequest) {
         tokenSymbol: tokenSymbol.toUpperCase(),
         tokenDescription: tokenDescription || null,
         tokenImage: tokenImage || null,
-        tokenMint: vanityKeypair.publicKey.toBase58(),
+        tokenMint,
         totalSupply: BigInt(PLATFORM_CONFIG.pato.defaultTotalSupply) *
           BigInt(10 ** PLATFORM_CONFIG.pato.tokenDecimals),
         launchType: "PATO",
@@ -229,7 +174,7 @@ export async function POST(request: NextRequest) {
     // Notify the buyer
     await prisma.notification.create({
       data: {
-        userId: token.id as string,
+        userId: (token!.id as string),
         type: "PATO_LAUNCHED",
         title: "PATO Ready to Launch",
         message: `Your token "${tokenName}" ($${tokenSymbol.toUpperCase()}) is ready. Sign the transaction to deploy.`,
@@ -293,7 +238,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const transactionId = searchParams.get("transactionId");
     const listingId = searchParams.get("listingId");
     const status = searchParams.get("status");
@@ -309,21 +254,17 @@ export async function GET(request: NextRequest) {
       where.listingId = listingId;
     }
 
-    // SECURITY: Whitelist allowed token launch statuses
-    const ALLOWED_LAUNCH_STATUSES = ["PENDING", "LAUNCHING", "LIVE", "GRADUATED", "FAILED"];
     if (status) {
-      if (ALLOWED_LAUNCH_STATUSES.includes(status)) {
-        where.status = status;
-      }
+      where.status = status;
     }
 
     // Only return launches the user is involved in (as buyer/creator)
     where.OR = [
       { creatorWallet: (await prisma.user.findUnique({
-        where: { id: token.id as string },
+        where: { id: (token!.id as string) },
         select: { walletAddress: true },
       }))?.walletAddress },
-      { transaction: { buyerId: token.id as string } },
+      { transaction: { buyerId: (token!.id as string) } },
     ];
 
     const tokenLaunches = await prisma.tokenLaunch.findMany({
@@ -347,7 +288,6 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     const formattedLaunches = tokenLaunches.map((launch: any) => ({

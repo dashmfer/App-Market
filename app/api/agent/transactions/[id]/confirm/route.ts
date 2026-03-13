@@ -8,6 +8,7 @@ import {
 } from "@/lib/agent-auth";
 import { withRateLimitAsync } from "@/lib/rate-limit";
 import { ApiKeyPermission } from "@/lib/prisma-enums";
+import { processReferralEarnings } from "@/lib/referral-earnings";
 
 // POST /api/agent/transactions/[id]/confirm - Confirm asset transfer (buyer confirms receipt)
 export async function POST(
@@ -46,7 +47,7 @@ export async function POST(
 
     const allowedStates = ["FUNDED", "IN_PROGRESS", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"];
     if (!allowedStates.includes(transaction.status)) {
-      return agentErrorResponse(`Cannot confirm transfers in state: ${transaction.status}`, 400);
+      return agentErrorResponse("Transaction is not in a confirmable state", 400);
     }
 
     const isBuyer = transaction.buyerId === userId;
@@ -114,8 +115,9 @@ export async function POST(
       .every((item) => item.sellerConfirmed && item.buyerConfirmed);
 
     if (allConfirmed) {
-      await prisma.transaction.update({
-        where: { id: transactionId },
+      // Atomic status transition
+      const completed = await prisma.transaction.updateMany({
+        where: { id: transactionId, status: { in: ["FUNDED", "TRANSFER_IN_PROGRESS", "AWAITING_CONFIRMATION"] as any } },
         data: {
           status: "COMPLETED",
           transferCompletedAt: new Date(),
@@ -123,19 +125,42 @@ export async function POST(
         },
       });
 
-      // Update stats
-      await prisma.user.update({
-        where: { id: transaction.sellerId },
-        data: {
-          totalSales: { increment: 1 },
-          totalVolume: { increment: Number(transaction.salePrice) },
-        },
-      });
+      if (completed.count > 0) {
+        // Update stats
+        await prisma.user.update({
+          where: { id: transaction.sellerId },
+          data: {
+            totalSales: { increment: 1 },
+            totalVolume: { increment: Number(transaction.salePrice) },
+          },
+        });
 
-      await prisma.user.update({
-        where: { id: transaction.buyerId },
-        data: { totalPurchases: { increment: 1 } },
-      });
+        await prisma.user.update({
+          where: { id: transaction.buyerId },
+          data: {
+            totalPurchases: { increment: 1 },
+            totalVolume: { increment: Number(transaction.salePrice) },
+          },
+        });
+
+        // Update listing status to SOLD
+        await prisma.listing.update({
+          where: { id: transaction.listingId },
+          data: { status: "SOLD" },
+        });
+
+        // Process referral earnings
+        try {
+          await processReferralEarnings(
+            transaction.id,
+            Number(transaction.salePrice),
+            transaction.buyerId,
+            transaction.sellerId
+          );
+        } catch (referralError) {
+          console.error("[Agent] Failed to process referral earnings:", referralError);
+        }
+      }
     }
 
     return agentSuccessResponse({ checklist, allConfirmed });

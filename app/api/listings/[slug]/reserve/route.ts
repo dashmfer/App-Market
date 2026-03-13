@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
 import { isValidSolanaAddress } from "@/lib/validation";
-import { ListingStatus } from "@/lib/prisma-enums";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 /**
  * POST /api/listings/[slug]/reserve
@@ -15,11 +14,8 @@ export async function POST(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
@@ -94,16 +90,12 @@ export async function POST(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: ListingStatus.RESERVED,
+        status: "RESERVED" as any,
         reservedBuyerWallet: walletAddress,
         reservedBuyerId: existingUser?.id || null,
         reservedAt: new Date(),
-      },
+      } as any,
     });
-
-    // SECURITY [M2]: TODO — reservations should expire after a configurable timeout
-    // (e.g., 48 hours) to prevent indefinite listing lockup. Add a cron job
-    // similar to seller-transfer-deadline to enforce this.
 
     // If the buyer is a registered user, send them a notification
     if (existingUser) {
@@ -144,12 +136,9 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
     const token = await getAuthToken(request);
     const currentUserId = token?.id as string | undefined;
 
@@ -199,11 +188,11 @@ export async function DELETE(
     const updatedListing = await prisma.listing.update({
       where: { id: listing.id },
       data: {
-        status: ListingStatus.ACTIVE,
+        status: "ACTIVE" as any,
         reservedBuyerWallet: null,
         reservedBuyerId: null,
         reservedAt: null,
-      },
+      } as any,
     });
 
     return NextResponse.json({

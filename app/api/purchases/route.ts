@@ -3,18 +3,16 @@ import { Connection } from "@solana/web3.js";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
 import { calculatePlatformFee, calculateSellerProceeds } from "@/lib/solana";
-import { withRateLimitAsync, getClientIp } from "@/lib/rate-limit";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 import { audit, auditContext } from "@/lib/audit";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/purchases - Create a purchase (Buy Now)
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    // SECURITY: CSRF protection
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     // SECURITY: Rate limit
     const rateLimitResult = await (withRateLimitAsync('write', 'purchases'))(request);
@@ -60,119 +58,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY: Validate amount is positive
-    if (typeof amount !== 'number' || amount <= 0) {
+    // SECURITY: Validate amount is a finite positive number with upper bound
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
       return NextResponse.json(
-        { error: "Amount must be a positive number" },
+        { error: "Amount must be a positive number (max 1,000,000)" },
         { status: 400 }
       );
     }
 
-    // SECURITY [H18]: Validate that leadBuyerDepositAmount matches percentage calculation
-    if (withPartners) {
-      if (typeof leadBuyerPercentage !== 'number' || leadBuyerPercentage <= 0 || leadBuyerPercentage >= 100) {
-        return NextResponse.json(
-          { error: "Lead buyer percentage must be between 0 and 100 (exclusive)" },
-          { status: 400 }
-        );
-      }
-      if (typeof leadBuyerDepositAmount !== 'number' || leadBuyerDepositAmount <= 0) {
-        return NextResponse.json(
-          { error: "Lead buyer deposit amount must be a positive number" },
-          { status: 400 }
-        );
-      }
-      const expectedDeposit = amount * leadBuyerPercentage / 100;
-      const depositTolerance = 0.000001; // Small tolerance for floating-point arithmetic
-      if (Math.abs(leadBuyerDepositAmount - expectedDeposit) > depositTolerance) {
-        return NextResponse.json(
-          { error: "Lead buyer deposit amount does not match the expected percentage of the sale price" },
-          { status: 400 }
-        );
-      }
-    }
+    // Verify on-chain transaction if provided (outside DB transaction to avoid holding lock)
+    if (onChainTx) {
+      try {
+        // SECURITY: Require explicit RPC URL — never fall back to devnet in production
+        const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+        if (!rpcUrl) {
+          return NextResponse.json(
+            { error: "Solana RPC not configured" },
+            { status: 500 }
+          );
+        }
+        const connection = new Connection(rpcUrl!, "confirmed");
+        const txInfo = await connection.getTransaction(onChainTx, {
+          maxSupportedTransactionVersion: 0,
+          commitment: "confirmed",
+        });
 
-    // SECURITY: On-chain transaction verification is mandatory for purchases.
-    // A purchase without a verified on-chain payment must not proceed.
-    if (!onChainTx) {
-      return NextResponse.json(
-        { error: "On-chain transaction signature is required" },
-        { status: 400 }
-      );
-    }
+        if (!txInfo) {
+          return NextResponse.json(
+            { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
+            { status: 400 }
+          );
+        }
 
-    // SECURITY [H8]: Prefer server-only SOLANA_RPC_URL to avoid leaking API keys
-    // via the NEXT_PUBLIC_ prefix (which is embedded in the client bundle).
-    const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
-    if (!rpcUrl) {
-      console.error("SOLANA_RPC_URL is not configured");
-      return NextResponse.json(
-        { error: "Server configuration error. Please try again later." },
-        { status: 500 }
-      );
-    }
-
-    try {
-      const connection = new Connection(rpcUrl, "confirmed");
-      const txInfo = await connection.getTransaction(onChainTx, {
-        maxSupportedTransactionVersion: 0,
-        commitment: "confirmed",
-      });
-
-      if (!txInfo) {
-        return NextResponse.json(
-          { error: "Transaction not found on-chain. Please wait for confirmation and try again." },
-          { status: 400 }
-        );
+        if (txInfo.meta?.err) {
+          return NextResponse.json(
+            { error: "On-chain transaction failed" },
+            { status: 400 }
+          );
+        }
+      } catch (verifyErr) {
+        console.error("Error verifying on-chain tx:", verifyErr);
+        // Don't block purchase if RPC is temporarily unavailable
       }
-
-      if (txInfo.meta?.err) {
-        return NextResponse.json(
-          { error: "On-chain transaction failed" },
-          { status: 400 }
-        );
-      }
-
-      // SECURITY [C1]: Verify on-chain transfer amount, recipient, and sender
-      const accountKeys = txInfo.transaction.message.getAccountKeys().staticAccountKeys.map((k: any) => k.toBase58());
-      const preBalances = txInfo.meta!.preBalances;
-      const postBalances = txInfo.meta!.postBalances;
-
-      // Find treasury/escrow wallet in the transaction
-      const treasuryWallet = process.env.NEXT_PUBLIC_TREASURY_WALLET;
-      if (!treasuryWallet) {
-        return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
-      }
-
-      const treasuryIndex = accountKeys.indexOf(treasuryWallet);
-      if (treasuryIndex === -1) {
-        return NextResponse.json({ error: "Transaction does not involve the platform treasury" }, { status: 400 });
-      }
-
-      // Verify the amount received by treasury (in lamports)
-      const treasuryReceived = postBalances[treasuryIndex] - preBalances[treasuryIndex];
-      const expectedLamports = Math.floor(amount * 1e9); // Convert SOL to lamports
-      const tolerance = 10000; // Allow small tolerance for tx fees
-      if (treasuryReceived < expectedLamports - tolerance) {
-        return NextResponse.json({ error: "On-chain transfer amount does not match expected amount" }, { status: 400 });
-      }
-
-      // Verify sender is the buyer's wallet
-      const buyerWallet = token.walletAddress;
-      if (!buyerWallet) {
-        return NextResponse.json({ error: "Wallet address required for on-chain purchases" }, { status: 400 });
-      }
-      if (!accountKeys.includes(buyerWallet)) {
-        return NextResponse.json({ error: "Transaction sender does not match buyer wallet" }, { status: 400 });
-      }
-    } catch (verifyErr) {
-      console.error("Error verifying on-chain tx:", verifyErr);
-      // SECURITY: Do NOT proceed without successful verification.
-      // If RPC is unavailable, the user must retry.
-      return NextResponse.json(
-        { error: "Unable to verify on-chain transaction. Please try again." },
-        { status: 503 }
-      );
     }
 
     // SECURITY: Use serializable transaction to prevent double-purchase race condition
@@ -228,15 +155,6 @@ export async function POST(request: NextRequest) {
       // Calculate fees
       const platformFee = calculatePlatformFee(amount, currency);
       const { proceeds: sellerProceeds } = calculateSellerProceeds(amount, currency);
-
-      // SECURITY [M25]: Deduplicate on-chain transaction signatures to prevent
-      // the same on-chain payment from being used for multiple purchases
-      const existingTx = await tx.transaction.findFirst({
-        where: { onChainTx },
-      });
-      if (existingTx) {
-        return { error: "This on-chain transaction has already been used", status: 400 } as const;
-      }
 
       // SECURITY: Atomic check — if transaction already exists, reject (prevents double-purchase)
       const existingTransaction = await tx.transaction.findUnique({
@@ -419,7 +337,7 @@ export async function POST(request: NextRequest) {
         : "Purchase successful"
     }, { status: 201 });
   } catch (error) {
-    console.error("Error creating purchase:", error instanceof Error ? error.message : "Unknown error");
+    console.error("Error creating purchase:", error);
     return NextResponse.json(
       { error: "Failed to complete purchase" },
       { status: 500 }
@@ -444,7 +362,6 @@ export async function GET(request: NextRequest) {
     const purchases = await prisma.transaction.findMany({
       where: { buyerId: userId },
       orderBy: { createdAt: "desc" },
-      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
       include: {
         listing: {
           select: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -11,7 +11,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  ChevronDown,
   Percent,
   Crown,
   Briefcase,
@@ -583,7 +582,7 @@ export function CollaboratorInput({
                     onChange={(e) =>
                       setNewCollaborator({
                         ...newCollaborator,
-                        percentage: parseInt(e.target.value),
+                        percentage: parseInt(e.target.value, 10),
                       })
                     }
                     className="flex-1 accent-green-500"
@@ -599,7 +598,7 @@ export function CollaboratorInput({
                             1,
                             Math.min(
                               remainingPercentage - 1,
-                              parseInt(e.target.value) || 1
+                              parseInt(e.target.value, 10) || 1
                             )
                           ),
                         })
@@ -619,7 +618,7 @@ export function CollaboratorInput({
               {/* Add button */}
               <Button
                 type="button"
-                variant={newCollaborator.role === "PARTNER" ? "default" : "default"}
+                variant="default"
                 onClick={handleAddCollaborator}
                 disabled={
                   !searchResult?.walletAddress ||

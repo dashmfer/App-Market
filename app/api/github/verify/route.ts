@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/auth";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
 import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
-
-    // SECURITY: Rate limit GitHub API requests
+    // SECURITY: Rate limit to prevent DDoS of external GitHub API via this endpoint
     const rateLimitResult = await (withRateLimitAsync('write', 'github-verify'))(request);
     if (!rateLimitResult.success) {
       return NextResponse.json(
@@ -39,16 +32,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SECURITY [C5-github]: Validate owner/repo format to prevent path traversal
-    const validNameRegex = /^[a-zA-Z0-9._-]+$/;
-    if (!validNameRegex.test(owner) || !validNameRegex.test(repo)) {
-      return NextResponse.json({ error: "Invalid repository owner or name format" }, { status: 400 });
+    // SECURITY: Validate owner and repo against strict allowlist to prevent SSRF/injection.
+    // GitHub usernames and repo names only allow alphanumeric, hyphens, dots, and underscores.
+    const githubNameRegex = /^[a-zA-Z0-9._-]+$/;
+    if (!githubNameRegex.test(owner) || !githubNameRegex.test(repo)) {
+      return NextResponse.json(
+        { error: "Invalid owner or repo name. Only alphanumeric characters, hyphens, dots, and underscores are allowed." },
+        { status: 400 }
+      );
     }
 
     // Use public GitHub API to check if repo exists and is accessible
     // This doesn't require OAuth - works for public repos
     const repoResponse = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}`,
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
       {
         headers: {
           Accept: "application/vnd.github.v3+json",

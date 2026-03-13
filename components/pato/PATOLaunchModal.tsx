@@ -96,8 +96,8 @@ export function PATOLaunchModal({
         }
 
         setPrefilled(true);
-      } catch {
-        // Silent fail — user can still fill manually
+      } catch (error) {
+        console.error("[PATOLaunchModal] Failed to fetch listing for prefill:", error);
       }
     };
 
@@ -484,7 +484,7 @@ export function PATOLaunchModal({
                 {/* Token Preview */}
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
                   <div className="flex items-center gap-3 mb-3">
-                    {tokenImage ? (
+                    {tokenImage && /^https?:\/\//i.test(tokenImage) ? (
                       <img
                         src={tokenImage}
                         alt={tokenName}

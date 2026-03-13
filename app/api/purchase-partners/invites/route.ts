@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Get user's primary wallet and all linked wallets (multi-wallet support)
     const user = await prisma.user.findUnique({
-      where: { id: token.id as string },
+      where: { id: (token!.id as string) },
       select: {
         walletAddress: true,
         wallets: {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const invites = await prisma.transactionPartner.findMany({
       where: {
         OR: [
-          { userId: token.id as string },
+          { userId: (token!.id as string) },
           ...walletConditions,
         ],
         depositStatus: "PENDING",
@@ -91,7 +91,6 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     // Format invites with additional info

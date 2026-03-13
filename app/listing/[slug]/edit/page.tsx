@@ -15,7 +15,7 @@ import {
   Unlock,
   UserCheck,
 } from "lucide-react";
-import { useCsrf } from "@/hooks/useCsrf";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface Listing {
   id: string;
@@ -45,6 +45,7 @@ export default function EditListingPage() {
   const slug = params.slug as string;
   const { data: session, status: sessionStatus } = useSession();
 
+  const [confirmDialog, showConfirm] = useConfirmDialog();
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,7 +63,6 @@ export default function EditListingPage() {
   const [reserveWallet, setReserveWallet] = useState("");
   const [isReserved, setIsReserved] = useState(false);
   const [currentReservedWallet, setCurrentReservedWallet] = useState<string | null>(null);
-  const { csrfHeaders } = useCsrf();
 
   useEffect(() => {
     async function fetchListing() {
@@ -97,7 +97,6 @@ export default function EditListingPage() {
   // Check if user is the owner
   const isOwner = session?.user?.id === listing?.sellerId;
   const hasBids = (listing?._count?.bids || 0) > 0;
-  const auctionStarted = listing ? new Date() > new Date(listing.endTime) : false;
   const canCancel = isOwner && !hasBids && listing?.status === "ACTIVE";
 
   const handleSave = async () => {
@@ -110,7 +109,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...csrfHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           tagline,
@@ -135,9 +134,7 @@ export default function EditListingPage() {
   const handleCancel = async () => {
     if (!listing || !canCancel) return;
 
-    if (!confirm("Are you sure you want to cancel this listing? This action cannot be undone.")) {
-      return;
-    }
+    if (!(await showConfirm({ title: "Cancel Listing", description: "Are you sure you want to cancel this listing? This action cannot be undone.", variant: "destructive", confirmLabel: "Cancel Listing" }))) return;
 
     setCanceling(true);
     setError(null);
@@ -145,7 +142,6 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/cancel`, {
         method: "POST",
-        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {
@@ -172,7 +168,7 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/reserve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...csrfHeaders },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress: reserveWallet.trim() }),
       });
 
@@ -201,9 +197,7 @@ export default function EditListingPage() {
   const handleUnreserve = async () => {
     if (!listing) return;
 
-    if (!confirm("Are you sure you want to remove this reservation? The listing will become public again.")) {
-      return;
-    }
+    if (!(await showConfirm({ title: "Remove Reservation", description: "Are you sure you want to remove this reservation? The listing will become public again.", variant: "destructive", confirmLabel: "Remove Reservation" }))) return;
 
     setReserving(true);
     setError(null);
@@ -212,7 +206,6 @@ export default function EditListingPage() {
     try {
       const response = await fetch(`/api/listings/${slug}/reserve`, {
         method: "DELETE",
-        headers: { ...csrfHeaders },
       });
 
       if (response.ok) {
@@ -274,6 +267,7 @@ export default function EditListingPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8">
+      {confirmDialog}
       <div className="container-tight">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">

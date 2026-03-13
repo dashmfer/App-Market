@@ -16,7 +16,7 @@
  * BUYBACK_PERCENTAGE=20
  */
 
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { PLATFORM_CONFIG, calculateBuybackAmount } from "./config";
 
 // Types
@@ -53,7 +53,7 @@ export async function recordRevenue(amount: number): Promise<{
   const buybackPortion = calculateBuybackAmount(amount);
   accumulatedBuybackAmount += buybackPortion;
 
-  console.log(`[Buyback] Accumulated: ${accumulatedBuybackAmount} SOL (added ${buybackPortion})`);
+  console.info(`[Buyback] Accumulated: ${accumulatedBuybackAmount} SOL (added ${buybackPortion})`);
 
   // Check if threshold reached
   if (accumulatedBuybackAmount >= PLATFORM_CONFIG.autoBuyback.minimumBuybackAmount) {
@@ -85,7 +85,7 @@ export async function executeBuyback(amount: number): Promise<BuybackResult> {
   }
 
   try {
-    console.log(`[Buyback] Executing buyback for ${amount} SOL`);
+    console.info(`[Buyback] Executing buyback for ${amount} SOL`);
 
     // In production, this would:
     // 1. Get quote from Jupiter API
@@ -121,10 +121,10 @@ export async function executeBuyback(amount: number): Promise<BuybackResult> {
     
     if (buybackDestination === "burn") {
       await burnTokens(swapResult.tokensReceived);
-      console.log(`[Buyback] Burned ${swapResult.tokensReceived} tokens`);
+      console.info(`[Buyback] Burned ${swapResult.tokensReceived} tokens`);
     } else if (buybackDestination === "stakers") {
       await distributeToStakers(swapResult.tokensReceived);
-      console.log(`[Buyback] Distributed ${swapResult.tokensReceived} tokens to stakers`);
+      console.info(`[Buyback] Distributed ${swapResult.tokensReceived} tokens to stakers`);
     }
 
     return {
@@ -191,8 +191,6 @@ async function executeJupiterSwap(quote: any): Promise<{
   // 2. Sign and send the transaction
   // 3. Wait for confirmation
   
-  console.log("[Jupiter] Would execute swap with quote:", quote);
-  
   // Simulate for now
   return {
     success: true,
@@ -206,7 +204,6 @@ async function executeJupiterSwap(quote: any): Promise<{
  */
 async function burnTokens(amount: number): Promise<void> {
   // Placeholder - would transfer tokens to burn address
-  console.log(`[Burn] Would burn ${amount} tokens`);
 }
 
 /**
@@ -214,7 +211,6 @@ async function burnTokens(amount: number): Promise<void> {
  */
 async function distributeToStakers(amount: number): Promise<void> {
   // Placeholder - would call staking contract to distribute
-  console.log(`[Staking] Would distribute ${amount} tokens to stakers`);
 }
 
 /**

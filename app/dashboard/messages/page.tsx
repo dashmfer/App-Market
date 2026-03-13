@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
 import {
   MessageCircle,
   Send,
@@ -17,7 +18,6 @@ import {
   useConversation,
   startConversation,
   Conversation,
-  Message,
 } from "@/hooks/useMessages";
 
 function ConversationList({
@@ -373,7 +373,7 @@ function MessagesPageContent() {
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      alert("Failed to send message");
+      toast.error("Failed to send message");
     } finally {
       setSendingNew(false);
     }

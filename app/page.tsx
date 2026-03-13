@@ -35,7 +35,6 @@ const categoriesBase = [
 
 export default function HomePage() {
   const t = useTranslations("home");
-  const tCommon = useTranslations("common");
 
   const [featuredListings, setFeaturedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +135,7 @@ export default function HomePage() {
           setWatchlistedIds(ids);
         }
       } catch (error) {
-        // Silently fail - user might not be logged in
+        console.error("[HomePage] Failed to fetch watchlist:", error);
       }
     }
 

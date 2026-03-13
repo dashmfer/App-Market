@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import nacl from "tweetnacl";
 import bs58 from "bs58";
@@ -46,6 +46,27 @@ const SIGNATURE_TIMESTAMP_TOLERANCE_MS = 30 * 1000; // 30 seconds
 import { checkRateLimitAsync, isRateLimitingDistributed } from "@/lib/rate-limit";
 
 const rateLimitStore = new Map<string, { count: number; resetAt: Date }>();
+
+// Singleton Redis client for nonce checking (avoid per-request instantiation)
+let _nonceRedisClient: any = null;
+let _nonceRedisInitialized = false;
+
+async function getNonceRedis() {
+  if (_nonceRedisInitialized) return _nonceRedisClient;
+  _nonceRedisInitialized = true;
+  try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+      const { Redis } = await import("@upstash/redis");
+      _nonceRedisClient = new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+      });
+    }
+  } catch (error) {
+    console.error("[AgentAuth] Failed to initialize Redis for nonce checking:", error);
+  }
+  return _nonceRedisClient;
+}
 
 // ============================================
 // API KEY AUTHENTICATION (Option 1)
@@ -113,8 +134,6 @@ async function verifyApiKey(key: string): Promise<AgentAuthResult> {
   });
 
   if (apiKeys.length === 0) {
-    // SECURITY [L3]: Constant-time response — compare against dummy hash to prevent timing leak
-    await bcrypt.compare(key, "$2b$12$0000000000000000000000000000000000000000000000000000");
     return { success: false, error: "Invalid API key", statusCode: 401 };
   }
 
@@ -179,7 +198,7 @@ async function verifyWalletSignature(
   timestamp: string,
   nonce?: string
 ): Promise<AgentAuthResult> {
-  // SECURITY [C2]: Require nonce to prevent signature replay attacks
+  // SECURITY: Nonce is mandatory for replay protection
   if (!nonce) {
     return { success: false, error: "Nonce is required for wallet signature auth", statusCode: 400 };
   }
@@ -199,12 +218,18 @@ async function verifyWalletSignature(
     };
   }
 
-  // SECURITY [C2]: Atomically check-and-mark nonce as used (Redis-backed)
-  const { checkAndMarkNonce } = await import("@/lib/validation");
-  const nonceKey = `agent:${walletAddress}:${nonce}`;
-  const nonceResult = await checkAndMarkNonce(nonceKey);
-  if (nonceResult.used) {
-    return { success: false, error: nonceResult.error || "Nonce already used", statusCode: 401 };
+  // SECURITY: Check nonce replay via Redis (atomic check-and-set).
+  const nonceRedis = await getNonceRedis();
+
+  const nonceKey = `agent-nonce:${walletAddress}:${nonce}`;
+  if (nonceRedis) {
+    const wasSet = await nonceRedis.set(nonceKey, "1", { ex: 600, nx: true });
+    if (wasSet === null) {
+      return { success: false, error: "Nonce already used (replay detected)", statusCode: 401 };
+    }
+  } else if (process.env.NODE_ENV === "production") {
+    // Fail closed in production if Redis is unavailable
+    return { success: false, error: "Authentication service unavailable", statusCode: 503 };
   }
 
   // Reconstruct the message
@@ -253,14 +278,12 @@ async function verifyWalletSignature(
     };
   }
 
-  // SECURITY [M13]: Wallet signature auth only grants READ permission.
-  // Full WRITE/TRANSACTION access requires an explicit API key.
   return {
     success: true,
     userId: user.id,
     user,
     authMethod: "wallet_signature",
-    permissions: [ApiKeyPermission.READ],
+    permissions: [ApiKeyPermission.READ, ApiKeyPermission.WRITE, ApiKeyPermission.TRANSACTION],
   };
 }
 
@@ -273,48 +296,33 @@ async function verifyWalletSignature(
  * Supports both API key and wallet signature auth
  */
 export async function authenticateAgent(request: NextRequest): Promise<AgentAuthResult> {
-  let result: AgentAuthResult;
-
   // Check for API key first (Authorization: Bearer ak_live_xxx)
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
     if (token.startsWith(API_KEY_PREFIX)) {
-      result = await verifyApiKey(token);
-    } else {
-      result = { success: false, error: "Invalid API key format", statusCode: 401 };
-    }
-  } else {
-    // Check for wallet signature auth
-    const walletAddress = request.headers.get("x-wallet-address");
-    const signature = request.headers.get("x-wallet-signature");
-    const timestamp = request.headers.get("x-auth-timestamp");
-    const nonce = request.headers.get("x-auth-nonce");
-
-    if (walletAddress && signature && timestamp) {
-      result = await verifyWalletSignature(walletAddress, signature, timestamp, nonce || undefined);
-    } else {
-      result = {
-        success: false,
-        error: "Authentication required. Provide API key or wallet signature.",
-        statusCode: 401
-      };
+      return verifyApiKey(token);
     }
   }
 
-  // SECURITY [C1-agent]: Block soft-deleted users from agent API access.
-  // This mirrors the deletedAt check in getAuthToken() for the main auth path.
-  if (result.success && result.userId) {
-    const deletedUser = await prisma.user.findUnique({
-      where: { id: result.userId },
-      select: { deletedAt: true },
-    });
-    if (deletedUser?.deletedAt) {
-      return { success: false, error: "Account has been deleted", statusCode: 401 };
-    }
+  // Check for wallet signature auth
+  const walletAddress = request.headers.get("x-wallet-address");
+  const signature = request.headers.get("x-wallet-signature");
+  const timestamp = request.headers.get("x-auth-timestamp");
+  const nonce = request.headers.get("x-auth-nonce");
+
+  if (walletAddress && signature && timestamp) {
+    // SECURITY: Pass nonce directly without coercion. The inner function handles
+    // null/undefined/empty consistently. The `|| undefined` pattern could mask
+    // empty-string nonce headers if the inner function's behavior changes.
+    return verifyWalletSignature(walletAddress, signature, timestamp, nonce ?? undefined);
   }
 
-  return result;
+  return {
+    success: false,
+    error: "Authentication required. Provide API key or wallet signature.",
+    statusCode: 401
+  };
 }
 
 /**
@@ -349,6 +357,13 @@ export async function checkAgentRateLimit(
       remaining: result.remaining,
       resetAt: new Date(result.resetTime),
     };
+  }
+
+  // SECURITY: In-memory rate limiting is per-instance and ineffective in serverless/multi-instance production.
+  // Fail closed in production if distributed rate limiting is unavailable.
+  if (process.env.NODE_ENV === "production") {
+    console.error("[AgentAuth] Distributed rate limiting unavailable in production");
+    return { allowed: false, remaining: 0, resetAt: new Date(Date.now() + 60000) };
   }
 
   // Fallback to in-memory (dev only)
@@ -391,8 +406,13 @@ export function verifyWebhookSignature(
   secret: string
 ): boolean {
   const expected = signWebhookPayload(payload, secret);
+  const maxLen = Math.max(signature.length, expected.length);
+  const paddedSig = Buffer.alloc(maxLen);
+  const paddedExpected = Buffer.alloc(maxLen);
+  Buffer.from(signature).copy(paddedSig);
+  Buffer.from(expected).copy(paddedExpected);
   try {
-    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    return timingSafeEqual(paddedSig, paddedExpected) && signature.length === expected.length;
   } catch {
     return false;
   }

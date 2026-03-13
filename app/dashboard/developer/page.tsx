@@ -14,12 +14,12 @@ import {
   AlertCircle,
   ExternalLink,
   RefreshCw,
-  Settings2,
   Code2,
   Activity,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { secureFetch } from "@/lib/fetch";
+import { toast } from "sonner";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 // Types
 interface ApiKey {
@@ -50,10 +50,18 @@ interface WebhookItem {
 }
 
 const PERMISSION_OPTIONS = [
-  { value: "READ", label: "Read", description: "Read listings, bids, offers, profile, transactions" },
-  { value: "WRITE", label: "Write", description: "Create listings, place bids, make offers, edit profile" },
-  { value: "TRANSACTION", label: "Transaction", description: "Execute purchases, sign agreements" },
-  { value: "ADMIN", label: "Admin", description: "Manage API keys and webhooks" },
+  { value: "LISTINGS_READ", label: "Read Listings" },
+  { value: "LISTINGS_WRITE", label: "Create/Edit Listings" },
+  { value: "BIDS_READ", label: "Read Bids" },
+  { value: "BIDS_WRITE", label: "Place Bids" },
+  { value: "OFFERS_READ", label: "Read Offers" },
+  { value: "OFFERS_WRITE", label: "Create/Manage Offers" },
+  { value: "TRANSACTIONS_READ", label: "Read Transactions" },
+  { value: "TRANSACTIONS_WRITE", label: "Manage Transactions" },
+  { value: "WEBHOOKS_READ", label: "Read Webhooks" },
+  { value: "WEBHOOKS_WRITE", label: "Manage Webhooks" },
+  { value: "PROFILE_READ", label: "Read Profile" },
+  { value: "PROFILE_WRITE", label: "Edit Profile" },
 ];
 
 const EVENT_OPTIONS = [
@@ -91,7 +99,7 @@ export default function DeveloperPage() {
 }
 
 function DeveloperContent() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [activeTab, setActiveTab] = useState<"keys" | "webhooks">("keys");
 
   // API Keys state
@@ -100,7 +108,7 @@ function DeveloperContent() {
   const [showCreateKey, setShowCreateKey] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyPermissions, setNewKeyPermissions] = useState<string[]>([
-    "READ",
+    "LISTINGS_READ",
   ]);
   const [newKeyRateLimit, setNewKeyRateLimit] = useState(1000);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
@@ -121,6 +129,7 @@ function DeveloperContent() {
   // UI state
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDialog, showConfirm] = useConfirmDialog();
 
   // Load API keys
   useEffect(() => {
@@ -170,7 +179,7 @@ function DeveloperContent() {
     if (!newKeyName.trim()) return;
     setCreatingKey(true);
     try {
-      const res = await secureFetch("/api/agent/keys", {
+      const res = await fetch("/api/agent/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -181,35 +190,35 @@ function DeveloperContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCreatedKey(data.key.secret);
-        setApiKeys((prev) => [data.key, ...prev]);
+        setCreatedKey(data.key);
+        setApiKeys((prev) => [data.apiKey, ...prev]);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to create API key");
+        toast.error(error.error || "Failed to create API key");
       }
     } catch (error) {
       console.error("Failed to create API key:", error);
-      alert("Failed to create API key");
+      toast.error("Failed to create API key");
     } finally {
       setCreatingKey(false);
     }
   };
 
   const handleDeleteKey = async (id: string) => {
-    if (!confirm("Delete this API key? This cannot be undone.")) return;
+    if (!(await showConfirm({ title: "Delete API Key", description: "Delete this API key? This cannot be undone.", variant: "destructive", confirmLabel: "Delete" }))) return;
     setDeletingId(id);
     try {
-      const res = await secureFetch(`/api/agent/keys?id=${id}`, {
+      const res = await fetch(`/api/agent/keys?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
         setApiKeys((prev) => prev.filter((k) => k.id !== id));
       } else {
-        alert("Failed to delete API key");
+        toast.error("Failed to delete API key");
       }
     } catch (error) {
       console.error("Failed to delete API key:", error);
-      alert("Failed to delete API key");
+      toast.error("Failed to delete API key");
     } finally {
       setDeletingId(null);
     }
@@ -217,7 +226,7 @@ function DeveloperContent() {
 
   const handleToggleKey = async (id: string, isActive: boolean) => {
     try {
-      const res = await secureFetch(`/api/agent/keys?id=${id}`, {
+      const res = await fetch(`/api/agent/keys?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !isActive }),
@@ -235,12 +244,12 @@ function DeveloperContent() {
   const handleCreateWebhook = async () => {
     if (!newWebhookName.trim() || !newWebhookUrl.trim()) return;
     if (newWebhookEvents.length === 0) {
-      alert("Please select at least one event");
+      toast.error("Please select at least one event");
       return;
     }
     setCreatingWebhook(true);
     try {
-      const res = await secureFetch("/api/agent/webhooks", {
+      const res = await fetch("/api/agent/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -255,31 +264,31 @@ function DeveloperContent() {
         setWebhooks((prev) => [data.webhook, ...prev]);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to create webhook");
+        toast.error(error.error || "Failed to create webhook");
       }
     } catch (error) {
       console.error("Failed to create webhook:", error);
-      alert("Failed to create webhook");
+      toast.error("Failed to create webhook");
     } finally {
       setCreatingWebhook(false);
     }
   };
 
   const handleDeleteWebhook = async (id: string) => {
-    if (!confirm("Delete this webhook? This cannot be undone.")) return;
+    if (!(await showConfirm({ title: "Delete Webhook", description: "Delete this webhook? This cannot be undone.", variant: "destructive", confirmLabel: "Delete" }))) return;
     setDeletingId(id);
     try {
-      const res = await secureFetch(`/api/agent/webhooks?id=${id}`, {
+      const res = await fetch(`/api/agent/webhooks?id=${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
         setWebhooks((prev) => prev.filter((w) => w.id !== id));
       } else {
-        alert("Failed to delete webhook");
+        toast.error("Failed to delete webhook");
       }
     } catch (error) {
       console.error("Failed to delete webhook:", error);
-      alert("Failed to delete webhook");
+      toast.error("Failed to delete webhook");
     } finally {
       setDeletingId(null);
     }
@@ -287,7 +296,7 @@ function DeveloperContent() {
 
   const handleToggleWebhook = async (id: string, isActive: boolean) => {
     try {
-      const res = await secureFetch(`/api/agent/webhooks?id=${id}`, {
+      const res = await fetch(`/api/agent/webhooks?id=${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !isActive }),
@@ -305,7 +314,7 @@ function DeveloperContent() {
   const resetKeyForm = () => {
     setShowCreateKey(false);
     setNewKeyName("");
-    setNewKeyPermissions(["READ"]);
+    setNewKeyPermissions(["LISTINGS_READ"]);
     setNewKeyRateLimit(1000);
     setCreatedKey(null);
   };
@@ -344,6 +353,7 @@ function DeveloperContent() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      {confirmDialog}
       <div className="container-wide py-8">
         {/* Header */}
         <div className="mb-8">
@@ -496,11 +506,11 @@ function DeveloperContent() {
                         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                           Permissions
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {PERMISSION_OPTIONS.map((perm) => (
                             <label
                               key={perm.value}
-                              className="flex items-start gap-2 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                              className="flex items-center gap-2 p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
                             >
                               <input
                                 type="checkbox"
@@ -517,16 +527,11 @@ function DeveloperContent() {
                                     );
                                   }
                                 }}
-                                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                               />
-                              <div>
-                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                  {perm.label}
-                                </span>
-                                <p className="text-xs text-zinc-500">
-                                  {perm.description}
-                                </p>
-                              </div>
+                              <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                                {perm.label}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -539,7 +544,7 @@ function DeveloperContent() {
                           type="number"
                           value={newKeyRateLimit}
                           onChange={(e) =>
-                            setNewKeyRateLimit(parseInt(e.target.value) || 1000)
+                            setNewKeyRateLimit(parseInt(e.target.value, 10) || 1000)
                           }
                           min={100}
                           max={10000}

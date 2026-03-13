@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
-import { hashEvidence, isValidUUID } from "@/lib/validation";
+import { hashEvidence } from "@/lib/validation";
 import { audit, auditContext } from "@/lib/audit";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // POST /api/disputes/[id]/resolve - Resolve a dispute (admin only for now)
 export async function POST(
@@ -11,11 +11,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    // SECURITY: CSRF protection for state-changing admin endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     const token = await getAuthToken(request);
 
@@ -27,15 +25,6 @@ export async function POST(
     }
 
     const disputeId = params.id;
-
-    // SECURITY [M13]: Validate UUID format
-    if (!isValidUUID(disputeId)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
     const { resolution, notes } = body;
 
@@ -96,8 +85,6 @@ export async function POST(
 
     // Apply resolution
     let newTransactionStatus = transaction.status;
-    let buyerRefund = 0;
-    let sellerPayout = 0;
     let feeCharged = false;
 
     // SECURITY: Dispute fee must be accounted for in refund calculations
@@ -105,46 +92,30 @@ export async function POST(
 
     switch (resolution) {
       case "FULL_REFUND":
-        // Buyer gets full refund; dispute fee charged to seller from escrow
-        buyerRefund = Number(transaction.salePrice);
-        sellerPayout = 0;
         newTransactionStatus = "REFUNDED";
         feeCharged = true;
         break;
 
-      case "PARTIAL_REFUND": {
-        // SECURITY [M1]: Integer-safe 50/50 split using currency-aware base units
-        const decimals = transaction.currency === "USDC" ? 6 : 9;
-        const base = Math.pow(10, decimals);
-        const saleLamports = Math.round(Number(transaction.salePrice) * base);
-        const feeLamports = Math.round(disputeFeeAmount * base);
-        const platFeeLamports = Math.round(Number(transaction.platformFee) * base);
-        buyerRefund = Math.floor((saleLamports - feeLamports) / 2) / base;
-        sellerPayout = Math.floor((saleLamports - platFeeLamports - feeLamports) / 2) / base;
+      case "PARTIAL_REFUND":
         newTransactionStatus = "COMPLETED";
         feeCharged = disputeFeeAmount > 0;
         break;
-      }
 
       case "RELEASE_TO_SELLER":
-        // Seller gets proceeds; dispute fee charged to buyer (loser)
-        buyerRefund = 0;
-        sellerPayout = Number(transaction.sellerProceeds);
         newTransactionStatus = "COMPLETED";
         feeCharged = true;
         break;
 
       case "EXTEND_DEADLINE":
-        // Give more time for transfer
         newTransactionStatus = "TRANSFER_PENDING";
-        // No funds moved, no fee charged
         break;
     }
 
-    // SECURITY: Use database transaction for atomicity — dispute + transaction
-    // must update together to prevent inconsistent state
-    await prisma.$transaction(async (tx) => {
-      await tx.dispute.update({
+    // SECURITY: Wrap dispute resolution and transaction status update in a
+    // Prisma transaction for atomicity. Prevents inconsistent state where
+    // the dispute is resolved but the transaction status is not updated.
+    await prisma.$transaction([
+      prisma.dispute.update({
         where: { id: disputeId },
         data: {
           status: "RESOLVED",
@@ -153,16 +124,15 @@ export async function POST(
           feeCharged,
           resolvedAt: new Date(),
         },
-      });
-
-      await tx.transaction.update({
+      }),
+      prisma.transaction.update({
         where: { id: transaction.id },
         data: {
           status: newTransactionStatus,
-        releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
+          releasedAt: resolution !== "EXTEND_DEADLINE" ? new Date() : undefined,
         },
-      });
-    }); // end $transaction
+      }),
+    ]);
 
     // Notify both parties
     const resolutionMessages: Record<string, { buyer: string; seller: string }> = {
@@ -204,21 +174,6 @@ export async function POST(
       },
     });
 
-    // Update disputesWon/disputesLost based on resolution
-    if (resolution === "FULL_REFUND") {
-      // Buyer wins, seller loses
-      await Promise.all([
-        prisma.user.update({ where: { id: transaction.buyerId }, data: { disputesWon: { increment: 1 } } }),
-        prisma.user.update({ where: { id: transaction.sellerId }, data: { disputesLost: { increment: 1 } } }),
-      ]).catch(console.error);
-    } else if (resolution === "RELEASE_TO_SELLER") {
-      // Seller wins, buyer loses
-      await Promise.all([
-        prisma.user.update({ where: { id: transaction.sellerId }, data: { disputesWon: { increment: 1 } } }),
-        prisma.user.update({ where: { id: transaction.buyerId }, data: { disputesLost: { increment: 1 } } }),
-      ]).catch(console.error);
-    }
-
     await audit({
       action: "ADMIN_DISPUTE_RESOLUTION",
       severity: "WARN",
@@ -251,11 +206,9 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
-    }
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) return csrfError(csrf.error || "CSRF validation failed");
 
     const token = await getAuthToken(request);
 
@@ -267,36 +220,30 @@ export async function PUT(
     }
 
     const disputeId = params.id;
-
-    // SECURITY [M13]: Validate UUID format
-    if (!isValidUUID(disputeId)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
-
     const body = await request.json();
     const { response, evidence } = body;
 
-    // SECURITY [M9]: Validate response and evidence inputs
-    if (typeof response !== "string" || response.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Response must be a non-empty string" },
-        { status: 400 }
-      );
-    }
-    if (response.length > 5000) {
-      return NextResponse.json(
-        { error: "Response must be 5000 characters or less" },
-        { status: 400 }
-      );
-    }
-    if (evidence !== undefined && evidence !== null && !Array.isArray(evidence)) {
-      return NextResponse.json(
-        { error: "Evidence must be an array" },
-        { status: 400 }
-      );
+    // SECURITY: Validate evidence structure and length
+    if (evidence !== undefined && evidence !== null) {
+      if (!Array.isArray(evidence)) {
+        return NextResponse.json(
+          { error: "Evidence must be an array" },
+          { status: 400 }
+        );
+      }
+      if (evidence.length > 20) {
+        return NextResponse.json(
+          { error: "Maximum 20 evidence items allowed" },
+          { status: 400 }
+        );
+      }
+      const totalSize = JSON.stringify(evidence).length;
+      if (totalSize > 50000) {
+        return NextResponse.json(
+          { error: "Evidence payload too large (max 50KB)" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get dispute

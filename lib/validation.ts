@@ -1,11 +1,6 @@
 /**
  * Validation utilities for security and data integrity
  */
-
-// SECURITY [L9]: Error response format varies across routes.
-// TODO: Create a standardized error response helper:
-// export function apiError(message: string, status: number, details?: any)
-
 import crypto from 'crypto';
 
 // SECURITY: Track used wallet signature nonces to prevent replay attacks
@@ -31,29 +26,30 @@ async function getNonceRedis() {
   return null;
 }
 
-// Atomically check-and-mark nonce as used. Returns { used: false } if newly set, { used: true } if already existed.
-export async function checkAndMarkNonce(nonceKey: string): Promise<{ used: boolean; error?: string }> {
+// Atomically check-and-set nonce via Redis if available, else in-memory.
+// Returns true if nonce was ALREADY used (reject), false if fresh (allow).
+async function checkAndSetNonce(nonceKey: string): Promise<boolean> {
   const redis = await getNonceRedis();
   if (redis) {
-    // Atomic SET NX: only sets if key does not exist, with 10 minute TTL
+    // SECURITY: Use SET ... NX (set-if-not-exists) for atomic check-and-set.
+    // This prevents the race condition where two concurrent requests both pass
+    // a separate "check" before either "sets" the nonce.
     const wasSet = await redis.set(`nonce:${nonceKey}`, "1", { ex: 600, nx: true });
-    // wasSet is "OK" or truthy if the key was newly set, null/falsy if it already existed
-    return { used: !wasSet };
+    // wasSet is "OK" if set succeeded (nonce was fresh), null if already existed
+    return wasSet === null;
   }
-
-  // SECURITY: Fail closed in production — deny requests if Redis is unavailable
-  if (process.env.NODE_ENV === 'production') {
-    console.error('CRITICAL: Nonce replay check cannot use in-memory fallback in production. Configure UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.');
-    return { used: true, error: 'Nonce verification unavailable. Please try again later.' };
+  // SECURITY: In production, fail closed if Redis is unavailable.
+  // In-memory nonce store is not safe for multi-instance serverless deployments.
+  if (process.env.NODE_ENV === "production") {
+    console.error("[Nonce] Redis unavailable in production — rejecting nonce check for safety");
+    return true; // Treat as already used (fail closed)
   }
-
-  // In-memory fallback for development only: atomic check-and-set
-  console.warn('SECURITY: Nonce replay check using in-memory fallback. Redis is not configured. This is unsafe in multi-instance deployments.');
+  // In-memory fallback (dev only)
   if (usedSignatureNonces.has(nonceKey)) {
-    return { used: true };
+    return true; // Already used
   }
   usedSignatureNonces.set(nonceKey, Date.now());
-  return { used: false };
+  return false; // Fresh
 }
 
 // Clean up expired in-memory nonces every 10 minutes (dev fallback only)
@@ -75,8 +71,7 @@ export const MAX_MESSAGE_LENGTH = 5000;
 export const MAX_CATEGORIES = 3;
 
 // Valid listing states for editing
-// SECURITY: RESERVED removed — listings should not be editable after a buyer has committed
-export const EDITABLE_LISTING_STATES = ['ACTIVE', 'PENDING_COLLABORATORS', 'DRAFT'];
+export const EDITABLE_LISTING_STATES = ['ACTIVE', 'RESERVED', 'PENDING_COLLABORATORS', 'DRAFT'];
 
 // Valid transaction state transitions (must match TransactionStatus enum in schema.prisma)
 export const VALID_TRANSACTION_TRANSITIONS: Record<string, string[]> = {
@@ -131,8 +126,8 @@ export function isValidUUID(id: string): boolean {
  * Sanitize and limit pagination parameters
  */
 export function sanitizePagination(page: string | null, limit: string | null): { page: number; limit: number } {
-  const parsedPage = Math.max(1, parseInt(page || '1') || 1);
-  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20') || 20));
+  const parsedPage = Math.max(1, parseInt(page || '1', 10) || 1);
+  const parsedLimit = Math.min(MAX_PAGINATION_LIMIT, Math.max(1, parseInt(limit || '20', 10) || 20));
   return { page: parsedPage, limit: parsedLimit };
 }
 
@@ -175,7 +170,10 @@ export function validateMessageContent(content: string): { valid: boolean; error
   if (!content || content.trim().length === 0) {
     return { valid: false, error: 'Message cannot be empty' };
   }
-  if (content.length > MAX_MESSAGE_LENGTH) {
+  // Use spread operator to count actual characters (grapheme-aware for emojis/CJK)
+  // instead of .length which counts UTF-16 code units
+  const charCount = [...content].length;
+  if (charCount > MAX_MESSAGE_LENGTH) {
     return { valid: false, error: `Message exceeds maximum length of ${MAX_MESSAGE_LENGTH} characters` };
   }
   return { valid: true };
@@ -190,15 +188,20 @@ export function calculatePartnerPayments(
   partners: { walletAddress: string; percentage: number }[]
 ): { walletAddress: string; amountSol: number; amountLamports: bigint }[] {
   const LAMPORTS_PER_SOL = BigInt(1000000000);
-  const totalLamports = BigInt(Math.round(totalAmountSol * Number(LAMPORTS_PER_SOL)));
+  // SECURITY: Use string parsing to avoid floating-point multiplication errors
+  const [whole, decimal = ""] = totalAmountSol.toString().split(".");
+  const paddedDecimal = decimal.padEnd(9, "0").slice(0, 9);
+  const totalLamports = BigInt(whole + paddedDecimal);
 
   let distributedLamports = BigInt(0);
   const payments = partners.map((partner, index) => {
     // For the last partner, give them the remainder to avoid rounding issues
     const isLast = index === partners.length - 1;
+    // SECURITY: Use integer BPS (percentage * 100) to avoid floating-point in BigInt conversion
+    const percentageBps = BigInt(Math.round(Number(partner.percentage) * 100));
     const amountLamports = isLast
       ? totalLamports - distributedLamports
-      : (totalLamports * BigInt(Math.round(Number(partner.percentage) * 100))) / BigInt(10000);
+      : (totalLamports * percentageBps) / BigInt(10000);
 
     distributedLamports += amountLamports;
 
@@ -232,6 +235,10 @@ export function validatePasswordComplexity(password: string): { valid: boolean; 
   }
   if (!/[0-9]/.test(password)) {
     errors.push('Password must contain at least one number');
+  }
+  // SECURITY: Use negated alphanumeric+space class to catch all special characters
+  if (!/[^A-Za-z0-9\s]/.test(password)) {
+    errors.push('Password must contain at least one special character');
   }
 
   return { valid: errors.length === 0, errors };
@@ -274,12 +281,12 @@ export async function validateWalletSignatureMessage(
     return { valid: false, error: 'Signature has expired' };
   }
 
-  // SECURITY: Atomically check for replay attacks - each signature can only be used once
-  // Uses Redis SET NX in production for multi-instance consistency
+  // SECURITY: Atomically check-and-set nonce to prevent replay attacks.
+  // Uses Redis SET NX in production for atomic multi-instance consistency.
   const nonceKey = `${expectedWallet}:${timestampMatch[1]}`;
-  const nonceResult = await checkAndMarkNonce(nonceKey);
-  if (nonceResult.used) {
-    return { valid: false, error: nonceResult.error || 'Signature has already been used' };
+  const alreadyUsed = await checkAndSetNonce(nonceKey);
+  if (alreadyUsed) {
+    return { valid: false, error: 'Signature has already been used' };
   }
 
   return { valid: true };

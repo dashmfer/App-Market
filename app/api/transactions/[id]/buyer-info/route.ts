@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
-import { validateCsrfRequest, csrfError } from '@/lib/csrf';
-import { isValidUUID } from '@/lib/validation';
+import { validateCsrfRequest } from "@/lib/csrf";
 
 // GET /api/transactions/[id]/buyer-info - Get buyer info status
 export async function GET(
@@ -10,22 +9,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY [M13]: Validate UUID format
-    const { id } = params;
-    if (!isValidUUID(id)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
-
     const token = await getAuthToken(request);
     if (!token?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const transaction = await prisma.transaction.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: {
         listing: {
           select: {
@@ -42,8 +32,8 @@ export async function GET(
     }
 
     // Only buyer or seller can view buyer info
-    const isBuyer = transaction.buyerId === token.id as string;
-    const isSeller = transaction.sellerId === token.id as string;
+    const isBuyer = transaction.buyerId === (token!.id as string);
+    const isSeller = transaction.sellerId === (token!.id as string);
 
     if (!isBuyer && !isSeller) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -80,19 +70,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    // SECURITY [M13]: Validate UUID format
-    const { id } = params;
-    if (!isValidUUID(id)) {
-      return NextResponse.json(
-        { error: "Invalid ID format" },
-        { status: 400 }
-      );
-    }
-
-    // SECURITY: Validate CSRF token
-    const csrfValidation = validateCsrfRequest(request);
-    if (!csrfValidation.valid) {
-      return csrfError(csrfValidation.error || 'CSRF validation failed');
+    // SECURITY: Validate CSRF token for state-changing operation
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return NextResponse.json({ error: csrf.error }, { status: 403 });
     }
 
     const token = await getAuthToken(request);
@@ -111,7 +92,7 @@ export async function POST(
     }
 
     const transaction = await prisma.transaction.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: {
         listing: {
           select: {
@@ -130,7 +111,7 @@ export async function POST(
     }
 
     // Only buyer can submit info
-    if (transaction.buyerId !== token.id as string) {
+    if (transaction.buyerId !== (token!.id as string)) {
       return NextResponse.json({ error: "Only buyer can submit info" }, { status: 403 });
     }
 
@@ -169,7 +150,7 @@ export async function POST(
 
     // Update transaction with buyer info
     await prisma.transaction.update({
-      where: { id },
+      where: { id: params.id },
       data: {
         buyerProvidedInfo: info,
         buyerInfoStatus: "PROVIDED",

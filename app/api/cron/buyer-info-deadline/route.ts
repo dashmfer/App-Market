@@ -14,32 +14,6 @@ import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
  * Runs every 15 minutes.
  */
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-// Retry wrapper for database operations
-async function withRetry<T>(
-  operation: () => Promise<T>,
-  operationName: string,
-  maxRetries = MAX_RETRIES
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`[Cron] ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-      }
-    }
-  }
-
-  throw lastError;
-}
 
 export async function GET(request: NextRequest) {
   // Verify authorization
@@ -99,6 +73,8 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      take: 100, // Batch size to prevent OOM on large datasets
+      orderBy: { buyerInfoDeadline: "asc" }, // Process oldest first
     });
 
     if (expiredTransactions.length === 0) {
@@ -118,11 +94,10 @@ export async function GET(request: NextRequest) {
 
     for (const transaction of expiredTransactions) {
       try {
-        // Update transaction to mark deadline passed and activate fallback
-        await prisma.transaction.update({
-          where: { id: transaction.id },
+        // Idempotency guard: only claim if still PENDING
+        const claimed = await prisma.transaction.updateMany({
+          where: { id: transaction.id, buyerInfoStatus: "PENDING" },
           data: {
-            buyerInfoStatus: "DEADLINE_PASSED",
             fallbackTransferUsed: true,
             transferMethods: {
               ...(transaction.transferMethods as object || {}),
@@ -131,6 +106,8 @@ export async function GET(request: NextRequest) {
             },
           },
         });
+
+        if (claimed.count === 0) continue; // Already processed by concurrent run
 
         // Notify buyer that deadline passed
         await prisma.notification.create({
@@ -162,7 +139,7 @@ export async function GET(request: NextRequest) {
 
         results.processed++;
         results.fallbackActivated++;
-        console.log(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
+        console.info(`[Cron] Buyer info deadline passed for transaction ${transaction.id}`);
       } catch (error) {
         results.failed++;
         const errorMsg = `Failed to process transaction ${transaction.id}: ${error}`;

@@ -39,9 +39,8 @@ model User {
   sellerLevel     Int       @default(1)
   successRate     Decimal   @default(100) @db.Decimal(5, 2)
 
-  // Dispute Stats
+  // Dispute Stats (disputeCount removed — redundant with totalDisputes)
   totalDisputes   Int       @default(0)
-  disputeCount    Int       @default(0)
   disputesWon     Int       @default(0)
   disputesLost    Int       @default(0)
 
@@ -79,7 +78,6 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   lastActiveAt    DateTime  @default(now())
-  deletedAt       DateTime? // Soft-delete: non-null means account is deleted
 
   // Relations
   listings        Listing[]        @relation("SellerListings")
@@ -118,8 +116,6 @@ model User {
   // NDA signatures
   ndaSignatures     ListingNDA[]
 
-  reservedListings  Listing[]    @relation("ReservedBuyer")
-
   // Review reports & responses
   reviewReportsSubmitted ReviewReport[] @relation("ReviewReporter")
   reviewReportsResolved  ReviewReport[] @relation("ReviewReportResolver")
@@ -138,7 +134,6 @@ model User {
   @@index([referralCode])
   @@index([twitterUsername])
   @@index([privyUserId])
-  @@index([deletedAt])
 }
 
 model Account {
@@ -157,22 +152,15 @@ model Account {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
   @@unique([provider, providerAccountId])
 }
 
-// SECURITY [L14]: This model is retained for NextAuth adapter compatibility
-// but is unused — the app uses JWT-only auth with RevokedSession for invalidation.
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt    DateTime @default(now())
 }
 
 // Revoked sessions for immediate invalidation
@@ -203,9 +191,6 @@ model UserWallet {
 
   @@index([userId])
   @@index([walletAddress])
-  // SECURITY [C9]: Enforced at application level — partial unique indexes
-  // (WHERE isPrimary = true) are not supported by Prisma declaratively.
-  // See migration SQL for the actual constraint.
 }
 
 enum WalletType {
@@ -236,7 +221,7 @@ model ListingCollaborator {
   // Collaborator identification (wallet is required for payment, userId is optional)
   walletAddress     String              // Required for payment distribution
   userId            String?             // Optional: linked if they're a registered user
-  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user              User?               @relation(fields: [userId], references: [id])
 
   // Role & Description
   role              CollaboratorRole    // PARTNER or COLLABORATOR
@@ -287,7 +272,7 @@ model Listing {
   githubRepo        String?
   githubRepoId      String?
   hasDomain         Boolean       @default(false)
-  domain            String?   // SECURITY [L13]: App enforces non-null when hasDomain=true
+  domain            String?
   hasDatabase       Boolean       @default(false)
   databaseType      String?
   hasHosting        Boolean       @default(false)
@@ -324,7 +309,7 @@ model Listing {
   
   // Metrics (if deployed)
   monthlyUsers      Int?
-  monthlyRevenue    Decimal?  @db.Decimal(18, 8) // SECURITY [M8]: Precision set, matches salePrice
+  monthlyRevenue    Decimal?  @db.Decimal(18, 8)
   githubStars       Int?
   
   // Auction Settings
@@ -351,7 +336,6 @@ model Listing {
   // Reservation (when seller accepts offer or reserves for a specific buyer)
   reservedBuyerWallet String?     // Wallet address the listing is reserved for (may not be a user yet)
   reservedBuyerId     String?     // User ID if the reserved wallet belongs to a registered user
-  reservedBuyer       User?       @relation("ReservedBuyer", fields: [reservedBuyerId], references: [id], onDelete: SetNull)
   reservedAt          DateTime?   // When the reservation was made
 
   // Relations
@@ -380,6 +364,8 @@ model Listing {
   @@index([featured])
   @@index([reservedBuyerWallet])
   @@index([reservedBuyerId])
+  @@index([status, endTime])                   // Composite for listing expiration checks
+  @@index([sellerId, status])                  // For seller listing queries
 }
 
 model Bid {
@@ -397,13 +383,12 @@ model Bid {
   
   // Relations
   listingId     String
-  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Restrict)
   bidderId      String
-  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Restrict)
+  bidder        User      @relation(fields: [bidderId], references: [id], onDelete: Cascade)
   
   // Timestamps
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
 
   @@index([listingId])
   @@index([bidderId])
@@ -430,9 +415,9 @@ model Offer {
 
   // Relations
   listingId     String
-  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing       Listing     @relation(fields: [listingId], references: [id], onDelete: Restrict)
   buyerId       String
-  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  buyer         User        @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   // Timestamps
   createdAt     DateTime    @default(now())
@@ -444,8 +429,9 @@ model Offer {
   @@index([listingId])
   @@index([buyerId])
   @@index([status])
-  @@index([deadline])
   @@index([createdAt])
+  @@index([deadline])
+  @@index([listingId, status, deadline]) // Composite for expired offers cron query
 }
 
 model PendingWithdrawal {
@@ -459,13 +445,12 @@ model PendingWithdrawal {
 
   // Relations
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   listingId     String
   listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
 
   // Timestamps
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
   claimedAt     DateTime?
 
   @@index([userId])
@@ -498,7 +483,7 @@ model Upload {
 
   // Relations
   transactionId String
-  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
 
   // Timestamps
   createdAt     DateTime   @default(now())
@@ -524,7 +509,7 @@ model Transaction {
   
   // Payment
   paymentMethod       PaymentMethod
-  onChainTx           String?           @unique
+  onChainTx           String?
   escrowAddress       String?
   
   // Status
@@ -585,7 +570,6 @@ model Transaction {
   reviews             Review[]
   uploads             Upload[]
   agreements          TransactionAgreement[]
-  referralEarnings    ReferralEarning[]
   tokenLaunch         TokenLaunch?
 
   // Timestamps
@@ -602,10 +586,11 @@ model Transaction {
   @@index([sellerId])
   @@index([status])
   @@index([createdAt])
-  @@index([buyerId, status])
-  @@index([sellerId, status])
-  @@index([paidAt])
-  @@index([transferStartedAt])
+  @@index([status, paidAt])                    // Composite for seller-transfer-deadline cron
+  @@index([status, transferStartedAt])         // Composite for escrow-auto-release cron
+  @@index([buyerInfoStatus, buyerInfoDeadline]) // Composite for buyer-info-deadline cron
+  @@index([buyerId, status])                   // For buyer transaction queries
+  @@index([sellerId, status])                  // For seller transaction queries
 }
 
 // ============================================
@@ -617,12 +602,12 @@ model TransactionPartner {
 
   // Transaction relation
   transactionId     String
-  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  transaction       Transaction           @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   // Partner identification (wallet required for payment, userId optional)
   walletAddress     String                // Required for deposits/refunds
   userId            String?               // Optional: linked if registered user
-  user              User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user              User?                 @relation(fields: [userId], references: [id])
 
   // Percentage & Amount
   percentage        Decimal               @db.Decimal(5, 2) // Their share (e.g., 40 for 40%)
@@ -634,7 +619,7 @@ model TransactionPartner {
   // Deposit status
   depositStatus     PartnerDepositStatus  @default(PENDING)
   depositedAt       DateTime?
-  depositTxHash     String?               @unique // On-chain transaction hash
+  depositTxHash     String?               // On-chain transaction hash
 
   // Transfer confirmation (for majority vote)
   hasConfirmedTransfer Boolean            @default(false)
@@ -649,6 +634,7 @@ model TransactionPartner {
   @@index([walletAddress])
   @@index([userId])
   @@index([depositStatus])
+  @@index([transactionId, depositStatus]) // Composite for "all partners deposited" checks
 }
 
 enum PartnerDepositStatus {
@@ -696,6 +682,8 @@ model Dispute {
 
   @@index([status])
   @@index([transactionId])
+  @@index([initiatorId])
+  @@index([respondentId])
 }
 
 // ============================================
@@ -789,7 +777,6 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@index([createdAt])
-  @@index([userId, read])
 }
 
 // ============================================
@@ -822,7 +809,6 @@ model Conversation {
   @@unique([participant1Id, participant2Id])
   @@index([participant1Id])
   @@index([participant2Id])
-  @@index([listingId])
   @@index([lastMessageAt])
 }
 
@@ -905,11 +891,11 @@ model TokenLaunch {
 
   // Related Transaction (the acquisition that triggered this PATO)
   transactionId   String            @unique
-  transaction     Transaction       @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  transaction     Transaction       @relation(fields: [transactionId], references: [id])
 
   // Related Listing (the acquired project)
   listingId       String
-  listing         Listing           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing         Listing           @relation(fields: [listingId], references: [id])
 
   // Social Links (for token metadata)
   website         String?
@@ -1000,7 +986,6 @@ enum TransactionStatus {
   TRANSFER_IN_PROGRESS
   AWAITING_CONFIRMATION
   DISPUTED
-  PENDING_RELEASE            // Transfer deadline passed, awaiting on-chain escrow release
   COMPLETED
   REFUNDED
   CANCELLED
@@ -1173,7 +1158,7 @@ model Referral {
   referrer        User      @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
   referredUserId  String    @unique
-  referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id], onDelete: Cascade)
+  referredUser    User      @relation("ReferredUser", fields: [referredUserId], references: [id])
 
   // Tracking
   status          ReferralStatus @default(PENDING)
@@ -1203,11 +1188,10 @@ model ReferralEarning {
   
   // What transaction generated this earning
   transactionId   String
-  transaction     Transaction  @relation(fields: [transactionId], references: [id])
   
   // Amounts
   saleAmount      Decimal   @db.Decimal(18, 8) // Total sale amount
-  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2% — SECURITY [M18]: app enforces 0-1 range
+  commissionRate  Decimal   @db.Decimal(5, 4) // e.g., 0.02 for 2%
   earnedAmount    Decimal   @db.Decimal(18, 8) // saleAmount * commissionRate
   
   // Status
@@ -1266,7 +1250,7 @@ model ListingNDA {
 
   // Signer info
   signerId        String
-  signer          User      @relation(fields: [signerId], references: [id], onDelete: Restrict)
+  signer          User      @relation(fields: [signerId], references: [id])
   signerWallet    String    // Wallet that signed
 
   // Signature proof
@@ -1293,7 +1277,7 @@ model TransactionAgreement {
 
   // Transaction relation
   transactionId   String
-  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction     Transaction     @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   // Agreement type
   type            AgreementType
@@ -1403,7 +1387,7 @@ model ReviewReport {
   // Admin resolution
   status          ReportStatus @default(PENDING)
   resolvedById    String?
-  resolvedBy      User?     @relation("ReviewReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedBy      User?     @relation("ReviewReportResolver", fields: [resolvedById], references: [id])
   resolution      String?   @db.Text
 
   // Timestamps
@@ -1504,7 +1488,7 @@ model ApiKey {
   keyPrefix     String    // First 8 chars for identification: "ak_live_7xKX..."
 
   // Permissions
-  permissions   ApiKeyPermission[] @default([READ, WRITE])
+  permissions   ApiKeyPermission[] @default([READ])  // Least privilege: WRITE requires explicit opt-in
 
   // Rate limiting
   rateLimit     Int       @default(100) // Requests per minute
@@ -1698,11 +1682,6 @@ enum AuditAction {
   // User
   USER_PROFILE_UPDATED
   USER_WALLET_LINKED
-
-  // Offers & Reviews
-  OFFER_CREATED
-  REVIEW_CREATED
-  DISPUTE_CREATED
 
   // Security
   RATE_LIMIT_EXCEEDED

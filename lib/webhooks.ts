@@ -2,57 +2,27 @@ import prisma from "@/lib/prisma";
 import { signWebhookPayload } from "@/lib/agent-auth";
 import { WebhookEventType, WebhookDeliveryStatus } from "@/lib/prisma-enums";
 import { decrypt, looksEncrypted } from "@/lib/encryption";
+import { randomBytes } from "crypto";
 
 /**
  * Decrypt webhook secret (handles both encrypted and legacy plaintext secrets)
+ * @param userId - Owner's user ID, used as AAD for authenticated decryption
  */
-function decryptSecret(secret: string): string {
+function decryptSecret(secret: string, userId?: string): string {
   if (looksEncrypted(secret)) {
-    return decrypt(secret);
-  }
-  // Legacy plaintext secret (for backwards compatibility during migration)
-  return secret;
-}
-
-/**
- * Decrypt webhook URL (handles both encrypted and legacy plaintext URLs)
- */
-function decryptField(value: string): string {
-  if (looksEncrypted(value)) {
-    return decrypt(value);
-  }
-  return value;
-}
-
-// ============================================
-// SSRF PROTECTION
-// ============================================
-
-/**
- * SECURITY [M5]: Reject private/internal IP ranges to prevent SSRF attacks.
- * Blocks localhost, private IPv4, link-local, and non-http(s) schemes.
- */
-export function isPrivateUrl(urlStr: string): boolean {
-  try {
-    const url = new URL(urlStr);
-    const hostname = url.hostname;
-    // Block localhost
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]') return true;
-    // Block private IPv4 ranges
-    const parts = hostname.split('.').map(Number);
-    if (parts.length === 4 && parts.every(p => !isNaN(p))) {
-      if (parts[0] === 10) return true;
-      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-      if (parts[0] === 192 && parts[1] === 168) return true;
-      if (parts[0] === 169 && parts[1] === 254) return true;
-      if (parts[0] === 0) return true;
+    const aad = userId ? `webhook:${userId}` : undefined;
+    try {
+      return decrypt(secret, aad);
+    } catch {
+      // Fall back to decryption without AAD for legacy data encrypted before AAD was added
+      return decrypt(secret);
     }
-    // Block non-http(s) schemes
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return true;
-    return false;
-  } catch {
-    return true; // Invalid URL
   }
+  // SECURITY: Log warning for plaintext secrets — these should be migrated to encrypted
+  console.warn(
+    "[Webhook] Plaintext webhook secret detected — run migration to encrypt all secrets"
+  );
+  return secret;
 }
 
 // ============================================
@@ -103,6 +73,7 @@ export async function dispatchWebhookEvent(
         id: true,
         url: true,
         secret: true,
+        userId: true,
       },
     });
 
@@ -118,9 +89,9 @@ export async function dispatchWebhookEvent(
       data,
     };
 
-    // Dispatch to all webhooks in parallel (decrypt secrets before use)
-    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string }) =>
-      deliverWebhook(webhook.id, decryptField(webhook.url), decryptSecret(webhook.secret), payload)
+    // Dispatch to all webhooks in parallel (decrypt secrets with AAD before use)
+    const deliveryPromises = webhooks.map((webhook: { id: string; url: string; secret: string; userId: string }) =>
+      deliverWebhook(webhook.id, webhook.url, decryptSecret(webhook.secret, webhook.userId), payload)
     );
 
     // Fire and forget - don't await
@@ -193,14 +164,66 @@ async function deliverWebhook(
 /**
  * Attempt to deliver a webhook payload
  */
+/**
+ * SECURITY: Validate webhook URL is not targeting private/internal networks (SSRF protection).
+ * Blocks private IPs, loopback, link-local, and metadata endpoints.
+ */
+function isPrivateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Block common private/internal hostnames
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname === "0.0.0.0" ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal") ||
+      hostname === "metadata.google.internal" ||
+      hostname === "169.254.169.254" // Cloud metadata endpoint
+    ) {
+      return true;
+    }
+
+    // Block private IP ranges (10.x, 172.16-31.x, 192.168.x)
+    const ipMatch = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      if (
+        a === 10 ||
+        a === 127 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+      ) {
+        return true;
+      }
+    }
+
+    // Only allow http/https
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return true; // Invalid URLs are treated as private
+  }
+}
+
 async function attemptDelivery(
   url: string,
   payload: string,
   signature: string
 ): Promise<WebhookDeliveryResult> {
-  // SECURITY [M5]: Block SSRF — reject private/internal IPs
+  // SECURITY: Block SSRF — prevent webhooks from probing internal networks
   if (isPrivateUrl(url)) {
-    return { success: false, error: "Webhook URL targets a private or internal address" };
+    return {
+      success: false,
+      error: "Webhook URL targets a private or internal network address",
+    };
   }
 
   try {
@@ -238,9 +261,6 @@ async function attemptDelivery(
  * In serverless environments, setTimeout won't survive function termination.
  * Instead, schedule the retry by updating nextRetryAt in the database.
  * A cron job should poll for deliveries where nextRetryAt <= now and status = 'RETRYING'.
- *
- * SECURITY [L18]: maxAttempts is capped at 3 in the schema default.
- * The retry logic respects this — see cron/webhook-retries.
  */
 async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<void> {
   const backoffMs = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
@@ -264,7 +284,8 @@ async function scheduleRetry(deliveryId: string, attempt: number = 1): Promise<v
  * Generate a unique event ID
  */
 function generateEventId(): string {
-  return `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // SECURITY: Use crypto.randomBytes instead of Math.random for event IDs
+  return `evt_${Date.now()}_${randomBytes(8).toString("hex")}`;
 }
 
 // ============================================

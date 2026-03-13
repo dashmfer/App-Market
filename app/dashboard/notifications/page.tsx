@@ -66,7 +66,6 @@ function NotificationCard({
   const bgColor = notificationColors[notification.type] || "bg-zinc-100 dark:bg-zinc-800";
   const listingSlug = notification.data?.listingSlug;
   const conversationId = notification.data?.conversationId;
-  const collaboratorId = notification.data?.collaboratorId;
   const partnerId = notification.data?.partnerId;
   const transactionId = notification.data?.transactionId;
 

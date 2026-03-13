@@ -1,12 +1,10 @@
 import { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/db";
 import { verifyWalletSignature } from "@/lib/wallet-verification";
 import { NextRequest } from "next/server";
 import { getToken as nextAuthGetToken } from "next-auth/jwt";
 import crypto from "crypto";
-import { validateWalletSignatureMessage } from "@/lib/validation";
 import { AuthMethod } from "@/lib/prisma-enums";
 import { PrivyClient } from "@privy-io/server-auth";
 
@@ -33,8 +31,8 @@ function mapAuthMethod(method: string | undefined): AuthMethod {
  * Generate a unique referral code for new users
  */
 function generateUserReferralCode(): string {
-  // SECURITY [M15]: 6 bytes = 12 hex chars ≈ 281 trillion combinations
-  return crypto.randomBytes(6).toString("hex").toLowerCase();
+  // 8 bytes = 64 bits of entropy (consistent with wallet-verification.ts)
+  return crypto.randomBytes(8).toString("hex").toLowerCase();
 }
 
 // SECURITY: Secret MUST be set in all environments
@@ -42,20 +40,6 @@ const secret = process.env.NEXTAUTH_SECRET;
 
 if (!secret) {
   throw new Error("NEXTAUTH_SECRET must be set in environment variables");
-}
-
-const KNOWN_DEFAULTS = [
-  'your-super-secret-key-change-in-production',
-  'your-admin-secret-change-in-production',
-  'your-cron-secret-change-in-production',
-];
-if (process.env.NODE_ENV === 'production') {
-  for (const envVar of ['NEXTAUTH_SECRET', 'ADMIN_SECRET', 'CRON_SECRET']) {
-    const val = process.env[envVar];
-    if (val && KNOWN_DEFAULTS.includes(val)) {
-      throw new Error(`SECURITY: ${envVar} is using a known default value. Change it before deploying to production.`);
-    }
-  }
 }
 
 /**
@@ -66,112 +50,90 @@ function generateSessionId(): string {
 }
 
 /**
- * SECURITY [M5]: Redis keys for Edge-compatible session revocation.
- * Individual revocations are stored as `revoked:session:{id}` with 7-day TTL.
- * Bulk revocations use `revoked:user:{userId}` storing a timestamp — any JWT
- * issued before that timestamp is considered revoked (M7).
- */
-const SESSION_REVOKE_PREFIX = "revoked:session:";
-const USER_REVOKE_PREFIX = "revoked:user:";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days (matches JWT maxAge)
-
-// Lazy-import Redis to avoid circular deps at module level
-async function getRedis() {
-  const { redis } = await import("@/lib/rate-limit");
-  return redis;
-}
-
-/**
- * Revoke a specific session (database + Redis for Edge compatibility)
+ * Revoke a specific session (database-backed for multi-instance/serverless support)
+ * Session revocations persist in the database to work across serverless function instances
  */
 export async function revokeSession(sessionId: string, reason?: string): Promise<void> {
-  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+  // Session revocations expire after 7 days (max JWT lifetime)
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  // Database: durable record
   await prisma.revokedSession.upsert({
     where: { sessionId },
-    create: { sessionId, reason, expiresAt },
-    update: { reason, revokedAt: new Date() },
-  });
-
-  // SECURITY [M5]: Also write to Redis so Edge middleware can check revocation
-  const redis = await getRedis();
-  if (redis) {
-    await redis.set(`${SESSION_REVOKE_PREFIX}${sessionId}`, "1", { ex: SESSION_TTL_SECONDS });
-  }
-}
-
-/**
- * SECURITY [M7]: Revoke ALL sessions for a user via timestamp-based approach.
- * Instead of looking up sessions from the (empty) Session table, store a
- * "revoked before" timestamp in Redis and DB. Any JWT with iat < this timestamp
- * is considered revoked, regardless of whether we tracked its sessionId.
- */
-export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
-  const revokedAt = Date.now();
-  const expiresAt = new Date(revokedAt + SESSION_TTL_SECONDS * 1000);
-
-  // Store the revocation timestamp in DB for durability
-  // Any existing per-session revocations for this user are redundant now
-  await prisma.revokedSession.upsert({
-    where: { sessionId: `user:${userId}` },
     create: {
-      sessionId: `user:${userId}`,
-      userId,
-      reason: reason || "revoke_all_sessions",
+      sessionId,
+      reason,
       expiresAt,
     },
     update: {
-      reason: reason || "revoke_all_sessions",
+      reason,
       revokedAt: new Date(),
-      expiresAt,
     },
   });
-
-  // SECURITY [M5/M7]: Write timestamp to Redis for Edge middleware
-  const redis = await getRedis();
-  if (redis) {
-    await redis.set(`${USER_REVOKE_PREFIX}${userId}`, revokedAt.toString(), { ex: SESSION_TTL_SECONDS });
-  }
-
-  return 1; // Always succeeds — timestamp-based, not session-count-based
 }
 
 /**
- * Check if a session has been revoked (database-backed, used by API routes)
- * Checks both individual session revocation AND user-wide timestamp revocation.
+ * Revoke all sessions for a user (database-backed)
+ * Creates revocation records for all active sessions belonging to the user
  */
-export async function isSessionNotRevoked(sessionId: string, userId?: string, iat?: number): Promise<boolean> {
-  // Check individual session revocation
+export async function revokeAllUserSessions(userId: string, reason?: string): Promise<number> {
+  // Get all active JWT sessions for this user from the Session table
+  const sessions = await prisma.session.findMany({
+    where: { userId },
+    select: { sessionToken: true },
+  });
+
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  // Revoke each session
+  const revocations = sessions.map((session: { sessionToken: string }) =>
+    prisma.revokedSession.upsert({
+      where: { sessionId: session.sessionToken },
+      create: {
+        sessionId: session.sessionToken,
+        userId,
+        reason: reason || 'revoke_all_sessions',
+        expiresAt,
+      },
+      update: {
+        reason: reason || 'revoke_all_sessions',
+        revokedAt: new Date(),
+      },
+    })
+  );
+
+  await Promise.all(revocations);
+
+  // Also delete from Session table to prevent re-use
+  await prisma.session.deleteMany({
+    where: { userId },
+  });
+
+  return sessions.length;
+}
+
+/**
+ * Check if a session has been revoked (database-backed)
+ * NOTE: This only checks the revocation blacklist - it does NOT validate
+ * that a session ID was ever created. For JWT-based auth, session validity
+ * is determined by the JWT itself; this function only checks revocation.
+ */
+export async function isSessionNotRevoked(sessionId: string): Promise<boolean> {
   const revoked = await prisma.revokedSession.findUnique({
     where: { sessionId },
     select: { id: true },
   });
-  if (revoked) return false;
-
-  // SECURITY [M7]: Check user-wide timestamp revocation
-  if (userId && iat) {
-    const userRevocation = await prisma.revokedSession.findUnique({
-      where: { sessionId: `user:${userId}` },
-      select: { revokedAt: true },
-    });
-    if (userRevocation && userRevocation.revokedAt && iat <= Math.floor(userRevocation.revokedAt.getTime() / 1000)) {
-      return false;
-    }
-  }
-
-  return true;
+  return !revoked;
 }
 
-// NOTE: isSessionNotRevokedEdge lives in lib/session-revocation-edge.ts
-// to avoid pulling Prisma into the Edge Runtime bundle via this file.
-
 /**
- * Clean up expired revocation records
+ * Clean up expired revocation records (call from cron job or scheduled task)
+ * Should be run periodically to prevent the revocation table from growing indefinitely
  */
 export async function cleanupExpiredRevocations(): Promise<number> {
   const result = await prisma.revokedSession.deleteMany({
-    where: { expiresAt: { lt: new Date() } },
+    where: {
+      expiresAt: { lt: new Date() },
+    },
   });
   return result.count;
 }
@@ -188,38 +150,9 @@ export async function getAuthToken(req: NextRequest) {
     cookieName,
   });
 
-  // SECURITY: Reject tokens without sessionId — all valid tokens must have one
-  if (token && !token.sessionId) {
-    return null;
-  }
-
-  // SECURITY: Defense-in-depth explicit expiration check.
-  // NextAuth validates exp internally, but we check here as an extra layer.
-  if (token && token.exp && (token.exp as number) < Math.floor(Date.now() / 1000)) {
-    return null;
-  }
-
   // SECURITY: Check if session has been revoked (database lookup)
-  // Passes userId + iat for M7 timestamp-based bulk revocation
-  if (token?.sessionId && !(await isSessionNotRevoked(
-    token.sessionId as string,
-    token.id as string,
-    token.iat as number | undefined
-  ))) {
+  if (token?.sessionId && !(await isSessionNotRevoked(token.sessionId as string))) {
     return null;
-  }
-
-  // SECURITY [C1]: Block soft-deleted users at the auth layer.
-  // Every protected route calls getAuthToken(), so this is the single
-  // choke-point that prevents deleted accounts from accessing any API.
-  if (token?.id) {
-    const deletedUser = await prisma.user.findUnique({
-      where: { id: token.id as string },
-      select: { deletedAt: true },
-    });
-    if (deletedUser?.deletedAt) {
-      return null;
-    }
   }
 
   return token;
@@ -245,41 +178,16 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing wallet credentials");
         }
 
-        // SECURITY: Validate message format and timestamp (replay protection)
-        const messageValidation = await validateWalletSignatureMessage(
-          credentials.message,
-          credentials.publicKey,
-          300 // 5 minute validity
-        );
-        if (!messageValidation.valid) {
-          throw new Error(messageValidation.error || "Invalid signature message");
-        }
-
-        // SECURITY: Validate referral code format before passing to DB lookup
-        // Referral codes are 8 hex characters (generated by crypto.randomBytes(4).toString("hex"))
-        const sanitizedReferralCode = credentials.referralCode && /^[a-z0-9]{6,20}$/.test(credentials.referralCode)
-          ? credentials.referralCode
-          : undefined;
-
-        // Verify wallet signature directly (pass referral code for new users)
+        // Verify wallet signature directly (includes message format + replay validation)
         const result = await verifyWalletSignature(
           credentials.publicKey,
           credentials.signature,
           credentials.message,
-          sanitizedReferralCode
+          credentials.referralCode || undefined
         );
 
         if (!result.success || !result.user) {
           throw new Error(result.error || "Wallet verification failed");
-        }
-
-        // Block login for soft-deleted accounts
-        const existingUser = await prisma.user.findUnique({
-          where: { id: result.user.id },
-          select: { deletedAt: true },
-        });
-        if (existingUser?.deletedAt) {
-          throw new Error("This account has been deleted");
         }
 
         // Generate session ID for revocation support
@@ -325,8 +233,12 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing Privy authentication token");
         }
 
+        // SECURITY: Verify the Privy auth token AND extract verified claims.
+        // Only trust wallet/email from Privy's verified claims, NOT from
+        // client-supplied credentials, to prevent account takeover attacks.
+        let verifiedClaims: any;
         try {
-          const verifiedClaims = await privyClient.verifyAuthToken(privyToken);
+          verifiedClaims = await privyClient.verifyAuthToken(privyToken);
           // Ensure the verified Privy user ID matches the claimed one
           if (verifiedClaims.userId !== credentials.privyUserId) {
             throw new Error("Privy user ID mismatch");
@@ -336,164 +248,179 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid Privy authentication token");
         }
 
-        // SECURITY [H11]: Wrap entire find-or-create flow in a Serializable
-        // transaction to prevent TOCTOU race where two concurrent Privy logins
-        // with different privyUserIds but the same walletAddress both claim
-        // the same user.
-        const user = await prisma.$transaction(async (tx) => {
-          // Find or create user by Privy ID
-          let txUser = await tx.user.findUnique({
-            where: { privyUserId: credentials.privyUserId },
-          });
+        // SECURITY: Extract verified wallet/email from Privy's claims,
+        // not from client-supplied credentials. This prevents an attacker
+        // from claiming ownership of another user's wallet or email.
+        let verifiedWalletAddress: string | null = null;
+        let verifiedEmail: string | null = null;
+        let verifiedTwitterUsername: string | null = null;
 
-          if (!txUser) {
-            // Check if user exists by wallet address
-            if (credentials.walletAddress) {
-              txUser = await tx.user.findUnique({
-                where: { walletAddress: credentials.walletAddress },
-              });
-
-              if (txUser) {
-                // Link existing wallet user to Privy
-                txUser = await tx.user.update({
-                  where: { id: txUser.id },
-                  data: {
-                    privyUserId: credentials.privyUserId,
-                    authMethod: mapAuthMethod(credentials.authMethod),
-                  },
-                });
-              }
-            }
-
-            // Check if user exists by email
-            if (!txUser && credentials.email) {
-              txUser = await tx.user.findUnique({
-                where: { email: credentials.email },
-              });
-
-              if (txUser) {
-                // Link existing email user to Privy
-                txUser = await tx.user.update({
-                  where: { id: txUser.id },
-                  data: {
-                    privyUserId: credentials.privyUserId,
-                    authMethod: mapAuthMethod(credentials.authMethod),
-                    walletAddress: credentials.walletAddress || txUser.walletAddress,
-                  },
-                });
-              }
-            }
+        // Get the Privy user to check linked accounts
+        try {
+          const privyUser = await privyClient.getUser(credentials.privyUserId);
+          // Only trust wallets verified by Privy
+          if (privyUser?.wallet?.address) {
+            verifiedWalletAddress = privyUser.wallet.address;
           }
+          // Only trust email verified by Privy
+          if (privyUser?.email?.address) {
+            verifiedEmail = privyUser.email.address;
+          }
+          // Only trust Twitter username verified by Privy
+          if ((privyUser as any)?.twitter?.username) {
+            verifiedTwitterUsername = (privyUser as any).twitter.username;
+          }
+        } catch (getUserError: any) {
+          console.error("[Privy Auth] Failed to get Privy user:", getUserError.message);
+          // Fall through — we still have verified claims from the token
+        }
 
-          if (!txUser) {
-            // Create new user
-            const referralCode = generateUserReferralCode();
+        // SECURITY: Only trust wallet/email if Privy verified it.
+        // Never fall back to client-supplied credentials.email — an attacker
+        // could claim any email address to hijack accounts.
+        const trustedWalletAddress = verifiedWalletAddress || null;
+        const trustedEmail = verifiedEmail || null;
 
-            // Handle referral
-            let referrerId: string | undefined;
-            // SECURITY: Validate referral code format before DB lookup
-            const validReferralCode = credentials.referralCode && /^[a-z0-9]{6,20}$/.test(credentials.referralCode.toLowerCase())
-              ? credentials.referralCode.toLowerCase()
-              : null;
-            if (validReferralCode) {
-              const referrer = await tx.user.findUnique({
-                where: { referralCode: validReferralCode },
-                select: { id: true },
-              });
-              if (referrer) {
-                referrerId = referrer.id;
-              }
-            }
+        // Find or create user by Privy ID
+        let user = await prisma.user.findUnique({
+          where: { privyUserId: credentials.privyUserId },
+        });
 
-            // SECURITY [M6]: Generate username with crypto-random suffix to prevent
-            // same-millisecond collisions in concurrent signups
-            const randomSuffix = crypto.randomBytes(4).toString('hex');
-            let username = credentials.twitterUsername
-              || credentials.email?.split("@")[0]
-              || `user_${randomSuffix}`;
-
-            // Ensure username is unique
-            const existingUser = await tx.user.findUnique({ where: { username } });
-            if (existingUser) {
-              username = `${username}_${crypto.randomBytes(4).toString('hex')}`;
-            }
-
-            txUser = await tx.user.create({
-              data: {
-                privyUserId: credentials.privyUserId,
-                walletAddress: credentials.walletAddress || null,
-                email: credentials.email || null,
-                twitterUsername: credentials.twitterUsername || null,
-                // SECURITY [L2]: Don't trust client-supplied twitterVerified — verify server-side
-                twitterVerified: false,
-                username,
-                referralCode,
-                authMethod: mapAuthMethod(credentials.authMethod),
-                referredBy: referrerId,
-              },
+        if (!user) {
+          // Check if user exists by wallet address (only if Privy verified the wallet)
+          if (trustedWalletAddress) {
+            user = await prisma.user.findUnique({
+              where: { walletAddress: trustedWalletAddress },
             });
 
-            // Create referral record if applicable
-            if (referrerId) {
-              await tx.referral.create({
+            if (user) {
+              // Link existing wallet user to Privy
+              user = await prisma.user.update({
+                where: { id: user.id },
                 data: {
-                  referrerId,
-                  referredUserId: txUser.id,
-                  status: "REGISTERED",
+                  privyUserId: credentials.privyUserId,
+                  authMethod: mapAuthMethod(credentials.authMethod),
                 },
               });
             }
+          }
 
-            if (process.env.NODE_ENV === 'development') console.log("[Privy Auth] Created new user");
-          } else {
-            // Update user with latest info from Privy
-            const updateData: any = {};
+          // Check if user exists by email (only if Privy verified the email)
+          if (!user && verifiedEmail) {
+            user = await prisma.user.findUnique({
+              where: { email: verifiedEmail },
+            });
 
-            // SECURITY: Check uniqueness before linking wallet/email/twitter
-            // Prevents one Privy account from claiming another user's identity
-            if (credentials.walletAddress && !txUser.walletAddress) {
-              const existing = await tx.user.findUnique({
-                where: { walletAddress: credentials.walletAddress },
-                select: { id: true },
-              });
-              if (!existing) {
-                updateData.walletAddress = credentials.walletAddress;
-              }
-            }
-            if (credentials.email && !txUser.email) {
-              const existing = await tx.user.findUnique({
-                where: { email: credentials.email },
-                select: { id: true },
-              });
-              if (!existing) {
-                updateData.email = credentials.email;
-              }
-            }
-            if (credentials.twitterUsername && !txUser.twitterUsername) {
-              const existing = await tx.user.findFirst({
-                where: { twitterUsername: credentials.twitterUsername },
-                select: { id: true },
-              });
-              if (!existing) {
-                updateData.twitterUsername = credentials.twitterUsername;
-                updateData.twitterVerified = true;
-              }
-            }
-
-            if (Object.keys(updateData).length > 0) {
-              txUser = await tx.user.update({
-                where: { id: txUser.id },
-                data: updateData,
+            if (user) {
+              // Link existing email user to Privy
+              user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                  privyUserId: credentials.privyUserId,
+                  authMethod: mapAuthMethod(credentials.authMethod),
+                  walletAddress: trustedWalletAddress || user.walletAddress,
+                },
               });
             }
           }
+        }
 
-          return txUser;
-        }, { isolationLevel: 'Serializable' });
+        if (!user) {
+          // Create new user
+          const referralCode = generateUserReferralCode();
 
-        // Block login for soft-deleted accounts
-        if (user.deletedAt) {
-          throw new Error("This account has been deleted");
+          // Handle referral
+          let referrerId: string | undefined;
+          if (credentials.referralCode) {
+            const referrer = await prisma.user.findUnique({
+              where: { referralCode: credentials.referralCode.toLowerCase() },
+              select: { id: true },
+            });
+            if (referrer) {
+              referrerId = referrer.id;
+            }
+          }
+
+          // Generate username (prefer Privy-verified Twitter, then verified email)
+          let username = verifiedTwitterUsername
+            || verifiedEmail?.split("@")[0]
+            || `user_${Date.now().toString(36)}`;
+
+          // Ensure username is unique
+          const existingUser = await prisma.user.findUnique({ where: { username } });
+          if (existingUser) {
+            username = `${username}_${Date.now().toString(36)}`;
+          }
+
+          user = await prisma.user.create({
+            data: {
+              privyUserId: credentials.privyUserId,
+              walletAddress: trustedWalletAddress,
+              email: trustedEmail,
+              twitterUsername: verifiedTwitterUsername,
+              twitterVerified: !!verifiedTwitterUsername,
+              username,
+              referralCode,
+              authMethod: mapAuthMethod(credentials.authMethod),
+              referredBy: referrerId,
+            },
+          });
+
+          // Create referral record if applicable
+          if (referrerId) {
+            await prisma.referral.create({
+              data: {
+                referrerId,
+                referredUserId: user.id,
+                status: "REGISTERED",
+              },
+            });
+          }
+
+          console.info("[Privy Auth] Created new user");
+        } else {
+          // Update user with latest info from Privy
+          const updateData: any = {};
+
+          // SECURITY: Only link wallet/email if verified by Privy.
+          // Never trust client-supplied values for account linking.
+          if (trustedWalletAddress && !user.walletAddress) {
+            const existing = await prisma.user.findUnique({
+              where: { walletAddress: trustedWalletAddress },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.walletAddress = trustedWalletAddress;
+            }
+          }
+          if (verifiedEmail && !user.email) {
+            const existing = await prisma.user.findUnique({
+              where: { email: verifiedEmail },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.email = verifiedEmail;
+            }
+          }
+          // SECURITY: Only link Twitter username if verified by Privy.
+          // Never trust client-supplied twitterUsername for account linking.
+          if (verifiedTwitterUsername && !user.twitterUsername) {
+            const existing = await prisma.user.findFirst({
+              where: { twitterUsername: verifiedTwitterUsername },
+              select: { id: true },
+            });
+            if (!existing) {
+              updateData.twitterUsername = verifiedTwitterUsername;
+              updateData.twitterVerified = true;
+            }
+          }
+
+          if (Object.keys(updateData).length > 0) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: updateData,
+            });
+          }
         }
 
         // Generate session ID for revocation support
@@ -583,7 +510,6 @@ export const authOptions: NextAuthOptions = {
                 githubUsername: true,
                 image: true,
                 isAdmin: true,
-                deletedAt: true,
                 wallets: {
                   select: {
                     walletAddress: true,
@@ -592,12 +518,6 @@ export const authOptions: NextAuthOptions = {
                 },
               },
             });
-
-            if (user?.deletedAt) {
-              // Soft-deleted user: return empty session to force logout
-              session.user.id = "";
-              return session;
-            }
 
             if (user) {
               // Determine which wallet to use - prefer Solana over ETH

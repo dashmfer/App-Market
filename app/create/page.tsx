@@ -34,7 +34,6 @@ import {
   Image,
   Video,
   CheckCircle2,
-  ExternalLink,
   File,
   Wallet,
   Star,
@@ -248,7 +247,7 @@ const databaseProviders = [
 
 export default function CreateListingPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const { publicKey, signMessage, connected } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const [currentStep, setCurrentStep] = useState(1);
@@ -502,13 +501,6 @@ export default function CreateListingPage() {
     } finally {
       setIsVerifyingGithub(false);
     }
-  };
-
-  // Smart contract verification
-  const verifySmartContract = async () => {
-    if (!formData.smartContractProgramId) return;
-    await new Promise(r => setTimeout(r, 1500));
-    updateFormData("smartContractVerified", true);
   };
 
   const validateStep = (step: number): boolean => {

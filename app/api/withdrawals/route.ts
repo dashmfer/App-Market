@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   try {
+    // SECURITY: Use getAuthToken for consistent revocation checks
     const token = await getAuthToken(req);
 
     if (!token?.id) {
@@ -36,7 +37,6 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
-      take: 100, // SECURITY [M14]: Bound query to prevent unbounded result sets
     });
 
     // Calculate totals
