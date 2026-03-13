@@ -1,0 +1,100 @@
+name: Build Solana Smart Contract
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+    paths:
+      - 'programs/**'
+      - 'Anchor.toml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/solana-build.yml'
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.85.0
+
+      - name: Verify and update toolchain
+        run: |
+          rustup default 1.85.0
+          rustup update
+          rustc --version
+          cargo --version
+          echo "Clearing cargo registry cache to avoid edition2024 errors"
+          rm -rf ~/.cargo/registry/cache
+          rm -rf ~/.cargo/registry/src
+
+      - name: Cache Solana
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-${{ runner.os }}-v1.18.18
+
+      - name: Install Solana
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: |
+          wget -q https://github.com/solana-labs/solana/releases/download/v1.18.18/solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          tar -xf solana-release-x86_64-unknown-linux-gnu.tar.bz2
+          mkdir -p ~/.local/share/solana/install/releases
+          mv solana-release ~/.local/share/solana/install/releases/1.18.18
+
+      - name: Add Solana to PATH
+        run: |
+          echo "$HOME/.local/share/solana/install/releases/1.18.18/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.local/share/solana/install/releases/1.18.18/bin:$PATH"
+          solana --version
+
+      - name: Cache Anchor
+        id: cache-anchor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/anchor
+            ~/.cargo/bin/avm
+            ~/.avm
+          key: anchor-${{ runner.os }}-v0.32.1-avm
+
+      - name: Install Anchor via AVM
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+          avm install 0.32.1
+          avm use 0.32.1
+
+      - name: Add AVM to PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          echo "$HOME/.avm/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
+
+      - name: Verify Anchor installation
+        run: |
+          which anchor || echo "Anchor not found in PATH"
+          anchor --version
+
+      - name: Build program
+        run: |
+          anchor build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-artifacts
+          path: |
+            target/deploy/*.so
+            target/idl/*.json
+
