@@ -17,6 +17,38 @@ import {
 } from "@/lib/solana";
 import { useCallback } from "react";
 
+// Account types for Anchor program deserialization
+interface ListingAccount {
+  seller: PublicKey;
+  listingId: string;
+  startingPrice: BN;
+  reservePrice: BN | null;
+  buyNowPrice: BN | null;
+  currentBid: BN;
+  currentBidder: PublicKey | null;
+  startTime: BN;
+  endTime: BN;
+  status: unknown;
+  bump: number;
+}
+
+interface TransactionAccount {
+  listing: PublicKey;
+  buyer: PublicKey;
+  seller: PublicKey;
+  amount: BN;
+  platformFee: BN;
+  status: unknown;
+  createdAt: BN;
+  completedAt: BN | null;
+  withdrawalCount: BN;
+  bump: number;
+}
+
+interface ConfigAccount {
+  treasuryWallet: PublicKey;
+}
+
 export function useSolanaContract() {
   const { connection } = useConnection();
   const wallet = useWallet();
@@ -107,7 +139,7 @@ export function useSolanaContract() {
     const [configPDA] = getConfigPDA();
 
     // Fetch listing data to get seller and previous bidder
-    const listingAccount = await program.account.listing.fetch(listingPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
 
     const accounts: any = {
       listing: listingPDA,
@@ -138,8 +170,8 @@ export function useSolanaContract() {
     const [transactionPDA] = getTransactionPDA(listingPDA);
 
     // Fetch listing data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
-    const treasuryWallet = (await program.account.config.fetch(configPDA)).treasuryWallet;
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
+    const treasuryWallet = (await program.account.config.fetch(configPDA) as unknown as ConfigAccount).treasuryWallet;
 
     const tx = await program.methods
       .buyNow()
@@ -166,8 +198,8 @@ export function useSolanaContract() {
     const [transactionPDA] = getTransactionPDA(listingPDA);
 
     // Fetch listing data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
-    const treasuryWallet = (await program.account.config.fetch(configPDA)).treasuryWallet;
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
+    const treasuryWallet = (await program.account.config.fetch(configPDA) as unknown as ConfigAccount).treasuryWallet;
 
     const tx = await program.methods
       .endAuction()
@@ -194,8 +226,8 @@ export function useSolanaContract() {
     const [transactionPDA] = getTransactionPDA(listingPDA);
 
     // Fetch data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
-    const transactionAccount = await program.account.transaction.fetch(transactionPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
+    const transactionAccount = await program.account.transaction.fetch(transactionPDA) as unknown as TransactionAccount;
 
     const tx = await program.methods
       .confirmTransfer()
@@ -222,7 +254,7 @@ export function useSolanaContract() {
     const [transactionPDA] = getTransactionPDA(listingPDA);
 
     // Get next withdrawal ID
-    const transactionAccount = await program.account.transaction.fetch(transactionPDA);
+    const transactionAccount = await program.account.transaction.fetch(transactionPDA) as unknown as TransactionAccount;
     const withdrawalId = transactionAccount.withdrawalCount.toNumber();
     const [withdrawalPDA] = getWithdrawalPDA(listingPDA, withdrawalId);
 
@@ -251,7 +283,7 @@ export function useSolanaContract() {
     const [withdrawalPDA] = getWithdrawalPDA(listingPDA, withdrawalId);
 
     // Fetch data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
 
     const tx = await program.methods
       .approveWithdrawal()
@@ -273,18 +305,20 @@ export function useSolanaContract() {
   const makeOffer = useCallback(async (
     listingPDA: PublicKey,
     offerAmount: number,
-    message: string
+    expiresInSeconds: number,
+    offerSeed: number = 0
   ) => {
     const { program } = getProvider();
     const [configPDA] = getConfigPDA();
-    const [offerPDA] = getOfferPDA(listingPDA, wallet.publicKey!);
+    const [offerPDA] = getOfferPDA(listingPDA, wallet.publicKey!, offerSeed);
     const [offerEscrowPDA] = getOfferEscrowPDA(offerPDA);
 
     // Fetch listing data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
+    const deadline = Math.floor(Date.now() / 1000) + expiresInSeconds;
 
     const tx = await program.methods
-      .makeOffer(solToLamports(offerAmount), message)
+      .makeOffer(solToLamports(offerAmount), new BN(deadline), new BN(offerSeed))
       .accounts({
         listing: listingPDA,
         offer: offerPDA,
@@ -306,13 +340,13 @@ export function useSolanaContract() {
   ) => {
     const { program } = getProvider();
     const [configPDA] = getConfigPDA();
-    const [offerPDA] = getOfferPDA(listingPDA, buyerPublicKey);
+    const [offerPDA] = getOfferPDA(listingPDA, buyerPublicKey, 0);
     const [offerEscrowPDA] = getOfferEscrowPDA(offerPDA);
     const [escrowPDA] = getEscrowPDA(listingPDA);
     const [transactionPDA] = getTransactionPDA(listingPDA);
 
     // Fetch config for treasury wallet
-    const configAccount = await program.account.config.fetch(configPDA);
+    const configAccount = await program.account.config.fetch(configPDA) as unknown as ConfigAccount;
 
     const tx = await program.methods
       .acceptOffer()
@@ -336,7 +370,7 @@ export function useSolanaContract() {
   // Cancel offer (buyer cancels their offer)
   const cancelOffer = useCallback(async (listingPDA: PublicKey) => {
     const { program } = getProvider();
-    const [offerPDA] = getOfferPDA(listingPDA, wallet.publicKey!);
+    const [offerPDA] = getOfferPDA(listingPDA, wallet.publicKey!, 0);
     const [offerEscrowPDA] = getOfferEscrowPDA(offerPDA);
 
     const tx = await program.methods
@@ -365,7 +399,7 @@ export function useSolanaContract() {
     const [disputePDA] = getDisputePDA(transactionPDA);
 
     // Fetch listing data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
 
     const tx = await program.methods
       .raiseDispute(reason, evidence)
@@ -396,8 +430,8 @@ export function useSolanaContract() {
     const [disputePDA] = getDisputePDA(transactionPDA);
 
     // Fetch data
-    const listingAccount = await program.account.listing.fetch(listingPDA);
-    const transactionAccount = await program.account.transaction.fetch(transactionPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
+    const transactionAccount = await program.account.transaction.fetch(transactionPDA) as unknown as TransactionAccount;
 
     const tx = await program.methods
       .resolveDispute(refundBuyer, resolution)
@@ -422,7 +456,7 @@ export function useSolanaContract() {
     const { program } = getProvider();
 
     // Fetch listing to get previous bidder if any
-    const listingAccount = await program.account.listing.fetch(listingPDA);
+    const listingAccount = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
 
     const accounts: any = {
       listing: listingPDA,
@@ -446,7 +480,7 @@ export function useSolanaContract() {
   // Fetch listing data
   const fetchListing = useCallback(async (listingPDA: PublicKey) => {
     const { program } = getProvider();
-    const listing = await program.account.listing.fetch(listingPDA);
+    const listing = await program.account.listing.fetch(listingPDA) as unknown as ListingAccount;
 
     return {
       seller: listing.seller,
@@ -466,7 +500,7 @@ export function useSolanaContract() {
   // Fetch transaction data
   const fetchTransaction = useCallback(async (transactionPDA: PublicKey) => {
     const { program } = getProvider();
-    const transaction = await program.account.transaction.fetch(transactionPDA);
+    const transaction = await program.account.transaction.fetch(transactionPDA) as unknown as TransactionAccount;
 
     return {
       listing: transaction.listing,
@@ -485,7 +519,7 @@ export function useSolanaContract() {
   // Fetch offer data
   const fetchOffer = useCallback(async (offerPDA: PublicKey) => {
     const { program } = getProvider();
-    const offer = await program.account.offer.fetch(offerPDA);
+    const offer = await program.account.offer.fetch(offerPDA) as any;
 
     return {
       listing: offer.listing,
