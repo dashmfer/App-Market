@@ -149,7 +149,16 @@ export async function POST(
           console.error('BACKEND_AUTHORITY_SECRET_KEY not configured');
           // Continue without on-chain verification - will need manual verification
         } else {
-          const keypairBytes = JSON.parse(backendSecretKey);
+          let keypairBytes;
+          try {
+            keypairBytes = JSON.parse(backendSecretKey);
+          } catch {
+            console.error('BACKEND_AUTHORITY_SECRET_KEY is not valid JSON');
+            keypairBytes = null;
+          }
+          if (!keypairBytes) {
+            console.error('Skipping on-chain verification: invalid secret key');
+          } else {
           const backendKeypair = Keypair.fromSecretKey(Uint8Array.from(keypairBytes));
           const connection = getConnection();
 
@@ -185,6 +194,7 @@ export async function POST(
             listing: new PublicKey(listing.onChainId),
             verificationHash,
           });
+          }
         }
       } catch (onChainError) {
         console.error('On-chain verification failed:', onChainError);
