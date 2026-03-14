@@ -7,7 +7,7 @@ import { verifyCronSecret, acquireCronLock } from "@/lib/cron-auth";
  * Cron Job: Reconcile Count Fields
  *
  * Recomputes manually-maintained count fields from actual records to fix drift:
- * - User: totalSales, totalPurchases, ratingCount, totalDisputes, disputeCount, disputesWon, disputesLost
+ * - User: totalSales, totalPurchases, ratingCount, totalDisputes, disputesWon, disputesLost
  * - Webhook: totalDeliveries, successfulDeliveries, failedDeliveries
  *
  * Should run daily (low frequency) as a safety net.
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
           { totalDisputes: { gt: 0 } },
         ],
       },
-      select: { id: true, totalSales: true, totalPurchases: true, ratingCount: true, totalDisputes: true, disputeCount: true, disputesWon: true, disputesLost: true },
+      select: { id: true, totalSales: true, totalPurchases: true, ratingCount: true, totalDisputes: true, disputesWon: true, disputesLost: true },
       take: 500,
     });
 
@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
         user.totalPurchases !== purchasesCount ||
         user.ratingCount !== reviewStats._count ||
         user.totalDisputes !== disputeStats ||
-        user.disputeCount !== disputeStats ||
         user.disputesWon !== disputesWonCount ||
         user.disputesLost !== disputesLostCount;
 
@@ -93,7 +92,6 @@ export async function POST(request: NextRequest) {
             totalPurchases: purchasesCount,
             ratingCount: reviewStats._count,
             totalDisputes: disputeStats,
-            disputeCount: disputeStats,
             disputesWon: disputesWonCount,
             disputesLost: disputesLostCount,
           },

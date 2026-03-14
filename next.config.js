@@ -1,5 +1,13 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    // Force all imports of 'elliptic' to resolve to our secure shim
+    // (npm overrides don't always reach deeply nested ESM deps)
+    config.resolve.alias.elliptic = path.resolve(__dirname, 'lib/elliptic-shim');
+    return config;
+  },
   images: {
     remotePatterns: [
       {
