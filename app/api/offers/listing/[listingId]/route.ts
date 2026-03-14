@@ -31,7 +31,6 @@ export async function GET(
     const offers = await prisma.offer.findMany({
       where: {
         listingId,
-        buyer: { deletedAt: null },
       },
       include: {
         buyer: {

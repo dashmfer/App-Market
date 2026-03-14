@@ -13,7 +13,7 @@ export async function GET(
     const { userId } = params;
 
     const user = await prisma.user.findFirst({
-      where: { id: userId, deletedAt: null },
+      where: { id: userId },
       select: {
         id: true,
         name: true,

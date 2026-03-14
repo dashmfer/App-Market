@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     if (isWalletAddress) {
       // Search by exact wallet address (exclude soft-deleted)
       user = await prisma.user.findFirst({
-        where: { walletAddress: query, deletedAt: null },
+        where: { walletAddress: query },
         select: {
           id: true,
           username: true,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Search by username (exact match first, then partial; exclude soft-deleted)
       user = await prisma.user.findFirst({
-        where: { username: query.toLowerCase(), deletedAt: null },
+        where: { username: query.toLowerCase() },
         select: {
           id: true,
           username: true,
@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
       if (!user) {
         user = await prisma.user.findFirst({
           where: {
-            deletedAt: null,
             OR: [
               { username: { contains: query, mode: "insensitive" } },
               { displayName: { contains: query, mode: "insensitive" } },
@@ -160,7 +159,7 @@ export async function POST(request: NextRequest) {
 
         if (isWalletAddress) {
           user = await prisma.user.findFirst({
-            where: { walletAddress: trimmed, deletedAt: null },
+            where: { walletAddress: trimmed },
             select: {
               id: true,
               username: true,
@@ -178,7 +177,6 @@ export async function POST(request: NextRequest) {
         } else {
           user = await prisma.user.findFirst({
             where: {
-              deletedAt: null,
               OR: [
                 { username: { equals: trimmed, mode: "insensitive" } },
                 { displayName: { equals: trimmed, mode: "insensitive" } },

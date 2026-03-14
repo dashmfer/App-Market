@@ -23,7 +23,7 @@ export async function GET(
 
     // Try to find by username first, then by ID (exclude soft-deleted)
     let user = await (prisma.user.findFirst as any)({
-      where: { username, deletedAt: null },
+      where: { username },
       select: {
         id: true,
         name: true,
@@ -80,7 +80,7 @@ export async function GET(
     // If not found by username, try finding by ID
     if (!user) {
       user = await (prisma.user.findFirst as any)({
-        where: { id: username, deletedAt: null },
+        where: { id: username },
         select: {
           id: true,
           name: true,
