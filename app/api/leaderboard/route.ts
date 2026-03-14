@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
       const topSellers = await prisma.user.findMany({
         where: {
           totalSales: { gt: 0 },
-          deletedAt: null,
         },
         select: {
           id: true,
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest) {
       const topBuyers = await prisma.user.findMany({
         where: {
           totalPurchases: { gt: 0 },
-          deletedAt: null,
         },
         select: {
           id: true,
@@ -102,7 +100,6 @@ export async function GET(request: NextRequest) {
       const topRated = await prisma.user.findMany({
         where: {
           ratingCount: { gte: 3 },
-          deletedAt: null,
         },
         select: {
           id: true,

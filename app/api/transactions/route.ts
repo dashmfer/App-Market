@@ -358,7 +358,7 @@ export async function POST(request: NextRequest) {
 
     // SECURITY [H5]: Globally unique on-chain tx — prevents replay across listings
     if (onChainTx) {
-      const existingTx = await prisma.transaction.findUnique({
+      const existingTx = await prisma.transaction.findFirst({
         where: { onChainTx },
         select: { id: true },
       });
