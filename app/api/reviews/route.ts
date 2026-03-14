@@ -215,6 +215,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SECURITY: Validate review type and require corresponding reference ID.
+    // Without this check, a user could submit type="MESSAGING" with a conversationId
+    // to bypass the transaction completion requirement entirely.
+    if (type !== "TRANSACTION" && type !== "MESSAGING") {
+      return NextResponse.json(
+        { error: "Invalid review type. Must be TRANSACTION or MESSAGING" },
+        { status: 400 }
+      );
+    }
+
+    if (type === "TRANSACTION" && !transactionId) {
+      return NextResponse.json(
+        { error: "transactionId is required for transaction reviews" },
+        { status: 400 }
+      );
+    }
+
+    if (type === "MESSAGING" && !conversationId) {
+      return NextResponse.json(
+        { error: "conversationId is required for messaging reviews" },
+        { status: 400 }
+      );
+    }
+
     let reviewerRole: "BUYER" | "SELLER" = "BUYER";
 
     // For transaction-based reviews
@@ -328,6 +352,26 @@ export async function POST(request: NextRequest) {
       if (subjectId !== otherParticipant) {
         return NextResponse.json(
           { error: "You can only review the other participant" },
+          { status: 400 }
+        );
+      }
+
+      // SECURITY: Require a completed transaction between the two participants
+      // to prevent review spam from users who only messaged but never transacted.
+      const completedTransaction = await prisma.transaction.findFirst({
+        where: {
+          status: "COMPLETED",
+          OR: [
+            { buyerId: authorId, sellerId: subjectId },
+            { buyerId: subjectId, sellerId: authorId },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (!completedTransaction) {
+        return NextResponse.json(
+          { error: "You can only leave messaging reviews after completing a transaction with this user" },
           { status: 400 }
         );
       }
