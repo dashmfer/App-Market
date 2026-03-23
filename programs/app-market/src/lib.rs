@@ -1113,6 +1113,12 @@ pub mod app_market {
         let transaction = &mut ctx.accounts.transaction;
         let clock = Clock::get()?;
 
+        // SECURITY: Verify seller is the actual signer (defense-in-depth, Signer type also checks)
+        require!(
+            ctx.accounts.seller.is_signer,
+            AppMarketError::SellerMustSign
+        );
+
         // Validations
         require!(
             transaction.status == TransactionStatus::InEscrow,

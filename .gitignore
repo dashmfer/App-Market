@@ -13,6 +13,10 @@ static_analysis_semgrep_*/
 gitleaks-report.json
 *_REPORT.md
 AUDIT-REPORT*.md
+*_AUDIT.md
+*_SUMMARY.md
+VARIANT_ANALYSIS_*.md
+IMPLEMENTATION_SUMMARY.md
 
 # TypeScript build info
 *.tsbuildinfo
