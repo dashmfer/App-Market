@@ -99,6 +99,18 @@ pub mod app_market {
             AppMarketError::NotExpectedAdmin
         );
 
+        // SECURITY: Reject zero-address treasury to prevent fee loss
+        require!(
+            ctx.accounts.treasury.key() != Pubkey::default(),
+            AppMarketError::InvalidTreasury
+        );
+
+        // SECURITY: Reject zero-address backend authority
+        require!(
+            backend_authority != Pubkey::default(),
+            AppMarketError::Unauthorized
+        );
+
         // SECURITY: Validate fee bounds
         require!(
             platform_fee_bps <= MAX_PLATFORM_FEE_BPS,

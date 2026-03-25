@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 /**
  * GET /api/profile/[userId]
@@ -10,6 +11,15 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   try {
+    // Rate limit to prevent user enumeration
+    const rateLimitResult = await (withRateLimitAsync('read', 'profile-by-id'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const { userId } = params;
 
     const user = await prisma.user.findFirst({

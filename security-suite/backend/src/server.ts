@@ -24,14 +24,16 @@ const config = loadConfig();
 
 const app = express();
 const httpServer = createServer(app);
+const ALLOWED_ORIGINS = ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'];
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: '*',
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST']
   }
 });
 
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
