@@ -3,6 +3,7 @@ import { getAuthToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { validateCsrfRequest, csrfError } from '@/lib/csrf';
+import { withRateLimitAsync } from '@/lib/rate-limit';
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
@@ -19,6 +20,15 @@ const updateProfileSchema = z.object({
  */
 export async function GET(req: NextRequest) {
   try {
+    // SECURITY: Rate limit to prevent user enumeration / timing attacks
+    const rateLimitResult = await (withRateLimitAsync('read', 'profile'))(req);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     // Use getAuthToken for JWT-based authentication (works better with credentials provider)
     const token = await getAuthToken(req);
 

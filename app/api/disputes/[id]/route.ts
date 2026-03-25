@@ -223,6 +223,22 @@ export async function PUT(
     const body = await request.json();
     const { response, evidence } = body;
 
+    // SECURITY: Validate response text length
+    if (response !== undefined && response !== null) {
+      if (typeof response !== "string") {
+        return NextResponse.json(
+          { error: "Response must be a string" },
+          { status: 400 }
+        );
+      }
+      if (response.length > 5000) {
+        return NextResponse.json(
+          { error: "Response text too long (max 5000 characters)" },
+          { status: 400 }
+        );
+      }
+    }
+
     // SECURITY: Validate evidence structure and length
     if (evidence !== undefined && evidence !== null) {
       if (!Array.isArray(evidence)) {

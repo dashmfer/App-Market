@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import { getAuthToken } from "@/lib/auth";
+import { validateCsrfRequest, csrfError } from "@/lib/csrf";
 
 // GET /api/notifications - Get user's notifications
 export async function GET(request: NextRequest) {
@@ -51,6 +52,12 @@ export async function GET(request: NextRequest) {
 // PATCH /api/notifications - Mark notifications as read
 export async function PATCH(request: NextRequest) {
   try {
+    // SECURITY: CSRF protection for state-changing endpoint
+    const csrf = validateCsrfRequest(request);
+    if (!csrf.valid) {
+      return csrfError(csrf.error || "CSRF validation failed");
+    }
+
     const token = await getAuthToken(request);
 
     if (!token?.id) {
@@ -78,6 +85,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (notificationId) {
+      // SECURITY: Validate notificationId is a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (typeof notificationId !== "string" || !uuidRegex.test(notificationId)) {
+        return NextResponse.json(
+          { error: "Invalid notification ID format" },
+          { status: 400 }
+        );
+      }
+
       // Mark specific notification as read
       await prisma.notification.updateMany({
         where: {

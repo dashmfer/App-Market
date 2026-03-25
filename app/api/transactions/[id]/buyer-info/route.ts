@@ -84,11 +84,34 @@ export async function POST(
     const body = await request.json();
     const { info } = body;
 
-    if (!info || typeof info !== "object") {
+    if (!info || typeof info !== "object" || Array.isArray(info)) {
       return NextResponse.json(
         { error: "Invalid buyer info" },
         { status: 400 }
       );
+    }
+
+    // SECURITY: Validate info object structure - all values must be strings with bounded length
+    const infoEntries = Object.entries(info);
+    if (infoEntries.length > 20) {
+      return NextResponse.json(
+        { error: "Too many fields (max 20)" },
+        { status: 400 }
+      );
+    }
+    for (const [key, value] of infoEntries) {
+      if (typeof key !== "string" || key.length > 100) {
+        return NextResponse.json(
+          { error: "Invalid field name" },
+          { status: 400 }
+        );
+      }
+      if (typeof value !== "string" || value.length > 1000) {
+        return NextResponse.json(
+          { error: `Field "${key}" must be a string (max 1000 characters)` },
+          { status: 400 }
+        );
+      }
     }
 
     const transaction = await prisma.transaction.findUnique({

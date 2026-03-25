@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Rate limit to prevent abuse of potentially expensive queries
+    const rateLimitResult = await (withRateLimitAsync('read', 'leaderboard'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get("type") || "sellers"; // sellers, buyers, or rated
     const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 50);
