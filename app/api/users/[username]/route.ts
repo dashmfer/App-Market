@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getAuthToken } from "@/lib/auth";
+import { withRateLimitAsync } from "@/lib/rate-limit";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ username: string }> }
 ) {
   try {
+    // Rate limit to prevent user enumeration
+    const rateLimitResult = await (withRateLimitAsync('read', 'user-profile'))(request);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: rateLimitResult.error },
+        { status: 429, headers: rateLimitResult.headers }
+      );
+    }
+
     const { username } = await params;
 
     // Get current user info for checking reserved listings
