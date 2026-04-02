@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
-    "@coral-xyz/anchor": "^0.29.0",
+    "@coral-xyz/anchor": "^0.32.1",
     "@hookform/resolvers": "^3.3.4",
     "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
     "@meteora-ag/dynamic-bonding-curve-sdk": "^1.5.2",
