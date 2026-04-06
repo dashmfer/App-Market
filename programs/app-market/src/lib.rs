@@ -58,6 +58,9 @@ pub mod app_market {
     /// Admin timelock: 48 hours for sensitive operations
     pub const ADMIN_TIMELOCK_SECONDS: i64 = 48 * 60 * 60;
 
+    /// Backend authority timelock: 6 hours (shorter — operational, not financial)
+    pub const BACKEND_AUTHORITY_TIMELOCK_SECONDS: i64 = 6 * 60 * 60;
+
     /// Finalize grace period: 7 days after seller confirmation
     pub const FINALIZE_GRACE_PERIOD: i64 = 7 * 24 * 60 * 60;
 
@@ -283,7 +286,7 @@ pub mod app_market {
         Ok(())
     }
 
-    /// Propose backend authority change (step 1 of timelock)
+    /// Propose backend authority change (step 1 of timelock, 6 hour wait)
     pub fn propose_backend_authority_change(
         ctx: Context<ProposeBackendAuthorityChange>,
         new_backend_authority: Pubkey,
@@ -306,13 +309,13 @@ pub mod app_market {
         emit!(BackendAuthorityChangeProposed {
             old_backend_authority: config.backend_authority,
             new_backend_authority,
-            executable_at: Clock::get()?.unix_timestamp + ADMIN_TIMELOCK_SECONDS,
+            executable_at: Clock::get()?.unix_timestamp + BACKEND_AUTHORITY_TIMELOCK_SECONDS,
         });
 
         Ok(())
     }
 
-    /// Execute backend authority change (step 2 of timelock, after 48 hours)
+    /// Execute backend authority change (step 2 of timelock, after 6 hours)
     pub fn execute_backend_authority_change(ctx: Context<ExecuteBackendAuthorityChange>) -> Result<()> {
         require!(
             ctx.accounts.admin.key() == ctx.accounts.config.admin,
@@ -330,7 +333,7 @@ pub mod app_market {
         let proposed_at = config.pending_backend_authority_at
             .ok_or(AppMarketError::NoPendingChange)?;
         require!(
-            clock.unix_timestamp >= proposed_at + ADMIN_TIMELOCK_SECONDS,
+            clock.unix_timestamp >= proposed_at + BACKEND_AUTHORITY_TIMELOCK_SECONDS,
             AppMarketError::TimelockNotExpired
         );
 
@@ -342,6 +345,42 @@ pub mod app_market {
         emit!(BackendAuthorityChanged {
             new_backend_authority: config.backend_authority,
             timestamp: clock.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Emergency backend authority rotation (instant, requires BOTH admin + current backend authority)
+    /// Use when the backend authority key is compromised and you can't wait 6 hours
+    pub fn emergency_rotate_backend_authority(
+        ctx: Context<EmergencyRotateBackendAuthority>,
+        new_backend_authority: Pubkey,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.admin.key() == ctx.accounts.config.admin,
+            AppMarketError::NotAdmin
+        );
+        require!(
+            ctx.accounts.current_backend_authority.key() == ctx.accounts.config.backend_authority,
+            AppMarketError::NotBackendAuthority
+        );
+
+        // SECURITY: Reject zero-address
+        require!(
+            new_backend_authority != Pubkey::default(),
+            AppMarketError::Unauthorized
+        );
+
+        let config = &mut ctx.accounts.config;
+        let old = config.backend_authority;
+        config.backend_authority = new_backend_authority;
+        // Clear any pending timelock change
+        config.pending_backend_authority = None;
+        config.pending_backend_authority_at = None;
+
+        emit!(BackendAuthorityChanged {
+            new_backend_authority: config.backend_authority,
+            timestamp: Clock::get()?.unix_timestamp,
         });
 
         Ok(())
@@ -3380,6 +3419,16 @@ pub struct ExecuteBackendAuthorityChange<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, MarketConfig>,
     pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct EmergencyRotateBackendAuthority<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+    /// Admin must sign
+    pub admin: Signer<'info>,
+    /// Current backend authority must also sign (proves you still control it)
+    pub current_backend_authority: Signer<'info>,
 }
 
 // ============================================
