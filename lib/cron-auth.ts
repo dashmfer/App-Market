@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { timingSafeEqual } from "crypto";
+import { timingSafeEqual, randomBytes } from "crypto";
 
 /**
  * Verify cron secret using constant-time comparison to prevent timing attacks.
@@ -60,7 +60,7 @@ export async function acquireCronLock(
   }
 
   const lockKey = `cron:lock:${jobName}`;
-  const lockValue = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const lockValue = `${Date.now()}-${randomBytes(8).toString('hex')}`;
 
   // Atomic SET NX EX — only succeeds if key doesn't exist
   const result = await redis.set(lockKey, lockValue, { nx: true, ex: ttlSeconds });

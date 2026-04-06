@@ -40,7 +40,7 @@ jobs:
 
       - name: Upload Snyk dependency results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
-        if: success() && hashFiles('snyk-deps.sarif') != ''
+        if: always() && hashFiles('snyk-deps.sarif') != ''
         with:
           sarif_file: snyk-deps.sarif
           category: snyk-dependencies
@@ -69,7 +69,7 @@ jobs:
 
       - name: Upload Snyk Code results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
-        if: success() && hashFiles('snyk-code.sarif') != ''
+        if: always() && hashFiles('snyk-code.sarif') != ''
         with:
           sarif_file: snyk-code.sarif
           category: snyk-code
