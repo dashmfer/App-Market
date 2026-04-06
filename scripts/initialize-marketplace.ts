@@ -90,8 +90,23 @@ async function main() {
 
   console.log("   Config account not found - proceeding with initialization");
 
-  // Backend authority (using admin wallet for now)
-  const backendAuthority = walletKeypair.publicKey;
+  // Backend authority — use a dedicated keypair (NOT the admin wallet)
+  // Generate with: solana-keygen new --no-bip39-passphrase --outfile backend-authority.json
+  const backendAuthorityPath = process.env.BACKEND_AUTHORITY_KEYPAIR_PATH
+    || path.join(path.dirname(walletPath), "backend-authority.json");
+
+  let backendAuthority: PublicKey;
+  if (fs.existsSync(backendAuthorityPath)) {
+    const backendAuthorityKeypair = Keypair.fromSecretKey(
+      Uint8Array.from(JSON.parse(fs.readFileSync(backendAuthorityPath, "utf8")))
+    );
+    backendAuthority = backendAuthorityKeypair.publicKey;
+    console.log(`Loaded backend authority from: ${backendAuthorityPath}`);
+  } else {
+    console.warn("WARNING: No backend-authority.json found, falling back to admin wallet.");
+    console.warn("For mainnet, generate a dedicated keypair: solana-keygen new --no-bip39-passphrase --outfile backend-authority.json");
+    backendAuthority = walletKeypair.publicKey;
+  }
 
   console.log("\nInitialization Parameters:");
   console.log("   Admin:", walletKeypair.publicKey.toBase58());

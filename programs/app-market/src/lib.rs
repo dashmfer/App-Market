@@ -134,6 +134,8 @@ pub mod app_market {
         config.pending_treasury_at = None;
         config.pending_admin = None;
         config.pending_admin_at = None;
+        config.pending_backend_authority = None;
+        config.pending_backend_authority_at = None;
         config.bump = ctx.bumps.config;
 
         emit!(MarketplaceInitialized {
@@ -276,6 +278,70 @@ pub mod app_market {
         emit!(ContractPausedEvent {
             paused,
             timestamp: Clock::get()?.unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    /// Propose backend authority change (step 1 of timelock)
+    pub fn propose_backend_authority_change(
+        ctx: Context<ProposeBackendAuthorityChange>,
+        new_backend_authority: Pubkey,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.admin.key() == ctx.accounts.config.admin,
+            AppMarketError::NotAdmin
+        );
+
+        // SECURITY: Reject zero-address
+        require!(
+            new_backend_authority != Pubkey::default(),
+            AppMarketError::Unauthorized
+        );
+
+        let config = &mut ctx.accounts.config;
+        config.pending_backend_authority = Some(new_backend_authority);
+        config.pending_backend_authority_at = Some(Clock::get()?.unix_timestamp);
+
+        emit!(BackendAuthorityChangeProposed {
+            old_backend_authority: config.backend_authority,
+            new_backend_authority,
+            executable_at: Clock::get()?.unix_timestamp + ADMIN_TIMELOCK_SECONDS,
+        });
+
+        Ok(())
+    }
+
+    /// Execute backend authority change (step 2 of timelock, after 48 hours)
+    pub fn execute_backend_authority_change(ctx: Context<ExecuteBackendAuthorityChange>) -> Result<()> {
+        require!(
+            ctx.accounts.admin.key() == ctx.accounts.config.admin,
+            AppMarketError::NotAdmin
+        );
+
+        let config = &mut ctx.accounts.config;
+        let clock = Clock::get()?;
+
+        require!(
+            config.pending_backend_authority.is_some(),
+            AppMarketError::NoPendingChange
+        );
+
+        let proposed_at = config.pending_backend_authority_at
+            .ok_or(AppMarketError::NoPendingChange)?;
+        require!(
+            clock.unix_timestamp >= proposed_at + ADMIN_TIMELOCK_SECONDS,
+            AppMarketError::TimelockNotExpired
+        );
+
+        config.backend_authority = config.pending_backend_authority
+            .ok_or(AppMarketError::NoPendingChange)?;
+        config.pending_backend_authority = None;
+        config.pending_backend_authority_at = None;
+
+        emit!(BackendAuthorityChanged {
+            new_backend_authority: config.backend_authority,
+            timestamp: clock.unix_timestamp,
         });
 
         Ok(())
@@ -3302,6 +3368,20 @@ pub struct SetPaused<'info> {
     pub admin: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct ProposeBackendAuthorityChange<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ExecuteBackendAuthorityChange<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, MarketConfig>,
+    pub admin: Signer<'info>,
+}
+
 // ============================================
 // STATE
 // ============================================
@@ -3322,6 +3402,8 @@ pub struct MarketConfig {
     pub pending_treasury_at: Option<i64>,
     pub pending_admin: Option<Pubkey>,
     pub pending_admin_at: Option<i64>,
+    pub pending_backend_authority: Option<Pubkey>,
+    pub pending_backend_authority_at: Option<i64>,
     pub bump: u8,
 }
 
@@ -3664,6 +3746,19 @@ pub struct AdminChangeProposed {
 #[event]
 pub struct AdminChanged {
     pub new_admin: Pubkey,
+    pub timestamp: i64,
+}
+
+#[event]
+pub struct BackendAuthorityChangeProposed {
+    pub old_backend_authority: Pubkey,
+    pub new_backend_authority: Pubkey,
+    pub executable_at: i64,
+}
+
+#[event]
+pub struct BackendAuthorityChanged {
+    pub new_backend_authority: Pubkey,
     pub timestamp: i64,
 }
 
