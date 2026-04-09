@@ -92,7 +92,7 @@
     "chai": "^4.4.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.35",
-    "mocha": "^10.3.0",
+    "mocha": "^11.7.5",
     "pino-pretty": "^10.3.1",
     "postcss": "^8.4.35",
     "prisma": "^5.10.2",
