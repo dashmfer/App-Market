@@ -96,7 +96,7 @@
     "pino-pretty": "^10.3.1",
     "postcss": "^8.4.35",
     "prisma": "^5.10.2",
-    "tailwindcss": "^3.4.1",
+    "tailwindcss": "^4.2.2",
     "ts-mocha": "^10.0.0",
     "typescript": "^5.3.3"
   }
