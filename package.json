@@ -66,7 +66,7 @@
     "lucide-react-original": "npm:lucide-react@0.294.0",
     "next": "^14.2.35",
     "next-auth": "^4.24.6",
-    "next-intl": "^4.7.0",
+    "next-intl": "^4.9.0",
     "next-themes": "^0.2.1",
     "qrcode.react": "^4.2.0",
     "react": "^18.2.0",
